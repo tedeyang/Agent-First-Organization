@@ -8,6 +8,7 @@ from functools import partial
 from arklex.env.tools.tools import Tool
 from arklex.env.workers.worker import BaseWorker
 from arklex.env.planner.function_calling import FunctionCallingPlanner
+from arklex.env.planner.react_planner import ReactPlanner
 from arklex.utils.graph_state import Params, MessageState
 from arklex.orchestrator.NLU.nlu import SlotFilling
 
@@ -80,8 +81,13 @@ class Env():
         self.name2id = {resource["name"]: id for id, resource in {**self.tools, **self.workers}.items()}
         self.id2name = {id: resource["name"] for id, resource in {**self.tools, **self.workers}.items()}
         self.slotfillapi = self.initialize_slotfillapi(slotsfillapi)
-        self.planner = FunctionCallingPlanner(
+        # self.planner = FunctionCallingPlanner(
+        #     tools_map=self.tools,
+        #     name2id=self.name2id
+        # )
+        self.planner = ReactPlanner(
             tools_map=self.tools,
+            workers_map=self.workers,
             name2id=self.name2id
         )
 
