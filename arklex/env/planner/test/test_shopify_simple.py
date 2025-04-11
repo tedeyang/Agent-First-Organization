@@ -10,6 +10,8 @@ import warnings
 
 from arklex.orchestrator.orchestrator import AgentOrg
 from arklex.env.env import Env
+from arklex.utils.model_config import MODEL
+from arklex.utils.model_provider_config import LLM_PROVIDERS
 from arklex.env.tools.shopify.get_cart import get_cart
 
 # Wait this many seconds between tests to avoid token rate-limiting
@@ -28,6 +30,10 @@ class Logic_Test(unittest.TestCase):
         cls.config = None
         cls.env = None
         cls.total_tests_run = 0
+
+        # Update this to change model provider and model type for testing
+        MODEL["llm_provider"] = "anthropic"
+        MODEL["model_type_or_path"] = "claude-3-5-sonnet-20241022"
         
     @classmethod
     def tearDownClass(cls):
@@ -193,7 +199,7 @@ class Logic_Test(unittest.TestCase):
     def test_Unittest07(self):
         self._run_test_case(7)
 
-    def test_Unittest8(self):
+    def test_Unittest08(self):
         self._run_test_case(8)
 
         # Since this test updates a cart, ensure that the cart's contents have actually been updated

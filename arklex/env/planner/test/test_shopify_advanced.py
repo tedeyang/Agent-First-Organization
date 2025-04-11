@@ -10,6 +10,8 @@ import warnings
 
 from arklex.orchestrator.orchestrator import AgentOrg
 from arklex.env.env import Env
+from arklex.utils.model_config import MODEL
+from arklex.utils.model_provider_config import LLM_PROVIDERS
 
 # Wait this many seconds between tests to avoid token rate-limiting
 WAIT_TIME_BETWEEN_TESTS_SEC = 5 # Set to None or 0 for no wait time
@@ -27,6 +29,10 @@ class Logic_Test(unittest.TestCase):
         cls.config = None
         cls.env = None
         cls.total_tests_run = 0
+
+        # Update this to change model provider and model type for testing
+        MODEL["llm_provider"] = "gemini"
+        MODEL["model_type_or_path"] = "gemini-2.5-pro-preview-03-25"
         
     @classmethod
     def tearDownClass(cls):
