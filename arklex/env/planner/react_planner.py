@@ -219,8 +219,8 @@ class ReactPlanner:
         (available tools/workers).
         """
 
-        user_message = state['user_message'].message
-        task = state["orchestrator_message"].attribute.get("task", "")
+        user_message = state.user_message.message
+        task = state.orchestrator_message.attribute.get("task", "")
 
         # Get list of (brief) descriptions of available resources to guide planning steps summary generation
         resource_descriptions = ""
@@ -429,8 +429,8 @@ class ReactPlanner:
             retrieved_actions = {doc.metadata["resource_name"]: doc.metadata["json_signature"] for doc in signature_docs}
             formatted_actions_str = str(retrieved_actions)
             
-        user_message = state['user_message'].message
-        task = state["orchestrator_message"].attribute.get("task", "")
+        user_message = state.user_message.message
+        task = state.orchestrator_message.attribute.get("task", "")
 
         # Format planner ReAct system prompt
         if USE_FEW_SHOT_REACT_PROMPT:
@@ -545,7 +545,8 @@ class ReactPlanner:
     
     def execute(self, msg_state: MessageState, msg_history):
         msg_history, action, response = self.plan(msg_state, msg_history)
-        msg_state["response"] = response
+        #msg_state["response"] = response
+        msg_state.response = response
         return action, msg_state, msg_history
 
 
