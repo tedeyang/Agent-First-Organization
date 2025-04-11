@@ -58,14 +58,11 @@ class ReactPlanner:
     def __init__(self,
         tools_map: Dict[str, Any],
         workers_map: Dict[str, Any],
-        name2id: Dict[str, int],
-        resource_docs_dir: Optional[str] = None):
+        name2id: Dict[str, int]):
 
         super().__init__()
         self.tools_map = tools_map
         self.workers_map = workers_map
-
-        #self.tools_info = [tool["execute"]().info for tool in self.tools_map.values()]
         self.name2id = name2id
 
         # Store worker and tool info in single resources dict with standardized formatting
@@ -90,28 +87,9 @@ class ReactPlanner:
             "returns": {}
         }
 
-        # Store resource signature documents for RAG retrieval in input_dir (where taskgraph.json is found);
-        # if not provided (None), create temporary dir for this vector store
-        if resource_docs_dir is None:
-            resource_docs_dir = "/temp_resource_store/"
-            logger.info(
-                f"No resource_docs_dir passed to planner.init(); creating resource info vector store in new dir {resource_docs_dir}"
-            )
-
-            # Remove contents of this temp dir if it already exists
-            if os.path.exists(resource_docs_dir):
-                shutil.rmtree(resource_docs_dir)
-            os.makedirs(resource_docs_dir, exist_ok=True)
-
-        resource_docs_filename = "planner_resource_library.pkl"
-        self.resource_docs_path = os.path.join(resource_docs_dir, resource_docs_filename)
         
-        # Save documents containing tool/worker info
+        # Create documents containing tool/worker info
         resource_docs = self._create_resource_rag_docs(self.all_resources_info)
-        resource_doc_ids = [str(uuid.uuid4()) for _ in range(len(resource_docs))]
-        logger.info(f"Planner creating RAG documents for {len(resource_docs)} resources (tools/workers) at {self.resource_docs_path}")
-        with open(self.resource_docs_path, "wb") as f:
-            pickle.dump(resource_docs, f)
 
         # Init embedding model and FAISS retriever for RAG resource signature retrieval
         self.embedding_model_name = PROVIDER_EMBEDDING_MODELS[MODEL['llm_provider']]
@@ -374,11 +352,6 @@ class ReactPlanner:
             retrieved_resource_names = [d.metadata["resource_name"] for d in signature_docs]
             if guaranteed_resource_name not in retrieved_resource_names:
                 signature_docs.append(doc)
-
-        # DEBUG
-        for doc in signature_docs:
-            name = doc.metadata["resource_name"]
-            logger.info(f"retrieved signature for {name}: {doc.page_content}")
         
         return signature_docs
 
@@ -461,7 +434,6 @@ class ReactPlanner:
 
         # Format planner ReAct system prompt
         if USE_FEW_SHOT_REACT_PROMPT:
-            #prompt = PromptTemplate.from_template(PLANNER_REACT_INSTRUCTION_FEW_SHOT)
             prompt = PromptTemplate.from_template(PLANNER_REACT_INSTRUCTION_FEW_SHOT_WITH_RAG)
         else:
             prompt = PromptTemplate.from_template(PLANNER_REACT_INSTRUCTION_ZERO_SHOT)
@@ -476,23 +448,11 @@ class ReactPlanner:
         messages: List[Dict[str, Any]] = [
             {"role": self.system_role, "content": input_prompt.text}
         ]
-
-        # FIXME - Remove DefaultWorker message indicating assistant is unable to help with request
-        # (Necessary due to use of empty task graph and recent changes to ReAct framework usage in
-        # orchestrator.py)
-        # messages.extend(msg_history)
-        messages.extend(msg_history[:-2])
+        messages.extend(msg_history)
 
         for _ in range(max_num_steps):
 
             # Invoke model to get response to ReAct instruction
-            # res = completion(
-            #     messages=messages,
-            #     model=MODEL["model_type_or_path"],
-            #     custom_llm_provider=MODEL["llm_provider"],
-            #     temperature=0.0
-            # )
-            # response_text = res.choices[0].message.content
             res = self.llm.invoke(messages)
             message = aimessage_to_dict(res)
             response_text = message["content"]
@@ -506,11 +466,9 @@ class ReactPlanner:
             # Execute actions
             for action in actions:
                 env_response = self.step(action, state)
-                #logger.info(f"env_response in planner: {env_response}")
 
                 # Exit loop if planner action is RESPOND_ACTION
                 if action.name == RESPOND_ACTION_NAME:
-                    # TODO: TBD - Add assistant response to msg_history
                     return msg_history, action.name, env_response.observation
 
                 else:
