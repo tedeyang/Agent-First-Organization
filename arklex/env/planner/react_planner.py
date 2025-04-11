@@ -127,10 +127,14 @@ class ReactPlanner:
         respond_action_doc = [d for d in resource_docs if d.metadata["resource_name"] == RESPOND_ACTION_NAME][0]
         self.guaranteed_retrieval_docs = [respond_action_doc]
 
-        self.llm = PROVIDER_MAP.get(MODEL['llm_provider'], ChatOpenAI)(
-            model=MODEL["model_type_or_path"],
+        self.llm_provider = MODEL['llm_provider']
+        self.model_name = MODEL["model_type_or_path"]
+        self.llm = PROVIDER_MAP.get(self.llm_provider, ChatOpenAI)(
+            model=self.model_name,
             temperature = 0.0,
         )
+        self.system_role = "user" if self.llm_provider == "gemini" else "system"
+
 
     def _format_worker_info(self, workers_map: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -250,16 +254,27 @@ class ReactPlanner:
         
         # Format planning trajectory summarization prompt with user message, task, and resource descriptions
         prompt = PromptTemplate.from_template(PLANNER_SUMMARIZE_TRAJECTORY_PROMPT)
-        input_prompt = prompt.invoke({
+        system_prompt = prompt.invoke({
             "user_message": user_message,
             "resource_descriptions": resource_descriptions,
             "task": task
         })
-        logger.info(f"Planner trajectory summary prompt: {input_prompt.text}")
+        logger.info(f"Planner trajectory summarization system prompt: {system_prompt.text}")
 
-        messages: List[Dict[str, Any]] = [
-            {"role": "system", "content": input_prompt.text}
-        ]
+        # If model provider is OpenAI, messages can contain a single system message.
+        # If model provider is Google, messages cannot contain system messages, and must 
+        # contain a single user message with system instructions.
+        # If model provider is Anthropic, messages can contain a system prompt, but must also
+        # contain at least one user message.
+        if self.llm_provider.lower() in ["openai", "gemini"]:
+            messages: List[Dict[str, Any]] = [
+                {"role": self.system_role, "content": system_prompt.text}
+            ]
+        elif self.llm_provider.lower() == "anthropic":
+            messages: List[Dict[str, Any]] = [
+                {"role": self.system_role, "content": system_prompt.text},
+                {"role": "user", "content": user_message}
+            ]
 
         # Invoke model to get response to ReAct instruction
         res = self.llm.invoke(messages)
@@ -372,6 +387,7 @@ class ReactPlanner:
         Parse model response to planner ReAct instruction to extract tool/worker info as JSON.
         """
         action_str = response.split("Action:\n")[-1]
+        logger.info(f"planner action_str: {action_str}")
 
         # Attempt to parse action as JSON object
         try:
@@ -427,11 +443,13 @@ class ReactPlanner:
         trajectory_summary = self._get_planning_trajectory_summary(state, msg_history)
         logger.info(f"planning trajectory summary response in planner:\n{trajectory_summary}")
         n_retrievals = self._get_num_resource_retrievals(trajectory_summary)
+
         # Retrieve signature documents for desired number of resources using trajectory summary as RAG query
         signature_docs = self._retrieve_resource_signatures(n_retrievals, trajectory_summary)
         actual_n_retrievals = len(signature_docs)
         resource_names = [doc.metadata["resource_name"] for doc in signature_docs]
         logger.info(f"Planner retrieved {actual_n_retrievals} signatures for the following resources (tools/workers): {resource_names}")
+
         # Format signatures of retrieved resources to insert into ReAct instruction
         formatted_actions_str = "None"
         if len(signature_docs) > 0:
@@ -456,7 +474,7 @@ class ReactPlanner:
         })
 
         messages: List[Dict[str, Any]] = [
-            {"role": "system", "content": input_prompt.text}
+            {"role": self.system_role, "content": input_prompt.text}
         ]
 
         # FIXME - Remove DefaultWorker message indicating assistant is unable to help with request
@@ -480,7 +498,10 @@ class ReactPlanner:
             response_text = message["content"]
             logger.info(f"response text in planner: {response_text}")
             json_response = self._parse_response_action_to_json(response_text)
+            logger.info(f"JSON response in planner: {json_response}")
             actions = self.message_to_actions(json_response)
+
+            logger.info(f"actions in planner: {actions}")
 
             # Execute actions
             for action in actions:
@@ -566,7 +587,7 @@ class ReactPlanner:
     
     def execute(self, msg_state: MessageState, msg_history):
         msg_history, action, response = self.plan(msg_state, msg_history)
-        msg_state['response'] = response
+        msg_state["response"] = response
         return action, msg_state, msg_history
 
 
