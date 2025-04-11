@@ -31,8 +31,8 @@ class Logic_Test(unittest.TestCase):
         cls.total_tests_run = 0
 
         # Update this to change model provider and model type for testing
-        MODEL["llm_provider"] = "gemini"
-        MODEL["model_type_or_path"] = "gemini-2.5-pro-preview-03-25"
+        MODEL["llm_provider"] = "openai" # {"openai", "gemini", "anthropic"}
+        MODEL["model_type_or_path"] = "gpt-4o" # e.g., "gpt-4o", "gemini-2.0-flash", "claude-3-5-sonnet-latest"/"claude-3-5-sonnet-20241022"
         
     @classmethod
     def tearDownClass(cls):
@@ -55,12 +55,12 @@ class Logic_Test(unittest.TestCase):
 
         if len(contains_all) > 0:
             for text in contains_all:
-                failure_message = f"FAILED: Expected text '{text}' not found in final output ('{output}'). params['memory']['history'] = {params['memory']['history']}"
+                failure_message = f"FAILED: Expected text '{text}' not found in final output ('{output}'). params['memory']['function_calling_trajectory'] = {params['memory']['function_calling_trajectory']}"
                 self.assertTrue(text.lower() in output.lower(), failure_message)
 
         if len(contains_any) > 0:
             contains_flags = [text.lower() in output.lower() for text in contains_any]
-            failure_message = f"FAILED: None of {contains_any} were found in final output ('{output}'). params['memory']['history'] = {params['memory']['history']}"
+            failure_message = f"FAILED: None of {contains_any} were found in final output ('{output}'). params['memory']['function_calling_trajectory'] = {params['memory']['function_calling_trajectory']}"
             self.assertTrue(True in contains_flags, failure_message)
 
     def _check_tool_calls(self, params: Dict, env: Env, test_case: Dict):
@@ -88,7 +88,7 @@ class Logic_Test(unittest.TestCase):
         # Get actual tool calls from conversation history (ignore DefaultWorker because planner can't
         # call it)
         actual_tool_calls = {}
-        for msg in params["memory"]["history"]:
+        for msg in params["memory"]["function_calling_trajectory"]:
             if msg["role"] == "tool":
                 tool_name = msg["name"]
 
@@ -105,7 +105,7 @@ class Logic_Test(unittest.TestCase):
                 "FAILED: Planner expected tool calls != actual tool calls." +
                 f"\nexpected_tool_calls = {json.dumps(expected_tool_calls, indent=2)}" +
                 f"\nactual_tool_calls = {json.dumps(actual_tool_calls, indent=2)}" +
-                f"\nparams['memory']['history'] = {params['memory']['history']}"
+                f"\nparams['memory']['function_calling_trajectory'] = {params['memory']['function_calling_trajectory']}"
             )
             self.assertEqual(expected_tool_calls, actual_tool_calls, failure_message)
 
@@ -120,7 +120,7 @@ class Logic_Test(unittest.TestCase):
                 failure_message += f"\n{json.dumps(tool_set, indent=2)}"
             failure_message += (
                 f"\nInstead, actual_tool_calls were: {json.dumps(actual_tool_calls, indent=2)}" +
-                f"\nparams['memory']['history'] = {params['memory']['history']}"
+                f"\nparams['memory']['function_calling_trajectory'] = {params['memory']['function_calling_trajectory']}"
             )
 
             tool_call_matches = [actual_tool_calls == tool_set for tool_set in expected_tool_calls]
