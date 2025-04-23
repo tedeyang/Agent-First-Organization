@@ -23,8 +23,10 @@ load_dotenv()
 
 def generate_taskgraph(args):
     model = PROVIDER_MAP.get(MODEL['llm_provider'], ChatOpenAI)(model=MODEL["model_type_or_path"],timeout=30000)
-    generator = Generator(args, args.config, model, args.output_dir)
-    taskgraph_filepath = generator.generate()
+    config = json.load(open(args.config))
+    generator = Generator(config, model, args.output_dir)
+    taskgraph = generator.generate()
+    taskgraph_filepath = generator.save_task_graph(taskgraph)
     # Update the task graph with the API URLs
     task_graph = json.load(open(os.path.join(os.path.dirname(__file__), taskgraph_filepath)))
     task_graph["nluapi"] = ""

@@ -169,18 +169,19 @@ class TaskEditorApp(App):
 
 
 class Generator:
-    def __init__(self, args, config, model, output_dir, resource_inizializer: Optional[BaseResourceInitializer]  = None):
+    def __init__(self, config: dict, model, output_dir: str, resource_inizializer: Optional[BaseResourceInitializer]  = None):
         if resource_inizializer is None:
             resource_inizializer = DefaulResourceInitializer()
-        self.args = args
-        self.product_kwargs = json.load(open(config))
+        self.product_kwargs = config
         self.role = self.product_kwargs.get("role")
         self.u_objective = self.product_kwargs.get("user_objective")
         self.b_objective = self.product_kwargs.get("builder_objective")
         self.intro = self.product_kwargs.get("intro")
+        self.instructions = self.product_kwargs.get("instructions") 
         self.task_docs = self.product_kwargs.get("task_docs") 
         self.rag_docs = self.product_kwargs.get("rag_docs") 
         self.tasks = self.product_kwargs.get("tasks")
+        self.example_conversations = self.product_kwargs.get("example_conversations") 
         self.workers = resource_inizializer.init_workers(self.product_kwargs.get("workers"))
         self.tools = resource_inizializer.init_tools(self.product_kwargs.get("tools"))
         self.model = model
@@ -568,7 +569,7 @@ class Generator:
             self.documents = ""
 
 
-    def generate(self):
+    def generate(self) -> dict:
 
         # Step 0: Load the docs
         self._load_docs()
@@ -624,9 +625,10 @@ class Generator:
         # Step 5: Format the task graph
         task_graph = self._format_task_graph(finetuned_best_practices)
 
-        # Step 6: Save the task graph
+        return task_graph
+    
+    def save_task_graph(self, task_graph) -> str:
         taskgraph_filepath = os.path.join(self.output_dir, f'taskgraph.json')
         with open(taskgraph_filepath, "w") as f:
             json.dump(task_graph, f, indent=4)
-
         return taskgraph_filepath
