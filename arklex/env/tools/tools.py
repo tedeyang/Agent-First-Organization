@@ -90,7 +90,7 @@ class Tool:
         self._init_slots(state)
         # do slotfilling
         chat_history_str = format_chat_history(state.function_calling_trajectory)
-        slots : list[Slot] = self.slotfillapi.execute(self.slots, chat_history_str)
+        slots : list[Slot] = self.slotfillapi.execute(self.slots, chat_history_str, self.llm_config)
         logger.info(f'{slots=}')
         if not all([slot.value and slot.verified for slot in slots if slot.required]):
             for slot in slots:
