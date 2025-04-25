@@ -10,10 +10,8 @@ from langchain_core.documents import Document
 from langchain_community.vectorstores.faiss import FAISS
 from langchain_openai import OpenAIEmbeddings
 
-
-from arklex.utils.model_config import MODEL
 from arklex.env.prompts import load_prompts
-from arklex.utils.graph_state import MessageState
+from arklex.utils.graph_state import MessageState, LLMConfig
 from arklex.utils.model_provider_config import PROVIDER_MAP, PROVIDER_EMBEDDINGS, PROVIDER_EMBEDDING_MODELS
 from arklex.env.tools.utils import trace
 
@@ -28,7 +26,7 @@ class RetrieveEngine():
 
         # Search for the relevant documents
         prompts = load_prompts(state.bot_config)
-        docs = FaissRetrieverExecutor.load_docs(database_path=os.environ.get("DATA_DIR"))
+        docs = FaissRetrieverExecutor.load_docs(database_path=os.environ.get("DATA_DIR"), llm_config=state.bot_config.llm_config)
         retrieved_text, retriever_returns = docs.search(user_message.history, prompts["retrieve_contextualize_q_prompt"])
 
         state.message_flow = retrieved_text
@@ -41,20 +39,17 @@ class FaissRetrieverExecutor:
             self, 
             texts: List[Document], 
             index_path: str,
-            embedding_model_name: str =  PROVIDER_EMBEDDING_MODELS[MODEL['llm_provider']]
+            llm_config: LLMConfig,
         ):
         self.texts = texts
         self.index_path = index_path
-        self.embedding_model_name = embedding_model_name
-        self.llm = PROVIDER_MAP.get(MODEL['llm_provider'], ChatOpenAI)(
-            model=MODEL["model_type_or_path"], timeout=30000
-        )
+        self.llm_config = llm_config
         self.retriever = self._init_retriever()
 
     def _init_retriever(self, **kwargs):
         # initiate FAISS retriever
-        embedding_model = PROVIDER_EMBEDDINGS.get(MODEL['llm_provider'], OpenAIEmbeddings)(
-            **{ 'model': self.embedding_model_name } if MODEL['llm_provider'] != 'anthropic' else { 'model_name': self.embedding_model_name }
+        embedding_model = PROVIDER_EMBEDDINGS.get(self.llm_config.llm_provider, OpenAIEmbeddings)(
+            **{ 'model': PROVIDER_EMBEDDING_MODELS[self.llm_config.llm_provider] } if self.llm_config.llm_provider != 'anthropic' else { 'model_name': PROVIDER_EMBEDDING_MODELS[self.llm_config.llm_provider] }
         )
         docsearch = FAISS.from_documents(self.texts, embedding_model)
         retriever = docsearch.as_retriever(**kwargs)
@@ -69,7 +64,10 @@ class FaissRetrieverExecutor:
         contextualize_q_prompt = PromptTemplate.from_template(
             contextualize_prompt
         )
-        ret_input_chain = contextualize_q_prompt | self.llm | StrOutputParser()
+        llm = PROVIDER_MAP.get(self.llm_config.llm_provider, ChatOpenAI)(
+            model=self.llm_config.model_type_or_path
+        )
+        ret_input_chain = contextualize_q_prompt | llm | StrOutputParser()
         ret_input = ret_input_chain.invoke({"chat_history": chat_history_str})
         logger.info(f"Reformulated input for retriever search: {ret_input}")
         docs_and_score = self.retrieve_w_score(ret_input)
@@ -87,7 +85,7 @@ class FaissRetrieverExecutor:
         return retrieved_text, retriever_returns
 
     @staticmethod
-    def load_docs(database_path: str, embeddings: str=None, index_path: str="./index"):
+    def load_docs(database_path: str, llm_config: LLMConfig, index_path: str="./index"):
         document_path = os.path.join(database_path, "chunked_documents.pkl")
         index_path = os.path.join(database_path, "index")
         logger.info(f"Loaded documents from {document_path}")
@@ -97,5 +95,6 @@ class FaissRetrieverExecutor:
 
         return FaissRetrieverExecutor(
             texts=documents,
-            index_path=index_path
+            index_path=index_path,
+            llm_config=llm_config
         )

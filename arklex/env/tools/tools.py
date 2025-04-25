@@ -115,7 +115,7 @@ class Tool:
         if all([slot.value and slot.verified for slot in slots if slot.required]):
             logger.info("all slots filled")
             kwargs = {slot.name: slot.value for slot in slots}
-            combined_kwargs = {**kwargs, **fixed_args}
+            combined_kwargs = {**kwargs, **fixed_args, **self.llm_config}
             try:
                 response = self.func(**combined_kwargs)
                 tool_success = True
@@ -165,6 +165,7 @@ class Tool:
         return state
 
     def execute(self, state: MessageState, **fixed_args):
+        self.llm_config = state.bot_config.llm_config.model_dump()
         state = self._execute(state, **fixed_args)
         return state
     

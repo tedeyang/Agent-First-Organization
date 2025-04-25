@@ -13,7 +13,7 @@ from langchain_openai.chat_models import ChatOpenAI
 
 from arklex.env.prompts import load_prompts
 from arklex.utils.mysql import mysql_pool
-from arklex.utils.model_config import MODEL
+from arklex.utils.model_provider_config import PROVIDER_MAP
 from arklex.utils.graph_state import MessageState
 from arklex.env.tools.RAG.retrievers.retriever_document import RetrieverDocument, RetrieverDocumentType, RetrieverResult, embed, embed_retriever_document
 from arklex.env.tools.utils import trace
@@ -574,7 +574,6 @@ class MilvusRetriever:
 class MilvusRetrieverExecutor:
     def __init__(self, bot_config):
         self.bot_config = bot_config
-        self.llm = ChatOpenAI(model=MODEL["model_type_or_path"], timeout=30000)
 
     def generate_thought(self, retriever_results: List[RetrieverResult]) -> str:
         # post process list of documents into str
@@ -614,7 +613,10 @@ class MilvusRetrieverExecutor:
         contextualize_q_prompt = PromptTemplate.from_template(
             prompts.get("retrieve_contextualize_q_prompt", "")
         )
-        ret_input_chain = contextualize_q_prompt | self.llm | StrOutputParser()
+        llm = PROVIDER_MAP.get(self.bot_config.llm_config.llm_provider, ChatOpenAI)(
+            model=self.bot_config.llm_config.model_type_or_path
+        )
+        ret_input_chain = contextualize_q_prompt | llm | StrOutputParser()
         ret_input = ret_input_chain.invoke({"chat_history": chat_history_str})
         rit = time.time() - st
 

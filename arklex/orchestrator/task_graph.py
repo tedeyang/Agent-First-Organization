@@ -5,14 +5,11 @@ from typing import Tuple
 
 import networkx as nx
 import numpy as np
-from langchain_openai import ChatOpenAI
 
 from arklex.env.nested_graph.nested_graph import NestedGraph
-from arklex.utils.model_provider_config import PROVIDER_MAP
-from arklex.utils.utils import normalize, str_similarity, format_chat_history
-from arklex.utils.graph_state import NodeInfo, Params, PathNode, StatusEnum
+from arklex.utils.utils import normalize, str_similarity
+from arklex.utils.graph_state import NodeInfo, Params, PathNode, StatusEnum, LLMConfig
 from arklex.orchestrator.NLU.nlu import NLU, SlotFilling
-from arklex.utils.model_config import MODEL
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +42,7 @@ class TaskGraphBase:
 
 
 class TaskGraph(TaskGraphBase):
-    def __init__(self, name: str, product_kwargs: dict):
+    def __init__(self, name: str, product_kwargs: dict, llm_config: LLMConfig):
         super().__init__(name, product_kwargs)
         self.unsure_intent = {
                 "intent": "others",
@@ -59,9 +56,7 @@ class TaskGraph(TaskGraphBase):
                 }
             }
         self.initial_node = self.get_initial_flow()
-        self.model = PROVIDER_MAP.get(MODEL['llm_provider'], ChatOpenAI)(
-            model=MODEL["model_type_or_path"], timeout=30000
-        )
+        self.llm_config = llm_config
         self.nluapi = NLU(self.product_kwargs.get("nluapi"))
         self.slotfillapi = SlotFilling(self.product_kwargs.get("slotfillapi"))
 
@@ -266,7 +261,7 @@ class TaskGraph(TaskGraphBase):
                 candidate_intents.get(self.unsure_intent.get("intent"), [self.unsure_intent])
             logger.info(f"Available global intents with unsure intent: {candidate_intents}")
             
-            pred_intent = self.nluapi.execute(self.text, candidate_intents, self.chat_history_str)
+            pred_intent = self.nluapi.execute(self.text, candidate_intents, self.chat_history_str, self.llm_config.model_dump())
             params.taskgraph.nlu_records.append({"candidate_intents": candidate_intents, 
                                 "pred_intent": pred_intent, "no_intent": False, "global_intent": True})
             found_pred_in_avil, pred_intent, intent_idx = self._postprocess_intent(pred_intent, available_global_intents)
@@ -317,7 +312,7 @@ class TaskGraph(TaskGraphBase):
         curr_local_intents_w_unsure[self.unsure_intent.get("intent")] = \
             curr_local_intents_w_unsure.get(self.unsure_intent.get("intent"), [self.unsure_intent])
         logger.info(f"Check intent under current node: {curr_local_intents_w_unsure}")
-        pred_intent = self.nluapi.execute(self.text, curr_local_intents_w_unsure, self.chat_history_str)
+        pred_intent = self.nluapi.execute(self.text, curr_local_intents_w_unsure, self.chat_history_str, self.llm_config.model_dump())
         params.taskgraph.nlu_records.append({"candidate_intents": curr_local_intents_w_unsure, 
                                 "pred_intent": pred_intent, "no_intent": False, "global_intent": False})
         found_pred_in_avil, pred_intent, intent_idx = self._postprocess_intent(pred_intent, curr_local_intents)
@@ -478,13 +473,5 @@ class TaskGraph(TaskGraphBase):
     def postprocess_node(self, node) -> Tuple[NodeInfo, Params]:
         node_info: NodeInfo = node[0]
         params: Params = node[1]
-        dialog_states = params.taskgraph.dialog_states
-        # update the dialog states
-        if dialog_states.get(node_info.resource_id):
-            dialog_states = self.slotfillapi.execute(
-                dialog_states.get(node_info.resource_id),
-                format_chat_history(params.memory.function_calling_trajectory)
-            )
-        params.taskgraph.dialog_states = dialog_states
-
+        # TODO: future node postprocessing
         return node_info, params
