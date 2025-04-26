@@ -24,15 +24,21 @@ def build_rag(folder_path, rag_docs):
             source = doc.get("source")
             logging.info(f"Crawling {source}")
             num_docs = doc.get("num") if doc.get("num") else 1
-            if doc.get('type') != 'local':
+            if doc.get('type') == 'url':
                     num_docs = doc.get("num") if doc.get("num") else 1
                     urls = loader.get_all_urls(source, num_docs)
                     crawled_urls = loader.to_crawled_url_objs(urls)
                     docs.extend(crawled_urls)
                     
-            elif doc.get('type') == 'local':
+            elif doc.get('type') == 'file':
                 file_list = [os.path.join(source, f) for f in os.listdir(source)]
                 docs.extend(loader.to_crawled_local_objs(file_list))
+
+            elif doc.get('type') == 'text':
+                docs.extend(loader.to_crawled_text([source]))
+            else:
+                # TODO: how to handle when type is not provided
+                raise Exception("type must be one of [url, file, text] and it must be provided")
 
         logging.info(f"Content: {[doc.content for doc in docs]}")
         Loader.save(filepath, docs)
