@@ -34,14 +34,19 @@ def load_docs(document_dir, doc_config, limit=10):
                 docs = []
                 for doc in rag_docs:
                     source = doc.get("source")
-                    if doc.get('type') != 'local':
+                    if doc.get('type') == 'url':
                         num_docs = doc.get("num") if doc.get("num") else 1
                         urls = loader.get_all_urls(source, num_docs)
                         crawled_urls = loader.to_crawled_url_objs(urls)
                         docs.extend(crawled_urls)
-                    elif doc.get('type') == 'local':
+                    elif doc.get('type') == 'file':
                         file_list = [os.path.join(source, f) for f in os.listdir(source)]
                         docs.extend(loader.to_crawled_local_objs(file_list))
+                    elif doc.get('type') == 'text':
+                        docs.extend(loader.to_crawled_text([source]))
+                    else:
+                        # TODO: how to handle when type is not provided
+                        raise Exception("type must be one of [url, file, text] and it must be provided")
                 Loader.save(filepath, docs)
             if total_num_docs > 50:
                 limit = total_num_docs // 5
@@ -51,9 +56,11 @@ def load_docs(document_dir, doc_config, limit=10):
                 documents = []
                 # Get candidate websites for only web urls
                 web_docs = list(filter(lambda x: x.source_type == SourceType.WEB, docs))
-                local_docs = list(filter(lambda x: x.source_type == SourceType.LOCAL, docs))
+                file_docs = list(filter(lambda x: x.source_type == SourceType.FILE, docs))
+                text_docs = list(filter(lambda x: x.source_type == SourceType.TEXT, docs))
                 documents.extend(loader.get_candidates_websites(web_docs, limit))
-                documents.extend(local_docs)
+                documents.extend(file_docs)
+                documents.extend(text_docs)
                 documents = [doc.to_dict() for doc in documents]
             else:
                 raise ValueError("The documents must be a list of CrawledObject objects.")

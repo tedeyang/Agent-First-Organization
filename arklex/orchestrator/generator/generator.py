@@ -169,7 +169,12 @@ class TaskEditorApp(App):
 
 
 class Generator:
-    def __init__(self, config: dict, model, output_dir: str, resource_inizializer: Optional[BaseResourceInitializer]  = None):
+    def __init__(self,
+                 config: dict,
+                 model,
+                 output_dir: Optional[str] = None,
+                 resource_inizializer: Optional[BaseResourceInitializer]  = None
+                 ):
         if resource_inizializer is None:
             resource_inizializer = DefaulResourceInitializer()
         self.product_kwargs = config
@@ -530,7 +535,7 @@ class Generator:
     def _load_docs(self):
         if self.task_docs:
             filepath = os.path.join(self.output_dir, "task_documents.pkl")
-            total_num_docs = sum([doc.get("num") if doc.get("num") else 1 for doc in self.task_docs])
+            total_num_docs = sum([doc.get("num", 1) for doc in self.task_docs])
             loader = Loader()
             if Path(filepath).exists():
                 logger.warning(f"Loading existing documents from {os.path.join(self.output_dir, 'task_documents.pkl')}! If you want to recrawl, please delete the file or specify a new --output-dir when initiate Generator.")
@@ -539,29 +544,31 @@ class Generator:
                 docs = []
                 for doc in self.task_docs:
                     source = doc.get("source")
-                    
-                    if doc.get('type') != 'local':
+                    if doc.get('type') == 'url':
                         num_docs = doc.get("num") if doc.get("num") else 1
                         urls = loader.get_all_urls(source, num_docs)
                         crawled_urls = loader.to_crawled_url_objs(urls)
                         docs.extend(crawled_urls)
-                        
-                    elif doc.get('type') == 'local':
+                    elif doc.get('type') == 'file':
                         file_list = [os.path.join(source, f) for f in os.listdir(source)]
                         docs.extend(loader.to_crawled_local_objs(file_list))
+                    elif doc.get('type') == 'text':
+                        docs.extend(loader.to_crawled_text([source]))
+                    else:
+                        # TODO: how to handle when type is not provided
+                        raise Exception("type must be one of [url, file, text] and it must be provided")
                     
                 Loader.save(filepath, docs)
                 
-            if total_num_docs > 50:
-                limit = total_num_docs // 5
-            else:
-                limit = 10
-              
+            limit = max(total_num_docs // 5, 10)
+            
             crawled_docs = []
             web_docs = list(filter(lambda x: x.source_type == SourceType.WEB, docs))
-            local_docs = list(filter(lambda x: x.source_type == SourceType.LOCAL, docs))
+            file_docs = list(filter(lambda x: x.source_type == SourceType.FILE, docs))
+            text_docs = list(filter(lambda x: x.source_type == SourceType.TEXT, docs))
             crawled_docs.extend(loader.get_candidates_websites(web_docs, limit))
-            crawled_docs.extend(local_docs)
+            crawled_docs.extend(file_docs)
+            crawled_docs.extend(text_docs)
             
             logger.debug(f"Loaded {len(crawled_docs)} documents")
             self.documents = "\n\n".join([f"{doc.source}\n{doc.content}" for doc in crawled_docs])
