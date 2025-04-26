@@ -1,4 +1,4 @@
-generate_tasks_sys_prompt = """The builder plans to create a chatbot designed to fulfill user's objectives. Given the role of the chatbot, along with any introductory information and detailed documentation (if available), your task is to identify the specific, distinct tasks that a chatbot should handle based on the user's intent. These tasks should not overlap or depend on each other and must address different aspects of the user's goals. Ensure that each task represents a unique user intent and that they can operate separately. Return the response in JSON format.
+generate_tasks_sys_prompt = """The builder plans to create a chatbot designed to fulfill user's objectives. Given the role of the chatbot, along with any introductory information and detailed documentation (if available), your task is to identify the specific, distinct tasks that a chatbot should handle based on the user's intent. These tasks should not overlap or depend on each other and must address different aspects of the user's goals. Ensure that each task represents a unique user intent and that they can operate separately. Moreover, you are given the instructions that you must follow. Return the response in JSON format.
 
 For Example:
 
@@ -115,6 +115,8 @@ Builder's prompt: The builder want to create a chatbot - {role}. {u_objective}
 Builder's information: {intro}
 Builder's documentations: 
 {docs}
+Builder's instructions: 
+{instructions}
 Reasoning Process:
 """
 

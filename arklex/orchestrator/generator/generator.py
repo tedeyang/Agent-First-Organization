@@ -182,7 +182,7 @@ class Generator:
         self.u_objective = self.product_kwargs.get("user_objective")
         self.b_objective = self.product_kwargs.get("builder_objective")
         self.intro = self.product_kwargs.get("intro")
-        self.instructions = self.product_kwargs.get("instructions") 
+        self.instruction_docs = self.product_kwargs.get("instructions") 
         self.task_docs = self.product_kwargs.get("task_docs") 
         self.rag_docs = self.product_kwargs.get("rag_docs") 
         self.tasks = self.product_kwargs.get("tasks")
@@ -267,7 +267,13 @@ class Generator:
     def _generate_tasks(self):
         # based on the type and documents
         prompt = PromptTemplate.from_template(generate_tasks_sys_prompt)
-        input_prompt = prompt.invoke({"role": self.role, "u_objective": self.u_objective, "intro": self.intro, "docs": self.documents})
+        input_prompt = prompt.invoke({
+            "role": self.role,
+            "u_objective": self.u_objective,
+            "intro": self.intro,
+            "docs": self.documents,
+            "instructions": self.instructions
+        })
         final_chain = self.model | StrOutputParser()
         answer = final_chain.invoke(input_prompt)
         logger.debug(f"Generated tasks with thought: {answer}")
@@ -574,12 +580,48 @@ class Generator:
             self.documents = "\n\n".join([f"{doc.source}\n{doc.content}" for doc in crawled_docs])
         else:
             self.documents = ""
+    
+    def _load_instructions(self):
+        instructions = []
+        limit = len(self.instruction_docs)
+        if not self.instruction_docs:
+            self.instructions = ""
+            return
+        for doc in self.instruction_docs:
+            loader = Loader()
+            source = doc.get("source")
+            if doc.get('type') == 'url':
+                num_docs = doc.get("num") if doc.get("num") else 1
+                urls = loader.get_all_urls(source, num_docs)
+                crawled_urls = loader.to_crawled_url_objs(urls)
+                instructions.extend(crawled_urls)
+            elif doc.get('type') == 'file':
+                file_list = [os.path.join(source, f) for f in os.listdir(source)]
+                instructions.extend(loader.to_crawled_local_objs(file_list))
+            elif doc.get('type') == 'text':
+                instructions.extend(loader.to_crawled_text([source]))
+            else:
+                # TODO: how to handle when type is not provided
+                raise Exception("type must be one of [url, file, text] and it must be provided")
+            
+        crawled_docs = []
+        web_docs = list(filter(lambda x: x.source_type == SourceType.WEB, instructions))
+        file_docs = list(filter(lambda x: x.source_type == SourceType.FILE, instructions))
+        text_docs = list(filter(lambda x: x.source_type == SourceType.TEXT, instructions))
+        crawled_docs.extend(loader.get_candidates_websites(web_docs, limit))
+        crawled_docs.extend(file_docs)
+        crawled_docs.extend(text_docs)
+        logger.debug(f"Loaded {len(crawled_docs)} instruction documents")
+        self.instructions = "\n\n".join([f"{doc.content}" for doc in crawled_docs])
 
 
     def generate(self) -> dict:
 
         # Step 0: Load the docs
         self._load_docs()
+
+        self._load_instructions()
+        logger.info(self.instructions)
         
         # Step 1: Generate the tasks
         if not self.tasks:
@@ -588,7 +630,7 @@ class Generator:
         else:
             self._format_tasks()
             logger.info(f"Formatted tasks: {self.tasks}")
-
+        return
         self._generate_reusable_tasks()
 
         # Step 2: Generate the task planning
