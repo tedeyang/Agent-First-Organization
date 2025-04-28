@@ -63,10 +63,6 @@
             "path": "message_worker.py"
         }
     ],
-    "model": {
-        "model_type_or_path": "gpt-4o-mini",
-        "llm_provider": "openai"
-    },
     "nluapi": "",
     "slotfillapi": ""
 }

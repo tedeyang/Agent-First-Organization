@@ -425,9 +425,5 @@
     "rag_docs": [],
     "tasks": [],
     "nluapi": "",
-    "slotfillapi": "",
-    "model": {
-        "model_type_or_path": "gpt-4o-mini",
-        "llm_provider": "openai"
-    }
+    "slotfillapi": ""
 }

@@ -1,14 +1,12 @@
 import logging
 
 from langgraph.graph import StateGraph, START
-from langchain_openai import ChatOpenAI
 
 
 from arklex.env.workers.worker import BaseWorker, register_worker
 from arklex.utils.graph_state import MessageState
 from arklex.env.tools.utils import ToolGenerator
 from arklex.env.tools.RAG.search import SearchEngine
-from arklex.utils.model_provider_config import PROVIDER_MAP
 
 
 logger = logging.getLogger(__name__)

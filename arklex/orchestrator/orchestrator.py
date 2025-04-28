@@ -267,8 +267,6 @@ class AgentOrg:
             else:
                 message_state = ToolGenerator.stream_context_generate(message_state)
         
-        # TODO: Need to reformat the RAG response from trajectory
-        # params["memory"]["tool_response"] = {}
         return OrchestratorResp(
             answer=message_state.response,
             parameters=params.model_dump(),

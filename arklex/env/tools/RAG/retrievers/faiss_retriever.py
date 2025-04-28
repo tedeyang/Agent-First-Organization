@@ -43,15 +43,17 @@ class FaissRetrieverExecutor:
         ):
         self.texts = texts
         self.index_path = index_path
-        self.llm_config = llm_config
+        self.embedding_model = PROVIDER_EMBEDDINGS.get(llm_config.llm_provider, OpenAIEmbeddings)(
+            **{ 'model': PROVIDER_EMBEDDING_MODELS[llm_config.llm_provider] } if llm_config.llm_provider != 'anthropic' else { 'model_name': PROVIDER_EMBEDDING_MODELS[llm_config.llm_provider] }
+        )
+        self.llm = PROVIDER_MAP.get(llm_config.llm_provider, ChatOpenAI)(
+            model=llm_config.model_type_or_path
+        )
         self.retriever = self._init_retriever()
 
     def _init_retriever(self, **kwargs):
         # initiate FAISS retriever
-        embedding_model = PROVIDER_EMBEDDINGS.get(self.llm_config.llm_provider, OpenAIEmbeddings)(
-            **{ 'model': PROVIDER_EMBEDDING_MODELS[self.llm_config.llm_provider] } if self.llm_config.llm_provider != 'anthropic' else { 'model_name': PROVIDER_EMBEDDING_MODELS[self.llm_config.llm_provider] }
-        )
-        docsearch = FAISS.from_documents(self.texts, embedding_model)
+        docsearch = FAISS.from_documents(self.texts, self.embedding_model)
         retriever = docsearch.as_retriever(**kwargs)
         return retriever     
 
@@ -64,10 +66,7 @@ class FaissRetrieverExecutor:
         contextualize_q_prompt = PromptTemplate.from_template(
             contextualize_prompt
         )
-        llm = PROVIDER_MAP.get(self.llm_config.llm_provider, ChatOpenAI)(
-            model=self.llm_config.model_type_or_path
-        )
-        ret_input_chain = contextualize_q_prompt | llm | StrOutputParser()
+        ret_input_chain = contextualize_q_prompt | self.llm | StrOutputParser()
         ret_input = ret_input_chain.invoke({"chat_history": chat_history_str})
         logger.info(f"Reformulated input for retriever search: {ret_input}")
         docs_and_score = self.retrieve_w_score(ret_input)
