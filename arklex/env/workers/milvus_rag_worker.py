@@ -1,14 +1,11 @@
 import logging
-import os
 
 from langgraph.graph import StateGraph, START
-from langchain_openai import ChatOpenAI
 
 from arklex.env.workers.worker import BaseWorker, register_worker
 from arklex.utils.graph_state import MessageState
 from arklex.env.tools.utils import ToolGenerator
 from arklex.env.tools.RAG.retrievers.milvus_retriever import RetrieveEngine
-from arklex.utils.model_config import MODEL
 
 
 logger = logging.getLogger(__name__)
@@ -25,7 +22,6 @@ class MilvusRAGWorker(BaseWorker):
                  stream_response: bool = True):
         super().__init__()
         self.action_graph = self._create_action_graph()
-        self.llm = ChatOpenAI(model=MODEL["model_type_or_path"], timeout=30000)
         self.stream_response = stream_response
 
     def choose_tool_generator(self, state: MessageState):
