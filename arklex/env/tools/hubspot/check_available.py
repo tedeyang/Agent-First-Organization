@@ -31,8 +31,7 @@ slots = [
     {
         "name": "meeting_date",
         "type": "str",
-        "description": "The exact date the customer want to take meeting with the representative. e.g. today, Next Monday, May 1st.",
-        "prompt": "Could you please give me the date of the meeting?",
+        "description": "The exact date the customer want to take meeting with the representative. e.g. today, Next Monday, May 1st. If users confirm the specific date, then accept it.",        "prompt": "Could you please give me the date of the meeting?",
         "required": True,
     }
 ]

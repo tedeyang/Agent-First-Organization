@@ -81,6 +81,8 @@ class Tool:
         logger.info(f'Slots after initialization are: {self.slots}')
         
     def _execute(self, state: MessageState, **fixed_args):
+        slot_verification = False
+        reason = ''
         # if this tool has been called before, then load the previous slots status
         if state.slots.get(self.name):
             self.slots = state.slots[self.name]
@@ -97,9 +99,11 @@ class Tool:
                 # if there is extracted slots values but haven't been verified
                 if slot.value and not slot.verified:
                     # check whether it verified or not
-                    verification_needed, thought = self.slotfillapi.verify_needed(slot, chat_history_str)
+                    verification_needed, thought = self.slotfillapi.verify_needed(slot, chat_history_str, self.llm_config)
                     if verification_needed:
                         response = slot.prompt + "The reason is: " + thought
+                        slot_verification = True
+                        reason = thought
                         break
                     else:
                         slot.verified = True
@@ -160,7 +164,15 @@ class Tool:
             logger.info("Tool output is stored in response instead of message flow")
             state.response = response
         else:
-            state.message_flow = state.message_flow + f"Context from {self.name} tool execution: {response}\n"
+            if tool_success:
+                logger.info(F"Tool execution COMPLETE: {state.message_flow}")
+                state.message_flow = state.message_flow + f"Context from {self.name} tool execution: {response}\n"
+            else:
+                if slot_verification:
+                    logger.info(F"Tool execution INCOMPLETE: {state.message_flow}")
+                    state.message_flow = f"Context from {self.name} tool execution: {response}\n Focus on the \'{reason}\' to generate the verification request in response please and make sure the request appear in the response."
+                else:
+                    state.message_flow = state.message_flow + f"Context from {self.name} tool execution: {response}\n"
         state.slots[self.name] = slots
         return state
 
