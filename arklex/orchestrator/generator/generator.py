@@ -169,7 +169,7 @@ class TaskEditorApp(App):
 
 
 class Generator:
-    def __init__(self, config: dict, model, output_dir: str, resource_inizializer: Optional[BaseResourceInitializer]  = None):
+    def __init__(self, config: dict, model, output_dir: str, resource_inizializer: Optional[BaseResourceInitializer]  = None, interactable_with_user=True):
         if resource_inizializer is None:
             resource_inizializer = DefaulResourceInitializer()
         self.product_kwargs = config
@@ -184,6 +184,7 @@ class Generator:
         self.example_conversations = self.product_kwargs.get("example_conversations") 
         self.workers = resource_inizializer.init_workers(self.product_kwargs.get("workers"))
         self.tools = resource_inizializer.init_tools(self.product_kwargs.get("tools"))
+        self.interactable_with_user = interactable_with_user
         self.model = model
         self.timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         self.output_dir = output_dir
@@ -603,8 +604,11 @@ class Generator:
                 logger.error(e)
                 continue
             format_tasks.append({"task_name": task_name, "steps": steps})
-        app = TaskEditorApp(format_tasks)
-        hitl_result = app.run()
+        
+        hitl_result = format_tasks
+        if self.interactable_with_user:
+            app = TaskEditorApp(hitl_result)
+            hitl_result = app.run()
         task_planning_filepath = os.path.join(self.output_dir, f'taskplanning.json')
         json.dump(hitl_result, open(task_planning_filepath, "w"), indent=4)
 
