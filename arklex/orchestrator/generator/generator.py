@@ -173,7 +173,7 @@ class Generator:
                  config: dict,
                  model,
                  output_dir: Optional[str] = None,
-                 resource_inizializer: Optional[BaseResourceInitializer]  = None
+                 resource_inizializer: Optional[BaseResourceInitializer]  = None,
                  ):
         if resource_inizializer is None:
             resource_inizializer = DefaulResourceInitializer()
@@ -185,13 +185,20 @@ class Generator:
         self.instruction_docs = self.product_kwargs.get("instructions") 
         self.task_docs = self.product_kwargs.get("task_docs") 
         self.rag_docs = self.product_kwargs.get("rag_docs") 
-        self.tasks = self.product_kwargs.get("tasks")
+        self.user_tasks = self.product_kwargs.get("tasks")
         self.example_conversations = self.product_kwargs.get("example_conversations") 
         self.workers = resource_inizializer.init_workers(self.product_kwargs.get("workers"))
         self.tools = resource_inizializer.init_tools(self.product_kwargs.get("tools"))
         self.model = model
         self.timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         self.output_dir = output_dir
+
+        # variables that will be used
+        self.documents = "" # task documents
+        self.reusable_tasks = {} # nested graph tasks 
+        self.tasks = [] # tasks
+
+
     
     
     def _generate_reusable_tasks(self):
@@ -209,7 +216,9 @@ class Generator:
             "u_objective": self.u_objective,
             "intro": self.intro,
             "tasks": self.tasks,
-            "docs": self.documents
+            "docs": self.documents,
+            "instructions": self.instructions,
+            "example_conversations": self.example_conversations
             })
         final_chain = self.model | StrOutputParser()
         answer = final_chain.invoke(input_prompt)
@@ -272,22 +281,39 @@ class Generator:
             "u_objective": self.u_objective,
             "intro": self.intro,
             "docs": self.documents,
-            "instructions": self.instructions
+            "instructions": self.instructions,
+            "existing_tasks": self.tasks,
         })
         final_chain = self.model | StrOutputParser()
         answer = final_chain.invoke(input_prompt)
         logger.debug(f"Generated tasks with thought: {answer}")
-        self.tasks = postprocess_json(answer)
+        self.tasks.extend(postprocess_json(answer))
 
-    def _format_tasks(self):
-        # TODO: need to use LLM to match the semantics meaning of the tasks
+    def _add_provided_tasks(self):
+        if not self.user_tasks:
+            return
         new_format_tasks = []
-        for task_str in self.tasks:
+        for user_task in self.user_tasks:
             task = {}
-            task['intent'] = task_str
-            task['task'] = task_str
+            # task['intent'] = task_str
+            task['task'] = user_task["task"]
             new_format_tasks.append(task)
-        self.tasks = new_format_tasks
+        
+        # given the provided tasks, predict the intent of tasks
+        prompt = PromptTemplate.from_template(task_intents_prediction_prompt)
+        input_prompt = prompt.invoke({
+            "role": self.role,
+            "u_objective": self.u_objective,
+            "intro": self.intro,
+            "docs": self.documents,
+            "instructions": self.instructions,
+            "user_tasks": self.user_tasks,
+        })
+        final_chain = self.model | StrOutputParser()
+        answer = final_chain.invoke(input_prompt)
+        new_format_tasks = postprocess_json(answer)
+
+        self.tasks.extend(new_format_tasks)
 
     def _generate_best_practice(self, task):
         # Best practice detection
@@ -333,7 +359,14 @@ class Generator:
         
         # Best practice suggestion
         prompt = PromptTemplate.from_template(generate_best_practice_sys_prompt)
-        input_prompt = prompt.invoke({"role": self.role, "u_objective": self.u_objective, "task": task["task"], "resources": resources_str})
+        input_prompt = prompt.invoke({
+            "role": self.role,
+            "u_objective": self.u_objective,
+            "task": task["task"],
+            "resources": resources_str,
+            "instructions": self.instructions,
+            "example_conversations": self.example_conversations
+        })
         final_chain = self.model | StrOutputParser()
         answer = final_chain.invoke(input_prompt)
         logger.debug(f"Generated best practice with thought: {answer}")
@@ -617,20 +650,18 @@ class Generator:
 
     def generate(self) -> dict:
 
-        # Step 0: Load the docs
+        # Load the docs for task graph
         self._load_docs()
 
+        # Load the instructions
         self._load_instructions()
-        logger.info(self.instructions)
+
+        # Add tasks provided by users 
+        self._add_provided_tasks()
+
+        # Generate tasks
+        self._generate_tasks()
         
-        # Step 1: Generate the tasks
-        if not self.tasks:
-            self._generate_tasks()
-            logger.info(f"Generated tasks: {self.tasks}")
-        else:
-            self._format_tasks()
-            logger.info(f"Formatted tasks: {self.tasks}")
-        return
         self._generate_reusable_tasks()
 
         # Step 2: Generate the task planning
