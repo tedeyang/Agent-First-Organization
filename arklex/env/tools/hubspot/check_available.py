@@ -1,8 +1,6 @@
 from datetime import datetime, timezone
 import inspect
-import json
 import pytz
-from pprint import pprint
 
 import hubspot
 import parsedatetime
@@ -68,10 +66,7 @@ def check_available(owner_id: str, time_zone: str, meeting_date: str, duration: 
     func_name = inspect.currentframe().f_code.co_name
     access_token = authenticate_hubspot(kwargs)
     api_client = hubspot.Client.create(access_token=access_token)
-    meeting_info = {
-        'available_time_slots': [],
-        'available_time_slots_unix': []
-    }
+
     try:
         meeting_link_response = api_client.api_request(
             {
@@ -86,13 +81,11 @@ def check_available(owner_id: str, time_zone: str, meeting_date: str, duration: 
             }
         )
         meeting_link_response = meeting_link_response.json()
-        pprint(meeting_link_response)
         if meeting_link_response.get('total') == 0:
             raise ToolExecutionError(func_name, HubspotExceptionPrompt.MEETING_LINK_UNFOUND_PROMPT)
         else:
             meeting_links = meeting_link_response['results'][0]
         meeting_slug = meeting_links['slug']
-        meeting_info['slug'] = meeting_slug
         cal = parsedatetime.Calendar()
         time_struct, _ = cal.parse(meeting_date)
         meeting_date = datetime(*time_struct[:3])
@@ -135,13 +128,11 @@ def check_available(owner_id: str, time_zone: str, meeting_date: str, duration: 
                     "end": end_ts
                 })
             same_dt_info = {
-                'available_time_slots': [],
-                'available_time_slots_unix': []
+                'available_time_slots': []
             }
 
             other_dt_info = {
-                'available_time_slots': [],
-                'available_time_slots_unix': []
+                'available_time_slots': []
             }
 
 
@@ -157,19 +148,11 @@ def check_available(owner_id: str, time_zone: str, meeting_date: str, duration: 
                             'start': datetime.fromtimestamp(ab_time['start'] / 1000, tz=timezone.utc).astimezone(time_zone).isoformat(),
                             'end': datetime.fromtimestamp(ab_time['end'] / 1000, tz=timezone.utc).astimezone(time_zone).isoformat(),
                         })
-                        # same_dt_info['available_time_slots_unix'].append({
-                        #     'start': ab_time['start'],
-                        #     'end': ab_time['end']
-                        # })
                     else:
                         other_dt_info['available_time_slots'].append({
                             'start': datetime.fromtimestamp(ab_time['start'] / 1000, tz=timezone.utc).astimezone(time_zone).isoformat(),
                             'end': datetime.fromtimestamp(ab_time['end'] / 1000, tz=timezone.utc).astimezone(time_zone).isoformat(),
                         })
-                        # other_dt_info['available_time_slots_unix'].append({
-                        #     'start': ab_time['start'],
-                        #     'end': ab_time['end']
-                        # })
 
 
                 response += f'Sorry, the time {meeting_start_time} is not available for meeting link {meeting_slug}.\n'
@@ -177,7 +160,6 @@ def check_available(owner_id: str, time_zone: str, meeting_date: str, duration: 
                 response += f'If you want to change the date, available times for other dates are {other_dt_info["available_time_slots"]}\n'
                 response += f'Feel free to choose from the list.\n'
                 response += f'You must give some available time slots for users so that they could choose from.\nThe available time on the same date is prioritzed. The earliest start time should align with the {same_dt_info["available_time_slots"][0]["start"]} if on the same date.\n'
-            pprint(response)
             return response
         except ApiException as e:
             logger.info("Exception when extracting booking information of someone: %s\n" % e)

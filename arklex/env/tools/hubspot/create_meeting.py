@@ -101,15 +101,6 @@ def create_meeting(cus_fname: str, cus_lname: str, cus_email: str, meeting_date:
     duration = int(duration)
     duration = int(timedelta(minutes=duration).total_seconds() * 1000)
 
-    meeting_end_time = meeting_start_time + duration
-
-    # bt_slots_ux = json.loads(bt_slots_ux)
-    # for time_slot in bt_slots_ux:
-    #     if meeting_start_time >= time_slot['start'] and meeting_start_time < time_slot['end']:
-    #         raise ToolExecutionError(func_name, HubspotExceptionPrompt.MEETING_UNAVAILABLE_PROMPT)
-    #     elif meeting_end_time >= time_slot['start'] and meeting_end_time <= time_slot['end']:
-    #         raise ToolExecutionError(func_name, HubspotExceptionPrompt.MEETING_UNAVAILABLE_PROMPT)
-
     api_client = hubspot.Client.create(access_token=access_token)
 
     try:
