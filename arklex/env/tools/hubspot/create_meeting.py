@@ -6,6 +6,7 @@ import inspect
 
 import hubspot
 import parsedatetime
+from dateutil.parser import isoparse
 from hubspot.crm.objects.meetings import ApiException
 
 from arklex.env.tools.tools import register_tool, logger
@@ -50,7 +51,7 @@ slots = [
         "name": "meeting_start_time",
         "type": "str",
         "description": "The exact start time the customer want to take meeting with the representative. e.g. 1pm, 1:00 PM. If you are not sure about the input, ask the user to give you confirmation.",
-        "prompt": "Could you please give me the start time of the meeting? Typically, the representative will hold the meeting from 9:00 am to 4:45 pm.",
+        "prompt": "Could you please give me the start time of the meeting?",
         "required": True,
     },
     {
@@ -94,9 +95,15 @@ def create_meeting(cus_fname: str, cus_lname: str, cus_email: str, meeting_date:
     access_token = authenticate_hubspot(kwargs)
 
     meeting_date = parse_natural_date(meeting_date, timezone=time_zone, date_input=True)
-    meeting_start_time = parse_natural_date(meeting_start_time, meeting_date, timezone=time_zone)
-    meeting_start_time = int(meeting_start_time.timestamp() * 1000)
-
+    if is_iso8601(meeting_start_time):
+        dt = isoparse(meeting_start_time)
+        if dt.tzinfo is None:
+            dt = pytz.timezone(time_zone).localize(dt)
+        dt_utc = dt.astimezone(pytz.utc)
+        meeting_start_time = int(dt_utc.timestamp() * 1000)
+    else:
+        dt = parse_natural_date(meeting_start_time, meeting_date, timezone=time_zone)
+        meeting_start_time = int(dt.timestamp() * 1000)
 
     duration = int(duration)
     duration = int(timedelta(minutes=duration).total_seconds() * 1000)
@@ -147,5 +154,12 @@ def parse_natural_date(date_str, base_date=None, timezone=None, date_input=False
         parsed_dt = local_timezone.localize(parsed_dt)
         parsed_dt = parsed_dt.astimezone(pytz.utc)
     return parsed_dt
+
+def is_iso8601(s):
+    try:
+        isoparse(s)
+        return True
+    except Exception:
+        return False
 
 

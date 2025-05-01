@@ -135,7 +135,6 @@ def check_available(owner_id: str, time_zone: str, meeting_date: str, duration: 
                 'available_time_slots': []
             }
 
-
             response = ''
             if available:
                 response += f'Great! The time {meeting_start_time} you want to schedule a meeting is available for {meeting_slug}.\n'
@@ -159,7 +158,7 @@ def check_available(owner_id: str, time_zone: str, meeting_date: str, duration: 
                 response += f'The alternative time for you on the same date is {same_dt_info["available_time_slots"]}\n'
                 response += f'If you want to change the date, available times for other dates are {other_dt_info["available_time_slots"]}\n'
                 response += f'Feel free to choose from the list.\n'
-                response += f'You must give some available time slots for users so that they could choose from.\nThe available time on the same date is prioritzed. The earliest start time should align with the {same_dt_info["available_time_slots"][0]["start"]} if on the same date.\n'
+                response += f'You must give some available time slots for users as the reference so that they could choose from.\nThe available time on the same date is prioritzed. The earliest start time should align with the {same_dt_info["available_time_slots"][0]["start"]} if on the same date.\n'
             return response
         except ApiException as e:
             logger.info("Exception when extracting booking information of someone: %s\n" % e)
