@@ -155,10 +155,15 @@ def check_available(owner_id: str, time_zone: str, meeting_date: str, duration: 
 
 
                 response += f'Sorry, the time {meeting_start_time} is not available for meeting link {meeting_slug}.\n'
-                response += f'The alternative time for you on the same date is {same_dt_info["available_time_slots"]}\n'
-                response += f'If you want to change the date, available times for other dates are {other_dt_info["available_time_slots"]}\n'
-                response += f'Feel free to choose from the list.\n'
-                response += f'You must give some available time slots for users as the reference so that they could choose from.\nThe available time on the same date is prioritzed. The earliest start time should align with the {same_dt_info["available_time_slots"][0]["start"]} if on the same date.\n'
+                if not len(same_dt_info['available_time_slots']) == 0:
+                    response += f'The alternative time for you on the same date is {same_dt_info["available_time_slots"]}\n'
+                    response += f'Feel free to choose from it\n'
+                    response += f'You must give some available time slots for users as the reference to choose.\n'
+                else:
+                    response += f'I am sorry there is no available time slots on the same day.\n'
+                    response += f'If you want to change the date, available times for other dates are {other_dt_info["available_time_slots"]}\n'
+                    response += f'Feel free to choose from the list.\n'
+                    response += f'You must give some available time slots for users as the reference so that they could choose from.\n'
             return response
         except ApiException as e:
             logger.info("Exception when extracting booking information of someone: %s\n" % e)
