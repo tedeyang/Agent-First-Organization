@@ -41,6 +41,9 @@ class AgentOrg:
         self.task_graph = TaskGraph("taskgraph", self.product_kwargs, self.llm_config)
         self.env = env
 
+        # Update planner model info now that LLMConfig is defined
+        self.env.planner.set_llm_config_and_build_resource_library(self.llm_config)
+
     
     def init_params(self, inputs) -> Tuple[str, str, Params, MessageState]:
         text = inputs["text"]

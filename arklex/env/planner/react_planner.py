@@ -1,7 +1,7 @@
 import logging
 import os
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Literal
 from pydantic import BaseModel
 import traceback
 import uuid
@@ -15,7 +15,7 @@ from langchain_core.documents import Document
 from langchain_community.vectorstores.faiss import FAISS
 from langchain_openai import OpenAIEmbeddings
 
-from arklex.utils.graph_state import MessageState
+from arklex.utils.graph_state import MessageState, LLMConfig
 from arklex.utils.model_config import MODEL
 from arklex.utils.model_provider_config import PROVIDER_MAP, PROVIDER_EMBEDDINGS, PROVIDER_EMBEDDING_MODELS
 from arklex.orchestrator.prompts import (
@@ -49,9 +49,76 @@ class Action(BaseModel):
 class EnvResponse(BaseModel):
     observation: Any
 
+class PlannerResource(BaseModel):
+    name: str
+    type: Literal["tool", "worker"]
+    description: str
+    parameters: List[Dict[str, Dict[str, str]]]
+    required: List[str]
+    returns: Dict[str, Any]
+
+RESPOND_ACTION_RESOURCE = PlannerResource(
+    name=RESPOND_ACTION_NAME,
+    type="worker",
+    description="Respond to the user if the user's request has been satisfied or if there is not enough information to do so.",
+    parameters=[
+        {
+            "content": {
+                "type": "string",
+                "description": "The message to return to the user."
+            }
+        }
+    ],
+    required=["content"],
+    returns={}
+)
+
 logger = logging.getLogger(__name__)
 
-class ReactPlanner:
+# Default LLM Config used on planner initialization, overwritten by
+# updated llm config info with planner.set_llm_config (invoked in
+# AgentOrg init)
+DEFAULT_LLM_CONFIG = LLMConfig(
+    model_type_or_path=MODEL["model_type_or_path"],
+    llm_provider=MODEL["llm_provider"]
+)
+
+
+class DefaultPlanner:
+
+    description = "Default planner that returns unaltered MessageState on execute()"
+
+    def __init__(self,
+        tools_map: Dict[str, Any],
+        workers_map: Dict[str, Any],
+        name2id: Dict[str, int]):
+        
+        self.llm_config = DEFAULT_LLM_CONFIG
+
+    def set_llm_config_and_build_resource_library(self, llm_config: LLMConfig):
+        """
+        Update planner LLM model and provider info from default.
+
+        Note that in most cases, this must be invoked (again) after __init__(), because the LLMConfig info 
+        may be updated after planner is initialized, which may change the embedding model(s) used.
+
+        The DefaultPlanner does nothing and has no need for retrieval steps, so it will not create RAG
+        documents.
+        """
+        self.llm_config = llm_config
+
+    def execute(self, msg_state: MessageState, msg_history):
+        # Return empty action alongside unaltered msg_state and msg_history
+        empty_action = {
+            "name": RESPOND_ACTION_NAME,
+            "kwargs": {
+                "content": ""
+            }
+        }
+        return empty_action, msg_state, msg_history
+    
+
+class ReactPlanner(DefaultPlanner):
     
     description = "Choose tools/workers based on task and chat records if there is no specific worker/node for the user's query"
 
@@ -65,36 +132,59 @@ class ReactPlanner:
         self.workers_map = workers_map
         self.name2id = name2id
 
+        # Assume default model and model provider from model_config are used 
+        # until model and provider info is set explicitly by orchestrator
+        # with set_llm_config(llm_config: LLMConfig)
+        self.llm_config = DEFAULT_LLM_CONFIG
+
+        # Set initial model and provider info
+        self.llm_provider = self.llm_config.llm_provider
+        self.model_name = self.llm_config.model_type_or_path
+        self.llm = PROVIDER_MAP.get(self.llm_provider, ChatOpenAI)(
+            model=self.model_name,
+            temperature=0.0,
+        )
+        self.system_role = "user" if self.llm_provider == "gemini" else "system"
+
         # Store worker and tool info in single resources dict with standardized formatting
         formatted_worker_info = self._format_worker_info(self.workers_map)
         formatted_tool_info = self._format_tool_info(self.tools_map)
+        # all_resources_info is Dict[str, PlannerResource]
         self.all_resources_info = {**formatted_worker_info, **formatted_tool_info}
 
         # Add RESPOND_ACTION to resource library
-        self.all_resources_info[RESPOND_ACTION_NAME] = {
-            "name": RESPOND_ACTION_NAME,
-            "type": "worker",
-            "description": "Respond to the user if the user's request has been satisfied or if there is not enough information to do so.",
-            "parameters": [
-                {
-                    "content": {
-                        "type": "string",
-                        "description": "The message to return to the user."
-                    }
-                }
-            ],
-            "required": ["content"],
-            "returns": {}
-        }
-
+        self.all_resources_info[RESPOND_ACTION_NAME] = RESPOND_ACTION_RESOURCE
         
+        # Track whether or not RAG documents for planner resources have already been created;
+        # these will be created in AgentOrg.__init__() once model info is provided
+        self.resource_rag_docs_created = False
+
+    def set_llm_config_and_build_resource_library(self, llm_config: LLMConfig):
+        """
+        Update planner LLM model and provider info from default, and create RAG vector store for planner 
+        resource documents.
+
+        Note that in most cases, this must be invoked (again) after __init__(), because the LLMConfig info 
+        may be updated after planner is initialized, which may change the embedding model(s) used.
+        """
+        self.llm_config = llm_config
+
+        # Update model provider info
+        self.llm_provider = self.llm_config.llm_provider
+        self.model_name = self.llm_config.model_type_or_path
+        self.llm = PROVIDER_MAP.get(self.llm_provider, ChatOpenAI)(
+            model=self.model_name,
+            temperature=0.0,
+        )
+        self.system_role = "user" if self.llm_provider == "gemini" else "system"
+
         # Create documents containing tool/worker info
         resource_docs = self._create_resource_rag_docs(self.all_resources_info)
 
         # Init embedding model and FAISS retriever for RAG resource signature retrieval
-        self.embedding_model_name = PROVIDER_EMBEDDING_MODELS[MODEL['llm_provider']]
-        self.embedding_model = PROVIDER_EMBEDDINGS.get(MODEL['llm_provider'], OpenAIEmbeddings)(
-            **{ 'model': self.embedding_model_name } if MODEL['llm_provider'] != 'anthropic' else { 'model_name': self.embedding_model_name }
+        self.embedding_model_name = PROVIDER_EMBEDDING_MODELS[self.llm_provider]
+        self.embedding_model = PROVIDER_EMBEDDINGS.get(self.llm_provider, OpenAIEmbeddings)(
+            **{ 'model': self.embedding_model_name } if self.llm_provider != 'anthropic' else { 'model_name': self.embedding_model_name }
         )
         docsearch = FAISS.from_documents(resource_docs, self.embedding_model)
         self.retriever = docsearch.as_retriever()
@@ -105,43 +195,40 @@ class ReactPlanner:
         respond_action_doc = [d for d in resource_docs if d.metadata["resource_name"] == RESPOND_ACTION_NAME][0]
         self.guaranteed_retrieval_docs = [respond_action_doc]
 
-        self.llm_provider = MODEL['llm_provider']
-        self.model_name = MODEL["model_type_or_path"]
-        self.llm = PROVIDER_MAP.get(self.llm_provider, ChatOpenAI)(
-            model=self.model_name,
-            temperature = 0.0,
-        )
-        self.system_role = "user" if self.llm_provider == "gemini" else "system"
+        self.resource_rag_docs_created = True
 
-
-    def _format_worker_info(self, workers_map: Dict[str, Any]) -> Dict[str, Any]:
+    def _format_worker_info(self, workers_map: Dict[str, Any]) -> Dict[str, PlannerResource]:
         """
         Convert info on available workers to standardized format for planner ReAct prompt.
         """
-
         formatted_worker_info = {
-            worker_name: {
-                "type": "worker",
-                "description": workers_map[worker_name]["description"],
-                "parameters": [],
-                "required": [],
-                "returns": {}
-            } for worker_name in workers_map.keys()
+            worker_name: PlannerResource(
+                name=worker_name,
+                description=workers_map[worker_name]["description"],
+                parameters=[],
+                required=[],
+                returns={}
+            ) for worker_name in workers_map.keys()
         }
 
-        # Remove DefaultWorker from planner's available workers, if present (planner cannot invoke DefaultWorker)
-        formatted_worker_info.pop("DefaultWorker", None)
+        # NOTE: MessageWorker will be removed from list of resource available to planner to avoid
+        # conflicts with RESPOND_ACTION; both return a str representing model's natural language
+        # response, but RESPOND_ACTION is necessary to return message to user and break planning loop
+        if "MessageWorker" in formatted_worker_info:
+            formatted_worker_info.pop("MessageWorker", None)
 
+        # NOTE: If MessageWorker must be included in list of planner resources, comment above block and uncomment
+        # this block to prevent conflicts with selection of RESPOND_ACTION
         # If MessageWorker is in list of available workers, modify its description to explicitly indicate that it will
         # generate a message but not return it to the user (returning to the user is reserved for RESPOND_ACTION, which
         # is required to break out of the ReAct loop).
-        if "MessageWorker" in formatted_worker_info:
-            description = "The worker that is used to generate an open-ended message for subsequent tool or worker calls, for example, a query used for RAG document retrieval. This worker will NOT return a message to the user."
-            formatted_worker_info["MessageWorker"]["description"] = description
+        # if "MessageWorker" in formatted_worker_info:
+        #     description = "The worker that is used to generate an open-ended message for subsequent tool or worker calls, for example, a query used for RAG document retrieval. This worker will NOT return a message to the user."
+        #     formatted_worker_info["MessageWorker"]["description"] = description
 
         return formatted_worker_info
 
-    def _format_tool_info(self, tools_map: Dict[str, Any]) -> Dict[str, Any]:
+    def _format_tool_info(self, tools_map: Dict[str, Any]) -> Dict[str, PlannerResource]:
         """
         Convert info on available tools to standardized format for planner ReAct prompt.
         """
@@ -173,17 +260,18 @@ class ReactPlanner:
                     output_name = return_value["name"]
                     return_values[output_name] = return_value["description"]
 
-                formatted_tools_info[tool_name] = {
-                    "type": "tool",
-                    "description": tool_description,
-                    "parameters": parameters,
-                    "required": required,
-                    "returns": return_values
-                }
+                formatted_tools_info[tool_name] = PlannerResource(
+                    name=tool_name,
+                    type="tool",
+                    description=tool_description,
+                    parameters=parameters,
+                    required=required,
+                    returns=return_values
+                )
 
         return formatted_tools_info
 
-    def _create_resource_rag_docs(self, all_resources_info: Dict[str, Any]) -> List[Document]:
+    def _create_resource_rag_docs(self, all_resources_info: Dict[str, PlannerResource]) -> List[Document]:
         """
         Given dict all_resources_info containing available tools and workers, return list of LangChain Documents
         containing resource info (one tool/worker per document) to save as vector store for RAG retrieval.
@@ -193,15 +281,16 @@ class ReactPlanner:
 
         for resource_name in all_resources_info:
             resource = all_resources_info[resource_name]
-            resource_type = resource["type"]
+            resource_type = resource.type
+            json_signature = resource.model_dump(mode="json")
 
             resource_metadata = {
                 "resource_name": resource_name,
                 "type": resource_type,
-                "json_signature": resource
+                "json_signature": json_signature
             }
 
-            resource_page_content = str(resource)
+            resource_page_content = str(json_signature)
             
             resource_doc = Document(
                 metadata=resource_metadata,
@@ -226,7 +315,7 @@ class ReactPlanner:
         resource_descriptions = ""
         for resource_name in self.all_resources_info:
             resource = self.all_resources_info[resource_name]
-            description = resource.get("description", None)
+            description = resource.description
             if description:
                 resource_descriptions += f"\n- {description}"
         
@@ -549,27 +638,6 @@ class ReactPlanner:
         msg_state.response = response
         return action, msg_state, msg_history
 
-
-def convert_to_gemini_tools(tools):
-    converted_tools = {
-        "tools": [
-            {
-                "function_declarations": []
-            }
-        ]
-    }
-    for tool in tools:
-        if 'function' in tool:
-            converted_tool = {
-                "name": tool["function"]["name"],
-                "description": tool["function"]["description"],
-                "parameters": tool["function"]["parameters"]
-            }
-            converted_tools["tools"][0]["function_declarations"].append(converted_tool)
-        else:
-            converted_tools["tools"].append(tool)
-
-    return converted_tools
 
 def aimessage_to_dict(ai_message):
     message_dict = {
