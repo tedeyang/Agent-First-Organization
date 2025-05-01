@@ -138,7 +138,7 @@ def check_available(owner_id: str, time_zone: str, meeting_date: str, duration: 
 
             response = ''
             if available:
-                response += f'Great! The time {meeting_start_time} you want to schedule a meeting is available for {meeting_info["slug"]}.\n'
+                response += f'Great! The time {meeting_start_time} you want to schedule a meeting is available for {meeting_slug}.\n'
                 response += f'I am now working for you to schedule.\n'
             else:
                 for ab_time in ab_times:
