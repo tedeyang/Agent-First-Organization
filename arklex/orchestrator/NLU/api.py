@@ -14,6 +14,7 @@ load_dotenv()
 from arklex.utils.model_provider_config import PROVIDER_MAP
 from langchain_openai import ChatOpenAI
 from pydantic_ai import Agent
+from pydantic import ValidationError
 
 
 logger = logging.getLogger(__name__)
@@ -154,11 +155,11 @@ class SlotFillModelAPI():
         # set number of chat completions to generate, isn't supported by Anthropic
         if model['llm_provider'] != 'anthropic': kwargs['n'] = 1
         llm = PROVIDER_MAP.get(model['llm_provider'], ChatOpenAI)(**kwargs)
-        
+
         if model['llm_provider'] == 'openai':
             llm = llm.with_structured_output(schema=format)
             response = llm.invoke(dialog_history)
-    
+
         # TODO: fix slotfilling for huggingface
         elif model['llm_provider']=='huggingface':
             # llm = llm.bind_tools([format])
@@ -171,7 +172,7 @@ class SlotFillModelAPI():
             result = agent.run_sync(dialog_history[0]['content'])
             response = result.data
 
-        #for claude 
+        #for claude
         else:
             messages = [{"role": "user", "content": dialog_history[0]['content']}]
             llm = llm.bind_tools([format])
@@ -187,12 +188,17 @@ class SlotFillModelAPI():
         model: dict,
         type: str = "chat"
     ):
-        input_slots, output_slots = structured_input_output(slots)
-        system_prompt = self.format_input(input_slots, input, type)
-        response = self.get_response(system_prompt, output_slots, model, note="slot filling")
-        filled_slots = format_slotfilling_output(slots, response)
-        logger.info(f"Updated dialogue states: {filled_slots}")
-        return filled_slots
+        try:
+            input_slots, output_slots = structured_input_output(slots)
+            system_prompt = self.format_input(input_slots, input, type)
+            response = self.get_response(system_prompt, output_slots, model, note="slot filling")
+            filled_slots = format_slotfilling_output(slots, response)
+            logger.info(f"Updated dialogue states: {filled_slots}")
+            return filled_slots
+        except ValidationError as e:
+            logger.warning(f"SlotFilling failed. The error is {e}. Returning slots without filling.")
+            return slots
+
     
     # endpoint for slot verification
     def verify(

@@ -21,14 +21,14 @@ slots = [
     {
         "name": "cus_fname",
         "type": "str",
-        "description": "The first name of the customer contact.",
+        "description": "The first name of the customer contact. There is no need to ask users to verify.",
         "prompt": "",
         "required": True,
     },
     {
         "name": "cus_lname",
         "type": "str",
-        "description": "The last name of the customer contact.",
+        "description": "The last name of the customer contact. There is no need to ask users to verify.",
         "prompt": "",
         "required": True,
     },
@@ -64,14 +64,7 @@ slots = [
     {
         "name": "slug",
         "type": "str",
-        "description": "The corresponding slug for the meeting link, which is extracted from check_available tool",
-        "prompt": "",
-        "required": True,
-    },
-    {
-        "name": "bt_slots_ux",
-        "type": "str",
-        "description": "The busy time slots (unix form) of the representative. This is a list of dict.",
+        "description": "The corresponding slug for the meeting link. Typically, it consists of the organizer's name, like \'lingxiao-chen\'. No need to ask verification from users.",
         "prompt": "",
         "required": True,
     },
@@ -96,7 +89,7 @@ outputs = [
 @register_tool(description, slots, outputs)
 def create_meeting(cus_fname: str, cus_lname: str, cus_email: str, meeting_date: str,
                    meeting_start_time: str, duration: int,
-                   slug: str, bt_slots_ux: str, time_zone: str, **kwargs) -> str:
+                   slug: str, time_zone: str, **kwargs) -> str:
     func_name = inspect.currentframe().f_code.co_name
     access_token = authenticate_hubspot(kwargs)
 
@@ -110,12 +103,12 @@ def create_meeting(cus_fname: str, cus_lname: str, cus_email: str, meeting_date:
 
     meeting_end_time = meeting_start_time + duration
 
-    bt_slots_ux = json.loads(bt_slots_ux)
-    for time_slot in bt_slots_ux:
-        if meeting_start_time >= time_slot['start'] and meeting_start_time < time_slot['end']:
-            raise ToolExecutionError(func_name, HubspotExceptionPrompt.MEETING_UNAVAILABLE_PROMPT)
-        elif meeting_end_time >= time_slot['start'] and meeting_end_time <= time_slot['end']:
-            raise ToolExecutionError(func_name, HubspotExceptionPrompt.MEETING_UNAVAILABLE_PROMPT)
+    # bt_slots_ux = json.loads(bt_slots_ux)
+    # for time_slot in bt_slots_ux:
+    #     if meeting_start_time >= time_slot['start'] and meeting_start_time < time_slot['end']:
+    #         raise ToolExecutionError(func_name, HubspotExceptionPrompt.MEETING_UNAVAILABLE_PROMPT)
+    #     elif meeting_end_time >= time_slot['start'] and meeting_end_time <= time_slot['end']:
+    #         raise ToolExecutionError(func_name, HubspotExceptionPrompt.MEETING_UNAVAILABLE_PROMPT)
 
     api_client = hubspot.Client.create(access_token=access_token)
 

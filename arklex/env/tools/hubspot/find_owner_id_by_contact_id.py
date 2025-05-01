@@ -14,7 +14,7 @@ slots = [
     {
         "name": "cus_cid",
         "type": "str",
-        "description": "The id of the customer contact.",
+        "description": "The id of the customer contact. It consists of numbers, e.g.104643732568. No need to ask users to verify.",
         "prompt": "",
         "required": True,
     },
@@ -24,7 +24,7 @@ outputs = [
     {
         "name": "owner_id",
         "type": "str",
-        "description": "The id of the owner of the contact.",
+        "description": "The id of the owner of the contact. It consists of numbers.",
     }
 ]
 
