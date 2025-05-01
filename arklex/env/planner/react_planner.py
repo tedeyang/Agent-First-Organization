@@ -20,9 +20,8 @@ from arklex.utils.model_config import MODEL
 from arklex.utils.model_provider_config import PROVIDER_MAP, PROVIDER_EMBEDDINGS, PROVIDER_EMBEDDING_MODELS
 from arklex.orchestrator.prompts import (
     RESPOND_ACTION_NAME, 
-    PLANNER_REACT_INSTRUCTION_ZERO_SHOT, 
+    PLANNER_REACT_INSTRUCTION_ZERO_SHOT,  
     PLANNER_REACT_INSTRUCTION_FEW_SHOT, 
-    PLANNER_REACT_INSTRUCTION_FEW_SHOT_WITH_RAG, 
     PLANNER_SUMMARIZE_TRAJECTORY_PROMPT
 )
 
@@ -523,7 +522,7 @@ class ReactPlanner(DefaultPlanner):
 
         # Format planner ReAct system prompt
         if USE_FEW_SHOT_REACT_PROMPT:
-            prompt = PromptTemplate.from_template(PLANNER_REACT_INSTRUCTION_FEW_SHOT_WITH_RAG)
+            prompt = PromptTemplate.from_template(PLANNER_REACT_INSTRUCTION_FEW_SHOT)
         else:
             prompt = PromptTemplate.from_template(PLANNER_REACT_INSTRUCTION_ZERO_SHOT)
 
