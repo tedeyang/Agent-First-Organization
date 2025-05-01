@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 import inspect
 import pytz
+import calendar
 
 import hubspot
 import parsedatetime
@@ -83,8 +84,11 @@ def check_available(owner_id: str, time_zone: str, meeting_date: str, duration: 
         time_struct, _ = cal.parse(meeting_date)
         meeting_date = datetime(*time_struct[:3])
 
-        # meeting_start_time = parse_natural_date(meeting_start_time, meeting_date, timezone=time_zone)
-        # meeting_start_time = int(meeting_start_time.timestamp() * 1000)
+        last_day = calendar.monthrange(meeting_date.year, meeting_date.month)[1]  
+        is_last_day = meeting_date.day == last_day
+
+        month_offset = 1 if is_last_day else 0
+
         try:
             availability_response = api_client.api_request(
                 {
@@ -95,7 +99,7 @@ def check_available(owner_id: str, time_zone: str, meeting_date: str, duration: 
                     },
                     "qs": {
                         'timezone': time_zone,
-                        'monthOffset': 0
+                        'monthOffset': month_offset
                     }
                 }
             )
