@@ -23,21 +23,18 @@ slots = [
         "name": "cus_fname",
         "type": "str",
         "description": "The first name of the customer contact. There is no need to ask users to verify.",
-        "prompt": "",
         "required": True,
     },
     {
         "name": "cus_lname",
         "type": "str",
         "description": "The last name of the customer contact. There is no need to ask users to verify.",
-        "prompt": "",
         "required": True,
     },
     {
         "name": "cus_email",
         "type": "str",
         "description": "The email of the customer contact.",
-        "prompt": "",
         "required": True,
     },
     {
@@ -66,7 +63,6 @@ slots = [
         "name": "slug",
         "type": "str",
         "description": "The corresponding slug for the meeting link. Typically, it consists of the organizer's name, like \'lingxiao-chen\'. No need to ask verification from users.",
-        "prompt": "",
         "required": True,
     },
     {

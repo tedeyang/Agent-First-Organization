@@ -44,13 +44,6 @@ slots = [
         "prompt": "Could you please give me the duration of the meeting (e.g. 15, 30, 60 mins)?",
         "required": True,
     },
-    {
-        "name": "meeting_start_time",
-        "type": "str",
-        "description": "The exact start time the customer want to take meeting with the representative. e.g. 1pm, 1:00 PM. If you are not sure about the input, ask the user to give you confirmation.",
-        "prompt": "Could you please give me the start time of the meeting? Typically, the representative will hold the meeting from 9:00 am to 4:45 pm.",
-        "required": True,
-    },
 ]
 outputs = [
     {
@@ -62,7 +55,7 @@ outputs = [
 
 
 @register_tool(description, slots, outputs)
-def check_available(owner_id: str, time_zone: str, meeting_date: str, duration: int, meeting_start_time:str, **kwargs) -> str:
+def check_available(owner_id: str, time_zone: str, meeting_date: str, duration: int, **kwargs) -> str:
     func_name = inspect.currentframe().f_code.co_name
     access_token = authenticate_hubspot(kwargs)
     api_client = hubspot.Client.create(access_token=access_token)
@@ -90,8 +83,8 @@ def check_available(owner_id: str, time_zone: str, meeting_date: str, duration: 
         time_struct, _ = cal.parse(meeting_date)
         meeting_date = datetime(*time_struct[:3])
 
-        meeting_start_time = parse_natural_date(meeting_start_time, meeting_date, timezone=time_zone)
-        meeting_start_time = int(meeting_start_time.timestamp() * 1000)
+        # meeting_start_time = parse_natural_date(meeting_start_time, meeting_date, timezone=time_zone)
+        # meeting_start_time = int(meeting_start_time.timestamp() * 1000)
         try:
             availability_response = api_client.api_request(
                 {
@@ -114,14 +107,9 @@ def check_available(owner_id: str, time_zone: str, meeting_date: str, duration: 
 
             ab_times = []
 
-            available = False
             for slot in slots:
                 start_ts = slot["startMillisUtc"]
                 end_ts = slot["endMillisUtc"]
-
-                if meeting_start_time == start_ts:
-                    available = True
-                    break
 
                 ab_times.append({
                     "start": start_ts,
@@ -135,35 +123,32 @@ def check_available(owner_id: str, time_zone: str, meeting_date: str, duration: 
                 'available_time_slots': []
             }
 
-            response = ''
-            if available:
-                response += f'Great! The time {meeting_start_time} you want to schedule a meeting is available for {meeting_slug}.\n'
-                response += f'I am now working for you to schedule.\n'
-            else:
-                for ab_time in ab_times:
-                    start_dt = datetime.fromtimestamp(ab_time['start'] / 1000, tz=pytz.utc).astimezone(time_zone)
-                    if meeting_date.date() == start_dt.date():
-                        same_dt_info['available_time_slots'].append({
-                            'start': datetime.fromtimestamp(ab_time['start'] / 1000, tz=timezone.utc).astimezone(time_zone).isoformat(),
-                            'end': datetime.fromtimestamp(ab_time['end'] / 1000, tz=timezone.utc).astimezone(time_zone).isoformat(),
-                        })
-                    else:
-                        other_dt_info['available_time_slots'].append({
-                            'start': datetime.fromtimestamp(ab_time['start'] / 1000, tz=timezone.utc).astimezone(time_zone).isoformat(),
-                            'end': datetime.fromtimestamp(ab_time['end'] / 1000, tz=timezone.utc).astimezone(time_zone).isoformat(),
-                        })
-
-
-                response += f'Sorry, the time {meeting_start_time} is not available for meeting link {meeting_slug}.\n'
-                if not len(same_dt_info['available_time_slots']) == 0:
-                    response += f'The alternative time for you on the same date is {same_dt_info["available_time_slots"]}\n'
-                    response += f'Feel free to choose from it\n'
-                    response += f'You must give some available time slots for users as the reference to choose.\n'
+            for ab_time in ab_times:
+                start_dt = datetime.fromtimestamp(ab_time['start'] / 1000, tz=pytz.utc).astimezone(time_zone)
+                if meeting_date.date() == start_dt.date():
+                    same_dt_info['available_time_slots'].append({
+                        'start': datetime.fromtimestamp(ab_time['start'] / 1000, tz=timezone.utc).astimezone(time_zone).isoformat(),
+                        'end': datetime.fromtimestamp(ab_time['end'] / 1000, tz=timezone.utc).astimezone(time_zone).isoformat(),
+                    })
                 else:
-                    response += f'I am sorry there is no available time slots on the same day.\n'
-                    response += f'If you want to change the date, available times for other dates are {other_dt_info["available_time_slots"]}\n'
-                    response += f'Feel free to choose from the list.\n'
-                    response += f'You must give some available time slots for users as the reference so that they could choose from.\n'
+                    other_dt_info['available_time_slots'].append({
+                        'start': datetime.fromtimestamp(ab_time['start'] / 1000, tz=timezone.utc).astimezone(time_zone).isoformat(),
+                        'end': datetime.fromtimestamp(ab_time['end'] / 1000, tz=timezone.utc).astimezone(time_zone).isoformat(),
+                    })
+
+
+            response = ''
+            if not len(same_dt_info['available_time_slots']) == 0:
+                response += f'The slug for your meeting is: {meeting_slug}\n'
+                response += f'The alternative time for you on the same date is {same_dt_info["available_time_slots"]}\n'
+                response += f'Feel free to choose from it\n'
+                response += f'You must give some available time slots for users as the reference to choose.\n'
+            else:
+                response += f'The slug for your meeting is: {meeting_slug}\n'
+                response += f'I am sorry there is no available time slots on the same day.\n'
+                response += f'If you want to change the date, available times for other dates are {other_dt_info["available_time_slots"]}\n'
+                response += f'Feel free to choose from the list.\n'
+                response += f'You must give some available time slots for users as the reference so that they could choose from.\n'
             return response
         except ApiException as e:
             logger.info("Exception when extracting booking information of someone: %s\n" % e)
