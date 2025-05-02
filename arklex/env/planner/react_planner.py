@@ -92,6 +92,10 @@ class DefaultPlanner:
         workers_map: Dict[str, Any],
         name2id: Dict[str, int]):
         
+        self.tools_map = tools_map
+        self.workers_map = workers_map
+        self.name2id = name2id
+        self.all_resources_info = {}
         self.llm_config = DEFAULT_LLM_CONFIG
 
     def set_llm_config_and_build_resource_library(self, llm_config: LLMConfig):
@@ -126,7 +130,7 @@ class ReactPlanner(DefaultPlanner):
         workers_map: Dict[str, Any],
         name2id: Dict[str, int]):
 
-        super().__init__()
+        super().__init__(tools_map, workers_map, name2id)
         self.tools_map = tools_map
         self.workers_map = workers_map
         self.name2id = name2id
@@ -203,6 +207,7 @@ class ReactPlanner(DefaultPlanner):
         formatted_worker_info = {
             worker_name: PlannerResource(
                 name=worker_name,
+                type="worker",
                 description=workers_map[worker_name]["description"],
                 parameters=[],
                 required=[],

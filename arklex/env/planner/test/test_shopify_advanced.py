@@ -29,10 +29,6 @@ class Logic_Test(unittest.TestCase):
         cls.config = None
         cls.env = None
         cls.total_tests_run = 0
-
-        # Update this to change model provider and model type for testing
-        MODEL["llm_provider"] = "openai" # {"openai", "gemini", "anthropic"}
-        MODEL["model_type_or_path"] = "gpt-4o" # e.g., "gpt-4o", "gemini-2.0-flash", "claude-3-5-sonnet-latest"/"claude-3-5-sonnet-20241022"
         
     @classmethod
     def tearDownClass(cls):
@@ -150,7 +146,8 @@ class Logic_Test(unittest.TestCase):
         self.env = Env(
             tools = self.config.get("tools", []),
             workers = self.config.get("workers", []),
-            slotsfillapi = self.config["slotfillapi"]
+            slotsfillapi = self.config["slotfillapi"],
+            planner_enabled=True
         )
 
         history = []
