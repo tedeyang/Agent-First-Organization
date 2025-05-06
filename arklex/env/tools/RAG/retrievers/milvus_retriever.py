@@ -171,7 +171,7 @@ class MilvusRetriever:
 
         updated_vectors = []
         for vector_data in res:
-            updated_vector = vector_data.copy()
+            updated_vector = vector_data
             if updated_vector.get("metadata", {}):
                 updated_vector["metadata"]["tags"] = tags
             else:
@@ -269,13 +269,6 @@ class MilvusRetriever:
         partition_key = self.get_bot_uid(bot_id, version)
         query_embedding = embed(query)
         filter = f'bot_uid == "{partition_key}"'
-        res = self.client.search(
-            collection_name=collection_name,
-            data=[query_embedding],
-            limit=top_k,
-            filter=filter,
-            output_fields=["qa_doc_id", "chunk_id", "qa_doc_type", "metadata", "text"],
-        )
         if tags:
             # NOTE: Only support one tag for now
             for key, value in tags.items():
