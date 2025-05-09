@@ -183,7 +183,7 @@ class Generator:
         self.u_objective = self.product_kwargs.get("user_objective")
         self.b_objective = self.product_kwargs.get("builder_objective")
         self.intro = self.product_kwargs.get("intro")
-        self.instruction_docs = self.product_kwargs.get("instructions") 
+        self.instruction_docs = self.product_kwargs.get("instructions")
         self.task_docs = self.product_kwargs.get("task_docs") 
         self.rag_docs = self.product_kwargs.get("rag_docs") 
         self.user_tasks = self.product_kwargs.get("tasks")
@@ -569,6 +569,7 @@ class Generator:
             "nodes": nodes,
             "edges": edges
         }
+
         for key, value in self.product_kwargs.items():
             task_graph[key] = value
 
@@ -619,10 +620,10 @@ class Generator:
     
     def _load_instructions(self):
         instructions = []
-        limit = len(self.instruction_docs)
         if not self.instruction_docs:
             self.instructions = ""
             return
+        limit = len(self.instruction_docs)
         for doc in self.instruction_docs:
             loader = Loader()
             source = doc.get("source")
