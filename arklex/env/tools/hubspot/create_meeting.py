@@ -22,14 +22,16 @@ slots = [
     {
         "name": "cus_fname",
         "type": "str",
-        "description": "The first name of the customer contact. There is no need to ask users to verify.",
+        "description": "The first name of the customer contact.",
         "required": True,
+        "verified": True,
     },
     {
         "name": "cus_lname",
         "type": "str",
-        "description": "The last name of the customer contact. There is no need to ask users to verify.",
+        "description": "The last name of the customer contact.",
         "required": True,
+        "verified": True
     },
     {
         "name": "cus_email",
@@ -62,8 +64,9 @@ slots = [
     {
         "name": "slug",
         "type": "str",
-        "description": "The corresponding slug for the meeting link. Typically, it consists of the organizer's name, like \'lingxiao-chen\'. No need to ask verification from users.",
+        "description": "The corresponding slug for the meeting link. Typically, it consists of the organizer's name, like \'lingxiao-chen\'.",
         "required": True,
+        "verified": True,
     },
     {
         "name": "time_zone",

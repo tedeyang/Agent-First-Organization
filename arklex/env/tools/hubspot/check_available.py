@@ -18,9 +18,10 @@ slots = [
     {
         "name": "owner_id",
         "type": "str",
-        "description": "The id of the owner of the contact. There is no need to ask users to verify. Because this is the unseen information to users.",
+        "description": "The id of the owner of the contact.",
         "prompt": "",
         "required": True,
+        "verified": True,
     },
     {
         "name": "time_zone",
