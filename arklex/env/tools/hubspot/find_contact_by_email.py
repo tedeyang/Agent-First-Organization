@@ -1,5 +1,7 @@
+import json
 from datetime import datetime, timezone
 import inspect
+
 import hubspot
 from hubspot.crm.objects.emails import PublicObjectSearchRequest, ApiException
 from hubspot.crm.objects.communications.models import SimplePublicObjectInputForCreate
@@ -100,7 +102,8 @@ def find_contact_by_email(email: str, chat: str, **kwargs) -> str:
                     logger.info("Exception when calling AssociationV4: %s\n" % e)
             except ApiException as e:
                 logger.info("Exception when calling basic_api: %s\n" % e)
-            return str(contact_info_properties)
+
+            return json.dumps(contact_info_properties)
         else:
             raise ToolExecutionError(func_name, HubspotExceptionPrompt.USER_NOT_FOUND_PROMPT)
     except ApiException as e:
