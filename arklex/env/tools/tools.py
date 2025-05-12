@@ -160,19 +160,22 @@ class Tool:
         state.trajectory[-1][-1].input = slots
         state.trajectory[-1][-1].output = response
 
-        if self.isResponse and tool_success:
-            logger.info("Tool output is stored in response instead of message flow")
-            state.response = response
-        else:
-            if tool_success:
-                logger.info(F"Tool execution COMPLETE: {state.message_flow}")
-                state.message_flow = state.message_flow + f"Context from {self.name} tool execution: {response}\n"
+        if tool_success:
+            # Tool execution success
+            if self.isResponse:
+                logger.info("Tool exeuction COMPLETE, and the output is stored in response")
+                state.response = response
             else:
-                if slot_verification:
-                    logger.info(F"Tool execution INCOMPLETE: {state.message_flow}")
-                    state.message_flow = f"Context from {self.name} tool execution: {response}\n Focus on the \'{reason}\' to generate the verification request in response please and make sure the request appear in the response."
-                else:
-                    state.message_flow = state.message_flow + f"Context from {self.name} tool execution: {response}\n"
+                logger.info("Tool execution COMPLETE, and the output is stored in message flow")
+                state.message_flow = state.message_flow + f"Context from {self.name} tool execution: {response}\n"
+        else:
+            # Tool execution failed
+            if slot_verification:
+                logger.info("Tool execution INCOMPLETE due to slot verification")
+                state.message_flow = f"Context from {self.name} tool execution: {response}\n Focus on the \'{reason}\' to generate the verification request in response please and make sure the request appear in the response."
+            else:
+                logger.info("Tool execution INCOMPLETE due to tool execution failure")
+                state.message_flow = state.message_flow + f"Context from {self.name} tool execution: {response}\n"
         state.slots[self.name] = slots
         return state
 
