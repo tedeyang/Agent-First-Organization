@@ -39,10 +39,12 @@ class Timing(BaseModel):
 
 class ResourceRecord(BaseModel):
     info: Dict
+    intent: str = Field(default="")
     input: List = Field(default_factory=list)
     output: str = Field(default="")
     steps: List = Field(default_factory=list)
-
+    personalized_intent: str = Field(default="")
+    
 class Metadata(BaseModel):
     # TODO: May need to initialize the metadata(i.e. chat_id, turn_id) based on the conversation database
     chat_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
