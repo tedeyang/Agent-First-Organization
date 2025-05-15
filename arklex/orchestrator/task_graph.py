@@ -271,7 +271,7 @@ class TaskGraph(TaskGraphBase):
             if found_pred_in_avil and \
                 pred_intent != self.unsure_intent.get("intent"):
                 # If the prediction is the same as the current global intent and the current node is not a leaf node, continue the current global intent
-                if pred_intent == params.taskgraph.curr_global_intent and len(list(self.graph.successors(curr_node))) != 0:
+                if pred_intent == params.taskgraph.curr_global_intent and (len(list(self.graph.successors(curr_node))) != 0 or params.taskgraph.node_status.get(curr_node, StatusEnum.COMPLETE) == StatusEnum.INCOMPLETE):
                     return False, pred_intent, {}, params
                 next_node, next_intent = self.jump_to_node(pred_intent, intent_idx, curr_node)
                 logger.info(f"curr_node: {next_node}")
