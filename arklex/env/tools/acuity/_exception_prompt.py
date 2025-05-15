@@ -25,19 +25,25 @@ class AcuityExceptionPrompt(ExceptionPrompt):
 
     GET_APT_BY_EMAIL_EXCEPTION_PROMPT_2 = "Retrieving all appointments failed"
 
-    # cancel_check prompt
-    CANCEL_CHECK_EXCEPTION_PROMPT_1 = "User didn't have the appointment on the specified date"
-
-    CANCEL_CHECK_EXCEPTION_PROMPT_2 = "The date is before the current date."
+    # # cancel_check prompt
+    # CANCEL_CHECK_EXCEPTION_PROMPT_1 = "User didn't have the appointment on the specified date"
+    #
+    # CANCEL_CHECK_EXCEPTION_PROMPT_2 = "The date is before the current date."
 
     # cancel prompt
     CANCEL_PROMPT = "Cancel the appointment failed"
 
-    # create_ticket exception prompt
-    TICKET_CREATION_ERROR_PROMPT = "Ticket creation failed, please try again later."
+    # get_type_id_by_apt_name prompt
+    GET_TYPE_ID_PROMPT = "Retrieving type id failed"
 
-    # find_contact_by_email exception prompt
-    USER_NOT_FOUND_PROMPT = "User not found (not an existing customer)"
+    # reschedule prompt
+    RESCHEDULE_PROMPT = "Rescheduling the appointment failed"
 
-    # find_owner_id_by_contact_id exception prompt
-    OWNER_UNFOUND_PROMPT = 'Owner not found (not an existing customer)'
+    # # create_ticket exception prompt
+    # TICKET_CREATION_ERROR_PROMPT = "Ticket creation failed, please try again later."
+    #
+    # # find_contact_by_email exception prompt
+    # USER_NOT_FOUND_PROMPT = "User not found (not an existing customer)"
+    #
+    # # find_owner_id_by_contact_id exception prompt
+    # OWNER_UNFOUND_PROMPT = 'Owner not found (not an existing customer)'

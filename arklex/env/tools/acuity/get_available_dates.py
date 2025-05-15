@@ -31,10 +31,11 @@ slots = [
     {
         "name": "apt_tid",
         "type": "str",
-        "description": "The appointment type id of the info session. Please ask users to choose from the list.",
+        "description": "The appointment type id of the info session. Not the id of the appointment. Note this! It should be correspond to the appointment type.",
         "prompt": "",
         "required": True,
-    }
+        "verified": True,
+    },
 ]
 outputs = [
     {
@@ -52,7 +53,7 @@ def get_available_dates(year, month, apt_tid, **kwargs):
     base_url = 'https://acuityscheduling.com/api/v1/availability/dates?appointmentTypeID={}&month={}'.format(apt_tid, year + '-' + month)
     pprint(base_url)
     response = requests.get(base_url, auth=HTTPBasicAuth(user_id, api_key))
-
+    pprint(response.json())
     if response.status_code == 200:
         data = response.json()
         pprint(data)

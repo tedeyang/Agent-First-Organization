@@ -25,7 +25,7 @@ outputs = [
     {
         "name": "apt_ls",
         "type": "list[dict]",
-        "description": "All appointment information about the specific user.",
+        "description": "All appointment information about the specific user. The format should be\"{\"apt_id\": 1470211171, \"date\": \"May 21, 2025\", \"time\": \"1:10pm\", \"endtime\": \"2:00pm\", \"apt_type\": \"Consultation \", \"apt_type_id\": null}\"",
     }
 ]
 
@@ -38,6 +38,7 @@ def get_apt_by_email(email, **kwargs):
 
     response = requests.get(base_url, auth=HTTPBasicAuth(user_id, api_key))
     apt_ls = []
+    response_str = "Please include all appointments (At least the types and time info) in the response to users. There might be multiple appointments.\n"
     if response.status_code == 200:
         data = response.json()
         today = datetime.now().date()
@@ -45,17 +46,16 @@ def get_apt_by_email(email, **kwargs):
             if item.get("email") == email:
                 apt_date = datetime.strptime(item["date"], "%B %d, %Y").date()
                 if apt_date > today:
-                    apt_ls.append({
-                        "id": item["id"],
-                        "date": item["date"],
-                        "time": item["time"],
-                        "endtime": item["endTime"],
-                        "type": item["type"],
-                    })
-        if not apt_ls:
+                    response_str += f"The appointment id of this appointment is: {item['id']}\n"
+                    response_str += f"The date of this appointment is: {item['date']}\n"
+                    response_str += f"The start time of this appointment is: {item['time']}\n"
+                    response_str += f"The end time of this appointment is: {item['endTime']}\n"
+                    response_str += f"The appointment type: {item['type']}\n"
+                    # response_str += f"The appointment type_id cannot be accessed for this tool\n"
+        if response_str.count('\n') == 1:
             raise ToolExecutionError(func_name, AcuityExceptionPrompt.GET_APT_BY_EMAIL_EXCEPTION_PROMPT_1)
         else:
-            return json.dumps(apt_ls)
+            return response_str
     else:
         raise ToolExecutionError(func_name, AcuityExceptionPrompt.GET_APT_BY_EMAIL_EXCEPTION_PROMPT_2)
 

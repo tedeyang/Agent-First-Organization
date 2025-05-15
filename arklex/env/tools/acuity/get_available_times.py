@@ -13,7 +13,7 @@ slots = [
     {
         "name": "date",
         "type": "str",
-        "description": "The date of the info session the user wants to attend. It should consist of year, month, day. e.g. 2025-04-12. If you are not sure about the user's input, ask them to confirm.",
+        "description": "The date of the info session the user wants to attend. It should consist of year, month, day. e.g. 2025-04-12. This must be input from the user.",
         "prompt": "",
         "required": True,
     },
@@ -23,6 +23,7 @@ slots = [
         "description": "The appointment type id of the info session and it should be consisted of numbers. e.g. 76474933",
         "prompt": "",
         "required": True,
+        "verified": True,
     }
 ]
 outputs = [
@@ -35,11 +36,11 @@ outputs = [
 CREDENTIAL_NOT_FOUND = 'error: missing credential information'
 
 @register_tool(description, slots, outputs)
-def get_available_times(date, apt_id, **kwargs):
+def get_available_times(date, apt_tid, **kwargs):
     func_name = inspect.currentframe().f_code.co_name
     user_id, api_key = authenticate_acuity(kwargs)
 
-    base_url = 'https://acuityscheduling.com/api/v1/availability/times?appointmentTypeID={}&date={}'.format(apt_id, date)
+    base_url = 'https://acuityscheduling.com/api/v1/availability/times?appointmentTypeID={}&date={}'.format(apt_tid, date)
     response = requests.get(base_url, auth=HTTPBasicAuth(user_id, api_key))
 
     if response.status_code == 200:

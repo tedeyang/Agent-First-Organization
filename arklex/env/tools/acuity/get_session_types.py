@@ -17,8 +17,8 @@ slots = [
 outputs = [
     {
         "name": "sessions",
-        "type": "dict",
-        "description": "All available information sessions. In sessions it should like \"{'sessions': [{'id': 76850002, 'name': 'Test N1'}]}\".",
+        "type": "list[dict]",
+        "description": "All available information sessions. In sessions it should like \"[{'type_id': 76850002, 'name': 'Test N1'}]\".",
     }
 ]
 
@@ -34,7 +34,7 @@ def get_session_types(**kwargs):
     if response.status_code == 200:
         data = response.json()
         # sessions = [{"name": item.get('name'), "id": item.get("id")} for item in data]
-        response_text = 'The information below is the details of all info sessions. Please include the list of all session names in the following response.\n'
+        response_text = 'The information below is the details of all info session types. You must include the list of all session names in the following response at least.\n'
 
         for session in data:
             response_text += f"Info session ID (Appointment Type ID):{session.get('id')}\n"
