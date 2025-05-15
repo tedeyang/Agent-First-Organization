@@ -7,7 +7,7 @@ from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from sklearn.metrics.pairwise import cosine_similarity
 
 from arklex.memory.prompts import intro, examples, output_instructions
-from arklex.utils.graph_state import ResourceRecord
+from arklex.utils.graph_state import ResourceRecord, LLMConfig
 from arklex.utils.model_config import MODEL
 from arklex.utils.model_provider_config import PROVIDER_MAP, PROVIDER_EMBEDDINGS, PROVIDER_EMBEDDING_MODELS
 
@@ -31,14 +31,12 @@ class ShortTermMemory:
         if chat_history is None:
             chat_history= []
         self.chat_history= chat_history[-5:]
-        
-        self.llm = PROVIDER_MAP.get(MODEL['llm_provider'], ChatOpenAI)(
-            model=MODEL["model_type_or_path"], timeout=30000
+        self.llm_config = LLMConfig(**MODEL)
+        self.embedding_model = PROVIDER_EMBEDDINGS.get(self.llm_config.llm_provider, OpenAIEmbeddings)(
+            **{ 'model': PROVIDER_EMBEDDING_MODELS[self.llm_config.llm_provider] } if self.llm_config.llm_provider != 'anthropic' else { 'model_name': PROVIDER_EMBEDDING_MODELS[self.llm_config.llm_provider] }
         )
-        
-        self.embedding_model_name = PROVIDER_EMBEDDING_MODELS[MODEL['llm_provider']]
-        self.embedding_model = PROVIDER_EMBEDDINGS.get(MODEL['llm_provider'])(
-            **{'model': self.embedding_model_name} if MODEL['llm_provider'] != 'anthropic' else {'model_name': self.embedding_model_name}
+        self.llm = PROVIDER_MAP.get(self.llm_config.llm_provider, ChatOpenAI)(
+            model=self.llm_config.model_type_or_path
         )
 
 
