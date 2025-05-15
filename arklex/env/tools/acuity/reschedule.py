@@ -23,7 +23,7 @@ slots = [
         "name": "time",
         "type": "str",
         "description": "The time of the info session the user wants to reschedule. It could be like Apr 19th 13:00. If you are not sure, ask them to confirm. The final format is like: 2025-04-19T13:00:00-0400",
-        "prompt": "What is the original date of your appointment?",
+        "prompt": "",
         "required": True,
     }
 ]

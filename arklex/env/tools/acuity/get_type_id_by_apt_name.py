@@ -14,7 +14,7 @@ slots = [
         "name": "apt_name",
         "type": "str",
         "description": "The appointment name of the info session. USER NEEDS TO INPUT IT. It allow user to input some parts of the name, but if you are unsure, ask the user to confirm. It should not contain any date, time related information.",
-        "prompt": "Which info session would you like to cancel?",
+        "prompt": "Which info session would you like to join?",
         "required": True,
     },
 ]
