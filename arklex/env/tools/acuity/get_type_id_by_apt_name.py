@@ -1,7 +1,4 @@
 import inspect
-import json
-from pprint import pprint
-
 import requests
 from requests.auth import HTTPBasicAuth
 
@@ -16,7 +13,7 @@ slots = [
     {
         "name": "apt_name",
         "type": "str",
-        "description": "The appointment name of the info session. USER NEEDS TO INPUT IT. It allow user to input some parts of the name, but if you are unsure, ask the user to confirm.",
+        "description": "The appointment name of the info session. USER NEEDS TO INPUT IT. It allow user to input some parts of the name, but if you are unsure, ask the user to confirm. It should not contain any date, time related information.",
         "prompt": "Which info session would you like to cancel?",
         "required": True,
     },
@@ -40,7 +37,7 @@ def get_type_id_by_apt_name(apt_name, **kwargs):
 
     if response.status_code == 200:
         data = response.json()
-        apt_type_id = next((item['id'] for item in data if item['name'] == apt_name), None)
+        apt_type_id = next((item['id'] for item in data if item['name'].strip() == apt_name), None)
         response_str = f"The appointment type id is {apt_type_id}\n"
         return response_str
     else:

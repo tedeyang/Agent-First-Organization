@@ -1,7 +1,4 @@
 import inspect
-import json
-from pprint import pprint
-
 import requests
 from requests.auth import HTTPBasicAuth
 
@@ -33,13 +30,11 @@ def get_session_types(**kwargs):
 
     if response.status_code == 200:
         data = response.json()
-        # sessions = [{"name": item.get('name'), "id": item.get("id")} for item in data]
         response_text = 'The information below is the details of all info session types. You must include the list of all session names in the following response at least.\n'
 
         for session in data:
             response_text += f"Info session ID (Appointment Type ID):{session.get('id')}\n"
             response_text += f"Info session Name: {session.get('name')}\n"
-            # response_text += f"URL: {session.get('schedulingUrl')}\n"
         return response_text
     else:
         raise ToolExecutionError(func_name, AcuityExceptionPrompt.AVAILABLE_TYPES_EXCEPTION_PROMPT)

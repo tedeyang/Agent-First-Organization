@@ -1,6 +1,4 @@
 import json
-from pprint import pprint
-
 import requests
 import inspect
 
@@ -50,7 +48,7 @@ def reschedule(apt_id, time, **kwargs):
     }
 
     response = requests.put(base_url, json=body, auth=HTTPBasicAuth(user_id, api_key))
-    pprint(response.json())
+
     if response.status_code == 200:
         data = response.json()
         return json.dumps(data)

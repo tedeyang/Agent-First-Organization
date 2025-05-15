@@ -1,7 +1,4 @@
-import json
 import inspect
-from pprint import pprint
-
 import requests
 from requests.auth import HTTPBasicAuth
 
@@ -10,7 +7,6 @@ from arklex.env.tools.tools import register_tool, logger
 from arklex.exceptions import ToolExecutionError
 from arklex.env.tools.acuity._exception_prompt import AcuityExceptionPrompt
 
-# from arklex.env.tools.acuity.utils import EXCEPTIONS
 
 description = "Get the available dates of the info session based on the specific month"
 slots = [
@@ -29,7 +25,7 @@ slots = [
         "required": True,
     },
     {
-        "name": "apt_tid",
+        "name": "apt_type_id",
         "type": "str",
         "description": "The appointment type id of the info session. Not the id of the appointment. Note this! It should be correspond to the appointment type.",
         "prompt": "",
@@ -46,17 +42,14 @@ outputs = [
 ]
 
 @register_tool(description, slots, outputs)
-def get_available_dates(year, month, apt_tid, **kwargs):
+def get_available_dates(year, month, apt_type_id, **kwargs):
     func_name = inspect.currentframe().f_code.co_name
     user_id, api_key = authenticate_acuity(kwargs)
 
-    base_url = 'https://acuityscheduling.com/api/v1/availability/dates?appointmentTypeID={}&month={}'.format(apt_tid, year + '-' + month)
-    pprint(base_url)
+    base_url = 'https://acuityscheduling.com/api/v1/availability/dates?appointmentTypeID={}&month={}'.format(apt_type_id, year + '-' + month)
     response = requests.get(base_url, auth=HTTPBasicAuth(user_id, api_key))
-    pprint(response.json())
     if response.status_code == 200:
         data = response.json()
-        pprint(data)
         response_text = 'The information about the availability is as follows. Please provide this to users.\n'
 
         for date in data:
