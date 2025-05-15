@@ -5,8 +5,9 @@ import logging
 from typing import Dict, Any, Tuple
 import copy
 import janus
-from dotenv import load_dotenv
 import asyncio
+from dotenv import load_dotenv
+
 from langchain_core.runnables import RunnableLambda
 
 from arklex.env.nested_graph.nested_graph import NESTED_GRAPH_ID, NestedGraph
@@ -21,7 +22,6 @@ from arklex.utils.graph_state import (ConvoMessage, NodeInfo, OrchestratorMessag
 from arklex.utils.utils import format_chat_history
 from arklex.utils.model_config import MODEL
 from arklex.memory import ShortTermMemory
-
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -218,11 +218,8 @@ class AgentOrg:
         asyncio.run(stm.personalize())
         found_records, relevant_records = stm.retrieve_records(text)
         found_intent, relevant_intent = stm.retrieve_intent(text)
-        
-        # Add found records to message state for generation
         if found_records:
             message_state.relevant_records = relevant_records
-        
         taskgraph_chain = RunnableLambda(self.task_graph.get_node) | RunnableLambda(self.task_graph.postprocess_node)
 
         # TODO: when planner is re-implemented, execute/break the loop based on whether the planner should be used (bot config).
@@ -232,7 +229,6 @@ class AgentOrg:
         max_n_node_performed = 5
         while n_node_performed < max_n_node_performed:
             taskgraph_start_time = time.time()
-            node_info, params = taskgraph_chain.invoke(taskgraph_inputs)
             if found_intent:
                 taskgraph_inputs["allow_global_intent_switch"] = False
                 node_info=NodeInfo(
