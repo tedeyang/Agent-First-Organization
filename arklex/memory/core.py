@@ -1,14 +1,16 @@
-from typing import List, Tuple, Optional
-from arklex.utils.graph_state import ResourceRecord
-from arklex.utils.model_provider_config import PROVIDER_MAP, PROVIDER_EMBEDDINGS, PROVIDER_EMBEDDING_MODELS
-from arklex.utils.model_config import MODEL
-from sklearn.metrics.pairwise import cosine_similarity
-from langchain_openai import OpenAIEmbeddings
-import numpy as np
-from langchain_openai import ChatOpenAI
-from arklex.memory.prompts import intro, examples, output_instructions
-import re
 import asyncio
+import re
+from typing import List, Tuple, Optional
+
+import numpy as np
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from sklearn.metrics.pairwise import cosine_similarity
+
+from arklex.memory.prompts import intro, examples, output_instructions
+from arklex.utils.graph_state import ResourceRecord
+from arklex.utils.model_config import MODEL
+from arklex.utils.model_provider_config import PROVIDER_MAP, PROVIDER_EMBEDDINGS, PROVIDER_EMBEDDING_MODELS
+
 
 class ShortTermMemory:
     def __init__(self, trajectory: List[List[ResourceRecord]], chat_history: List[dict]):    
@@ -38,7 +40,8 @@ class ShortTermMemory:
         self.embedding_model = PROVIDER_EMBEDDINGS.get(MODEL['llm_provider'])(
             **{'model': self.embedding_model_name} if MODEL['llm_provider'] != 'anthropic' else {'model_name': self.embedding_model_name}
         )
-         
+
+
     def retrieve_records(self, query: str, top_k: int = 3, threshold: float = 0.7) -> Tuple[bool, List[ResourceRecord]]:
         """
 
@@ -123,6 +126,7 @@ class ShortTermMemory:
         relevant_records.sort(key=lambda x: x["score"], reverse=True)
         return True, [r["record"] for r in relevant_records[:top_k]]
 
+
     def retrieve_intent(self, query: str, threshold: float = 0.7) -> Tuple[bool, Optional[str]]:
         """
 
@@ -159,6 +163,8 @@ class ShortTermMemory:
             return True, best_intent
         else:
             return False, None
+
+
     async def personalize(self):
         """
         Loops through the last 5 records in the trajectory and generates personalized intents
@@ -178,8 +184,12 @@ class ShortTermMemory:
 
         if tasks:
             await asyncio.gather(*tasks)
+
+
     async def _set_personalized_intent(self, record: ResourceRecord, user_utterance: str):
         record.personalized_intent = await self.generate_personalized_product_attribute_intent(record, user_utterance)        
+
+
     async def generate_personalized_product_attribute_intent(self, record: ResourceRecord, user_utterance: str) -> str:
         """
         Args:

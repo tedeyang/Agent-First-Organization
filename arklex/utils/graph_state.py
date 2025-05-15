@@ -1,4 +1,4 @@
-from typing import Any, Optional, List, Dict
+from typing import Any, Optional, List, Dict, Tuple
 from pydantic import BaseModel, Field
 from enum import Enum
 import uuid
@@ -74,6 +74,8 @@ class MessageState(BaseModel):
     # stream
     is_stream: bool = Field(default=False)
     message_queue: Any = Field(exclude=True, default=None)
+    # memory records
+    relevant_records: Optional[List[ResourceRecord]] = Field(default=None)
 
 
 class PathNode(BaseModel):

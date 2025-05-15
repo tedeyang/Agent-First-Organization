@@ -215,8 +215,14 @@ class AgentOrg:
             "allow_global_intent_switch": True,
         }
         stm = ShortTermMemory(message_state.trajectory, chat_history_str)
+        asyncio.run(stm.personalize())
         found_records, relevant_records = stm.retrieve_records(text)
         found_intent, relevant_intent = stm.retrieve_intent(text)
+        
+        # Add found records to message state for generation
+        if found_records:
+            message_state.relevant_records = relevant_records
+        
         taskgraph_chain = RunnableLambda(self.task_graph.get_node) | RunnableLambda(self.task_graph.postprocess_node)
 
         # TODO: when planner is re-implemented, execute/break the loop based on whether the planner should be used (bot config).
