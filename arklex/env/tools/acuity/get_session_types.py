@@ -18,7 +18,7 @@ outputs = [
     {
         "name": "sessions",
         "type": "list[dict]",
-        "description": "All available information sessions. In sessions it should like \"[{'type_id': 76850002, 'name': 'Test N1'}]\".",
+        "description": "All available information sessions. In sessions it should like \"[{'apt_type_id': 76850002, 'name': 'Test N1'}]\".",
     }
 ]
 

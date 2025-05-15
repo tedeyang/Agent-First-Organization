@@ -39,6 +39,9 @@ class AcuityExceptionPrompt(ExceptionPrompt):
     # reschedule prompt
     RESCHEDULE_PROMPT = "Rescheduling the appointment failed"
 
+    # # get_all_sessions prompt
+    # GET_ALL_SESSIONS_PROMPT = "Retrieving all sessions failed"
+
     # # create_ticket exception prompt
     # TICKET_CREATION_ERROR_PROMPT = "Ticket creation failed, please try again later."
     #

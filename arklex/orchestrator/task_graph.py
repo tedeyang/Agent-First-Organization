@@ -420,6 +420,11 @@ class TaskGraph(TaskGraphBase):
         # Get local intents of the curr_node
         curr_local_intents = self.get_local_intent(curr_node, params)
 
+        # if current node is incompleted -> return current node
+        is_incomplete_node, node_output, params = self.handle_incomplete_node(curr_node, params)
+        if is_incomplete_node:
+            return node_output, params
+
         if not curr_local_intents and allow_global_intent_switch:  # no local intent under the current node
             logger.info(f"no local intent under the current node")
             is_global_intent_found, _, node_output, params = \
@@ -431,11 +436,6 @@ class TaskGraph(TaskGraphBase):
                 )
             if is_global_intent_found:
                 return node_output, params
-
-        # if current node is incompleted -> return current node
-        is_incomplete_node, node_output, params = self.handle_incomplete_node(curr_node, params)
-        if is_incomplete_node:
-            return node_output, params
         
         # if completed and no local intents -> randomly choose one of the next connected nodes (edges with intent = None)
         if not curr_local_intents:
