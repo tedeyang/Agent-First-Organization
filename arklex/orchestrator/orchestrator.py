@@ -214,7 +214,7 @@ class AgentOrg:
             "parameters": params,
             "allow_global_intent_switch": True,
         }
-        stm = ShortTermMemory(message_state.trajectory, chat_history_str)
+        stm = ShortTermMemory(message_state.trajectory, chat_history_str, llm_config=self.llm_config)
         asyncio.run(stm.personalize())
         found_records, relevant_records = stm.retrieve_records(text)
         found_intent, relevant_intent = stm.retrieve_intent(text)

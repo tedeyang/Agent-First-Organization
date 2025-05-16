@@ -13,7 +13,7 @@ from arklex.utils.model_provider_config import PROVIDER_MAP, PROVIDER_EMBEDDINGS
 
 
 class ShortTermMemory:
-    def __init__(self, trajectory: List[List[ResourceRecord]], chat_history: List[dict]):    
+    def __init__(self, trajectory: List[List[ResourceRecord]], chat_history: List[dict], llm_config: LLMConfig):    
         """_summary_
         Represents the short-term memory of a conversation, storing a trajectory of 
         ResourceRecords across multiple turns. This memory enables retrieval of past 
@@ -24,6 +24,9 @@ class ShortTermMemory:
             trajectory (List[List[ResourceRecord]]): Memory structure for the conversation where 
                                                     each list of ResourceRecord objects encompasses 
                                                     the information of a single conversation turn
+            chat_history (List[dict]): List of chat history messages
+            **kwargs: Additional arguments including:
+                - llm_config (LLMConfig, optional): Configuration for LLM and embedding models
         """          
         if trajectory is None:
             trajectory = []
@@ -31,13 +34,15 @@ class ShortTermMemory:
         if chat_history is None:
             chat_history= []
         self.chat_history= chat_history[-5:]
-        self.llm_config = LLMConfig(**MODEL)
-        self.embedding_model = PROVIDER_EMBEDDINGS.get(self.llm_config.llm_provider, OpenAIEmbeddings)(
-            **{ 'model': PROVIDER_EMBEDDING_MODELS[self.llm_config.llm_provider] } if self.llm_config.llm_provider != 'anthropic' else { 'model_name': PROVIDER_EMBEDDING_MODELS[self.llm_config.llm_provider] }
+        
+        # Use provided llm_config or create from MODEL
+        self.embedding_model = PROVIDER_EMBEDDINGS.get(llm_config.llm_provider, OpenAIEmbeddings)(
+            **{ 'model': PROVIDER_EMBEDDING_MODELS[llm_config.llm_provider] } if llm_config.llm_provider != 'anthropic' else { 'model_name': PROVIDER_EMBEDDING_MODELS[llm_config.llm_provider] }
         )
-        self.llm = PROVIDER_MAP.get(self.llm_config.llm_provider, ChatOpenAI)(
-            model=self.llm_config.model_type_or_path
+        self.llm = PROVIDER_MAP.get(llm_config.llm_provider, ChatOpenAI)(
+            model=llm_config.model_type_or_path
         )
+        
 
 
     def retrieve_records(self, query: str, top_k: int = 3, threshold: float = 0.7) -> Tuple[bool, List[ResourceRecord]]:

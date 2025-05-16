@@ -5,7 +5,8 @@ from pydantic import BaseModel, Field
 from typing import List, Dict
 import arklex.memory.core
 from arklex.memory.core import ShortTermMemory
-from arklex.utils.graph_state import ResourceRecord
+from arklex.utils.graph_state import ResourceRecord, LLMConfig, MessageState, BotConfig
+from arklex.utils.model_config import MODEL
 import asyncio
 
 # class ResourceRecord(BaseModel):
@@ -24,9 +25,9 @@ record_case1 = ResourceRecord(
     intent="User is browsing product categories",
     input=[],
     output=(
-        "• Pink Unicorn Boys & Girls Baseball Hat with Adjustable Buckle (id=gid://shopify/Product/7949281198127) – 3D unicorn design, ages 2‑12, adjustable buckle. Inventory: 547\n"
-        "• Denim Apron with 5 Pockets | Multipurpose Canvas Apron (id=gid://shopify/Product/7949281624111) – 100% cotton canvas, 5 front pockets, one‑size fits all. Inventory: 349\n"
-        "• Winter Flannel Blanket Solid Color Plaid Coral Blanket Fleece Bedspread (id=gid://shopify/Product/7949279526959) – Microfiber flannel, heated, anti‑pilling. Inventory: 0"
+        "• Pink Unicorn Boys & Girls Baseball Hat with Adjustable Buckle (id=gid://shopify/Product/7949281198127) – 3D unicorn design, ages 2‑12, adjustable buckle. Inventory: 547\n"
+        "• Denim Apron with 5 Pockets | Multipurpose Canvas Apron (id=gid://shopify/Product/7949281624111) – 100% cotton canvas, 5 front pockets, one‑size fits all. Inventory: 349\n"
+        "• Winter Flannel Blanket Solid Color Plaid Coral Blanket Fleece Bedspread (id=gid://shopify/Product/7949279526959) – Microfiber flannel, heated, anti‑pilling. Inventory: 0"
     ),
     steps=[{
         "context_generate": (
@@ -35,13 +36,13 @@ record_case1 = ResourceRecord(
     }]
 )
 
-# Case 1 Follow‑up: User specifies “Denim Apron with 5 Pockets”
+# Case 1 Follow‑up: User specifies "Denim Apron with 5 Pockets"
 record_case1_followup = ResourceRecord(
     info={"attribute": {"task": "Fetch product details", "direct": True}},
     intent="User wants product details",
     input=[],
     output=(
-        "• Denim Apron with 5 Pockets | Multipurpose Canvas Apron (id=gid://shopify/Product/7949281624111) – 100% cotton canvas, 5 front pockets, one‑size fits all. Price: $19.99, Inventory: 349"
+        "• Denim Apron with 5 Pockets | Multipurpose Canvas Apron (id=gid://shopify/Product/7949281624111) – 100% cotton canvas, 5 front pockets, one‑size fits all. Price: $19.99, Inventory: 349"
     ),
     steps=[{
         "context_generate": (
@@ -51,14 +52,14 @@ record_case1_followup = ResourceRecord(
 )
 
 
-# Case 2: User asks about aprons → Agent lists aprons → User asks “Does it have pockets?”
+# Case 2: User asks about aprons → Agent lists aprons → User asks "Does it have pockets?"
 record_case2_initial = ResourceRecord(
     info={"attribute": {"task": "List available products", "direct": False}},
     intent="User wants information about products",
     input=[],
     output=(
-        "• Denim Apron with 5 Pockets | Multipurpose Canvas Apron (id=gid://shopify/Product/7949281624111) – 100% cotton canvas, 5 front pockets. Inventory: 349\n"
-        "• Denim Apron with 3 Pockets | Multipurpose Canvas Apron (id=gid://shopify/Product/7949281722415) – 100% cotton canvas, 3 front pockets. Inventory: 84"
+        "• Denim Apron with 5 Pockets | Multipurpose Canvas Apron (id=gid://shopify/Product/7949281624111) – 100% cotton canvas, 5 front pockets. Inventory: 349\n"
+        "• Denim Apron with 3 Pockets | Multipurpose Canvas Apron (id=gid://shopify/Product/7949281722415) – 100% cotton canvas, 3 front pockets. Inventory: 84"
     ),
     steps=[{
         "context_generate": (
@@ -72,8 +73,8 @@ record_case2_followup = ResourceRecord(
     intent="User has inquiries related to product",
     input=[],
     output=(
-        "• Denim Apron with 5 Pockets | Multipurpose Canvas Apron (id=gid://shopify/Product/7949281624111) – 100% cotton canvas, 5 front pockets. Inventory: 349\n"
-        "• Denim Apron with 3 Pockets | Multipurpose Canvas Apron (id=gid://shopify/Product/7949281722415) – 100% cotton canvas, 3 front pockets. Inventory: 84"
+        "• Denim Apron with 5 Pockets | Multipurpose Canvas Apron (id=gid://shopify/Product/7949281624111) – 100% cotton canvas, 5 front pockets. Inventory: 349\n"
+        "• Denim Apron with 3 Pockets | Multipurpose Canvas Apron (id=gid://shopify/Product/7949281722415) – 100% cotton canvas, 3 front pockets. Inventory: 84"
     ),
     steps=[{"context_generate": "Yes—we have aprons with pockets for tools and accessories."}]
 )
@@ -85,8 +86,8 @@ record_case3_aprons = ResourceRecord(
     intent="User wants recommendation",
     input=[],
     output=(
-        "• Denim Apron with 5 Pockets | Multipurpose Canvas Apron (id=gid://shopify/Product/7949281624111) – 100% cotton canvas, 5 front pockets. Inventory: 349\n"
-        "• Denim Apron with 3 Pockets | Multipurpose Canvas Apron (id=gid://shopify/Product/7949281722415) – 100% cotton canvas, 3 front pockets. Inventory: 84"
+        "• Denim Apron with 5 Pockets | Multipurpose Canvas Apron (id=gid://shopify/Product/7949281624111) – 100% cotton canvas, 5 front pockets. Inventory: 349\n"
+        "• Denim Apron with 3 Pockets | Multipurpose Canvas Apron (id=gid://shopify/Product/7949281722415) – 100% cotton canvas, 3 front pockets. Inventory: 84"
     ),
     steps=[{
         "context_generate": (
@@ -100,8 +101,8 @@ record_case3_hats = ResourceRecord(
     intent="User wanst recommendation",
     input=[],
     output=(
-        "• Pink Unicorn Boys & Girls Baseball Hat with Adjustable Buckle (id=gid://shopify/Product/7949281198127) – unicorn design, ages 2‑12. Inventory: 547\n"
-        "• Metallic Navy Blue Boys & Girls Baseball Hat with Adjustable Buckle (id=gid://shopify/Product/7949281427503) – breathable cotton. Sizes 2‑5 (27), 6‑12 (0)."
+        "• Pink Unicorn Boys & Girls Baseball Hat with Adjustable Buckle (id=gid://shopify/Product/7949281198127) – unicorn design, ages 2‑12. Inventory: 547\n"
+        "• Metallic Navy Blue Boys & Girls Baseball Hat with Adjustable Buckle (id=gid://shopify/Product/7949281427503) – breathable cotton. Sizes 2‑5 (27), 6‑12 (0)."
     ),
     steps=[{
         "context_generate": (
@@ -117,9 +118,9 @@ record_case4_hats = ResourceRecord(
     intent="User wants recommendation",
     input=[],
     output=(
-        "• Pink Unicorn Boys & Girls Baseball Hat with Adjustable Buckle (id=gid://shopify/Product/7949281198127) – 3D unicorn design. Inventory: 547\n"
-        "• Green Boys & Girls Baseball Hat with Adjustable Buckle (id=gid://shopify/Product/7949281296431) – reflective strip. Inventory: 55\n"
-        "• Metallic Navy Blue Boys & Girls Baseball Hat with Adjustable Buckle (id=gid://shopify/Product/7949281427503) – reflective strip, breathable cotton. Sizes 2‑5 (27), 6‑12 (0)."
+        "• Pink Unicorn Boys & Girls Baseball Hat with Adjustable Buckle (id=gid://shopify/Product/7949281198127) – 3D unicorn design. Inventory: 547\n"
+        "• Green Boys & Girls Baseball Hat with Adjustable Buckle (id=gid://shopify/Product/7949281296431) – reflective strip. Inventory: 55\n"
+        "• Metallic Navy Blue Boys & Girls Baseball Hat with Adjustable Buckle (id=gid://shopify/Product/7949281427503) – reflective strip, breathable cotton. Sizes 2‑5 (27), 6‑12 (0)."
     ),
     steps=[{
         "context_generate": (
@@ -133,11 +134,11 @@ record_case4_navy = ResourceRecord(
     intent="User wants recommendation",
     input=[],
     output=(
-        "• Metallic Navy Blue Boys & Girls Baseball Hat with Adjustable Buckle (id=gid://shopify/Product/7949281427503) – reflective strip, breathable cotton. Sizes 2‑5 (27), 6‑12 (0)."
+        "• Metallic Navy Blue Boys & Girls Baseball Hat with Adjustable Buckle (id=gid://shopify/Product/7949281427503) – reflective strip, breathable cotton. Sizes 2‑5 (27), 6‑12 (0)."
     ),
     steps=[{
         "context_generate": (
-            "Sure—here’s the navy blue baseball hat we have in stock."
+            "Sure—here's the navy blue baseball hat we have in stock."
         )
     }]
 )
@@ -172,7 +173,48 @@ def get_shopify_records() -> List[List[ResourceRecord]]:
         record_case4_hats,
         record_case4_navy,
     ]
+
+# Test configuration
+TEST_CONFIG = {
+    "model": MODEL,
+    "role": "test_assistant",
+    "user_objective": "Test the short term memory functionality",
+    "builder_objective": "Ensure proper memory retrieval and intent matching",
+    "intro": "This is a test bot for short term memory",
+    "bot_id": "test_bot",
+    "version": "1.0",
+    "language": "EN",
+    "bot_type": "test"
+}
+
+def init_test_state():
+    # Initialize LLMConfig from test config
+    llm_config = LLMConfig(**TEST_CONFIG.get("model", MODEL))
+    
+    # Create BotConfig
+    bot_config = BotConfig(
+        bot_id=TEST_CONFIG.get("bot_id", "test_bot"),
+        version=TEST_CONFIG.get("version", "1.0"),
+        language=TEST_CONFIG.get("language", "EN"),
+        bot_type=TEST_CONFIG.get("bot_type", "test"),
+        llm_config=llm_config
+    )
+    
+    # Create MessageState
+    sys_instruct = "You are a " + TEST_CONFIG["role"] + ". " + \
+                  TEST_CONFIG["user_objective"] + \
+                  TEST_CONFIG["builder_objective"] + \
+                  TEST_CONFIG["intro"]
+    
+    return MessageState(
+        sys_instruct=sys_instruct,
+        bot_config=bot_config
+    )
+
 def test_shopify_intent():
+    # Initialize test state
+    state = init_test_state()
+    
     # build trajectory as list-of-lists
     trajectory = [[r] for r in sample_records]
 
@@ -188,16 +230,24 @@ def test_shopify_intent():
         {"role":"user","content":"Do you have navy blue hats?"}
     ]
 
-    stm = ShortTermMemory(trajectory, chat_history)
+    # Create LLMConfig instance from bot_config
+    llm_config = LLMConfig(**TEST_CONFIG.get("model", MODEL))
+    bot_config = BotConfig(
+        bot_id="test_bot",
+        version="1.0",
+        language="EN",
+        bot_type="test",
+        llm_config=llm_config
+    )
+    stm = ShortTermMemory(trajectory, chat_history, llm_config=bot_config.llm_config)
     asyncio.run(stm.personalize())
-
 
     #Check that personalized_intent is set
     for turn in stm.trajectory:
         for record in turn:
             print("Intent:", record.intent)
-        
             print("Personalized Intent:", record.personalized_intent)
+    
     found, records = stm.retrieve_records("Tell me about the denim apron")
     print("Found?", found)
     for rec in records:
@@ -205,16 +255,6 @@ def test_shopify_intent():
         found_intent, intent = stm.retrieve_intent("I am looking for the 5-pocket apron")
     print("Intent Found?", found_intent)
     print("Best Matched Intent:", intent)    
-
-    # for turn_idx, turn in enumerate(trajectory):
-    #     print(f"--- Turn {turn_idx+1} ---")
-    #     user_utt = chat_history[turn_idx]["content"]
-    #     print("User:", user_utt)
-    #     for record in turn:
-    #         print("Original intent:", record.intent)
-    #         p_intent = stm.generate_personalized_product_attribute_intent(record, user_utt)
-    #         print("Personalized intent:", p_intent)
-    #     print()
 
 if __name__ == "__main__":
     test_shopify_intent()
