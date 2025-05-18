@@ -1,23 +1,18 @@
 import os
 import json
-import argparse
 import logging
 from datetime import datetime
 from tqdm import tqdm as progress_bar
-import subprocess
 import pickle
 from pathlib import Path
 import inspect
-import importlib
 from typing import Optional
 from collections import deque
 
 from langchain.prompts import PromptTemplate
-from langchain_openai.chat_models import ChatOpenAI
-from langchain_core.runnables import RunnableLambda
 from langchain_core.output_parsers import StrOutputParser
 from textual.app import App, ComposeResult
-from textual.widgets import Tree, Label, Input, Button, Static, Log
+from textual.widgets import Tree, Label, Input, Button, Static
 from textual.containers import Vertical, Horizontal
 from textual.screen import Screen
 from textual.widgets.tree import TreeNode
@@ -25,7 +20,6 @@ from textual.widgets.tree import TreeNode
 from arklex.utils.utils import postprocess_json
 from arklex.orchestrator.generator.prompts import *
 from arklex.utils.loader import Loader, SourceType
-import sys
 from arklex.env.env import BaseResourceInitializer, DefaulResourceInitializer
 from arklex.env.nested_graph.nested_graph import NESTED_GRAPH_ID
 
@@ -203,8 +197,6 @@ class Generator:
         self.tasks = [] # tasks
 
 
-    
-    
     def _generate_reusable_tasks(self):
         """
             Generate reusable task graphs and pair each step with available resources.
@@ -695,8 +687,9 @@ class Generator:
         if self.interactable_with_user:
             app = TaskEditorApp(hitl_result)
             hitl_result = app.run()
-        task_planning_filepath = os.path.join(self.output_dir, f'taskplanning.json')
-        json.dump(hitl_result, open(task_planning_filepath, "w"), indent=4)
+        if self.output_dir:
+            task_planning_filepath = os.path.join(self.output_dir, f'taskplanning.json')
+            json.dump(hitl_result, open(task_planning_filepath, "w"), indent=4)
 
         # Step 4: Pair task with worker
         finetuned_best_practices = []
