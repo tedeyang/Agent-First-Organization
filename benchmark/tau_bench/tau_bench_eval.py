@@ -110,8 +110,10 @@ def generate_tau_bench_config(output_dir):
 def generate_taskgraph(config_file, output_dir):
     model = ChatOpenAI(model=MODEL["model_type_or_path"], timeout=30000)
     resource_initializer = TauBenchResourceInitializer()
-    generator = Generator(args, config_file, model, output_dir, resource_initializer)
-    taskgraph_filepath = generator.generate()
+    config = json.load(open(config_file))
+    generator = Generator(config, model, output_dir, resource_initializer)
+    taskgraph = generator.generate()
+    taskgraph_filepath = generator.save_task_graph(taskgraph)
     # Update the task graph with the API URLs
     task_graph = json.load(open(os.path.join(root_dir, taskgraph_filepath)))
     task_graph["nluapi"] = NLUAPI_ADDR

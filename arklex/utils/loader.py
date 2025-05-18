@@ -47,7 +47,8 @@ def encode_image(image_path):
 
 class SourceType(Enum):
     WEB = 1
-    LOCAL = 2
+    FILE = 2
+    TEXT = 3
 
 class DocObject:
     def __init__(self, id: str, source: str):
@@ -260,6 +261,20 @@ class Loader:
         urls_cleaned = [CrawledObject.from_dict(doc) for doc in urls_candidates if doc]
         return urls_cleaned
     
+    def to_crawled_text(self, text_list: List[str]) -> List[CrawledObject]:
+        '''Crawls a list of text.'''
+        crawled_local_objs = []
+        for text in text_list:
+            crawled_obj = CrawledObject(
+                id=str(uuid.uuid4()),
+                source="text",
+                content=text,
+                metadata={},
+                source_type=SourceType.TEXT,   
+            )
+            crawled_local_objs.append(crawled_obj)
+        return crawled_local_objs
+    
     def to_crawled_local_objs(self, file_list: List[str]) -> List[CrawledObject]:
         '''Crawls a list of locally present files.'''    
         local_objs = [DocObject(str(uuid.uuid4()), file) for file in file_list]
@@ -317,7 +332,7 @@ class Loader:
                     source=local_obj.source,
                     content=doc_text,
                     metadata={"title": file_name, "source": local_obj.source},
-                    source_type=SourceType.LOCAL
+                    source_type=SourceType.FILE
                 )
             elif file_type == "html":
                 # TODO : Consider replacing this logic with the Unstructured HTML Loader.
@@ -345,7 +360,7 @@ class Loader:
                         source=local_obj.source,
                         content=doc_text,
                         metadata={"title": title, "source": local_obj.source},
-                        source_type=SourceType.LOCAL
+                        source_type=SourceType.FILE
                     )
             elif file_type == "pdf":
                 # Since Mistral API key is absent, we default to basic pdf parser
@@ -363,14 +378,13 @@ class Loader:
                 err_msg = "Unsupported file type. If you are trying to upload a pdf, make sure it is less than 50MB. Images are only supported with the advanced parser."
                 raise NotImplementedError(err_msg)
                 
-            document = loader.load()[0]
-            doc_text = document.to_json()["kwargs"]["page_content"]
+            doc_text = "\n".join([document.to_json()["kwargs"]["page_content"] for document in loader.load()])
             return CrawledObject(
                 id=local_obj.id,
                 source=local_obj.source,
                 content=doc_text,
                 metadata={"title": file_name, "source": local_obj.source},
-                source_type=SourceType.LOCAL,   
+                source_type=SourceType.FILE,   
             )
 
         except Exception as err_msg:
@@ -380,7 +394,7 @@ class Loader:
                 source=local_obj.source,
                 content=None,
                 metadata={"title": file_name},
-                source_type=SourceType.LOCAL,
+                source_type=SourceType.FILE,
                 is_error=True,
                 error_message=str(err_msg)
             )

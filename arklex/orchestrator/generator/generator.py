@@ -1,23 +1,18 @@
 import os
 import json
-import argparse
 import logging
 from datetime import datetime
 from tqdm import tqdm as progress_bar
-import subprocess
 import pickle
 from pathlib import Path
 import inspect
-import importlib
 from typing import Optional
 from collections import deque
 
 from langchain.prompts import PromptTemplate
-from langchain_openai.chat_models import ChatOpenAI
-from langchain_core.runnables import RunnableLambda
 from langchain_core.output_parsers import StrOutputParser
 from textual.app import App, ComposeResult
-from textual.widgets import Tree, Label, Input, Button, Static, Log
+from textual.widgets import Tree, Label, Input, Button, Static
 from textual.containers import Vertical, Horizontal
 from textual.screen import Screen
 from textual.widgets.tree import TreeNode
@@ -25,7 +20,6 @@ from textual.widgets.tree import TreeNode
 from arklex.utils.utils import postprocess_json
 from arklex.orchestrator.generator.prompts import *
 from arklex.utils.loader import Loader, SourceType
-import sys
 from arklex.env.env import BaseResourceInitializer, DefaulResourceInitializer
 from arklex.env.nested_graph.nested_graph import NESTED_GRAPH_ID
 
@@ -169,25 +163,40 @@ class TaskEditorApp(App):
 
 
 class Generator:
-    def __init__(self, args, config, model, output_dir, resource_inizializer: Optional[BaseResourceInitializer]  = None):
+    def __init__(self,
+                 config: dict,
+                 model,
+                 output_dir: Optional[str] = None,
+                 resource_inizializer: Optional[BaseResourceInitializer]  = None,
+                 interactable_with_user=True,
+                 allow_nested_graph=True
+                 ):
         if resource_inizializer is None:
             resource_inizializer = DefaulResourceInitializer()
-        self.args = args
-        self.product_kwargs = json.load(open(config))
+        self.product_kwargs = config
         self.role = self.product_kwargs.get("role")
         self.u_objective = self.product_kwargs.get("user_objective")
         self.b_objective = self.product_kwargs.get("builder_objective")
         self.intro = self.product_kwargs.get("intro")
+        self.instruction_docs = self.product_kwargs.get("instructions")
         self.task_docs = self.product_kwargs.get("task_docs") 
         self.rag_docs = self.product_kwargs.get("rag_docs") 
-        self.tasks = self.product_kwargs.get("tasks")
+        self.user_tasks = self.product_kwargs.get("tasks")
+        self.example_conversations = self.product_kwargs.get("example_conversations") 
         self.workers = resource_inizializer.init_workers(self.product_kwargs.get("workers"))
         self.tools = resource_inizializer.init_tools(self.product_kwargs.get("tools"))
+        self.interactable_with_user = interactable_with_user
+        self.allow_nested_graph = allow_nested_graph
         self.model = model
         self.timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         self.output_dir = output_dir
-    
-    
+
+        # variables that will be used
+        self.documents = "" # task documents
+        self.reusable_tasks = {} # nested graph tasks 
+        self.tasks = [] # tasks
+
+
     def _generate_reusable_tasks(self):
         """
             Generate reusable task graphs and pair each step with available resources.
@@ -203,7 +212,9 @@ class Generator:
             "u_objective": self.u_objective,
             "intro": self.intro,
             "tasks": self.tasks,
-            "docs": self.documents
+            "docs": self.documents,
+            "instructions": self.instructions,
+            "example_conversations": self.example_conversations
             })
         final_chain = self.model | StrOutputParser()
         answer = final_chain.invoke(input_prompt)
@@ -261,21 +272,44 @@ class Generator:
     def _generate_tasks(self):
         # based on the type and documents
         prompt = PromptTemplate.from_template(generate_tasks_sys_prompt)
-        input_prompt = prompt.invoke({"role": self.role, "u_objective": self.u_objective, "intro": self.intro, "docs": self.documents})
+        input_prompt = prompt.invoke({
+            "role": self.role,
+            "u_objective": self.u_objective,
+            "intro": self.intro,
+            "docs": self.documents,
+            "instructions": self.instructions,
+            "existing_tasks": self.tasks,
+        })
         final_chain = self.model | StrOutputParser()
         answer = final_chain.invoke(input_prompt)
         logger.debug(f"Generated tasks with thought: {answer}")
-        self.tasks = postprocess_json(answer)
+        self.tasks.extend(postprocess_json(answer))
 
-    def _format_tasks(self):
-        # TODO: need to use LLM to match the semantics meaning of the tasks
+    def _add_provided_tasks(self):
+        if not self.user_tasks:
+            return
         new_format_tasks = []
-        for task_str in self.tasks:
+        for user_task in self.user_tasks:
             task = {}
-            task['intent'] = task_str
-            task['task'] = task_str
+            # task['intent'] = task_str
+            task['task'] = user_task["task"]
             new_format_tasks.append(task)
-        self.tasks = new_format_tasks
+        
+        # given the provided tasks, predict the intent of tasks
+        prompt = PromptTemplate.from_template(task_intents_prediction_prompt)
+        input_prompt = prompt.invoke({
+            "role": self.role,
+            "u_objective": self.u_objective,
+            "intro": self.intro,
+            "docs": self.documents,
+            "instructions": self.instructions,
+            "user_tasks": self.user_tasks,
+        })
+        final_chain = self.model | StrOutputParser()
+        answer = final_chain.invoke(input_prompt)
+        new_format_tasks = postprocess_json(answer)
+
+        self.tasks.extend(new_format_tasks)
 
     def _generate_best_practice(self, task):
         # Best practice detection
@@ -299,6 +333,7 @@ class Generator:
             tool_desc = tool_info["description"]
             resources[tool_name] = tool_desc
 
+
         for task_name, task_info in self.reusable_tasks.items():
             resources[task_name] = task_info["nestedgraph_task"]
             
@@ -321,7 +356,14 @@ class Generator:
         
         # Best practice suggestion
         prompt = PromptTemplate.from_template(generate_best_practice_sys_prompt)
-        input_prompt = prompt.invoke({"role": self.role, "u_objective": self.u_objective, "task": task["task"], "resources": resources_str})
+        input_prompt = prompt.invoke({
+            "role": self.role,
+            "u_objective": self.u_objective,
+            "task": task["task"],
+            "resources": resources_str,
+            "instructions": self.instructions,
+            "example_conversations": self.example_conversations
+        })
         final_chain = self.model | StrOutputParser()
         answer = final_chain.invoke(input_prompt)
         logger.debug(f"Generated best practice with thought: {answer}")
@@ -521,6 +563,7 @@ class Generator:
             "nodes": nodes,
             "edges": edges
         }
+
         for key, value in self.product_kwargs.items():
             task_graph[key] = value
 
@@ -529,7 +572,7 @@ class Generator:
     def _load_docs(self):
         if self.task_docs:
             filepath = os.path.join(self.output_dir, "task_documents.pkl")
-            total_num_docs = sum([doc.get("num") if doc.get("num") else 1 for doc in self.task_docs])
+            total_num_docs = sum([doc.get("num", 1) for doc in self.task_docs])
             loader = Loader()
             if Path(filepath).exists():
                 logger.warning(f"Loading existing documents from {os.path.join(self.output_dir, 'task_documents.pkl')}! If you want to recrawl, please delete the file or specify a new --output-dir when initiate Generator.")
@@ -538,50 +581,87 @@ class Generator:
                 docs = []
                 for doc in self.task_docs:
                     source = doc.get("source")
-                    
-                    if doc.get('type') != 'local':
+                    if doc.get('type') == 'url':
                         num_docs = doc.get("num") if doc.get("num") else 1
                         urls = loader.get_all_urls(source, num_docs)
                         crawled_urls = loader.to_crawled_url_objs(urls)
                         docs.extend(crawled_urls)
-                        
-                    elif doc.get('type') == 'local':
+                    elif doc.get('type') == 'file':
                         file_list = [os.path.join(source, f) for f in os.listdir(source)]
                         docs.extend(loader.to_crawled_local_objs(file_list))
+                    elif doc.get('type') == 'text':
+                        docs.extend(loader.to_crawled_text([source]))
+                    else:
+                        # TODO: how to handle when type is not provided
+                        raise Exception("type must be one of [url, file, text] and it must be provided")
                     
                 Loader.save(filepath, docs)
                 
-            if total_num_docs > 50:
-                limit = total_num_docs // 5
-            else:
-                limit = 10
-              
+            limit = max(total_num_docs // 5, 10)
+            
             crawled_docs = []
             web_docs = list(filter(lambda x: x.source_type == SourceType.WEB, docs))
-            local_docs = list(filter(lambda x: x.source_type == SourceType.LOCAL, docs))
+            file_docs = list(filter(lambda x: x.source_type == SourceType.FILE, docs))
+            text_docs = list(filter(lambda x: x.source_type == SourceType.TEXT, docs))
             crawled_docs.extend(loader.get_candidates_websites(web_docs, limit))
-            crawled_docs.extend(local_docs)
+            crawled_docs.extend(file_docs)
+            crawled_docs.extend(text_docs)
             
             logger.debug(f"Loaded {len(crawled_docs)} documents")
             self.documents = "\n\n".join([f"{doc.source}\n{doc.content}" for doc in crawled_docs])
         else:
             self.documents = ""
+    
+    def _load_instructions(self):
+        instructions = []
+        if not self.instruction_docs:
+            self.instructions = ""
+            return
+        limit = len(self.instruction_docs)
+        for doc in self.instruction_docs:
+            loader = Loader()
+            source = doc.get("source")
+            if doc.get('type') == 'url':
+                num_docs = doc.get("num") if doc.get("num") else 1
+                urls = loader.get_all_urls(source, num_docs)
+                crawled_urls = loader.to_crawled_url_objs(urls)
+                instructions.extend(crawled_urls)
+            elif doc.get('type') == 'file':
+                file_list = [os.path.join(source, f) for f in os.listdir(source)]
+                instructions.extend(loader.to_crawled_local_objs(file_list))
+            elif doc.get('type') == 'text':
+                instructions.extend(loader.to_crawled_text([source]))
+            else:
+                # TODO: how to handle when type is not provided
+                raise Exception("type must be one of [url, file, text] and it must be provided")
+            
+        crawled_docs = []
+        web_docs = list(filter(lambda x: x.source_type == SourceType.WEB, instructions))
+        file_docs = list(filter(lambda x: x.source_type == SourceType.FILE, instructions))
+        text_docs = list(filter(lambda x: x.source_type == SourceType.TEXT, instructions))
+        crawled_docs.extend(loader.get_candidates_websites(web_docs, limit))
+        crawled_docs.extend(file_docs)
+        crawled_docs.extend(text_docs)
+        logger.debug(f"Loaded {len(crawled_docs)} instruction documents")
+        self.instructions = "\n\n".join([f"{doc.content}" for doc in crawled_docs])
 
 
-    def generate(self):
+    def generate(self) -> dict:
 
-        # Step 0: Load the docs
+        # Load the docs for task graph
         self._load_docs()
-        
-        # Step 1: Generate the tasks
-        if not self.tasks:
-            self._generate_tasks()
-            logger.info(f"Generated tasks: {self.tasks}")
-        else:
-            self._format_tasks()
-            logger.info(f"Formatted tasks: {self.tasks}")
 
-        self._generate_reusable_tasks()
+        # Load the instructions
+        self._load_instructions()
+
+        # Add tasks provided by users 
+        self._add_provided_tasks()
+
+        # Generate tasks
+        self._generate_tasks()
+        
+        if self.allow_nested_graph:
+            self._generate_reusable_tasks()
 
         # Step 2: Generate the task planning
         best_practices = []
@@ -602,10 +682,14 @@ class Generator:
                 logger.error(e)
                 continue
             format_tasks.append({"task_name": task_name, "steps": steps})
-        app = TaskEditorApp(format_tasks)
-        hitl_result = app.run()
-        task_planning_filepath = os.path.join(self.output_dir, f'taskplanning.json')
-        json.dump(hitl_result, open(task_planning_filepath, "w"), indent=4)
+        
+        hitl_result = format_tasks
+        if self.interactable_with_user:
+            app = TaskEditorApp(hitl_result)
+            hitl_result = app.run()
+        if self.output_dir:
+            task_planning_filepath = os.path.join(self.output_dir, f'taskplanning.json')
+            json.dump(hitl_result, open(task_planning_filepath, "w"), indent=4)
 
         # Step 4: Pair task with worker
         finetuned_best_practices = []
@@ -624,9 +708,10 @@ class Generator:
         # Step 5: Format the task graph
         task_graph = self._format_task_graph(finetuned_best_practices)
 
-        # Step 6: Save the task graph
+        return task_graph
+    
+    def save_task_graph(self, task_graph) -> str:
         taskgraph_filepath = os.path.join(self.output_dir, f'taskgraph.json')
         with open(taskgraph_filepath, "w") as f:
             json.dump(task_graph, f, indent=4)
-
         return taskgraph_filepath
