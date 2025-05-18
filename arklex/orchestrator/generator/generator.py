@@ -174,7 +174,8 @@ class Generator:
                  model,
                  output_dir: Optional[str] = None,
                  resource_inizializer: Optional[BaseResourceInitializer]  = None,
-                 interactable_with_user=True
+                 interactable_with_user=True,
+                 allow_nested_graph=True
                  ):
         if resource_inizializer is None:
             resource_inizializer = DefaulResourceInitializer()
@@ -191,6 +192,7 @@ class Generator:
         self.workers = resource_inizializer.init_workers(self.product_kwargs.get("workers"))
         self.tools = resource_inizializer.init_tools(self.product_kwargs.get("tools"))
         self.interactable_with_user = interactable_with_user
+        self.allow_nested_graph = allow_nested_graph
         self.model = model
         self.timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         self.output_dir = output_dir
@@ -666,7 +668,8 @@ class Generator:
         # Generate tasks
         self._generate_tasks()
         
-        self._generate_reusable_tasks()
+        if self.allow_nested_graph:
+            self._generate_reusable_tasks()
 
         # Step 2: Generate the task planning
         best_practices = []
