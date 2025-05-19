@@ -2,12 +2,11 @@ from datetime import datetime, timezone
 import inspect
 import pytz
 import calendar
-
 import hubspot
 import parsedatetime
 from hubspot.crm.objects.meetings import ApiException
-
 from arklex.env.tools.tools import register_tool, logger
+from arklex.utils.utils import init_logger
 from arklex.env.tools.hubspot.utils import authenticate_hubspot
 from arklex.exceptions import ToolExecutionError
 from arklex.env.tools.hubspot._exception_prompt import HubspotExceptionPrompt
@@ -34,7 +33,7 @@ slots = [
     {
         "name": "meeting_date",
         "type": "str",
-        "description": "The exact date the customer want to take meeting with the representative. e.g. today, Next Monday, May 1st. If users confirm the specific date, then accept it.",
+        "description": "The exact date (only the month and day) the customer want to take meeting with the representative. e.g. today, Next Monday, May 1st. If users confirm the specific date, then accept it.",
         "prompt": "Could you please give me the date of the meeting?",
         "required": True,
     },
@@ -71,21 +70,23 @@ def check_available(owner_id: str, time_zone: str, meeting_date: str, duration: 
                     'Content-Type': 'application/json'
                 },
                 "qs": {
-                    'organizerUserId': owner_id
+                    'organizerUserId': int(owner_id)
                 }
             }
         )
         meeting_link_response = meeting_link_response.json()
-        if meeting_link_response.get('total') == 0:
+        if meeting_link_response.get('status') == 'error':
+            logger.error(f"The error for retrieving the meeting link happens:{meeting_link_response.get('message', 'Unknown error happens')}")
             raise ToolExecutionError(func_name, HubspotExceptionPrompt.MEETING_LINK_UNFOUND_PROMPT)
         else:
             meeting_links = meeting_link_response['results'][0]
+
         meeting_slug = meeting_links['slug']
         cal = parsedatetime.Calendar()
         time_struct, _ = cal.parse(meeting_date)
         meeting_date = datetime(*time_struct[:3])
 
-        last_day = calendar.monthrange(meeting_date.year, meeting_date.month)[1]  
+        last_day = calendar.monthrange(meeting_date.year, meeting_date.month)[1]
         is_last_day = meeting_date.day == last_day
 
         month_offset = 1 if is_last_day else 0
@@ -140,7 +141,6 @@ def check_available(owner_id: str, time_zone: str, meeting_date: str, duration: 
                         'start': datetime.fromtimestamp(ab_time['start'] / 1000, tz=timezone.utc).astimezone(time_zone).isoformat(),
                         'end': datetime.fromtimestamp(ab_time['end'] / 1000, tz=timezone.utc).astimezone(time_zone).isoformat(),
                     })
-
 
             response = ''
             if not len(same_dt_info['available_time_slots']) == 0:
