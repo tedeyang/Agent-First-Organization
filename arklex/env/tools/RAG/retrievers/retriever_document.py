@@ -12,6 +12,7 @@ DEFAULT_CHUNK_ENCODING = "cl100k_base"
 
 logger = logging.getLogger(__name__)
 
+
 def embed(text: str):
     client = OpenAI()
     try:
@@ -21,7 +22,8 @@ def embed(text: str):
         logger.error(text[:1000])
         logger.exception(e)
         raise e
-    return response.data[0].embedding    
+    return response.data[0].embedding
+
 
 class RetrieverDocumentType(Enum):
     WEBSITE = "website"
@@ -88,10 +90,14 @@ class RetrieverDocument:
         elif self.qa_doc_type == RetrieverDocumentType.FAQ:
             raise ValueError("Cannot chunk FAQ document")
         encoding = tiktoken.get_encoding(chunk_encoding)
-        chunked_texts = RecursiveCharacterTextSplitter.from_tiktoken_encoder(encoding_name=chunk_encoding, chunk_size=400, chunk_overlap=50).split_text(self.text.strip())
+        chunked_texts = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
+            encoding_name=chunk_encoding, chunk_size=400, chunk_overlap=50
+        ).split_text(self.text.strip())
         chunked_docs = []
         tokens = encoding.encode(self.text)
-        logger.info(f"Original text token length: {len(tokens)}, Chunked to {len(chunked_texts)} chunks")
+        logger.info(
+            f"Original text token length: {len(tokens)}, Chunked to {len(chunked_texts)} chunks"
+        )
         for i, chunk in enumerate(chunked_texts):
             chunk = chunk.strip()
             tokens = encoding.encode(chunk)
@@ -111,7 +117,7 @@ class RetrieverDocument:
             chunked_docs.append(doc)
 
         return chunked_docs
-    
+
     def to_dict(self):
         return {
             "id": self.id,
@@ -126,7 +132,7 @@ class RetrieverDocument:
             "timestamp": self.timestamp,
             "bot_uid": self.bot_uid,
         }
-    
+
     def to_milvus_schema_dict_and_embed(self) -> Dict:
         # check if values exists
         if (
@@ -154,7 +160,7 @@ class RetrieverDocument:
             "embedding": embed(self.text),
             "bot_uid": self.bot_uid,
         }
-    
+
     @classmethod
     def from_dict(cls, doc_dict):
         return cls(
@@ -173,9 +179,14 @@ class RetrieverDocument:
 
     @classmethod
     def faq_retreiver_doc(
-    #     cls, id: str, text: str, metadata: dict, bot_uid: str, timestamp: int = None, num_tokens: int = None
-    # ):
-        cls, id: str, text: str, metadata: dict, bot_uid: str, timestamp: int = None
+        #     cls, id: str, text: str, metadata: dict, bot_uid: str, timestamp: int = None, num_tokens: int = None
+        # ):
+        cls,
+        id: str,
+        text: str,
+        metadata: dict,
+        bot_uid: str,
+        timestamp: int = None,
     ):
         return cls(
             id,
@@ -188,7 +199,7 @@ class RetrieverDocument:
             # num_tokens=num_tokens,
             embedding=None,
             timestamp=timestamp,
-            bot_uid=bot_uid
+            bot_uid=bot_uid,
         )
 
     @classmethod
@@ -216,7 +227,10 @@ class RetrieverDocument:
 
     @classmethod
     def chunked_retriever_docs_from_db_docs(
-        cls, db_docs: List[dict], doc_type: RetrieverDocumentType, bot_uid: str,
+        cls,
+        db_docs: List[dict],
+        doc_type: RetrieverDocumentType,
+        bot_uid: str,
     ) -> List["RetrieverDocument"]:
         chunked_db_docs: List[RetrieverDocument] = []
         for doc in db_docs:
@@ -246,7 +260,11 @@ class RetrieverDocument:
         for doc in faq_db_docs:
             faq_docs.append(
                 cls.faq_retreiver_doc(
-                    id=doc["id"], text=doc["content"], metadata=doc["metadata"], bot_uid=get_bot_uid(bot_id, version), timestamp=doc["timestamp"]
+                    id=doc["id"],
+                    text=doc["content"],
+                    metadata=doc["metadata"],
+                    bot_uid=get_bot_uid(bot_id, version),
+                    timestamp=doc["timestamp"],
                 )
             )
         logger.info(f"Loaded {len(faq_docs)} faq docs")
@@ -273,8 +291,10 @@ class RetrieverDocument:
 
         return chunked_website_docs + chunked_other_docs + faq_docs
 
+
 def embed_retriever_document(retriever_document: RetrieverDocument):
     return retriever_document.to_milvus_schema_dict_and_embed()
+
 
 def get_bot_uid(bot_id: str, version: str):
     return f"{bot_id}__{version}"

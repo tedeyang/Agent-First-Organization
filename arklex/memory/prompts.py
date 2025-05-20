@@ -1,4 +1,4 @@
-intro = f"""
+intro = """
 You are helping personalize user intents in an agentic taskgraph workflow.
 Your job: 
 Given the tool's final raw output: tool_output, task performed by the tool: task, tool's context generated response: context_generate, basic user intent: user_intent, and current user utterance: user_utterance → output a detailed Chain-of-Thought reasoning followed by a short clean Personalized Intent focused on product + attribute.

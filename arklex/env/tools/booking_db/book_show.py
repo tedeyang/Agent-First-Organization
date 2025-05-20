@@ -5,23 +5,28 @@ import datetime
 import uuid
 import pandas as pd
 
+
 @register_tool(
     "Books an existing show",
-    [{**SLOTS['show_name'], 'required': False}, 
-     {**SLOTS['date'], 'required': False},
-     {**SLOTS['time'], 'required': False},
-     {**SLOTS['location'], 'required': False},
+    [
+        {**SLOTS["show_name"], "required": False},
+        {**SLOTS["date"], "required": False},
+        {**SLOTS["time"], "required": False},
+        {**SLOTS["location"], "required": False},
     ],
-    [{
-        "name": "query_result",
-        "type": "str",
-        "description": "A list of available shows that satisfies the given criteria (displays the first 10 results). If no show satisfies the criteria, returns 'No shows exist'",
-    }],
-    lambda x: x and x not in (LOG_IN_FAILURE, NO_SHOW_MESSAGE, MULTIPLE_SHOWS_MESSAGE)
+    [
+        {
+            "name": "query_result",
+            "type": "str",
+            "description": "A list of available shows that satisfies the given criteria (displays the first 10 results). If no show satisfies the criteria, returns 'No shows exist'",
+        }
+    ],
+    lambda x: x and x not in (LOG_IN_FAILURE, NO_SHOW_MESSAGE, MULTIPLE_SHOWS_MESSAGE),
 )
 def book_show(show_name=None, date=None, time=None, location=None) -> str | None:
-    if not log_in(): return LOG_IN_FAILURE
-    
+    if not log_in():
+        return LOG_IN_FAILURE
+
     logger.info("Enter book show function")
     conn = sqlite3.connect(booking.db_path)
     cursor = conn.cursor()
@@ -33,12 +38,12 @@ def book_show(show_name=None, date=None, time=None, location=None) -> str | None
         if slot_value:
             query += f" AND {slot_name} = ?"
             params.append(slot_value)
-            
+
     # Execute the query
     cursor.execute(query, params)
     rows = cursor.fetchall()
     logger.info(f"Rows found: {len(rows)}")
-    
+
     response = None
     # Check whether info is enough to book a show
     if len(rows) == 0:
@@ -51,14 +56,17 @@ def book_show(show_name=None, date=None, time=None, location=None) -> str | None
         show_id = results["id"]
 
         # Insert a row into the booking table
-        cursor.execute('''
+        cursor.execute(
+            """
             INSERT INTO booking (id, show_id, user_id, created_at)
             VALUES (?, ?, ?, ?)
-        ''', ("booking_" + str(uuid.uuid4()),  show_id, booking.user_id, datetime.now()))
+        """,
+            ("booking_" + str(uuid.uuid4()), show_id, booking.user_id, datetime.now()),
+        )
 
         results_df = pd.DataFrame([results])
         response = "The booked show is:\n" + results_df.to_string(index=False)
-        
+
     cursor.close()
     conn.close()
     return response

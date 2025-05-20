@@ -10,7 +10,6 @@ class ShopifyToolOrchestrator(MockOrchestrator):
         self.fixed_args = json.loads(fixed_args)
         super().__init__(config_file_path, self.fixed_args)
 
-
     def _validate_result(self, test_case: dict, history: list, params: dict):
         # Check taskgraph path
         node_path = [i["node_id"] for i in params.get("taskgraph", {}).get("path", {})]
