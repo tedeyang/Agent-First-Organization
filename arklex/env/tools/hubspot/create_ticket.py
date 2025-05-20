@@ -29,7 +29,7 @@ slots = [
         "description": "The question that the customer has for the specific product",
         "prompt": "",
         "required": True,
-    }
+    },
 ]
 outputs = [
     {
@@ -50,38 +50,40 @@ def create_ticket(cus_cid: str, issue: str, **kwargs) -> str:
     timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ")[:-3] + "Z"
     subject_name = "Issue of " + cus_cid + " at " + timestamp
     ticket_properties = {
-        'hs_pipeline_stage': 1,
-        'content': issue,
-        'subject': subject_name
+        "hs_pipeline_stage": 1,
+        "content": issue,
+        "subject": subject_name,
     }
     ticket_for_create = SimplePublicObjectInputForCreate(properties=ticket_properties)
     try:
-        ticket_creation_response = api_client.crm.tickets.basic_api.create(simple_public_object_input_for_create=ticket_for_create)
+        ticket_creation_response = api_client.crm.tickets.basic_api.create(
+            simple_public_object_input_for_create=ticket_for_create
+        )
         ticket_creation_response = ticket_creation_response.to_dict()
-        ticket_id = ticket_creation_response['id']
+        ticket_id = ticket_creation_response["id"]
         association_spec = [
             AssociationSpec(
-                association_category="HUBSPOT_DEFINED",
-                association_type_id=15
+                association_category="HUBSPOT_DEFINED", association_type_id=15
             )
         ]
         try:
-            association_creation_response = api_client.crm.associations.v4.basic_api.create(
-                object_type="contact",
-                object_id=cus_cid,
-                to_object_type="ticket",
-                to_object_id=ticket_id,
-                association_spec=association_spec
+            association_creation_response = (
+                api_client.crm.associations.v4.basic_api.create(
+                    object_type="contact",
+                    object_id=cus_cid,
+                    to_object_type="ticket",
+                    to_object_id=ticket_id,
+                    association_spec=association_spec,
+                )
             )
             return ticket_id
         except ApiException as e:
             logger.info("Exception when calling AssociationV4: %s\n" % e)
-            raise ToolExecutionError(func_name, HubspotExceptionPrompt.TICKET_CREATION_ERROR_PROMPT)
+            raise ToolExecutionError(
+                func_name, HubspotExceptionPrompt.TICKET_CREATION_ERROR_PROMPT
+            )
     except ApiException as e:
         logger.info("Exception when calling Crm.tickets.create: %s\n" % e)
-        raise ToolExecutionError(func_name, HubspotExceptionPrompt.TICKET_CREATION_ERROR_PROMPT)
-
-
-
-
-
+        raise ToolExecutionError(
+            func_name, HubspotExceptionPrompt.TICKET_CREATION_ERROR_PROMPT
+        )

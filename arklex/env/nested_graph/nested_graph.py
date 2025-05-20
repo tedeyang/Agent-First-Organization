@@ -4,6 +4,7 @@ from arklex.utils.graph_state import NodeInfo, Params, PathNode, StatusEnum
 
 NESTED_GRAPH_ID = "nested_graph"
 
+
 class NestedGraph:
     def __init__(self, node_info: NodeInfo):
         """
@@ -22,10 +23,11 @@ class NestedGraph:
             str: The start node ID derived from the 'value' attribute of node_info.
         """
         return str(self.node_info.attributes["value"])
-    
-    
+
     @staticmethod
-    def get_nested_graph_component_node(params: Params, is_leaf_func) -> Tuple[PathNode | None, Params]:
+    def get_nested_graph_component_node(
+        params: Params, is_leaf_func
+    ) -> Tuple[PathNode | None, Params]:
         """
         If in nested subgraph, locate and return the nested graph resource node
         If leaf in main graph, return current node
@@ -37,7 +39,7 @@ class NestedGraph:
 
         Args:
             params (Params): The parameters object that contains the current task graph, including its node path.
-            is_leaf_func (Callable[[Any], bool]): A function that takes a node ID and returns True if the node 
+            is_leaf_func (Callable[[Any], bool]): A function that takes a node ID and returns True if the node
                                                     is a leaf node in the nested graph structure, otherwise False.
 
         Returns:
@@ -46,7 +48,10 @@ class NestedGraph:
                   or None if no such node is identified.
                 - The second element is the updated params object, which may include modified task graph state.
         """
-        def _get_nested_graph_component_node(node_i, params: Params) -> Tuple[int, Params]:
+
+        def _get_nested_graph_component_node(
+            node_i, params: Params
+        ) -> Tuple[int, Params]:
             """
             if node is in nested graph, return path index of nested graph resource node, params and update path
             if node in main graph, return -1, params
@@ -69,11 +74,13 @@ class NestedGraph:
                 cur_node_i -= 1
 
             return -1, params
-        
+
         path = params.taskgraph.path
         cur_node_i = len(path) - 1
         while cur_node_i >= 0:
-            nested_graph_next_node_path_i, params = _get_nested_graph_component_node(cur_node_i, params)
+            nested_graph_next_node_path_i, params = _get_nested_graph_component_node(
+                cur_node_i, params
+            )
             if nested_graph_next_node_path_i == -1:
                 path_node: PathNode = path[cur_node_i]
                 return path_node, params
@@ -82,6 +89,6 @@ class NestedGraph:
             if not is_leaf_func(node_id):
                 return path_node, params
             cur_node_i = nested_graph_next_node_path_i
-       # None should never be returned
-       # if in main graph, current node should be returned as _get_nested_graph_component_node will return -1
+        # None should never be returned
+        # if in main graph, current node should be returned as _get_nested_graph_component_node will return -1
         return None, params

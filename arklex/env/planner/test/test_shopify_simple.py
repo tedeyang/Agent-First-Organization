@@ -10,12 +10,10 @@ import warnings
 
 from arklex.orchestrator.orchestrator import AgentOrg
 from arklex.env.env import Env
-from arklex.utils.model_config import MODEL
-from arklex.utils.model_provider_config import LLM_PROVIDERS
-from arklex.env.tools.shopify.get_cart import get_cart
 
 # Wait this many seconds between tests to avoid token rate-limiting
-WAIT_TIME_BETWEEN_TESTS_SEC = 5 # Set to None or 0 for no wait time
+WAIT_TIME_BETWEEN_TESTS_SEC = 5  # Set to None or 0 for no wait time
+
 
 class Logic_Test(unittest.TestCase):
     file_path = "test_cases_shopify_simple.json"
@@ -35,14 +33,13 @@ class Logic_Test(unittest.TestCase):
     def tearDownClass(cls):
         """Method to tear down the test fixture. Run AFTER the test methods."""
         pass
-    
-    def _get_api_bot_response(self, user_text, history, params):
 
-        data = {"text": user_text, 'chat_history': history, 'parameters': params}
+    def _get_api_bot_response(self, user_text, history, params):
+        data = {"text": user_text, "chat_history": history, "parameters": params}
         orchestrator = AgentOrg(config=self.config, env=self.env)
         result = orchestrator.get_response(data)
 
-        return result['answer'], result['parameters']
+        return result["answer"], result["parameters"]
 
     def _check_task_completion(self, output: str, params: Dict, test_case: Dict):
         expected_output = test_case.get("expected_output", {})
@@ -98,10 +95,10 @@ class Logic_Test(unittest.TestCase):
         if len(expected_tool_calls) == 1:
             expected_tool_calls = expected_tool_calls[0]
             failure_message = (
-                "FAILED: Planner expected tool calls != actual tool calls." +
-                f"\nexpected_tool_calls = {json.dumps(expected_tool_calls, indent=2)}" +
-                f"\nactual_tool_calls = {json.dumps(actual_tool_calls, indent=2)}" +
-                f"\nparams['memory']['function_calling_trajectory'] = {params['memory']['function_calling_trajectory']}"
+                "FAILED: Planner expected tool calls != actual tool calls."
+                + f"\nexpected_tool_calls = {json.dumps(expected_tool_calls, indent=2)}"
+                + f"\nactual_tool_calls = {json.dumps(actual_tool_calls, indent=2)}"
+                + f"\nparams['memory']['function_calling_trajectory'] = {params['memory']['function_calling_trajectory']}"
             )
             self.assertEqual(expected_tool_calls, actual_tool_calls, failure_message)
 
@@ -109,17 +106,19 @@ class Logic_Test(unittest.TestCase):
         # matches at least one of these
         else:
             failure_message = (
-                "FAILED: Planner allowed tool calls != actual tool calls." +
-                f"\nActual tool calls was expected to be one of the following:"
+                "FAILED: Planner allowed tool calls != actual tool calls."
+                + f"\nActual tool calls was expected to be one of the following:"
             )
             for tool_set in expected_tool_calls:
                 failure_message += f"\n{json.dumps(tool_set, indent=2)}"
             failure_message += (
-                f"\nInstead, actual_tool_calls were: {json.dumps(actual_tool_calls, indent=2)}" +
-                f"\nparams['memory']['function_calling_trajectory'] = {params['memory']['function_calling_trajectory']}"
+                f"\nInstead, actual_tool_calls were: {json.dumps(actual_tool_calls, indent=2)}"
+                + f"\nparams['memory']['function_calling_trajectory'] = {params['memory']['function_calling_trajectory']}"
             )
 
-            tool_call_matches = [actual_tool_calls == tool_set for tool_set in expected_tool_calls]
+            tool_call_matches = [
+                actual_tool_calls == tool_set for tool_set in expected_tool_calls
+            ]
             self.assertTrue(True in tool_call_matches, failure_message)
 
     def _check_success_criteria(self, output: str, params: Dict, test_case: Dict):
@@ -127,10 +126,11 @@ class Logic_Test(unittest.TestCase):
         self._check_task_completion(output, params, test_case)
 
     def _run_test_case(self, idx: int):
-
         # Wait to avoid token rate-limiting
         if WAIT_TIME_BETWEEN_TESTS_SEC is not None and self.total_tests_run > 0:
-            print(f"\nWaiting {WAIT_TIME_BETWEEN_TESTS_SEC} sec between tests to avoid token rate-limiting...")
+            print(
+                f"\nWaiting {WAIT_TIME_BETWEEN_TESTS_SEC} sec between tests to avoid token rate-limiting..."
+            )
             time.sleep(WAIT_TIME_BETWEEN_TESTS_SEC)
 
         print(f"\n=============Unit Test {idx}=============")
@@ -139,25 +139,25 @@ class Logic_Test(unittest.TestCase):
         print(f"Task description: {test_case['description']}")
 
         # Initialize config and env
-        file_path = test_case['taskgraph']
-        input_dir, _ = os.path.split(file_path) 
-        with open (file_path, "r", encoding="UTF_8") as f:
+        file_path = test_case["taskgraph"]
+        input_dir, _ = os.path.split(file_path)
+        with open(file_path, "r", encoding="UTF_8") as f:
             self.config = json.load(f)
         self.env = Env(
-            tools = self.config.get("tools", []),
-            workers = self.config.get("workers", []),
-            slotsfillapi = self.config["slotfillapi"],
-            planner_enabled=True
+            tools=self.config.get("tools", []),
+            workers=self.config.get("workers", []),
+            slotsfillapi=self.config["slotfillapi"],
+            planner_enabled=True,
         )
 
         history = []
         params = {}
-        for node in self.config['nodes']:
-            if node[1].get("type", "") == 'start':
-                start_message = node[1]['attribute']["value"]
+        for node in self.config["nodes"]:
+            if node[1].get("type", "") == "start":
+                start_message = node[1]["attribute"]["value"]
                 break
         history.append({"role": self.worker_prefix, "content": start_message})
-        
+
         for user_text in test_case["user_utterance"]:
             print(f"User: {user_text}")
             output, params = self._get_api_bot_response(user_text, history, params)
@@ -202,7 +202,7 @@ class Logic_Test(unittest.TestCase):
         calling_tool = self.env.planner.tools_map[resource_id]
         combined_kwargs = {**kwargs, **calling_tool["fixed_args"]}
         observation = str(calling_tool["execute"]().func(**combined_kwargs))
-        
+
         # Check for information related to the added product
         self.assertTrue("gid://shopify/Product/8970008461542" in observation)
         self.assertTrue("Inyahome New Art Velvet" in observation)
@@ -214,7 +214,8 @@ class Logic_Test(unittest.TestCase):
     def test_Unittest09(self):
         self._run_test_case(9)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     with warnings.catch_warnings():
-        warnings.simplefilter('ignore')
+        warnings.simplefilter("ignore")
         unittest.main()

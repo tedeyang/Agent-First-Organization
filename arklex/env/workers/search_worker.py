@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 
 @register_worker
 class SearchWorker(BaseWorker):
-
     description = "Answer the user's questions based on real-time online search results"
 
     def __init__(self):

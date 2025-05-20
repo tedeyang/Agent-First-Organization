@@ -3,19 +3,23 @@ from .utils import *
 
 import pandas as pd
 
+
 @register_tool(
     "Checks details of booked show(s)",
     [],
-    [{
-        "name": "query_result",
-        "type": "str",
-        "description": "A list of booked shows. If no booking exists, returns 'No bookings found.'",
-    }],
-    lambda x: x and x not in (LOG_IN_FAILURE, 'No bookings found.')
+    [
+        {
+            "name": "query_result",
+            "type": "str",
+            "description": "A list of booked shows. If no booking exists, returns 'No bookings found.'",
+        }
+    ],
+    lambda x: x and x not in (LOG_IN_FAILURE, "No bookings found."),
 )
 def check_booking() -> str | None:
-    if not log_in(): return LOG_IN_FAILURE
-    
+    if not log_in():
+        return LOG_IN_FAILURE
+
     logger.info("Enter check booking function")
     conn = sqlite3.connect(booking.db_path)
     cursor = conn.cursor()
@@ -31,7 +35,7 @@ def check_booking() -> str | None:
     rows = cursor.fetchall()
     cursor.close()
     conn.close()
-    
+
     response = "No bookings found."
     if len(rows) == 0:
         response = NO_BOOKING_MESSAGE

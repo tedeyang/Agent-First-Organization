@@ -4,9 +4,8 @@ HUBSPOT_AUTH_ERROR = "Missing some or all required hubspot authentication parame
 
 
 def authenticate_hubspot(kwargs):
-    access_token = kwargs.get('access_token')
+    access_token = kwargs.get("access_token")
     if not access_token:
         raise AuthenticationError(HUBSPOT_AUTH_ERROR)
 
     return access_token
-

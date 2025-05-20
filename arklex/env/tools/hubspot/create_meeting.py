@@ -31,7 +31,7 @@ slots = [
         "type": "str",
         "description": "The last name of the customer contact.",
         "required": True,
-        "verified": True
+        "verified": True,
     },
     {
         "name": "cus_email",
@@ -64,18 +64,23 @@ slots = [
     {
         "name": "slug",
         "type": "str",
-        "description": "The corresponding slug for the meeting link. Typically, it consists of the organizer's name, like \'lingxiao-chen\'.",
+        "description": "The corresponding slug for the meeting link. Typically, it consists of the organizer's name, like 'lingxiao-chen'.",
         "required": True,
         "verified": True,
     },
     {
         "name": "time_zone",
         "type": "str",
-        "enum": ["America/New_York", "America/Los_Angeles", "Asia/Tokyo", "Europe/London"],
+        "enum": [
+            "America/New_York",
+            "America/Los_Angeles",
+            "Asia/Tokyo",
+            "Europe/London",
+        ],
         "description": "The timezone of the user. For example, 'America/New_York'.",
         "prompt": "Could you please provide your timezone or where are you now?",
-        "required": True
-    }
+        "required": True,
+    },
 ]
 outputs = [
     {
@@ -87,9 +92,17 @@ outputs = [
 
 
 @register_tool(description, slots, outputs)
-def create_meeting(cus_fname: str, cus_lname: str, cus_email: str, meeting_date: str,
-                   meeting_start_time: str, duration: int,
-                   slug: str, time_zone: str, **kwargs) -> str:
+def create_meeting(
+    cus_fname: str,
+    cus_lname: str,
+    cus_email: str,
+    meeting_date: str,
+    meeting_start_time: str,
+    duration: int,
+    slug: str,
+    time_zone: str,
+    **kwargs,
+) -> str:
     func_name = inspect.currentframe().f_code.co_name
     access_token = authenticate_hubspot(kwargs)
 
@@ -124,17 +137,16 @@ def create_meeting(cus_fname: str, cus_lname: str, cus_email: str, meeting_date:
                     "timezone": time_zone,
                     "locale": "en-us",
                 },
-                "qs": {
-                    'timezone': time_zone
-                }
+                "qs": {"timezone": time_zone},
             }
-
         )
         create_meeting_response = create_meeting_response.json()
         return json.dumps(create_meeting_response)
     except ApiException as e:
         logger.info("Exception when scheduling a meeting: %s\n" % e)
-        raise ToolExecutionError(func_name, HubspotExceptionPrompt.MEETING_UNAVAILABLE_PROMPT)
+        raise ToolExecutionError(
+            func_name, HubspotExceptionPrompt.MEETING_UNAVAILABLE_PROMPT
+        )
 
 
 def parse_natural_date(date_str, base_date=None, timezone=None, date_input=False):
@@ -154,11 +166,10 @@ def parse_natural_date(date_str, base_date=None, timezone=None, date_input=False
         parsed_dt = parsed_dt.astimezone(pytz.utc)
     return parsed_dt
 
+
 def is_iso8601(s):
     try:
         isoparse(s)
         return True
     except Exception:
         return False
-
-

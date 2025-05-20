@@ -26,10 +26,15 @@ slots = [
     {
         "name": "time_zone",
         "type": "str",
-        "enum": ["America/New_York", "America/Los_Angeles", "Asia/Tokyo", "Europe/London"],
+        "enum": [
+            "America/New_York",
+            "America/Los_Angeles",
+            "Asia/Tokyo",
+            "Europe/London",
+        ],
         "description": "The timezone of the user. It allows users to input abbreviation like nyc, NYC. If you are not sure, just ask the user to confirm in response.",
         "prompt": "Could you please provide your timezone or where are you now?",
-        "required": True
+        "required": True,
     },
     {
         "name": "meeting_date",
@@ -51,13 +56,15 @@ outputs = [
     {
         "name": "meeting_info",
         "type": "dict",
-        "description": "The available time slots of the representative and the corresponding slug. Typically, the format is \'{'slug': 'veronica-chen', 'available_time_slots': {'start':  , 'end':  }}\'",
+        "description": "The available time slots of the representative and the corresponding slug. Typically, the format is '{'slug': 'veronica-chen', 'available_time_slots': {'start':  , 'end':  }}'",
     }
 ]
 
 
 @register_tool(description, slots, outputs)
-def check_available(owner_id: str, time_zone: str, meeting_date: str, duration: int, **kwargs) -> str:
+def check_available(
+    owner_id: str, time_zone: str, meeting_date: str, duration: int, **kwargs
+) -> str:
     func_name = inspect.currentframe().f_code.co_name
     access_token = authenticate_hubspot(kwargs)
     api_client = hubspot.Client.create(access_token=access_token)
@@ -67,25 +74,23 @@ def check_available(owner_id: str, time_zone: str, meeting_date: str, duration: 
             {
                 "path": "/scheduler/v3/meetings/meeting-links",
                 "method": "GET",
-                "headers": {
-                    'Content-Type': 'application/json'
-                },
-                "qs": {
-                    'organizerUserId': owner_id
-                }
+                "headers": {"Content-Type": "application/json"},
+                "qs": {"organizerUserId": owner_id},
             }
         )
         meeting_link_response = meeting_link_response.json()
-        if meeting_link_response.get('total') == 0:
-            raise ToolExecutionError(func_name, HubspotExceptionPrompt.MEETING_LINK_UNFOUND_PROMPT)
+        if meeting_link_response.get("total") == 0:
+            raise ToolExecutionError(
+                func_name, HubspotExceptionPrompt.MEETING_LINK_UNFOUND_PROMPT
+            )
         else:
-            meeting_links = meeting_link_response['results'][0]
-        meeting_slug = meeting_links['slug']
+            meeting_links = meeting_link_response["results"][0]
+        meeting_slug = meeting_links["slug"]
         cal = parsedatetime.Calendar()
         time_struct, _ = cal.parse(meeting_date)
         meeting_date = datetime(*time_struct[:3])
 
-        last_day = calendar.monthrange(meeting_date.year, meeting_date.month)[1]  
+        last_day = calendar.monthrange(meeting_date.year, meeting_date.month)[1]
         is_last_day = meeting_date.day == last_day
 
         month_offset = 1 if is_last_day else 0
@@ -95,18 +100,17 @@ def check_available(owner_id: str, time_zone: str, meeting_date: str, duration: 
                 {
                     "path": f"/scheduler/v3/meetings/meeting-links/book/availability-page/{meeting_slug}",
                     "method": "GET",
-                    "headers": {
-                        'Content-Type': 'application/json'
-                    },
-                    "qs": {
-                        'timezone': time_zone,
-                        'monthOffset': month_offset
-                    }
+                    "headers": {"Content-Type": "application/json"},
+                    "qs": {"timezone": time_zone, "monthOffset": month_offset},
                 }
             )
             availability_response = availability_response.json()
             duration_ms = str(duration * 60 * 1000)
-            availability = availability_response.get("linkAvailability", {}).get("linkAvailabilityByDuration", {}).get(duration_ms, {})
+            availability = (
+                availability_response.get("linkAvailability", {})
+                .get("linkAvailabilityByDuration", {})
+                .get(duration_ms, {})
+            )
             slots = availability.get("availabilities", [])
             time_zone = pytz.timezone(time_zone)
 
@@ -116,51 +120,74 @@ def check_available(owner_id: str, time_zone: str, meeting_date: str, duration: 
                 start_ts = slot["startMillisUtc"]
                 end_ts = slot["endMillisUtc"]
 
-                ab_times.append({
-                    "start": start_ts,
-                    "end": end_ts
-                })
-            same_dt_info = {
-                'available_time_slots': []
-            }
+                ab_times.append({"start": start_ts, "end": end_ts})
+            same_dt_info = {"available_time_slots": []}
 
-            other_dt_info = {
-                'available_time_slots': []
-            }
+            other_dt_info = {"available_time_slots": []}
 
             for ab_time in ab_times:
-                start_dt = datetime.fromtimestamp(ab_time['start'] / 1000, tz=pytz.utc).astimezone(time_zone)
+                start_dt = datetime.fromtimestamp(
+                    ab_time["start"] / 1000, tz=pytz.utc
+                ).astimezone(time_zone)
                 if meeting_date.date() == start_dt.date():
-                    same_dt_info['available_time_slots'].append({
-                        'start': datetime.fromtimestamp(ab_time['start'] / 1000, tz=timezone.utc).astimezone(time_zone).isoformat(),
-                        'end': datetime.fromtimestamp(ab_time['end'] / 1000, tz=timezone.utc).astimezone(time_zone).isoformat(),
-                    })
+                    same_dt_info["available_time_slots"].append(
+                        {
+                            "start": datetime.fromtimestamp(
+                                ab_time["start"] / 1000, tz=timezone.utc
+                            )
+                            .astimezone(time_zone)
+                            .isoformat(),
+                            "end": datetime.fromtimestamp(
+                                ab_time["end"] / 1000, tz=timezone.utc
+                            )
+                            .astimezone(time_zone)
+                            .isoformat(),
+                        }
+                    )
                 else:
-                    other_dt_info['available_time_slots'].append({
-                        'start': datetime.fromtimestamp(ab_time['start'] / 1000, tz=timezone.utc).astimezone(time_zone).isoformat(),
-                        'end': datetime.fromtimestamp(ab_time['end'] / 1000, tz=timezone.utc).astimezone(time_zone).isoformat(),
-                    })
+                    other_dt_info["available_time_slots"].append(
+                        {
+                            "start": datetime.fromtimestamp(
+                                ab_time["start"] / 1000, tz=timezone.utc
+                            )
+                            .astimezone(time_zone)
+                            .isoformat(),
+                            "end": datetime.fromtimestamp(
+                                ab_time["end"] / 1000, tz=timezone.utc
+                            )
+                            .astimezone(time_zone)
+                            .isoformat(),
+                        }
+                    )
 
-
-            response = ''
-            if not len(same_dt_info['available_time_slots']) == 0:
-                response += f'The slug for your meeting is: {meeting_slug}\n'
-                response += f'The alternative time for you on the same date is {same_dt_info["available_time_slots"]}\n'
-                response += f'Feel free to choose from it\n'
-                response += f'You must give some available time slots for users as the reference to choose.\n'
+            response = ""
+            if not len(same_dt_info["available_time_slots"]) == 0:
+                response += f"The slug for your meeting is: {meeting_slug}\n"
+                response += f"The alternative time for you on the same date is {same_dt_info['available_time_slots']}\n"
+                response += f"Feel free to choose from it\n"
+                response += f"You must give some available time slots for users as the reference to choose.\n"
             else:
-                response += f'The slug for your meeting is: {meeting_slug}\n'
-                response += f'I am sorry there is no available time slots on the same day.\n'
-                response += f'If you want to change the date, available times for other dates are {other_dt_info["available_time_slots"]}\n'
-                response += f'Feel free to choose from the list.\n'
-                response += f'You must give some available time slots for users as the reference so that they could choose from.\n'
+                response += f"The slug for your meeting is: {meeting_slug}\n"
+                response += (
+                    f"I am sorry there is no available time slots on the same day.\n"
+                )
+                response += f"If you want to change the date, available times for other dates are {other_dt_info['available_time_slots']}\n"
+                response += f"Feel free to choose from the list.\n"
+                response += f"You must give some available time slots for users as the reference so that they could choose from.\n"
             return response
         except ApiException as e:
-            logger.info("Exception when extracting booking information of someone: %s\n" % e)
-            raise ToolExecutionError(func_name, HubspotExceptionPrompt.MEETING_LINK_UNFOUND_PROMPT)
+            logger.info(
+                "Exception when extracting booking information of someone: %s\n" % e
+            )
+            raise ToolExecutionError(
+                func_name, HubspotExceptionPrompt.MEETING_LINK_UNFOUND_PROMPT
+            )
     except ApiException as e:
         logger.info("Exception when extracting meeting scheduler links: %s\n" % e)
-        raise ToolExecutionError(func_name, HubspotExceptionPrompt.MEETING_LINK_UNFOUND_PROMPT)
+        raise ToolExecutionError(
+            func_name, HubspotExceptionPrompt.MEETING_LINK_UNFOUND_PROMPT
+        )
+
 
 def parse_natural_date(date_str, base_date=None, timezone=None, date_input=False):
     cal = parsedatetime.Calendar()
@@ -178,5 +205,3 @@ def parse_natural_date(date_str, base_date=None, timezone=None, date_input=False
         parsed_dt = local_timezone.localize(parsed_dt)
         parsed_dt = parsed_dt.astimezone(pytz.utc)
     return parsed_dt
-
-
