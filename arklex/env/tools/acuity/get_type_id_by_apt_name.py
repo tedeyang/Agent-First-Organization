@@ -26,23 +26,22 @@ outputs = [
     }
 ]
 
+
 @register_tool(description, slots, outputs)
 def get_type_id_by_apt_name(apt_name, **kwargs):
     func_name = inspect.currentframe().f_code.co_name
     user_id, api_key = authenticate_acuity(kwargs)
 
-    base_url = 'https://acuityscheduling.com/api/v1/appointment-types'
+    base_url = "https://acuityscheduling.com/api/v1/appointment-types"
 
     response = requests.get(base_url, auth=HTTPBasicAuth(user_id, api_key))
 
     if response.status_code == 200:
         data = response.json()
-        apt_type_id = next((item['id'] for item in data if item['name'].strip() == apt_name), None)
+        apt_type_id = next(
+            (item["id"] for item in data if item["name"].strip() == apt_name), None
+        )
         response_str = f"The appointment type id is {apt_type_id}\n"
         return response_str
     else:
         raise ToolExecutionError(func_name, AcuityExceptionPrompt.GET_TYPE_ID_PROMPT)
-
-
-
-
