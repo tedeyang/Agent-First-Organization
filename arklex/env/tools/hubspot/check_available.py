@@ -16,7 +16,7 @@ description = "Give the customer that the unavailable time of the specific repre
 slots = [
     {
         "name": "owner_id",
-        "type": "str",
+        "type": "int",
         "description": "The id of the owner of the contact.",
         "prompt": "",
         "required": True,
