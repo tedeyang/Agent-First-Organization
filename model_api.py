@@ -5,7 +5,6 @@ import uvicorn
 from typing import Any, Dict, List, Tuple
 
 from fastapi import FastAPI
-from typing import Dict
 
 from arklex.utils.utils import init_logger
 from arklex.env.env import Env
