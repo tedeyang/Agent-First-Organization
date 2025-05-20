@@ -14,48 +14,56 @@ from arklex.utils.graph_state import MessageState
 from arklex.utils.model_config import MODEL
 
 
-
 logger = logging.getLogger(__name__)
 
 
 @register_worker
 class DataBaseWorker(BaseWorker):
-
     description = "Help the user with actions related to customer support like a booking system with structured data, always involving search, insert, update, and delete operations."
 
     def __init__(self):
         self.llm = ChatOpenAI(model=MODEL["model_type_or_path"], timeout=30000)
         self.actions = {
-            "SearchShow": "Search for shows", 
-            "BookShow": "Book a show", 
+            "SearchShow": "Search for shows",
+            "BookShow": "Book a show",
             "CheckBooking": "Check details of booked show(s)",
             "CancelBooking": "Cancel a booking",
-            "Others": "Other actions not mentioned above"
+            "Others": "Other actions not mentioned above",
         }
         self.DBActions = DatabaseActions()
         self.action_graph = self._create_action_graph()
 
     def search_show(self, state: MessageState):
         return self.DBActions.search_show(state)
-    
+
     def book_show(self, state: MessageState):
         return self.DBActions.book_show(state)
-    
+
     def check_booking(self, state: MessageState):
         return self.DBActions.check_booking(state)
-    
+
     def cancel_booking(self, state: MessageState):
         return self.DBActions.cancel_booking(state)
 
     def verify_action(self, msg_state: MessageState):
         user_intent = msg_state.orchestrator_message.attribute.get("task", "")
-        actions_info = "\n".join([f"{name}: {description}" for name, description in self.actions.items()])
+        actions_info = "\n".join(
+            [f"{name}: {description}" for name, description in self.actions.items()]
+        )
         actions_name = ", ".join(self.actions.keys())
 
         prompts = load_prompts(msg_state.bot_config)
         prompt = PromptTemplate.from_template(prompts["database_action_prompt"])
-        input_prompt = prompt.invoke({"user_intent": user_intent, "actions_info": actions_info, "actions_name": actions_name})
-        chunked_prompt = chunk_string(input_prompt.text, tokenizer=MODEL["tokenizer"], max_length=MODEL["context"])
+        input_prompt = prompt.invoke(
+            {
+                "user_intent": user_intent,
+                "actions_info": actions_info,
+                "actions_name": actions_name,
+            }
+        )
+        chunked_prompt = chunk_string(
+            input_prompt.text, tokenizer=MODEL["tokenizer"], max_length=MODEL["context"]
+        )
         logger.info(f"Chunked prompt for deciding choosing DB action: {chunked_prompt}")
         final_chain = self.llm | StrOutputParser()
         try:
@@ -67,10 +75,11 @@ class DataBaseWorker(BaseWorker):
             logger.info(f"Base action chosen in the database worker: Others")
             return "Others"
         except Exception as e:
-            logger.error(f"Error occurred while choosing action in the database worker: {e}")
+            logger.error(
+                f"Error occurred while choosing action in the database worker: {e}"
+            )
             return "Others"
 
-        
     def _create_action_graph(self):
         workflow = StateGraph(MessageState)
         # Add nodes for each worker
@@ -89,7 +98,9 @@ class DataBaseWorker(BaseWorker):
 
     def _execute(self, msg_state: MessageState):
         self.DBActions.log_in()
-        msg_state.slots = self.DBActions.init_slots(msg_state.slots, msg_state.bot_config)
+        msg_state.slots = self.DBActions.init_slots(
+            msg_state.slots, msg_state.bot_config
+        )
         graph = self.action_graph.compile()
         result = graph.invoke(msg_state)
         return result

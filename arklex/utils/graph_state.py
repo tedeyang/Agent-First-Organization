@@ -1,4 +1,4 @@
-from typing import Any, Optional, List, Dict
+from typing import Any, Optional, List, Dict, Tuple
 from pydantic import BaseModel, Field
 from enum import Enum
 import uuid
@@ -39,10 +39,12 @@ class Timing(BaseModel):
 
 class ResourceRecord(BaseModel):
     info: Dict
+    intent: str = Field(default="")
     input: List = Field(default_factory=list)
     output: str = Field(default="")
     steps: List = Field(default_factory=list)
-
+    personalized_intent: str = Field(default="")
+    
 class Metadata(BaseModel):
     # TODO: May need to initialize the metadata(i.e. chat_id, turn_id) based on the conversation database
     chat_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -72,6 +74,8 @@ class MessageState(BaseModel):
     # stream
     is_stream: bool = Field(default=False)
     message_queue: Any = Field(exclude=True, default=None)
+    # memory records
+    relevant_records: Optional[List[ResourceRecord]] = Field(default=None)
 
 
 class PathNode(BaseModel):

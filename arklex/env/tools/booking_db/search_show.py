@@ -3,23 +3,28 @@ from .utils import *
 
 import pandas as pd
 
+
 @register_tool(
     "Searches the database for shows given descriptions",
-    [{**SLOTS['show_name'], 'required': False}, 
-     {**SLOTS['date'], 'required': False},
-     {**SLOTS['time'], 'required': False},
-     {**SLOTS['location'], 'required': False},
+    [
+        {**SLOTS["show_name"], "required": False},
+        {**SLOTS["date"], "required": False},
+        {**SLOTS["time"], "required": False},
+        {**SLOTS["location"], "required": False},
     ],
-    [{
-        "name": "query_result",
-        "type": "str",
-        "description": "A list of available shows that satisfies the given criteria (displays the first 10 results). If no show satisfies the criteria, returns 'No shows exist'",
-    }],
-    lambda x: x not in (LOG_IN_FAILURE or "No shows exist.")
+    [
+        {
+            "name": "query_result",
+            "type": "str",
+            "description": "A list of available shows that satisfies the given criteria (displays the first 10 results). If no show satisfies the criteria, returns 'No shows exist'",
+        }
+    ],
+    lambda x: x not in (LOG_IN_FAILURE or "No shows exist."),
 )
 def search_show(show_name=None, date=None, time=None, location=None) -> str | None:
-    if not log_in(): return LOG_IN_FAILURE
-    
+    if not log_in():
+        return LOG_IN_FAILURE
+
     # Populate the slots with verified values
     conn = sqlite3.connect(booking.db_path)
     cursor = conn.cursor()
@@ -32,7 +37,7 @@ def search_show(show_name=None, date=None, time=None, location=None) -> str | No
             query += f" AND {slot_name} = ?"
             params.append(slot_value)
     query += " LIMIT 10"
-    
+
     # Execute the query
     cursor.execute(query, params)
     rows = cursor.fetchall()

@@ -165,9 +165,13 @@ def model_factory(
     elif platform == Platform.OUTLINES:
         if base_url is None:
             raise ValueError("base_url must be provided for custom models")
-        from benchmark.tau_bench.model_utils.model.outlines_completion import OutlinesCompletionModel
+        from benchmark.tau_bench.model_utils.model.outlines_completion import (
+            OutlinesCompletionModel,
+        )
 
-        return OutlinesCompletionModel(model=model_id, base_url=base_url, temperature=temperature)
+        return OutlinesCompletionModel(
+            model=model_id, base_url=base_url, temperature=temperature
+        )
     elif platform == Platform.VLLM_CHAT:
         if base_url is None:
             raise ValueError("base_url must be provided for custom models")
@@ -182,6 +186,10 @@ def model_factory(
     else:
         if base_url is None:
             raise ValueError("base_url must be provided for custom models")
-        from benchmark.tau_bench.model_utils.model.vllm_completion import VLLMCompletionModel
+        from benchmark.tau_bench.model_utils.model.vllm_completion import (
+            VLLMCompletionModel,
+        )
 
-        return VLLMCompletionModel(model=model_id, base_url=base_url, temperature=temperature)
+        return VLLMCompletionModel(
+            model=model_id, base_url=base_url, temperature=temperature
+        )

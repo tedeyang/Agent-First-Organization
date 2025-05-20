@@ -16,7 +16,7 @@ from arklex.env.prompts import load_prompts
 from arklex.utils.graph_state import StatusEnum
 
 
-DBNAME = 'show_booking_db.sqlite'
+DBNAME = "show_booking_db.sqlite"
 USER_ID = "user_be6e1836-8fe9-4938-b2d0-48f810648e72"
 
 logger = logging.getLogger(__name__)
@@ -28,29 +28,29 @@ SLOTS = [
         "type": "string",
         "value": "",
         "description": "Name of the show",
-        "prompt": "Please provide the name of the show"
+        "prompt": "Please provide the name of the show",
     },
     {
         "name": "location",
         "type": "string",
         "value": "",
         "description": "Location of the show",
-        "prompt": "Please provide the location of the show"
+        "prompt": "Please provide the location of the show",
     },
     {
         "name": "date",
         "type": "date",
         "value": "",
         "description": "Date of the show",
-        "prompt": "Please provide the date of the show"
+        "prompt": "Please provide the date of the show",
     },
     {
         "name": "time",
         "type": "time",
         "value": "",
         "description": "Time of the show",
-        "prompt": "Please provide the time of the show"
-    }
+        "prompt": "Please provide the time of the show",
+    },
 ]
 
 NO_SHOW_MESSAGE = "Show is not found. Please check whether the information is correct."
@@ -59,7 +59,7 @@ NO_BOOKING_MESSAGE = "You have not booked any show."
 
 
 class DatabaseActions:
-    def __init__(self, user_id: str=USER_ID):
+    def __init__(self, user_id: str = USER_ID):
         self.db_path = os.path.join(os.environ.get("DATA_DIR"), DBNAME)
         self.llm = ChatOpenAI(model=MODEL["model_type_or_path"], timeout=30000)
         self.user_id = user_id
@@ -98,12 +98,20 @@ class DatabaseActions:
         slot_detail = SlotDetail(**slot, verified_value="", confirmed=False)
         prompts = load_prompts(bot_config)
         prompt = PromptTemplate.from_template(prompts["database_slot_prompt"])
-        input_prompt = prompt.invoke({
-            "slot": {"name": slot["name"], "description": slot["description"], "slot": slot["type"]}, 
-            "value": slot["value"], 
-            "value_list": value_list
-        })
-        chunked_prompt = chunk_string(input_prompt.text, tokenizer=MODEL["tokenizer"], max_length=MODEL["context"])
+        input_prompt = prompt.invoke(
+            {
+                "slot": {
+                    "name": slot["name"],
+                    "description": slot["description"],
+                    "slot": slot["type"],
+                },
+                "value": slot["value"],
+                "value_list": value_list,
+            }
+        )
+        chunked_prompt = chunk_string(
+            input_prompt.text, tokenizer=MODEL["tokenizer"], max_length=MODEL["context"]
+        )
         logger.info(f"Chunked prompt for verifying slot: {chunked_prompt}")
         final_chain = self.llm | StrOutputParser()
         try:
@@ -116,7 +124,9 @@ class DatabaseActions:
                     slot_detail.confirmed = True
                     return slot_detail
         except Exception as e:
-            logger.error(f"Error occurred while verifying slot in the database worker: {e}")
+            logger.error(
+                f"Error occurred while verifying slot in the database worker: {e}"
+            )
         return slot_detail
 
     def search_show(self, msg_state: MessageState) -> MessageState:
@@ -143,7 +153,9 @@ class DatabaseActions:
             results = [dict(zip(column_names, row)) for row in rows]
             results_df = pd.DataFrame(results)
             msg_state.status = StatusEnum.COMPLETE
-            msg_state.message_flow = "Available shows are:\n" + results_df.to_string(index=False)
+            msg_state.message_flow = "Available shows are:\n" + results_df.to_string(
+                index=False
+            )
         return msg_state
 
     def book_show(self, msg_state: MessageState) -> MessageState:
@@ -176,14 +188,19 @@ class DatabaseActions:
             show_id = results["id"]
 
             # Insert a row into the booking table
-            cursor.execute('''
+            cursor.execute(
+                """
                 INSERT INTO booking (id, show_id, user_id, created_at)
                 VALUES (?, ?, ?, ?)
-            ''', ("booking_" + str(uuid.uuid4()),  show_id, self.user_id, datetime.now()))
+            """,
+                ("booking_" + str(uuid.uuid4()), show_id, self.user_id, datetime.now()),
+            )
 
             results_df = pd.DataFrame([results])
             msg_state.status = StatusEnum.COMPLETE
-            msg_state.message_flow = "The booked show is:\n" + results_df.to_string(index=False)
+            msg_state.message_flow = "The booked show is:\n" + results_df.to_string(
+                index=False
+            )
         cursor.close()
         conn.close()
         return msg_state
@@ -210,7 +227,9 @@ class DatabaseActions:
             column_names = [column[0] for column in cursor.description]
             results = [dict(zip(column_names, row)) for row in rows]
             results_df = pd.DataFrame(results)
-            msg_state.message_flow = "Booked shows are:\n" + results_df.to_string(index=False)
+            msg_state.message_flow = "Booked shows are:\n" + results_df.to_string(
+                index=False
+            )
         msg_state.status = StatusEnum.COMPLETE
         return msg_state
 
@@ -242,11 +261,16 @@ class DatabaseActions:
             results = [dict(zip(column_names, row)) for row in rows]
             show = results[0]
             # Delete a row from the booking table based on show_id
-            cursor.execute('''DELETE FROM booking WHERE show_id = ?
-            ''', (show["id"],))
+            cursor.execute(
+                """DELETE FROM booking WHERE show_id = ?
+            """,
+                (show["id"],),
+            )
             # Respond to user the cancellation
             results_df = pd.DataFrame(results)
-            msg_state.message_flow = "The cancelled show is:\n" + results_df.to_string(index=False)
+            msg_state.message_flow = "The cancelled show is:\n" + results_df.to_string(
+                index=False
+            )
             msg_state.status = StatusEnum.COMPLETE
         conn.close()
         cursor.commit()
