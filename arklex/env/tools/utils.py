@@ -42,6 +42,29 @@ class ToolGenerator():
         # get the input message
         user_message = state.user_message
         message_flow = state.message_flow
+        
+        # Add relevant records to context if available
+        if state.relevant_records:
+            relevant_context = "\nRelevant past interactions:\n"
+            for record in state.relevant_records:
+                relevant_context += f"Record:\n"
+                if record.info:
+                    relevant_context += f"- Info: {record.info}\n"
+                if record.personalized_intent:
+                    relevant_context += f"- Personalized User Intent: {record.personalized_intent}\n"
+                if record.output:
+                    relevant_context += f"- Raw Output: {record.output}\n"
+                if record.steps:
+                    relevant_context += f"- Intermediate Steps:\n"
+                    for step in record.steps:
+                        if isinstance(step, dict):
+                            for key, value in step.items():
+                                relevant_context += f"  * {key}: {value}\n"
+                        else:
+                            relevant_context += f"  * {step}\n"
+                relevant_context += "\n"
+            message_flow = relevant_context + "\n" + message_flow
+            
         logger.info(f"Retrieved texts (from retriever/search engine to generator): {message_flow[:50]} ...")
         
         # generate answer based on the retrieved texts
@@ -65,6 +88,27 @@ class ToolGenerator():
         # get the input message
         user_message = state.user_message
         message_flow = state.message_flow
+        # Add relevant records to context if available
+        if state.relevant_records:
+            relevant_context = "\nRelevant past interactions:\n"
+            for record in state.relevant_records:
+                relevant_context += f"Record:\n"
+                if record.info:
+                    relevant_context += f"- Info: {record.info}\n"
+                if record.personalized_intent:
+                    relevant_context += f"- Personalized User Intent: {record.personalized_intent}\n"
+                if record.output:
+                    relevant_context += f"- Raw Output: {record.output}\n"
+                if record.steps:
+                    relevant_context += f"- Intermediate Steps:\n"
+                    for step in record.steps:
+                        if isinstance(step, dict):
+                            for key, value in step.items():
+                                relevant_context += f"  * {key}: {value}\n"
+                        else:
+                            relevant_context += f"  * {step}\n"
+                relevant_context += "\n"
+            message_flow = relevant_context + "\n" + message_flow
         logger.info(f"Retrieved texts (from retriever/search engine to generator): {message_flow[:50]} ...")
         
         # generate answer based on the retrieved texts

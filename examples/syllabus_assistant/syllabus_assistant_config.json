@@ -13,7 +13,7 @@
     "rag_docs": [
         {
             "source": "examples/syllabus_assistant/syllabus_local_docs",
-            "type": "local"
+            "type": "file"
         }
     ],
     "tasks": [],

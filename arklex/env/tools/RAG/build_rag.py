@@ -3,6 +3,8 @@ import argparse
 import pickle
 from pathlib import Path
 import logging
+import zipfile
+import tempfile
 
 from arklex.utils.loader import Loader
 
@@ -24,15 +26,39 @@ def build_rag(folder_path, rag_docs):
             source = doc.get("source")
             logging.info(f"Crawling {source}")
             num_docs = doc.get("num") if doc.get("num") else 1
-            if doc.get('type') != 'local':
+            if doc.get('type') == 'url':
                     num_docs = doc.get("num") if doc.get("num") else 1
                     urls = loader.get_all_urls(source, num_docs)
                     crawled_urls = loader.to_crawled_url_objs(urls)
                     docs.extend(crawled_urls)
                     
-            elif doc.get('type') == 'local':
-                file_list = [os.path.join(source, f) for f in os.listdir(source)]
-                docs.extend(loader.to_crawled_local_objs(file_list))
+            elif doc.get('type') == 'file':
+                # check if the source is a file or a directory
+                if os.path.isfile(source):
+                    if source.lower().endswith('.zip'):
+                        # Handle zip file
+                        with tempfile.TemporaryDirectory() as temp_dir:
+                            with zipfile.ZipFile(source, 'r') as zip_ref:
+                                zip_ref.extractall(temp_dir)
+                            # Process all files in the extracted directory
+                            file_list = []
+                            for root, _, files in os.walk(temp_dir):
+                                for file in files:
+                                    file_list.append(os.path.join(root, file))
+                            docs.extend(loader.to_crawled_local_objs(file_list))
+                    else:
+                        docs.extend(loader.to_crawled_local_objs([source]))
+                elif os.path.isdir(source):
+                    file_list = [os.path.join(source, f) for f in os.listdir(source)]
+                    docs.extend(loader.to_crawled_local_objs(file_list))
+                else:
+                    raise FileNotFoundError(f"Source path '{source}' does not exist or is not accessible")
+
+            elif doc.get('type') == 'text':
+                docs.extend(loader.to_crawled_text([source]))
+            else:
+                # TODO: how to handle when type is not provided
+                raise Exception("type must be one of [url, file, text] and it must be provided")
 
         logging.info(f"Content: {[doc.content for doc in docs]}")
         Loader.save(filepath, docs)
