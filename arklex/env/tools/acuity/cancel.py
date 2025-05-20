@@ -23,7 +23,7 @@ slots = [
         "description": "The appointment id of the info session and it should be consisted of numbers. e.g. 76474933",
         "prompt": "",
         "required": True,
-    }
+    },
 ]
 outputs = [
     {
@@ -33,15 +33,16 @@ outputs = [
     }
 ]
 
+
 @register_tool(description, slots, outputs)
 def cancel(apt_id, **kwargs):
     func_name = inspect.currentframe().f_code.co_name
     user_id, api_key = authenticate_acuity(kwargs)
 
-    base_url = 'https://acuityscheduling.com/api/v1/appointments/{}/cancel'.format(apt_id)
-    body = {
-        "cancelNote": 'Client requested cancellation'
-    }
+    base_url = "https://acuityscheduling.com/api/v1/appointments/{}/cancel".format(
+        apt_id
+    )
+    body = {"cancelNote": "Client requested cancellation"}
 
     response = requests.put(base_url, json=body, auth=HTTPBasicAuth(user_id, api_key))
 

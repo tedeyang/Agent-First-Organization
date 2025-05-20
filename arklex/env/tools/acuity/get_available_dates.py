@@ -41,20 +41,25 @@ outputs = [
     }
 ]
 
+
 @register_tool(description, slots, outputs)
 def get_available_dates(year, month, apt_type_id, **kwargs):
     func_name = inspect.currentframe().f_code.co_name
     user_id, api_key = authenticate_acuity(kwargs)
 
-    base_url = 'https://acuityscheduling.com/api/v1/availability/dates?appointmentTypeID={}&month={}'.format(apt_type_id, year + '-' + month)
+    base_url = "https://acuityscheduling.com/api/v1/availability/dates?appointmentTypeID={}&month={}".format(
+        apt_type_id, year + "-" + month
+    )
     response = requests.get(base_url, auth=HTTPBasicAuth(user_id, api_key))
     if response.status_code == 200:
         data = response.json()
-        response_text = 'The information about the availability is as follows. Please provide this to users.\n'
+        response_text = "The information about the availability is as follows. Please provide this to users.\n"
 
         for date in data:
             response_text += f'Available dates are {date.get("date")}\n'
         return response_text
 
     else:
-        raise ToolExecutionError(func_name, AcuityExceptionPrompt.AVAILABLE_DATES_EXCEPTION_PROMPT)
+        raise ToolExecutionError(
+            func_name, AcuityExceptionPrompt.AVAILABLE_DATES_EXCEPTION_PROMPT
+        )

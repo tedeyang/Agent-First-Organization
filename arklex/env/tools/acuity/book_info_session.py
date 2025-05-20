@@ -45,7 +45,7 @@ slots = [
         "prompt": "Which info session would you like to attend?",
         "required": True,
         "verified": True,
-    }
+    },
 ]
 outputs = [
     {
@@ -55,25 +55,26 @@ outputs = [
     }
 ]
 
+
 @register_tool(description, slots, outputs)
 def book_info_session(fname, lname, email, time, apt_type_id, **kwargs):
     func_name = inspect.currentframe().f_code.co_name
     user_id, api_key = authenticate_acuity(kwargs)
 
     body = {
-      "firstName": fname,
-      "lastName": lname,
-      "email": email,
-      "datetime": time,
-      "appointmentTypeID": apt_type_id
+        "firstName": fname,
+        "lastName": lname,
+        "email": email,
+        "datetime": time,
+        "appointmentTypeID": apt_type_id,
     }
-    base_url = 'https://acuityscheduling.com/api/v1/appointments'
+    base_url = "https://acuityscheduling.com/api/v1/appointments"
     response = requests.post(base_url, json=body, auth=HTTPBasicAuth(user_id, api_key))
 
     if response.status_code == 200:
         data = response.json()
         return json.dumps(data)
     else:
-        raise ToolExecutionError(func_name, AcuityExceptionPrompt.BOOK_SESSION_EXCEPTION_PROMPT)
-
-
+        raise ToolExecutionError(
+            func_name, AcuityExceptionPrompt.BOOK_SESSION_EXCEPTION_PROMPT
+        )

@@ -4,8 +4,8 @@ ACUITY_AUTH_ERROR = "Missing some or all required hubspot authentication paramet
 
 
 def authenticate_acuity(kwargs):
-    user_id = kwargs.get('ACUITY_USER_ID')
-    api_key = kwargs.get('ACUITY_API_KEY')
+    user_id = kwargs.get("ACUITY_USER_ID")
+    api_key = kwargs.get("ACUITY_API_KEY")
     if not user_id and not api_key:
         raise AuthenticationError(ACUITY_AUTH_ERROR)
 
