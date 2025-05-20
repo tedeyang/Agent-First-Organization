@@ -56,7 +56,7 @@ outputs = [
 
 
 @register_tool(description, slots, outputs)
-def check_available(owner_id: str, time_zone: str, meeting_date: str, duration: int, **kwargs) -> str:
+def check_available(owner_id: int, time_zone: str, meeting_date: str, duration: int, **kwargs) -> str:
     func_name = inspect.currentframe().f_code.co_name
     access_token = authenticate_hubspot(kwargs)
     api_client = hubspot.Client.create(access_token=access_token)
