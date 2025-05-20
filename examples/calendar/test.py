@@ -1,19 +1,15 @@
 # Go to the parent folder of this file (calendar), then Run python -m unittest test.py to test the code in this file.
-
 import unittest
 import json
-import requests
-import base64
 import sys
-import uuid
 import os
 
-# May not need after pip install agentorg
-sys.path.insert(0, os.path.abspath('../../'))
-print(sys.path)
-
-from arklex.orchestrator.orchestrator import AgentOrg
 from arklex.env.env import Env
+from arklex.orchestrator.orchestrator import AgentOrg
+
+# May not need after pip install agentorg
+sys.path.insert(0, os.path.abspath("../../"))
+print(sys.path)
 
 
 class Logic_Test(unittest.TestCase):
@@ -30,23 +26,22 @@ class Logic_Test(unittest.TestCase):
         with open(file_path, "r", encoding="UTF-8") as f:
             cls.config = json.load(f)
         cls.env = Env(
-            tools = cls.config.get("tools", []),
-            workers = cls.config.get("workers", []),
-            slotsfillapi = cls.config["slotfillapi"]
+            tools=cls.config.get("tools", []),
+            workers=cls.config.get("workers", []),
+            slotsfillapi=cls.config["slotfillapi"],
         )
-        
+
     @classmethod
     def tearDownClass(cls):
         """Method to tear down the test fixture. Run AFTER the test methods."""
         pass
-    
-    def _get_api_bot_response(self, user_text, history, params):
 
-        data = {"text": user_text, 'chat_history': history, 'parameters': params}
+    def _get_api_bot_response(self, user_text, history, params):
+        data = {"text": user_text, "chat_history": history, "parameters": params}
         orchestrator = AgentOrg(config=self.config, env=self.env)
         result = orchestrator.get_response(data)
 
-        return result['answer'], result['parameters']
+        return result["answer"], result["parameters"]
 
     def test_Unittest0(self):
         print("\n=============Unit Test 0=============")
@@ -54,12 +49,12 @@ class Logic_Test(unittest.TestCase):
         history = []
         params = {}
         nodes = []
-        for node in self.config['nodes']:
-            if node[1].get("type", "") == 'start':
-                start_message = node[1]['attribute']["value"]
+        for node in self.config["nodes"]:
+            if node[1].get("type", "") == "start":
+                start_message = node[1]["attribute"]["value"]
                 break
         history.append({"role": self.worker_prefix, "content": start_message})
-        
+
         for user_text in self.TEST_CASES[0]["user_utterance"]:
             print(f"User: {user_text}")
             output, params = self._get_api_bot_response(user_text, history, params)
@@ -77,12 +72,12 @@ class Logic_Test(unittest.TestCase):
         history = []
         params = {}
         nodes = []
-        for node in self.config['nodes']:
-            if node[1].get("type", "") == 'start':
-                start_message = node[1]['attribute']["value"]
+        for node in self.config["nodes"]:
+            if node[1].get("type", "") == "start":
+                start_message = node[1]["attribute"]["value"]
                 break
         history.append({"role": self.worker_prefix, "content": start_message})
-        
+
         for user_text in self.TEST_CASES[1]["user_utterance"]:
             print(f"User: {user_text}")
             output, params = self._get_api_bot_response(user_text, history, params)
@@ -93,9 +88,7 @@ class Logic_Test(unittest.TestCase):
         print(f"{self.TEST_CASES[1]['criteria']}")
         # print(json.dumps(history, indent=4))
         self.assertEqual(nodes, self.TEST_CASES[1]["trajectory"])
-        
 
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -12,7 +12,7 @@ from langchain_community.tools import TavilySearchResults
 logger = logging.getLogger(__name__)
 
 
-class SearchEngine():
+class SearchEngine:
     @staticmethod
     def search(state: MessageState):
         tavily_search_executor = TavilySearchExecutor()
@@ -21,12 +21,12 @@ class SearchEngine():
         return state
 
 
-class TavilySearchExecutor():
+class TavilySearchExecutor:
     def __init__(
-            self,
-            llm_config: LLMConfig,
-            **kwargs,
-        ):
+        self,
+        llm_config: LLMConfig,
+        **kwargs,
+    ):
         self.llm = PROVIDER_MAP.get(llm_config.llm_provider, ChatOpenAI)(
             model=llm_config.model_type_or_path
         )
@@ -56,6 +56,6 @@ class TavilySearchExecutor():
         search_results = self.search_tool.invoke({"query": ret_input})
         text_results = self.process_search_result(search_results)
         return text_results
-    
+
     def load_search_tool(self, llm_config: LLMConfig, **kwargs):
         return TavilySearchExecutor(llm_config, **kwargs)

@@ -18,10 +18,14 @@ from benchmark.tau_bench.envs.user import UserStrategy
 
 
 def run(config: RunConfig) -> List[EnvRunResult]:
-    assert config.env in ["retail", "airline"], "Only retail and airline envs are supported"
+    assert config.env in ["retail", "airline"], (
+        "Only retail and airline envs are supported"
+    )
     assert config.user_model_provider in provider_list, "Invalid user model provider"
     assert config.task_split in ["train", "test", "dev"], "Invalid task split"
-    assert config.user_strategy in [item.value for item in UserStrategy], "Invalid user strategy"
+    assert config.user_strategy in [item.value for item in UserStrategy], (
+        "Invalid user strategy"
+    )
 
     random.seed(config.seed)
     ckpt_path = f"{config.output_dir}/tau_bench_evaluation.json"
@@ -38,7 +42,9 @@ def run(config: RunConfig) -> List[EnvRunResult]:
     )
     agent = agent_factory(config=config)
     end_index = (
-        len(env.tasks) if config.end_index == -1 else min(config.end_index, len(env.tasks))
+        len(env.tasks)
+        if config.end_index == -1
+        else min(config.end_index, len(env.tasks))
     )
     results: List[EnvRunResult] = []
     lock = multiprocessing.Lock()
@@ -47,7 +53,7 @@ def run(config: RunConfig) -> List[EnvRunResult]:
     else:
         print(
             f"Running tasks {config.start_index} to {end_index} (checkpoint path: {ckpt_path})"
-    )
+        )
     for i in range(config.num_trials):
         if config.task_ids and len(config.task_ids) > 0:
             idxs = config.task_ids
@@ -111,7 +117,7 @@ def run(config: RunConfig) -> List[EnvRunResult]:
         tau_bench_evaluation = {
             "average_reward": avg_reward,
             "pass_k": pass_hat_ks,
-            "task_results": tasks_res
+            "task_results": tasks_res,
         }
         json.dump(tau_bench_evaluation, f, indent=2)
         print(f"\n📄 Results saved to {ckpt_path}\n")
@@ -120,6 +126,7 @@ def run(config: RunConfig) -> List[EnvRunResult]:
 
 def agent_factory(config: RunConfig) -> Agent:
     from benchmark.tau_bench.agents.agent_first_org import AgentFirstOrg
+
     return AgentFirstOrg(taskgraph_dir=config.taskgraph_dir)
 
 
@@ -145,9 +152,9 @@ def get_metrics(results: List[EnvRunResult]):
         pass_hat_ks[k] = sum_task_pass_hat_k / len(c_per_task_id)
     return avg_reward, pass_hat_ks
 
+
 def display_metrics(avg_reward, pass_hat_ks) -> None:
     print(f"🏆 Average reward: {avg_reward}")
     print("📈 Pass^k")
     for k, pass_hat_k in pass_hat_ks.items():
         print(f"  k={k}: {pass_hat_k}")
-    

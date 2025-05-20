@@ -42,18 +42,13 @@ def find_owner_id_by_contact_id(cus_cid, **kwargs) -> str:
             {
                 "path": "/crm/v3/objects/contacts/{}".format(cus_cid),
                 "method": "GET",
-                "headers": {
-                    'Content-Type': 'application/json'
-                },
-                "qs": {
-                    "properties": 'hubspot_owner_id'
-                }
+                "headers": {"Content-Type": "application/json"},
+                "qs": {"properties": "hubspot_owner_id"},
             }
-
         )
         get_owner_id_response = get_owner_id_response.json()
 
-        owner_id = get_owner_id_response['properties']['hubspot_owner_id']
+        owner_id = get_owner_id_response["properties"]["hubspot_owner_id"]
 
         return owner_id
     except ApiException as e:

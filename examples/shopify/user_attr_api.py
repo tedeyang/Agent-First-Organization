@@ -1,11 +1,10 @@
-from typing import Any, Dict
-import json
-from http import HTTPStatus
 import argparse
+import json
+import shopify
 import uvicorn
 
-import shopify
-from fastapi import FastAPI, Response
+from fastapi import FastAPI
+from typing import Any, Dict
 
 from arklex.env.tools.shopify.utils import authorify_admin
 from arklex.exceptions import AuthenticationError
@@ -15,13 +14,14 @@ PRODUCTS_NOT_FOUND = "error: No products found"
 
 app = FastAPI()
 
+
 def get_users(kwargs: Dict[str, Any]) -> str:
     try:
         auth = authorify_admin(kwargs)
     except AuthenticationError as e:
         print("Authentication error: ", e)
         raise AuthenticationError(e)
-        
+
     try:
         with shopify.Session.temp(**auth):
             response = shopify.GraphQL().execute(r"""
@@ -103,7 +103,7 @@ def get_users(kwargs: Dict[str, Any]) -> str:
                     }
                 }
             """)
-            data = json.loads(response)['data']['customers']['nodes']
+            data = json.loads(response)["data"]["customers"]["nodes"]
             return data
 
     except Exception as e:
@@ -153,30 +153,37 @@ def get_products(kwargs) -> str:
                     }}
                 }}
             """)
-            data = json.loads(response)['data']['products']['nodes']
+            data = json.loads(response)["data"]["products"]["nodes"]
             response_list = []
             for product in data:
                 response_text = ""
                 response_text += f"Product ID: {product.get('id', 'None')}\n"
                 response_text += f"Title: {product.get('title', 'None')}\n"
                 response_text += f"Description: {product.get('description', 'None')}\n"
-                response_text += f"Total Inventory: {product.get('totalInventory', 'None')}\n"
+                response_text += (
+                    f"Total Inventory: {product.get('totalInventory', 'None')}\n"
+                )
                 response_text += f"Options: {product.get('options', 'None')}\n"
                 response_text += "The following are several variants of the product:\n"
-                for variant in product.get('variants', {}).get('nodes', []):
+                for variant in product.get("variants", {}).get("nodes", []):
                     response_text += f"Variant name: {variant.get('displayName', 'None')}, Variant ID: {variant.get('id', 'None')}, Price: {variant.get('price', 'None')}, Inventory Quantity: {variant.get('inventoryQuantity', 'None')}\n"
-                response_list.append({"id": product.get('id', 'None'), "attribute": response_text})        
+                response_list.append(
+                    {"id": product.get("id", "None"), "attribute": response_text}
+                )
             return response_list
     except Exception as e:
         return PRODUCTS_NOT_FOUND
-    
+
+
 @app.get("/users")
 def get_users_route():
     users = []
     try:
         response = get_users(kwargs)
     except AuthenticationError as e:
-        return {"error": "Missing some or all required Shopify admin authentication parameters: shop_url, api_version, admin_token."}, 401
+        return {
+            "error": "Missing some or all required Shopify admin authentication parameters: shop_url, api_version, admin_token."
+        }, 401
     except Exception as e:
         return {"error": str(e)}, 500
 
@@ -186,6 +193,7 @@ def get_users_route():
         single_user = {"input": user["id"], "attribute": attribute}
         users.append(single_user)
     return users
+
 
 @app.get("/products")
 def get_products_route():
@@ -203,19 +211,18 @@ def get_products_route():
     return products
 
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8001)
     args = parser.parse_args()
-    
+
     kwargs = {
         "shop_url": "<your_shop_url>",
         "api_version": "2024-10",
-        "admin_token": "<your_admin_token>"
+        "admin_token": "<your_admin_token>",
     }
     # print(get_users(kwargs))
     # print(get_products(kwargs))
 
-    #run server
+    # run server
     uvicorn.run(app, host="0.0.0.0", port=args.port)

@@ -18,7 +18,6 @@ logger = logging.getLogger(__name__)
 
 @register_worker
 class RagMsgWorker(BaseWorker):
-
     description = "A combination of RAG and Message Workers"
 
     def __init__(self):
@@ -28,14 +27,16 @@ class RagMsgWorker(BaseWorker):
         prompts = load_prompts(state.bot_config)
         prompt = PromptTemplate.from_template(prompts["retrieval_needed_prompt"])
         input_prompt = prompt.invoke({"formatted_chat": state.user_message.history})
-        logger.info(f"Prompt for choosing the retriever in RagMsgWorker: {input_prompt.text}")
+        logger.info(
+            f"Prompt for choosing the retriever in RagMsgWorker: {input_prompt.text}"
+        )
         final_chain = self.llm | StrOutputParser()
         answer = final_chain.invoke(input_prompt.text)
         logger.info(f"Choose retriever in RagMsgWorker: {answer}")
         if "yes" in answer.lower():
             return "retriever"
         return "message_worker"
-     
+
     def _create_action_graph(self, tags: dict):
         workflow = StateGraph(MessageState)
         # Create a partial function with the extra argument bound
@@ -45,15 +46,14 @@ class RagMsgWorker(BaseWorker):
         workflow.add_node("retriever", retriever_with_args)
         workflow.add_node("message_worker", msg_wkr.execute)
         # Add edges
-        workflow.add_conditional_edges(
-            START, self._choose_retriever)
+        workflow.add_conditional_edges(START, self._choose_retriever)
         workflow.add_edge("retriever", "message_worker")
         return workflow
 
     def _execute(self, msg_state: MessageState, **kwargs):
-        self.llm = PROVIDER_MAP.get(msg_state.bot_config.llm_config.llm_provider, ChatOpenAI)(
-            model=msg_state.bot_config.llm_config.model_type_or_path
-        )
+        self.llm = PROVIDER_MAP.get(
+            msg_state.bot_config.llm_config.llm_provider, ChatOpenAI
+        )(model=msg_state.bot_config.llm_config.model_type_or_path)
         self.tags = kwargs.get("tags", {})
         self.action_graph = self._create_action_graph(self.tags)
         graph = self.action_graph.compile()
