@@ -2,12 +2,11 @@ from datetime import datetime, timezone
 import inspect
 import pytz
 import calendar
-
 import hubspot
 import parsedatetime
 from hubspot.crm.objects.meetings import ApiException
-
 from arklex.env.tools.tools import register_tool, logger
+from arklex.utils.utils import init_logger
 from arklex.env.tools.hubspot.utils import authenticate_hubspot
 from arklex.exceptions import ToolExecutionError
 from arklex.env.tools.hubspot._exception_prompt import HubspotExceptionPrompt
@@ -17,7 +16,7 @@ description = "Give the customer that the unavailable time of the specific repre
 slots = [
     {
         "name": "owner_id",
-        "type": "str",
+        "type": "int",
         "description": "The id of the owner of the contact.",
         "prompt": "",
         "required": True,
@@ -39,7 +38,7 @@ slots = [
     {
         "name": "meeting_date",
         "type": "str",
-        "description": "The exact date the customer want to take meeting with the representative. e.g. today, Next Monday, May 1st. If users confirm the specific date, then accept it.",
+        "description": "The exact date (only the month and day) the customer want to take meeting with the representative. e.g. today, Next Monday, May 1st. If users confirm the specific date, then accept it.",
         "prompt": "Could you please give me the date of the meeting?",
         "required": True,
     },
@@ -63,7 +62,7 @@ outputs = [
 
 @register_tool(description, slots, outputs)
 def check_available(
-    owner_id: str, time_zone: str, meeting_date: str, duration: int, **kwargs
+    owner_id: int, time_zone: str, meeting_date: str, duration: int, **kwargs
 ) -> str:
     func_name = inspect.currentframe().f_code.co_name
     access_token = authenticate_hubspot(kwargs)
@@ -75,16 +74,20 @@ def check_available(
                 "path": "/scheduler/v3/meetings/meeting-links",
                 "method": "GET",
                 "headers": {"Content-Type": "application/json"},
-                "qs": {"organizerUserId": owner_id},
+                "qs": {"organizerUserId": int(owner_id)},
             }
         )
         meeting_link_response = meeting_link_response.json()
-        if meeting_link_response.get("total") == 0:
+        if meeting_link_response.get("status") == "error":
+            logger.error(
+                f"The error for retrieving the meeting link happens:{meeting_link_response.get('message', 'Unknown error happens')}"
+            )
             raise ToolExecutionError(
                 func_name, HubspotExceptionPrompt.MEETING_LINK_UNFOUND_PROMPT
             )
         else:
             meeting_links = meeting_link_response["results"][0]
+
         meeting_slug = meeting_links["slug"]
         cal = parsedatetime.Calendar()
         time_struct, _ = cal.parse(meeting_date)
@@ -163,7 +166,7 @@ def check_available(
             response = ""
             if not len(same_dt_info["available_time_slots"]) == 0:
                 response += f"The slug for your meeting is: {meeting_slug}\n"
-                response += f"The alternative time for you on the same date is {same_dt_info['available_time_slots']}\n"
+                response += f'The alternative time for you on the same date is {same_dt_info["available_time_slots"]}\n'
                 response += f"Feel free to choose from it\n"
                 response += f"You must give some available time slots for users as the reference to choose.\n"
             else:
@@ -171,7 +174,7 @@ def check_available(
                 response += (
                     f"I am sorry there is no available time slots on the same day.\n"
                 )
-                response += f"If you want to change the date, available times for other dates are {other_dt_info['available_time_slots']}\n"
+                response += f'If you want to change the date, available times for other dates are {other_dt_info["available_time_slots"]}\n'
                 response += f"Feel free to choose from the list.\n"
                 response += f"You must give some available time slots for users as the reference so that they could choose from.\n"
             return response
