@@ -77,7 +77,7 @@ slots = [
             "Asia/Tokyo",
             "Europe/London",
         ],
-        "description": "The timezone of the user. For example, 'America/New_York'.",
+        "description": "The timezone of the user. For example, 'America/New_York'. It allows users to input abbreviation like nyc, NYC. If you are not sure, just ask the user to confirm in response.",
         "prompt": "Could you please provide your timezone or where are you now?",
         "required": True,
     },
