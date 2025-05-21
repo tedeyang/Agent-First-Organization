@@ -93,6 +93,7 @@ def check_available(
                 func_name, HubspotExceptionPrompt.MEETING_LINK_UNFOUND_PROMPT
             )
         else:
+            # Emphasize on the results part of the response
             if not meeting_link_response.get("results"):
                 logger.error(
                     f"The error for retrieving the meeting link happens:{meeting_link_response.get('message', 'Unknown error happens')}"
@@ -101,14 +102,18 @@ def check_available(
                     func_name, HubspotExceptionPrompt.MEETING_LINK_UNFOUND_PROMPT
                 )
             else:
+                # Extract the corresponsing link of the specific user
                 meeting_links_ls: List[Dict[str, Any]] = [
                     item
                     for item in meeting_link_response.get("results")
                     if item.get("organizerUserId") == str(owner_id)
                 ]
+
+                # Get the first link of someone
                 if len(meeting_links) != 0:
                     meeting_links: Dict[str, Any] = meeting_links_ls[0]
                 else:
+                    # The length is 0, then raise error
                     logger.error(
                         f"There is no meeting links corresponding to the owner's id."
                     )
