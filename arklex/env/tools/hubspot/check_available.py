@@ -110,7 +110,7 @@ def check_available(
                 ]
 
                 # Get the first link of someone
-                if len(meeting_links) != 0:
+                if len(meeting_links_ls) != 0:
                     meeting_links: Dict[str, Any] = meeting_links_ls[0]
                 else:
                     # The length is 0, then raise error
