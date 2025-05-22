@@ -11,10 +11,10 @@ from arklex.env.tools.hubspot.utils import authenticate_hubspot
 from arklex.exceptions import ToolExecutionError
 from arklex.env.tools.hubspot._exception_prompt import HubspotExceptionPrompt
 
-description: str = (
-    "Give the customer that the unavailable time of the specific representative and the representative's related meeting link information."
-)
+# Tool description for checking available meeting times
+description: str = "Give the customer that the unavailable time of the specific representative and the representative's related meeting link information."
 
+# List of required parameters for the tool
 slots: List[Dict[str, Any]] = [
     {
         "name": "owner_id",
@@ -53,6 +53,8 @@ slots: List[Dict[str, Any]] = [
         "required": True,
     },
 ]
+
+# List of output parameters for the tool
 outputs: List[Dict[str, Any]] = [
     {
         "name": "meeting_info",
@@ -70,6 +72,22 @@ def check_available(
     duration: int,
     **kwargs: Dict[str, Any],
 ) -> str:
+    """
+    Check available meeting times for a specific representative.
+
+    Args:
+        owner_id (int): ID of the meeting organizer
+        time_zone (str): Timezone for checking availability
+        meeting_date (str): Date to check availability for
+        duration (int): Desired meeting duration in minutes
+        **kwargs (Dict[str, Any]): Additional keyword arguments
+
+    Returns:
+        str: String containing available time slots information
+
+    Raises:
+        ToolExecutionError: If meeting link is not found or availability check fails
+    """
     func_name: str = inspect.currentframe().f_code.co_name
     access_token: str = authenticate_hubspot(kwargs)
     api_client: Any = hubspot.Client.create(access_token=access_token)
@@ -233,6 +251,18 @@ def parse_natural_date(
     timezone: Optional[str] = None,
     date_input: bool = False,
 ) -> datetime:
+    """
+    Parse a natural language date string into a datetime object.
+
+    Args:
+        date_str (str): Date string to parse
+        base_date (Optional[datetime]): Optional base date for relative dates
+        timezone (Optional[str]): Optional timezone
+        date_input (bool): Whether input is date-only
+
+    Returns:
+        datetime: Parsed datetime object
+    """
     cal: parsedatetime.Calendar = parsedatetime.Calendar()
     time_struct: tuple = cal.parse(date_str, base_date)[0]
     if date_input:

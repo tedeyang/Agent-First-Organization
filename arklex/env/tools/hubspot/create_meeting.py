@@ -103,6 +103,26 @@ def create_meeting(
     time_zone: str,
     **kwargs: Dict[str, Any],
 ) -> str:
+    """
+    Schedule a meeting for a customer with a specific representative.
+
+    Args:
+        cus_fname (str): Customer's first name
+        cus_lname (str): Customer's last name
+        cus_email (str): Customer's email address
+        meeting_date (str): Desired meeting date
+        meeting_start_time (str): Desired meeting start time
+        duration (int): Meeting duration in minutes
+        slug (str): Meeting link slug
+        time_zone (str): Timezone for the meeting
+        **kwargs (Dict[str, Any]): Additional keyword arguments
+
+    Returns:
+        str: JSON string containing meeting confirmation information
+
+    Raises:
+        ToolExecutionError: If meeting scheduling fails
+    """
     func_name: str = inspect.currentframe().f_code.co_name
     access_token: str = authenticate_hubspot(kwargs)
 
@@ -159,6 +179,18 @@ def parse_natural_date(
     timezone: Optional[str] = None,
     date_input: bool = False,
 ) -> datetime:
+    """
+    Parse a natural language date string into a datetime object.
+
+    Args:
+        date_str (str): Date string to parse
+        base_date (Optional[datetime]): Optional base date for relative dates
+        timezone (Optional[str]): Optional timezone
+        date_input (bool): Whether input is date-only
+
+    Returns:
+        datetime: Parsed datetime object
+    """
     cal: parsedatetime.Calendar = parsedatetime.Calendar()
     time_struct: tuple = cal.parse(date_str, base_date)[0]
     if date_input:
@@ -177,6 +209,15 @@ def parse_natural_date(
 
 
 def is_iso8601(s: str) -> bool:
+    """
+    Check if a string is in ISO8601 format.
+
+    Args:
+        s (str): String to check
+
+    Returns:
+        bool: True if string is in ISO8601 format, False otherwise
+    """
     try:
         isoparse(s)
         return True

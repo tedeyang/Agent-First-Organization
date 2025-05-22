@@ -8,9 +8,10 @@ from arklex.env.tools.hubspot.utils import authenticate_hubspot
 from arklex.exceptions import ToolExecutionError
 from arklex.env.tools.hubspot._exception_prompt import HubspotExceptionPrompt
 
+# Tool description for finding owner ID
 description: str = "Find the owner id in the contact. If owner id is found, the next step is using the extracted owner id to find the information of the owner. "
 
-
+# List of required parameters for the tool
 slots: List[Dict[str, Any]] = [
     {
         "name": "cus_cid",
@@ -22,6 +23,7 @@ slots: List[Dict[str, Any]] = [
     },
 ]
 
+# List of output parameters for the tool
 outputs: List[Dict[str, Any]] = [
     {
         "name": "owner_id",
@@ -33,6 +35,19 @@ outputs: List[Dict[str, Any]] = [
 
 @register_tool(description, slots, outputs)
 def find_owner_id_by_contact_id(cus_cid: str, **kwargs: Dict[str, Any]) -> str:
+    """
+    Find the owner ID for a given contact ID.
+
+    Args:
+        cus_cid (str): Customer contact ID
+        **kwargs (Dict[str, Any]): Additional keyword arguments
+
+    Returns:
+        str: Owner ID as string
+
+    Raises:
+        ToolExecutionError: If owner ID cannot be found
+    """
     func_name: str = inspect.currentframe().f_code.co_name
     access_token: str = authenticate_hubspot(kwargs)
 
