@@ -13,9 +13,10 @@ from arklex.env.tools.hubspot.utils import authenticate_hubspot
 from arklex.exceptions import ToolExecutionError
 from arklex.env.tools.hubspot._exception_prompt import HubspotExceptionPrompt
 
+# Tool description for finding contacts by email
 description: str = "Find the contacts record by email. If the record is found, the lastmodifieddate of the contact will be updated. If the correspodning record is not found, the function will return an error message."
 
-
+# List of required parameters for the tool
 slots: List[Dict[str, Any]] = [
     {
         "name": "email",
@@ -32,6 +33,8 @@ slots: List[Dict[str, Any]] = [
         "required": True,
     },
 ]
+
+# List of output parameters for the tool
 outputs: List[Dict[str, Any]] = [
     {
         "name": "contact_information",
@@ -43,6 +46,20 @@ outputs: List[Dict[str, Any]] = [
 
 @register_tool(description, slots, outputs)
 def find_contact_by_email(email: str, chat: str, **kwargs: Dict[str, Any]) -> str:
+    """
+    Find a contact in HubSpot by email and update their communication history.
+
+    Args:
+        email (str): Email address of the contact to find
+        chat (str): Chat message to record in communication history
+        **kwargs (Dict[str, Any]): Additional keyword arguments
+
+    Returns:
+        str: JSON string containing contact information
+
+    Raises:
+        ToolExecutionError: If contact is not found or API calls fail
+    """
     func_name: str = inspect.currentframe().f_code.co_name
     access_token: str = authenticate_hubspot(kwargs)
 
