@@ -2,7 +2,7 @@ from typing import Dict, Any, Tuple
 from arklex.exceptions import AuthenticationError
 
 # Error message for missing Acuity authentication parameters
-ACUITY_AUTH_ERROR: str = "Missing some or all required hubspot authentication parameters: ACUITY_USER_ID, ACUITY_API_KEY. Please set up 'fixed_args' in the config file. For example, {'name': <unique name of the tool>, 'fixed_args': {'token': <shopify_access_token>, 'shop_url': <shopify_shop_url>, 'api_version': <Shopify API version>}}"
+ACUITY_AUTH_ERROR: str = "Missing some or all required hubspot authentication parameters: ACUITY_USER_ID, ACUITY_API_KEY. Please set up 'fixed_args' in the config file. For example, {'name': <unique name of the tool>, 'fixed_args': {'ACUITY_USER_ID': <acuity_user_id>, 'ACUITY_API_KEY': <acuity_api_key>}}"
 
 
 def authenticate_acuity(kwargs: Dict[str, Any]) -> Tuple[str, str]:
