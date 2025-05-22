@@ -293,6 +293,7 @@ class TaskGraph(TaskGraphBase):
             node_info: NodeInfo
             node_info, params = self._get_node(curr_node, params)
             return True, node_info, params
+
         return False, {}, params
 
     def global_intent_prediction(
@@ -351,8 +352,9 @@ class TaskGraph(TaskGraphBase):
                 # If the prediction is the same as the current global intent and the current node is not a leaf node, continue the current global intent
                 if (
                     pred_intent == params.taskgraph.curr_global_intent
-                    and len(list(self.graph.successors(curr_node))) != 0 
-                    or params.taskgraph.node_status.get(curr_node, StatusEnum.COMPLETE) == StatusEnum.INCOMPLETE
+                    and len(list(self.graph.successors(curr_node))) != 0
+                    and params.taskgraph.node_status.get(curr_node, StatusEnum.INCOMPLETE)
+                    == StatusEnum.INCOMPLETE
                 ):
                     return False, pred_intent, {}, params
                 next_node: str
@@ -396,9 +398,9 @@ class TaskGraph(TaskGraphBase):
             node_info: NodeInfo
             node_info, params = self._get_node(next_node, params)
             if params.taskgraph.nlu_records:
-                params.taskgraph.nlu_records[-1]["no_intent"] = (
-                    True  # move on to the next node
-                )
+                params.taskgraph.nlu_records[-1][
+                    "no_intent"
+                ] = True  # move on to the next node
             else:  # only others available
                 params.taskgraph.nlu_records = [
                     {
