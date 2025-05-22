@@ -2,7 +2,7 @@ from typing import Dict, Any
 from arklex.exceptions import AuthenticationError
 
 # Error message for missing HubSpot authentication parameters
-HUBSPOT_AUTH_ERROR: str = "Missing some or all required hubspot authentication parameters: access_token. Please set up 'fixed_args' in the config file. For example, {'name': <unique name of the tool>, 'fixed_args': {'token': <shopify_access_token>, 'shop_url': <shopify_shop_url>, 'api_version': <Shopify API version>}}"
+HUBSPOT_AUTH_ERROR: str = "Missing some or all required hubspot authentication parameters: access_token. Please set up 'fixed_args' in the config file. For example, {'name': <unique name of the tool>, 'fixed_args': {'access_token': <hubspot_access_token>}"
 
 
 def authenticate_hubspot(kwargs: Dict[str, Any]) -> str:
