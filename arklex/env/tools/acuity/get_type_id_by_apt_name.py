@@ -1,15 +1,18 @@
 import inspect
 import requests
 from requests.auth import HTTPBasicAuth
+from typing import Dict, Any, List, Optional
 
 from arklex.env.tools.acuity._exception_prompt import AcuityExceptionPrompt
-from arklex.env.tools.tools import register_tool, logger
+from arklex.env.tools.tools import register_tool
 from arklex.env.tools.acuity.utils import authenticate_acuity
 from arklex.exceptions import ToolExecutionError
 
-description = "Retrieve the list of all info sessions for users."
+# Tool description for retrieving session type ID
+description: str = "Retrieve the list of all info sessions for users."
 
-slots = [
+# List of required parameters for the tool
+slots: List[Dict[str, Any]] = [
     {
         "name": "apt_name",
         "type": "str",
@@ -18,7 +21,9 @@ slots = [
         "required": True,
     },
 ]
-outputs = [
+
+# List of output parameters for the tool
+outputs: List[Dict[str, Any]] = [
     {
         "name": "apt_type_id",
         "type": "str",
@@ -28,20 +33,37 @@ outputs = [
 
 
 @register_tool(description, slots, outputs)
-def get_type_id_by_apt_name(apt_name, **kwargs):
-    func_name = inspect.currentframe().f_code.co_name
+def get_type_id_by_apt_name(apt_name: str, **kwargs: Dict[str, Any]) -> str:
+    """
+    Get the appointment type ID for a given session name.
+
+    Args:
+        apt_name (str): Name of the appointment/session
+        **kwargs (Dict[str, Any]): Additional keyword arguments
+
+    Returns:
+        str: String containing the appointment type ID
+
+    Raises:
+        ToolExecutionError: If retrieving the type ID fails
+    """
+    func_name: str = inspect.currentframe().f_code.co_name
+    user_id: str
+    api_key: str
     user_id, api_key = authenticate_acuity(kwargs)
 
-    base_url = "https://acuityscheduling.com/api/v1/appointment-types"
+    base_url: str = "https://acuityscheduling.com/api/v1/appointment-types"
 
-    response = requests.get(base_url, auth=HTTPBasicAuth(user_id, api_key))
+    response: requests.Response = requests.get(
+        base_url, auth=HTTPBasicAuth(user_id, api_key)
+    )
 
     if response.status_code == 200:
-        data = response.json()
-        apt_type_id = next(
+        data: List[Dict[str, Any]] = response.json()
+        apt_type_id: Optional[int] = next(
             (item["id"] for item in data if item["name"].strip() == apt_name), None
         )
-        response_str = f"The appointment type id is {apt_type_id}\n"
+        response_str: str = f"The appointment type id is {apt_type_id}\n"
         return response_str
     else:
         raise ToolExecutionError(func_name, AcuityExceptionPrompt.GET_TYPE_ID_PROMPT)

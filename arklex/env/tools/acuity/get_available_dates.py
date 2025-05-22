@@ -3,7 +3,7 @@ import requests
 from requests.auth import HTTPBasicAuth
 
 from arklex.env.tools.acuity.utils import authenticate_acuity
-from arklex.env.tools.tools import register_tool, logger
+from arklex.env.tools.tools import register_tool
 from arklex.exceptions import ToolExecutionError
 from arklex.env.tools.acuity._exception_prompt import AcuityExceptionPrompt
 
@@ -56,7 +56,7 @@ def get_available_dates(year, month, apt_type_id, **kwargs):
         response_text = "The information about the availability is as follows. Please provide this to users.\n"
 
         for date in data:
-            response_text += f'Available dates are {date.get("date")}\n'
+            response_text += f"Available dates are {date.get('date')}\n"
         return response_text
 
     else:
