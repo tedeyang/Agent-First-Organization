@@ -4,7 +4,7 @@ import requests
 from requests.auth import HTTPBasicAuth
 
 from arklex.env.tools.acuity._exception_prompt import AcuityExceptionPrompt
-from arklex.env.tools.tools import register_tool, logger
+from arklex.env.tools.tools import register_tool
 from arklex.env.tools.acuity.utils import authenticate_acuity
 from arklex.exceptions import ToolExecutionError
 

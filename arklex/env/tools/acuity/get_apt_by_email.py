@@ -1,18 +1,20 @@
-import json
 import requests
 import inspect
 from datetime import datetime
+from typing import Dict, Any, List
 
 from requests.auth import HTTPBasicAuth
-from arklex.env.tools.tools import register_tool, logger
+from arklex.env.tools.tools import register_tool
 from arklex.env.tools.acuity.utils import authenticate_acuity
 from arklex.exceptions import ToolExecutionError
 from arklex.env.tools.acuity._exception_prompt import AcuityExceptionPrompt
 
 
-description = "Get the list of all information sessions"
+# Tool description for retrieving appointments
+description: str = "Get the list of all information sessions"
 
-slots = [
+# List of required parameters for the tool
+slots: List[Dict[str, Any]] = [
     {
         "name": "email",
         "type": "str",
@@ -21,7 +23,9 @@ slots = [
         "required": True,
     }
 ]
-outputs = [
+
+# List of output parameters for the tool
+outputs: List[Dict[str, Any]] = [
     {
         "name": "apt_ls",
         "type": "list[dict]",
@@ -31,21 +35,40 @@ outputs = [
 
 
 @register_tool(description, slots, outputs)
-def get_apt_by_email(email, **kwargs):
-    func_name = inspect.currentframe().f_code.co_name
+def get_apt_by_email(email: str, **kwargs: Dict[str, Any]) -> str:
+    """
+    Get all future appointments for a given email address.
+
+    Args:
+        email (str): Email address to search appointments for
+        **kwargs (Dict[str, Any]): Additional keyword arguments
+
+    Returns:
+        str: Formatted string containing all future appointments
+
+    Raises:
+        ToolExecutionError: If no appointments are found or API call fails
+    """
+    func_name: str = inspect.currentframe().f_code.co_name
+    user_id: str
+    api_key: str
     user_id, api_key = authenticate_acuity(kwargs)
 
-    base_url = "https://acuityscheduling.com/api/v1/appointments"
+    base_url: str = "https://acuityscheduling.com/api/v1/appointments"
 
-    response = requests.get(base_url, auth=HTTPBasicAuth(user_id, api_key))
-    apt_ls = []
-    response_str = "Please include all appointments (At least the types and time info) in the response to users. There might be multiple appointments.\n"
+    response: requests.Response = requests.get(
+        base_url, auth=HTTPBasicAuth(user_id, api_key)
+    )
+    apt_ls: List[Dict[str, Any]] = []
+    response_str: str = "Please include all appointments (At least the types and time info) in the response to users. There might be multiple appointments.\n"
     if response.status_code == 200:
-        data = response.json()
-        today = datetime.now().date()
+        data: List[Dict[str, Any]] = response.json()
+        today: datetime.date = datetime.now().date()
         for item in data:
             if item.get("email") == email:
-                apt_date = datetime.strptime(item["date"], "%B %d, %Y").date()
+                apt_date: datetime.date = datetime.strptime(
+                    item["date"], "%B %d, %Y"
+                ).date()
                 if apt_date > today:
                     response_str += (
                         f"The appointment id of this appointment is: {item['id']}\n"
