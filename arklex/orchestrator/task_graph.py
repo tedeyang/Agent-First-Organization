@@ -353,7 +353,9 @@ class TaskGraph(TaskGraphBase):
                 if (
                     pred_intent == params.taskgraph.curr_global_intent
                     and len(list(self.graph.successors(curr_node))) != 0
-                    and params.taskgraph.node_status.get(curr_node, StatusEnum.INCOMPLETE)
+                    and params.taskgraph.node_status.get(
+                        curr_node, StatusEnum.INCOMPLETE
+                    )
                     == StatusEnum.INCOMPLETE
                 ):
                     return False, pred_intent, {}, params
