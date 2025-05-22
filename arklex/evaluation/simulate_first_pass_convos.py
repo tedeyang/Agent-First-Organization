@@ -265,53 +265,59 @@ def simulate_conversations(
     synthetic_data_params: Dict[str, Any],
     config: Dict[str, Any],
 ) -> Tuple[List[Dict[str, Any]], List[str]]:
-    profiles, goals, attributes_list, system_inputs, labels_list = build_profile(
-        synthetic_data_params, config
-    )
+    if config["task"] == "first_pass":
+        profiles, goals, attributes_list, system_inputs, labels_list = build_profile(
+            synthetic_data_params, config
+        )
 
-    # save the profiles, goals, attributes_list, system_inputs, labels_list in a json file
-    os.makedirs(os.path.join(config["output_dir"], "simulate_data"), exist_ok=True)
-    with open(
-        os.path.join(config["output_dir"], "simulate_data", "profiles.json"), "w"
-    ) as f:
-        json.dump(profiles, f, indent=4)
-    with open(
-        os.path.join(config["output_dir"], "simulate_data", "goals.json"), "w"
-    ) as f:
-        json.dump(goals, f, indent=4)
-    with open(
-        os.path.join(config["output_dir"], "simulate_data", "attributes_list.json"), "w"
-    ) as f:
-        json.dump(attributes_list, f, indent=4)
-    with open(
-        os.path.join(config["output_dir"], "simulate_data", "system_inputs.json"), "w"
-    ) as f:
-        json.dump(system_inputs, f, indent=4)
-    with open(
-        os.path.join(config["output_dir"], "simulate_data", "labels_list.json"), "w"
-    ) as f:
-        json.dump(labels_list, f, indent=4)
+        # save the profiles, goals, attributes_list, system_inputs, labels_list in a json file
+        os.makedirs(os.path.join(config["output_dir"], "simulate_data"), exist_ok=True)
+        with open(
+            os.path.join(config["output_dir"], "simulate_data", "profiles.json"), "w"
+        ) as f:
+            json.dump(profiles, f, indent=4)
+        with open(
+            os.path.join(config["output_dir"], "simulate_data", "goals.json"), "w"
+        ) as f:
+            json.dump(goals, f, indent=4)
+        with open(
+            os.path.join(config["output_dir"], "simulate_data", "attributes_list.json"),
+            "w",
+        ) as f:
+            json.dump(attributes_list, f, indent=4)
+        with open(
+            os.path.join(config["output_dir"], "simulate_data", "system_inputs.json"),
+            "w",
+        ) as f:
+            json.dump(system_inputs, f, indent=4)
+        with open(
+            os.path.join(config["output_dir"], "simulate_data", "labels_list.json"), "w"
+        ) as f:
+            json.dump(labels_list, f, indent=4)
 
-    # with open(
-    #     os.path.join(config["output_dir"], "simulate_data", "profiles.json"), "r"
-    # ) as f:
-    #     profiles = json.load(f)
-    # with open(
-    #     os.path.join(config["output_dir"], "simulate_data", "goals.json"), "r"
-    # ) as f:
-    #     goals = json.load(f)
-    # with open(
-    #     os.path.join(config["output_dir"], "simulate_data", "attributes_list.json"), "r"
-    # ) as f:
-    #     attributes_list = json.load(f)
-    # with open(
-    #     os.path.join(config["output_dir"], "simulate_data", "system_inputs.json"), "r"
-    # ) as f:
-    #     system_inputs = json.load(f)
-    # with open(
-    #     os.path.join(config["output_dir"], "simulate_data", "labels_list.json"), "r"
-    # ) as f:
-    #     labels_list = json.load(f)
+    elif config["task"] == "simulate_conv_only":
+        with open(
+            os.path.join(config["output_dir"], "simulate_data", "profiles.json"), "r"
+        ) as f:
+            profiles = json.load(f)
+        with open(
+            os.path.join(config["output_dir"], "simulate_data", "goals.json"), "r"
+        ) as f:
+            goals = json.load(f)
+        with open(
+            os.path.join(config["output_dir"], "simulate_data", "attributes_list.json"),
+            "r",
+        ) as f:
+            attributes_list = json.load(f)
+        with open(
+            os.path.join(config["output_dir"], "simulate_data", "system_inputs.json"),
+            "r",
+        ) as f:
+            system_inputs = json.load(f)
+        with open(
+            os.path.join(config["output_dir"], "simulate_data", "labels_list.json"), "r"
+        ) as f:
+            labels_list = json.load(f)
 
     summary: str = config["intro"]
     env_config: Dict[str, Any] = {
