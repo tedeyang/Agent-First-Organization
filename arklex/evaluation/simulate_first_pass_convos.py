@@ -170,16 +170,13 @@ def conversation(
         output: str = chatgpt_chatbot(history, env_config["client"])
         history.append({"role": "assistant", "content": output})
         chatbot_history.append({"role": "assistant", "content": output})
-        curr_node: str = model_params.get("curr_node", "start")
         response_data: Dict[str, Any] = query_chatbot(
             model_api, chatbot_history, model_params, env_config
         )
         answer: str = response_data["answer"]
         answer = answer.replace("\n", " ")
         model_params = response_data["parameters"]
-        history[-1]["intent"] = model_params["taskgraph"][
-            "curr_global_intent"
-        ]  ## TODO: After add global intent, change to global intent, the current intent if the last intent of each turn
+        history[-1]["intent"] = model_params["taskgraph"]["curr_global_intent"]
         history[-1]["curr_node"] = model_params["taskgraph"]["curr_node"]
         history[-1]["trajectory"] = model_params["memory"]["trajectory"][-1]
 
