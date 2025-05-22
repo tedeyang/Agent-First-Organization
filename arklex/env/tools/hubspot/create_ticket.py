@@ -12,9 +12,10 @@ from arklex.exceptions import ToolExecutionError
 from arklex.env.tools.hubspot._exception_prompt import HubspotExceptionPrompt
 
 
+# Tool description for creating support tickets
 description: str = "Create a ticket for the existing customer when the customer has some problem about the specific product."
 
-
+# List of required parameters for the tool
 slots: List[Dict[str, Any]] = [
     {
         "name": "cus_cid",
@@ -32,6 +33,8 @@ slots: List[Dict[str, Any]] = [
         "required": True,
     },
 ]
+
+# List of output parameters for the tool
 outputs: List[Dict[str, Any]] = [
     {
         "name": "ticket_id",
@@ -43,6 +46,20 @@ outputs: List[Dict[str, Any]] = [
 
 @register_tool(description, slots, outputs)
 def create_ticket(cus_cid: str, issue: str, **kwargs: Dict[str, Any]) -> str:
+    """
+    Create a support ticket for a customer and associate it with their contact record.
+
+    Args:
+        cus_cid (str): Customer contact ID
+        issue (str): Description of the customer's issue
+        **kwargs (Dict[str, Any]): Additional keyword arguments
+
+    Returns:
+        str: ID of the created ticket
+
+    Raises:
+        ToolExecutionError: If ticket creation or association fails
+    """
     func_name: str = inspect.currentframe().f_code.co_name
     access_token: str = authenticate_hubspot(kwargs)
 
