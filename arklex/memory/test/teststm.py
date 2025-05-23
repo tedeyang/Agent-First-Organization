@@ -234,6 +234,7 @@ def run_test_case(
     chat_history: str,
     query: str,
     expected_intent: bool,
+    expected_record: bool,
     llm_config: LLMConfig,
 ) -> Tuple[bool, bool]:
     """Helper function to run a test case with standardized format.
@@ -245,6 +246,7 @@ def run_test_case(
         chat_history: Chat history string
         query: Query string to test
         expected_intent: Expected found_intent value
+        expected_record: Expected found_record value
         llm_config: LLM configuration
 
     Returns:
@@ -263,7 +265,7 @@ def run_test_case(
     # Print results
     print("Results:")
     print(f"- found_intent: {found_intent} (Expected: {expected_intent})")
-    print(f"- found_record: {found_record}")
+    print(f"- found_record: {found_record} (Expected: {expected_record})")
 
     if found_record:
         print("\nFound Records Info:")
@@ -325,6 +327,7 @@ assistant: We have several products in our store. Are you looking for something 
         chat_history_case1,
         "Show me the denim apron with 5 pockets",
         test_case_labels["case1"]["found_intent_label"],
+        test_case_labels["case1"]["found_record_label"],
         bot_config.llm_config,
     )
 
@@ -340,6 +343,7 @@ assistant: Yes, we have several aprons available."""
         chat_history_case2,
         "Does it have pockets?",
         test_case_labels["case2"]["found_intent_label"],
+        test_case_labels["case2"]["found_record_label"],
         bot_config.llm_config,
     )
 
@@ -355,6 +359,7 @@ assistant: I can help you find the perfect apron."""
         chat_history_case3,
         "I want bedframes",
         test_case_labels["case3"]["found_intent_label"],
+        test_case_labels["case3"]["found_record_label"],
         bot_config.llm_config,
     )
 
@@ -370,16 +375,25 @@ assistant: Here are our hat collections."""
         chat_history_case4,
         "Do you have navy blue hats?",
         test_case_labels["case4"]["found_intent_label"],
+        test_case_labels["case4"]["found_record_label"],
         bot_config.llm_config,
     )
 
     # Summary of Test Results
     print("\n=== Test Summary ===")
     actual_results = {
-        "case1": {"found_intent": found_intent_case1},
-        "case2": {"found_intent": found_intent_case2},
-        "case3": {"found_intent": found_intent_case3},
-        "case4": {"found_intent": found_intent_case4},
+        "case1": {
+            "found_intent": found_intent_case1,
+        },
+        "case2": {
+            "found_intent": found_intent_case2,
+        },
+        "case3": {
+            "found_intent": found_intent_case3,
+        },
+        "case4": {
+            "found_intent": found_intent_case4,
+        },
     }
 
     for case, labels in test_case_labels.items():
