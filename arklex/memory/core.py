@@ -224,13 +224,13 @@ class ShortTermMemory:
         return True, [r["record"] for r in relevant_records[:top_k]]
 
     def retrieve_intent(
-        self, query: str, threshold: float = 0.4, cosine_threshold: float = 0.7
+        self, query: str, string_threshold: float = 0.4, cosine_threshold: float = 0.7
     ) -> Tuple[bool, Optional[str]]:
         """
 
         Args:
             query (str): The query string to retrieve the most relevant intent for.
-            threshold (float, optional): The string similarity score threshold for filtering relevant intents. Defaults to 0.4.
+            string_threshold (float, optional): The string similarity score threshold for filtering relevant intents. Defaults to 0.4.
             cosine_threshold (float, optional): The cosine similarity threshold for initial filtering. Defaults to 0.7.
 
         Returns:
@@ -278,7 +278,7 @@ class ShortTermMemory:
                                 best_intent = record.intent
 
         # If the best score is above the threshold, return the intent
-        if best_score >= threshold:
+        if best_score >= string_threshold:
             return True, best_intent
         else:
             return False, None

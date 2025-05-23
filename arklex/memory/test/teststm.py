@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 from arklex.memory.core import ShortTermMemory
 from arklex.utils.graph_state import BotConfig, LLMConfig, MessageState, ResourceRecord
@@ -227,33 +227,83 @@ def init_test_state() -> MessageState:
     return MessageState(sys_instruct=sys_instruct, bot_config=bot_config)
 
 
+def run_test_case(
+    case_name: str,
+    description: str,
+    trajectory: List[List[ResourceRecord]],
+    chat_history: str,
+    query: str,
+    expected_intent: bool,
+    llm_config: LLMConfig,
+) -> Tuple[bool, bool]:
+    """Helper function to run a test case with standardized format.
+
+    Args:
+        case_name: Name of the test case
+        description: Description of what the test case is testing
+        trajectory: List of records for the test case
+        chat_history: Chat history string
+        query: Query string to test
+        expected_intent: Expected found_intent value
+        llm_config: LLM configuration
+
+    Returns:
+        Tuple of (found_intent, found_record) results
+    """
+    print(f"\n=== Case {case_name}: {description} ===")
+
+    # Create STM instance
+    stm = ShortTermMemory(trajectory, chat_history, llm_config=llm_config)
+    asyncio.run(stm.personalize())
+
+    # Run retrievals
+    found_record, records = stm.retrieve_records(query)
+    found_intent, intent = stm.retrieve_intent(query)
+
+    # Print results
+    print("Results:")
+    print(f"- found_intent: {found_intent} (Expected: {expected_intent})")
+    print(f"- found_record: {found_record}")
+
+    if found_record:
+        print("\nFound Records Info:")
+        for record in records:
+            print(f"Record Intent: {record.intent}")
+            print(f"Record Personalized Intent: {record.personalized_intent}")
+            print(f"Record Output (first 100 tokens): {record.output[:100]}")
+
+    return found_intent, found_record
+
+
 def test_shopify_intent() -> None:
     # Initialize test state
     state = init_test_state()
 
     # Define test case labels
     test_case_labels = {
-        "case1": {"found_intent_label": True, "description": "Product Selection Flow"},
-        "case2": {"found_intent_label": True, "description": "Follow-up Questions"},
+        "case1": {
+            "found_intent_label": True,
+            "found_record_label": True,
+            "description": "Product Selection Flow",
+        },
+        "case2": {
+            "found_intent_label": True,
+            "found_record_label": True,
+            "description": "Follow-up Questions",
+        },
         "case3": {
             "found_intent_label": False,
+            "found_record_label": False,
             "description": "Different Product Recommendations",
         },
         "case4": {
             "found_intent_label": True,
+            "found_record_label": True,
             "description": "Same Product, Different Attributes",
         },
     }
 
-    # Test Case 1: Product Selection Flow
-    print(f"\n=== Case 1: {test_case_labels['case1']['description']} ===")
-    # Create trajectory with just the first two records
-    trajectory_case1 = [[record_case1]]
-    chat_history_case1 = """assistant: Hello! How can I help you today?
-user: What products do you have?
-assistant: We have several products in our store. Are you looking for something particular?"""
-
-    # Create STM instance for case 1
+    # Initialize LLM config
     llm_config = LLMConfig(**TEST_CONFIG.get("model", MODEL))
     bot_config = BotConfig(
         bot_id="test_bot",
@@ -262,130 +312,66 @@ assistant: We have several products in our store. Are you looking for something 
         bot_type="test",
         llm_config=llm_config,
     )
-    stm_case1 = ShortTermMemory(
-        trajectory_case1, chat_history_case1, llm_config=bot_config.llm_config
-    )
-    asyncio.run(stm_case1.personalize())
 
-    # Test case 1
-    found_case1, records_case1 = stm_case1.retrieve_records(
-        "Show me the denim apron with 5 pockets"
+    # Test Case 1: Product Selection Flow
+    trajectory_case1 = [[record_case1]]
+    chat_history_case1 = """assistant: Hello! How can I help you today?
+user: What products do you have?
+assistant: We have several products in our store. Are you looking for something particular?"""
+    found_intent_case1, found_record_case1 = run_test_case(
+        "1",
+        test_case_labels["case1"]["description"],
+        trajectory_case1,
+        chat_history_case1,
+        "Show me the denim apron with 5 pockets",
+        test_case_labels["case1"]["found_intent_label"],
+        bot_config.llm_config,
     )
-    found_intent_case1, intent_case1 = stm_case1.retrieve_intent(
-        "I want to see the denim apron with 5 pockets"
-    )
-    print(
-        f"Expected Behavior: found_intent={test_case_labels['case1']['found_intent_label']}"
-    )
-    print("Actual Results:")
-    print(
-        f"- found_intent: {found_intent_case1} (Expected: {test_case_labels['case1']['found_intent_label']})"
-    )
-    if found_case1:
-        print("\nFound Records (first 100 tokens):")
-        for record in records_case1:
-            print(f"\nRecord Intent: {record.intent}")
-            print(f"Record Personalized Intent: {record.personalized_intent}")
-            print(f"Record Output (first 100 tokens): {record.output[:100]}")
 
     # Test Case 2: Follow-up Questions
-    print(f"\n=== Case 2: {test_case_labels['case2']['description']} ===")
-    # Create trajectory with just the relevant records
     trajectory_case2 = [[record_case2_initial]]
     chat_history_case2 = """assistant: Hello! How can I help you today?
 user: Do you have any aprons?
 assistant: Yes, we have several aprons available."""
-
-    # Create STM instance for case 2
-    stm_case2 = ShortTermMemory(
-        trajectory_case2, chat_history_case2, llm_config=bot_config.llm_config
+    found_intent_case2, found_record_case2 = run_test_case(
+        "2",
+        test_case_labels["case2"]["description"],
+        trajectory_case2,
+        chat_history_case2,
+        "Does it have pockets?",
+        test_case_labels["case2"]["found_intent_label"],
+        bot_config.llm_config,
     )
-    asyncio.run(stm_case2.personalize())
-
-    # Test case 2
-    found_case2, records_case2 = stm_case2.retrieve_records("Does it have pockets?")
-    found_intent_case2, intent_case2 = stm_case2.retrieve_intent(
-        "Does it have pockets?"
-    )
-    print(
-        f"Expected Behavior: found_intent={test_case_labels['case2']['found_intent_label']}"
-    )
-    print("Actual Results:")
-    print(
-        f"- found_intent: {found_intent_case2} (Expected: {test_case_labels['case2']['found_intent_label']})"
-    )
-    if found_case2:
-        print("\nFound Records (first 100 tokens):")
-        for record in records_case2:
-            print(f"\nRecord Intent: {record.intent}")
-            print(f"Record Personalized Intent: {record.personalized_intent}")
-            print(f"Record Output (first 100 tokens): {record.output[:100]}")
 
     # Test Case 3: Different Product Recommendations
-    print(f"\n=== Case 3: {test_case_labels['case3']['description']} ===")
-    # Create trajectory with just the relevant records
     trajectory_case3 = [[record_case3_aprons]]
     chat_history_case3 = """assistant: Hello! How can I help you today?
 user: I need an apron.
 assistant: I can help you find the perfect apron."""
-
-    # Create STM instance for case 3
-    stm_case3 = ShortTermMemory(
-        trajectory_case3, chat_history_case3, llm_config=bot_config.llm_config
+    found_intent_case3, found_record_case3 = run_test_case(
+        "3",
+        test_case_labels["case3"]["description"],
+        trajectory_case3,
+        chat_history_case3,
+        "I want bedframes",
+        test_case_labels["case3"]["found_intent_label"],
+        bot_config.llm_config,
     )
-    asyncio.run(stm_case3.personalize())
-
-    # Test case 3
-    found_case3, records_case3 = stm_case3.retrieve_records("I want bedframes")
-    found_intent_case3, intent_case3 = stm_case3.retrieve_intent("I want bedframes")
-    print(
-        f"Expected Behavior: found_intent={test_case_labels['case3']['found_intent_label']}"
-    )
-    print("Actual Results:")
-    print(
-        f"- found_intent: {found_intent_case3} (Expected: {test_case_labels['case3']['found_intent_label']})"
-    )
-    if found_case3:
-        print("\nFound Records (first 100 tokens):")
-        for record in records_case3:
-            print(f"\nRecord Intent: {record.intent}")
-            print(f"Record Personalized Intent: {record.personalized_intent}")
-            print(f"Record Output (first 100 tokens): {record.output[:100]}")
 
     # Test Case 4: Same Product, Different Attributes
-    print(f"\n=== Case 4: {test_case_labels['case4']['description']} ===")
-    # Create trajectory with just the relevant records
     trajectory_case4 = [[record_case4_hats]]
     chat_history_case4 = """assistant: Hello! How can I help you today?
 user: Show me hats.
 assistant: Here are our hat collections."""
-
-    # Create STM instance for case 4
-    stm_case4 = ShortTermMemory(
-        trajectory_case4, chat_history_case4, llm_config=bot_config.llm_config
+    found_intent_case4, found_record_case4 = run_test_case(
+        "4",
+        test_case_labels["case4"]["description"],
+        trajectory_case4,
+        chat_history_case4,
+        "Do you have navy blue hats?",
+        test_case_labels["case4"]["found_intent_label"],
+        bot_config.llm_config,
     )
-    asyncio.run(stm_case4.personalize())
-
-    # Test case 4
-    found_case4, records_case4 = stm_case4.retrieve_records(
-        "Do you have navy blue hats?"
-    )
-    found_intent_case4, intent_case4 = stm_case4.retrieve_intent(
-        "Show me navy blue hats"
-    )
-    print(
-        f"Expected Behavior: found_intent={test_case_labels['case4']['found_intent_label']}"
-    )
-    print("Actual Results:")
-    print(
-        f"- found_intent: {found_intent_case4} (Expected: {test_case_labels['case4']['found_intent_label']})"
-    )
-    if found_case4:
-        print("\nFound Records (first 100 tokens):")
-        for record in records_case4:
-            print(f"\nRecord Intent: {record.intent}")
-            print(f"Record Personalized Intent: {record.personalized_intent}")
-            print(f"Record Output (first 100 tokens): {record.output[:100]}")
 
     # Summary of Test Results
     print("\n=== Test Summary ===")
