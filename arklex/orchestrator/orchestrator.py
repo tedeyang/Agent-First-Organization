@@ -214,10 +214,43 @@ class AgentOrg:
             "parameters": params,
             "allow_global_intent_switch": True,
         }
-        stm = ShortTermMemory(message_state.trajectory, chat_history_str, llm_config=self.llm_config)
+        
+       
+        stm = ShortTermMemory(
+            params.memory.trajectory, chat_history_str, llm_config=self.llm_config
+        )
+        
+        # Debug prints to check trajectory structure
+        # print("\nTrajectory before personalization:")
+        # print(f"Trajectory type: {type(params.memory.trajectory)}")
+        # print(f"Trajectory length: {len(params.memory.trajectory)}")
+        # for turn_idx, turn in enumerate(params.memory.trajectory):
+        #     print(f"\nTurn {turn_idx + 1}:")
+        #     print(f"Turn type: {type(turn)}")
+        #     print(f"Number of records: {len(turn)}")
+        #     for record in turn:
+        #         print(f"  Record intent: {record.intent}")
+        #         print(f"  Record has personalized_intent: {bool(record.personalized_intent)}")
+        
         asyncio.run(stm.personalize())
+        
+        # Print the trajectory from message_state
+        # print("\nTrajectory after personalization:")
+        # for turn_idx, turn in enumerate(params.memory.trajectory):
+        #     print(f"\nTurn {turn_idx + 1}:")
+        #     for record in turn:
+                
+        #         print(f"  Personalized Intent: {record.personalized_intent}")
+        #         print(f"  Basic Intent: {record.intent}")
+        #         print("  ---")
+        message_state.trajectory=params.memory.trajectory
         found_records, relevant_records = stm.retrieve_records(text)
+        
         found_intent, relevant_intent = stm.retrieve_intent(text)
+        # print("found records?")
+        # print(found_records)
+        # print("found intent?")
+        # print(found_intent)
         if found_records:
             message_state.relevant_records = relevant_records
         taskgraph_chain = RunnableLambda(self.task_graph.get_node) | RunnableLambda(self.task_graph.postprocess_node)
@@ -231,15 +264,16 @@ class AgentOrg:
             taskgraph_start_time = time.time()
             if found_intent:
                 taskgraph_inputs["allow_global_intent_switch"] = False
-                node_info=NodeInfo(
-                        node_id=None,
-                        type="",
-                        resource_id = "planner",
-                        resource_name = "planner",
-                        can_skipped=False,
-                        is_leaf=len(list(self.graph.successors(params.taskgraph.curr_node))) == 0,
-                        attributes = {"value": "", "direct": False}
-                    )
+                node_info = NodeInfo(
+                    node_id=None,
+                    type="",
+                    resource_id="planner",
+                    resource_name="planner",
+                    can_skipped=False,
+                    is_leaf=len(list(self.task_graph.graph.successors(params.taskgraph.curr_node)))
+                    == 0,
+                    attributes={"value": "", "direct": False},
+                )
             else:
                 node_info, params = taskgraph_chain.invoke(taskgraph_inputs)
             taskgraph_inputs["allow_global_intent_switch"] = False
