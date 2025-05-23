@@ -106,7 +106,7 @@ class ShortTermMemory:
 
         weights = {
             "task": 0.1,
-            "intent": 0.50,  # Increased weight for intent-> add the new retrieve_intent logic here
+            "intent": 0.50,  # Increased weight for intent
             "context": 0.15,
             "output": 0.2,
             "recency": 0.05,  # Reduced weight for recency
@@ -340,4 +340,3 @@ class ShortTermMemory:
 
         return personalized_intent
     
-# string compare of user query with Product and Attribute returned from personalize-> edit exemplars
