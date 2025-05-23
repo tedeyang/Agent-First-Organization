@@ -1,8 +1,9 @@
-from typing import List, Dict, Any
-from arklex.memory.core import ShortTermMemory
-from arklex.utils.graph_state import ResourceRecord, LLMConfig, MessageState, BotConfig
-from arklex.utils.model_config import MODEL
 import asyncio
+from typing import Any, Dict, List
+
+from arklex.memory.core import ShortTermMemory
+from arklex.utils.graph_state import BotConfig, LLMConfig, MessageState, ResourceRecord
+from arklex.utils.model_config import MODEL
 
 # class ResourceRecord(BaseModel):
 #     info: Dict
@@ -230,8 +231,22 @@ def test_shopify_intent() -> None:
     # Initialize test state
     state = init_test_state()
 
+    # Define test case labels
+    test_case_labels = {
+        "case1": {"found_intent_label": True, "description": "Product Selection Flow"},
+        "case2": {"found_intent_label": True, "description": "Follow-up Questions"},
+        "case3": {
+            "found_intent_label": False,
+            "description": "Different Product Recommendations",
+        },
+        "case4": {
+            "found_intent_label": True,
+            "description": "Same Product, Different Attributes",
+        },
+    }
+
     # Test Case 1: Product Selection Flow
-    print("\n=== Case 1: Product Selection Flow ===")
+    print(f"\n=== Case 1: {test_case_labels['case1']['description']} ===")
     # Create trajectory with just the first two records
     trajectory_case1 = [[record_case1]]
     chat_history_case1 = """assistant: Hello! How can I help you today?
@@ -259,10 +274,13 @@ assistant: We have several products in our store. Are you looking for something 
     found_intent_case1, intent_case1 = stm_case1.retrieve_intent(
         "I want to see the denim apron with 5 pockets"
     )
-    print(f"Expected Behavior: found_intent=True, allow_global_intent_switch=False")
-    print(f"Actual Results:")
-    print(f"- found_intent: {found_intent_case1} (Expected: True)")
-    print(f"- allow_global_intent_switch: {not found_intent_case1} (Expected: False)")
+    print(
+        f"Expected Behavior: found_intent={test_case_labels['case1']['found_intent_label']}"
+    )
+    print("Actual Results:")
+    print(
+        f"- found_intent: {found_intent_case1} (Expected: {test_case_labels['case1']['found_intent_label']})"
+    )
     if found_case1:
         print("\nFound Records (first 100 tokens):")
         for record in records_case1:
@@ -271,7 +289,7 @@ assistant: We have several products in our store. Are you looking for something 
             print(f"Record Output (first 100 tokens): {record.output[:100]}")
 
     # Test Case 2: Follow-up Questions
-    print("\n=== Case 2: Follow-up Questions ===")
+    print(f"\n=== Case 2: {test_case_labels['case2']['description']} ===")
     # Create trajectory with just the relevant records
     trajectory_case2 = [[record_case2_initial]]
     chat_history_case2 = """assistant: Hello! How can I help you today?
@@ -289,10 +307,13 @@ assistant: Yes, we have several aprons available."""
     found_intent_case2, intent_case2 = stm_case2.retrieve_intent(
         "Does it have pockets?"
     )
-    print(f"Expected Behavior: found_intent=True, allow_global_intent_switch=False")
-    print(f"Actual Results:")
-    print(f"- found_intent: {found_intent_case2} (Expected: True)")
-    print(f"- allow_global_intent_switch: {not found_intent_case2} (Expected: False)")
+    print(
+        f"Expected Behavior: found_intent={test_case_labels['case2']['found_intent_label']}"
+    )
+    print("Actual Results:")
+    print(
+        f"- found_intent: {found_intent_case2} (Expected: {test_case_labels['case2']['found_intent_label']})"
+    )
     if found_case2:
         print("\nFound Records (first 100 tokens):")
         for record in records_case2:
@@ -301,7 +322,7 @@ assistant: Yes, we have several aprons available."""
             print(f"Record Output (first 100 tokens): {record.output[:100]}")
 
     # Test Case 3: Different Product Recommendations
-    print("\n=== Case 3: Different Product Recommendations ===")
+    print(f"\n=== Case 3: {test_case_labels['case3']['description']} ===")
     # Create trajectory with just the relevant records
     trajectory_case3 = [[record_case3_aprons]]
     chat_history_case3 = """assistant: Hello! How can I help you today?
@@ -317,11 +338,13 @@ assistant: I can help you find the perfect apron."""
     # Test case 3
     found_case3, records_case3 = stm_case3.retrieve_records("I want bedframes")
     found_intent_case3, intent_case3 = stm_case3.retrieve_intent("I want bedframes")
-    print(f"Expected Behavior: found_intent=False, allow_global_intent_switch=True")
-    print(f"Actual Results:")
-    print(f"- found_intent: {found_intent_case3} (Expected: False)")
-    print(f"- intent: {intent_case3}")
-    print(f"- allow_global_intent_switch: {not found_intent_case3} (Expected: True)")
+    print(
+        f"Expected Behavior: found_intent={test_case_labels['case3']['found_intent_label']}"
+    )
+    print("Actual Results:")
+    print(
+        f"- found_intent: {found_intent_case3} (Expected: {test_case_labels['case3']['found_intent_label']})"
+    )
     if found_case3:
         print("\nFound Records (first 100 tokens):")
         for record in records_case3:
@@ -330,7 +353,7 @@ assistant: I can help you find the perfect apron."""
             print(f"Record Output (first 100 tokens): {record.output[:100]}")
 
     # Test Case 4: Same Product, Different Attributes
-    print("\n=== Case 4: Same Product, Different Attributes ===")
+    print(f"\n=== Case 4: {test_case_labels['case4']['description']} ===")
     # Create trajectory with just the relevant records
     trajectory_case4 = [[record_case4_hats]]
     chat_history_case4 = """assistant: Hello! How can I help you today?
@@ -350,10 +373,13 @@ assistant: Here are our hat collections."""
     found_intent_case4, intent_case4 = stm_case4.retrieve_intent(
         "Show me navy blue hats"
     )
-    print(f"Expected Behavior: found_intent=True, allow_global_intent_switch=False")
-    print(f"Actual Results:")
-    print(f"- found_intent: {found_intent_case4} (Expected: True)")
-    print(f"- allow_global_intent_switch: {not found_intent_case4} (Expected: False)")
+    print(
+        f"Expected Behavior: found_intent={test_case_labels['case4']['found_intent_label']}"
+    )
+    print("Actual Results:")
+    print(
+        f"- found_intent: {found_intent_case4} (Expected: {test_case_labels['case4']['found_intent_label']})"
+    )
     if found_case4:
         print("\nFound Records (first 100 tokens):")
         for record in records_case4:
@@ -363,10 +389,23 @@ assistant: Here are our hat collections."""
 
     # Summary of Test Results
     print("\n=== Test Summary ===")
-    print("Case 1 (Product Selection):", "PASS" if found_intent_case1 else "FAIL")
-    print("Case 2 (Follow-up):", "PASS" if found_intent_case2 else "FAIL")
-    print("Case 3 (Different Product):", "PASS" if not found_intent_case3 else "FAIL")
-    print("Case 4 (Same Product Attributes):", "PASS" if found_intent_case4 else "FAIL")
+    actual_results = {
+        "case1": {"found_intent": found_intent_case1},
+        "case2": {"found_intent": found_intent_case2},
+        "case3": {"found_intent": found_intent_case3},
+        "case4": {"found_intent": found_intent_case4},
+    }
+
+    for case, labels in test_case_labels.items():
+        actual = actual_results[case]
+        intent_status = (
+            "PASS" if actual["found_intent"] == labels["found_intent_label"] else "FAIL"
+        )
+
+        print(f"\n{case} ({labels['description']}):")
+        print(
+            f"  Intent: {intent_status} (Expected: {labels['found_intent_label']}, Got: {actual['found_intent']})"
+        )
 
 
 if __name__ == "__main__":

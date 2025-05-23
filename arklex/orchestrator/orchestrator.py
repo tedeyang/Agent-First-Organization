@@ -272,9 +272,28 @@ class AgentOrg:
         )
         asyncio.run(stm.personalize())
         message_state.trajectory = params.memory.trajectory
+
+        # Log personalized intents from trajectory
+        for turn in params.memory.trajectory:
+            for record in turn:
+                if record.personalized_intent:
+                    logger.info(f"Personalized Intent: {record.personalized_intent}")
+                    logger.info(f"Original Intent: {record.personalized_intent}")
+
         found_records, relevant_records = stm.retrieve_records(text)
 
+        logger.info(f"Found Records: {found_records}")
+        if found_records:
+            logger.info(
+                f"Relevant Records: {[r.personalized_intent for r in relevant_records]}"
+            )
+
         found_intent, relevant_intent = stm.retrieve_intent(text)
+
+        logger.info(f"Found Intent: {found_intent}")
+        if found_intent:
+            logger.info(f"Relevant Intent: {relevant_intent}")
+
         if found_records:
             message_state.relevant_records = relevant_records
         taskgraph_chain = RunnableLambda(self.task_graph.get_node) | RunnableLambda(

@@ -97,14 +97,19 @@ class ShortTermMemory:
         return self._get_embedding(text)
 
     def retrieve_records(
-        self, query: str, top_k: int = 3, threshold: float = 0.55
+        self,
+        query: str,
+        top_k: int = 3,
+        threshold: float = 0.55,
+        cosine_threshold: float = 0.7,
     ) -> Tuple[bool, List[ResourceRecord]]:
         """
 
         Args:
             query (str):  The query string to retrieve relevant records for.
             top_k (int, optional): The number of top records to return. Defaults to 3.
-            threshold (float, optional): The similarity score threshold for filtering relevant records. Defaults to 0.55.
+            threshold (float, optional): The string similarity score threshold for filtering relevant records. Defaults to 0.55.
+            cosine_threshold (float, optional): The cosine similarity threshold for initial filtering. Defaults to 0.7.
 
         Returns:
             Tuple[bool, List[ResourceRecord]]: A tuple where the first element is a boolean indicating
@@ -168,8 +173,8 @@ class ShortTermMemory:
                             query_embedding, intent_embedding
                         )[0][0]
 
-                        # Only proceed with string comparison if cosine similarity is above 0.7
-                        if cosine_similarity_score > 0.7:
+                        # Only proceed with string comparison if cosine similarity is above threshold
+                        if cosine_similarity_score > cosine_threshold:
                             # Combine product and attribute for string comparison
                             combined = f"{attribute} {product}"
                             string_similarity = ratio(query, combined)
@@ -219,13 +224,14 @@ class ShortTermMemory:
         return True, [r["record"] for r in relevant_records[:top_k]]
 
     def retrieve_intent(
-        self, query: str, threshold: float = 0.4
+        self, query: str, threshold: float = 0.4, cosine_threshold: float = 0.7
     ) -> Tuple[bool, Optional[str]]:
         """
 
         Args:
             query (str): The query string to retrieve the most relevant intent for.
-            threshold (float, optional): The similarity score threshold for filtering relevant intents. Defaults to 0.4.
+            threshold (float, optional): The string similarity score threshold for filtering relevant intents. Defaults to 0.4.
+            cosine_threshold (float, optional): The cosine similarity threshold for initial filtering. Defaults to 0.7.
 
         Returns:
             Tuple[bool, Optional[str]]: A tuple where the first element is a boolean indicating
@@ -260,8 +266,8 @@ class ShortTermMemory:
                             query_embedding, intent_embedding
                         )[0][0]
 
-                        # Only proceed with string comparison if cosine similarity is above 0.7
-                        if cosine_similarity_score > 0.7:
+                        # Only proceed with string comparison if cosine similarity is above threshold
+                        if cosine_similarity_score > cosine_threshold:
                             # Combine product and attribute for string comparison
                             combined = f"{attribute} {product}"
                             string_similarity = ratio(query, combined)
@@ -287,9 +293,6 @@ class ShortTermMemory:
         for line in self.chat_history.split("\n"):
             if line.startswith("user:"):
                 user_utterances.append(line.replace("user:", "").strip())
-
-        # Reverse the utterances to match with trajectory (most recent first)
-        user_utterances.reverse()
 
         # Loop through the trajectory and score the records
         tasks = []
