@@ -1,9 +1,4 @@
-import os
-import sys
-import importlib
-from pydantic import BaseModel, Field
-from typing import List, Dict
-import arklex.memory.core
+from typing import List, Dict, Any
 from arklex.memory.core import ShortTermMemory
 from arklex.utils.graph_state import ResourceRecord, LLMConfig, MessageState, BotConfig
 from arklex.utils.model_config import MODEL
@@ -18,7 +13,6 @@ import asyncio
 #     personalized_intent: str = Field(default="")
 
 
-
 # Case 1: General product list → Agent lists multiple categories → User then specifies one
 record_case1 = ResourceRecord(
     info={"attribute": {"task": "List available products", "direct": False}},
@@ -29,11 +23,13 @@ record_case1 = ResourceRecord(
         "• Denim Apron with 5 Pockets | Multipurpose Canvas Apron (id=gid://shopify/Product/7949281624111) – 100% cotton canvas, 5 front pockets, one‑size fits all. Inventory: 349\n"
         "• Winter Flannel Blanket Solid Color Plaid Coral Blanket Fleece Bedspread (id=gid://shopify/Product/7949279526959) – Microfiber flannel, heated, anti‑pilling. Inventory: 0"
     ),
-    steps=[{
-        "context_generate": (
-            "We have several products in our store. Are you looking for something particular? Let us know so we can find you the best match!"
-        )
-    }]
+    steps=[
+        {
+            "context_generate": (
+                "We have several products in our store. Are you looking for something particular? Let us know so we can find you the best match!"
+            )
+        }
+    ],
 )
 
 # Case 1 Follow‑up: User specifies "Denim Apron with 5 Pockets"
@@ -44,11 +40,13 @@ record_case1_followup = ResourceRecord(
     output=(
         "• Denim Apron with 5 Pockets | Multipurpose Canvas Apron (id=gid://shopify/Product/7949281624111) – 100% cotton canvas, 5 front pockets, one‑size fits all. Price: $19.99, Inventory: 349"
     ),
-    steps=[{
-        "context_generate": (
-            "We have a versatile apron that could match your needs for various activities like BBQ, gardening, or painting. Are you interested in a particular color, like navy blue or black? Would you prefer an apron with specific features or price range?"
-        )
-    }]
+    steps=[
+        {
+            "context_generate": (
+                "We have a versatile apron that could match your needs for various activities like BBQ, gardening, or painting. Are you interested in a particular color, like navy blue or black? Would you prefer an apron with specific features or price range?"
+            )
+        }
+    ],
 )
 
 
@@ -61,11 +59,13 @@ record_case2_initial = ResourceRecord(
         "• Denim Apron with 5 Pockets | Multipurpose Canvas Apron (id=gid://shopify/Product/7949281624111) – 100% cotton canvas, 5 front pockets. Inventory: 349\n"
         "• Denim Apron with 3 Pockets | Multipurpose Canvas Apron (id=gid://shopify/Product/7949281722415) – 100% cotton canvas, 3 front pockets. Inventory: 84"
     ),
-    steps=[{
-        "context_generate": (
-            "We found some aprons that might interest you. Are you looking for a specific color or need a certain number of pockets for your activities? Let us know how you'll be using the apron to better assist you in finding the perfect match!"
-        )
-    }]
+    steps=[
+        {
+            "context_generate": (
+                "We found some aprons that might interest you. Are you looking for a specific color or need a certain number of pockets for your activities? Let us know how you'll be using the apron to better assist you in finding the perfect match!"
+            )
+        }
+    ],
 )
 
 record_case2_followup = ResourceRecord(
@@ -76,7 +76,11 @@ record_case2_followup = ResourceRecord(
         "• Denim Apron with 5 Pockets | Multipurpose Canvas Apron (id=gid://shopify/Product/7949281624111) – 100% cotton canvas, 5 front pockets. Inventory: 349\n"
         "• Denim Apron with 3 Pockets | Multipurpose Canvas Apron (id=gid://shopify/Product/7949281722415) – 100% cotton canvas, 3 front pockets. Inventory: 84"
     ),
-    steps=[{"context_generate": "Yes—we have aprons with pockets for tools and accessories."}]
+    steps=[
+        {
+            "context_generate": "Yes—we have aprons with pockets for tools and accessories."
+        }
+    ],
 )
 
 
@@ -89,11 +93,13 @@ record_case3_aprons = ResourceRecord(
         "• Denim Apron with 5 Pockets | Multipurpose Canvas Apron (id=gid://shopify/Product/7949281624111) – 100% cotton canvas, 5 front pockets. Inventory: 349\n"
         "• Denim Apron with 3 Pockets | Multipurpose Canvas Apron (id=gid://shopify/Product/7949281722415) – 100% cotton canvas, 3 front pockets. Inventory: 84"
     ),
-    steps=[{
-        "context_generate": (
-            "We have some aprons that might interest you! Do you have a color preference between navy blue, black, or blue? Also, are you looking for an apron with more pockets for functionality or fewer pockets for simplicity?"
-        )
-    }]
+    steps=[
+        {
+            "context_generate": (
+                "We have some aprons that might interest you! Do you have a color preference between navy blue, black, or blue? Also, are you looking for an apron with more pockets for functionality or fewer pockets for simplicity?"
+            )
+        }
+    ],
 )
 
 record_case3_hats = ResourceRecord(
@@ -104,11 +110,13 @@ record_case3_hats = ResourceRecord(
         "• Pink Unicorn Boys & Girls Baseball Hat with Adjustable Buckle (id=gid://shopify/Product/7949281198127) – unicorn design, ages 2‑12. Inventory: 547\n"
         "• Metallic Navy Blue Boys & Girls Baseball Hat with Adjustable Buckle (id=gid://shopify/Product/7949281427503) – breathable cotton. Sizes 2‑5 (27), 6‑12 (0)."
     ),
-    steps=[{
-        "context_generate": (
-            "We have some colorful and fun hats available. Are you looking for a particular color or style? Would you prefer an adjustable buckle for a better fit?"
-        )
-    }]
+    steps=[
+        {
+            "context_generate": (
+                "We have some colorful and fun hats available. Are you looking for a particular color or style? Would you prefer an adjustable buckle for a better fit?"
+            )
+        }
+    ],
 )
 
 
@@ -122,11 +130,13 @@ record_case4_hats = ResourceRecord(
         "• Green Boys & Girls Baseball Hat with Adjustable Buckle (id=gid://shopify/Product/7949281296431) – reflective strip. Inventory: 55\n"
         "• Metallic Navy Blue Boys & Girls Baseball Hat with Adjustable Buckle (id=gid://shopify/Product/7949281427503) – reflective strip, breathable cotton. Sizes 2‑5 (27), 6‑12 (0)."
     ),
-    steps=[{
-        "context_generate": (
-            "We have a variety of baseball hats: unicorn, green no‑logo, and metallic navy blue. Interested in a specific color?"
-        )
-    }]
+    steps=[
+        {
+            "context_generate": (
+                "We have a variety of baseball hats: unicorn, green no‑logo, and metallic navy blue. Interested in a specific color?"
+            )
+        }
+    ],
 )
 
 record_case4_navy = ResourceRecord(
@@ -136,11 +146,13 @@ record_case4_navy = ResourceRecord(
     output=(
         "• Metallic Navy Blue Boys & Girls Baseball Hat with Adjustable Buckle (id=gid://shopify/Product/7949281427503) – reflective strip, breathable cotton. Sizes 2‑5 (27), 6‑12 (0)."
     ),
-    steps=[{
-        "context_generate": (
-            "Sure—here's the navy blue baseball hat we have in stock."
-        )
-    }]
+    steps=[
+        {
+            "context_generate": (
+                "Sure—here's the navy blue baseball hat we have in stock."
+            )
+        }
+    ],
 )
 
 
@@ -156,9 +168,8 @@ sample_records = [
     record_case4_navy,
 ]
 
-# Shopify-style grouped records function
-from typing import List
 
+# Shopify-style grouped records function
 def get_shopify_records() -> List[List[ResourceRecord]]:
     """
     Returns sample ResourceRecord groups simulating Shopify ecommerce assistant turns.
@@ -174,8 +185,9 @@ def get_shopify_records() -> List[List[ResourceRecord]]:
         record_case4_navy,
     ]
 
+
 # Test configuration
-TEST_CONFIG = {
+TEST_CONFIG: Dict[str, Any] = {
     "model": MODEL,
     "role": "test_assistant",
     "user_objective": "Test the short term memory functionality",
@@ -184,34 +196,37 @@ TEST_CONFIG = {
     "bot_id": "test_bot",
     "version": "1.0",
     "language": "EN",
-    "bot_type": "test"
+    "bot_type": "test",
 }
 
-def init_test_state():
+
+def init_test_state() -> MessageState:
     # Initialize LLMConfig from test config
-    llm_config = LLMConfig(**TEST_CONFIG.get("model", MODEL))
-    
+    llm_config: LLMConfig = LLMConfig(**TEST_CONFIG.get("model", MODEL))
+
     # Create BotConfig
-    bot_config = BotConfig(
+    bot_config: BotConfig = BotConfig(
         bot_id=TEST_CONFIG.get("bot_id", "test_bot"),
         version=TEST_CONFIG.get("version", "1.0"),
         language=TEST_CONFIG.get("language", "EN"),
         bot_type=TEST_CONFIG.get("bot_type", "test"),
-        llm_config=llm_config
-    )
-    
-    # Create MessageState
-    sys_instruct = "You are a " + TEST_CONFIG["role"] + ". " + \
-                  TEST_CONFIG["user_objective"] + \
-                  TEST_CONFIG["builder_objective"] + \
-                  TEST_CONFIG["intro"]
-    
-    return MessageState(
-        sys_instruct=sys_instruct,
-        bot_config=bot_config
+        llm_config=llm_config,
     )
 
-def test_shopify_intent():
+    # Create MessageState
+    sys_instruct: str = (
+        "You are a "
+        + TEST_CONFIG["role"]
+        + ". "
+        + TEST_CONFIG["user_objective"]
+        + TEST_CONFIG["builder_objective"]
+        + TEST_CONFIG["intro"]
+    )
+
+    return MessageState(sys_instruct=sys_instruct, bot_config=bot_config)
+
+
+def test_shopify_intent() -> None:
     # Initialize test state
     state = init_test_state()
 
@@ -230,7 +245,7 @@ assistant: We have several products in our store. Are you looking for something 
         version="1.0",
         language="EN",
         bot_type="test",
-        llm_config=llm_config
+        llm_config=llm_config,
     )
     stm_case1 = ShortTermMemory(trajectory_case1, chat_history_case1, llm_config=bot_config.llm_config)
     asyncio.run(stm_case1.personalize())
@@ -334,6 +349,7 @@ assistant: Here are our hat collections."""
     print("Case 2 (Follow-up):", "PASS" if found_intent_case2 else "FAIL")
     print("Case 3 (Different Product):", "PASS" if not found_intent_case3 else "FAIL")
     print("Case 4 (Same Product Attributes):", "PASS" if found_intent_case4 else "FAIL")
+
 
 if __name__ == "__main__":
     test_shopify_intent()

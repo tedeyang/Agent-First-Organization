@@ -1,3 +1,5 @@
+# TODO(christian): fix annotations in this file.
+
 import asyncio
 import re
 from typing import List, Tuple, Optional, Dict
@@ -21,19 +23,19 @@ class ShortTermMemory:
         llm_config: LLMConfig,
     ):
         """_summary_
-        Represents the short-term memory of a conversation, storing a trajectory of 
-        ResourceRecords across multiple turns. This memory enables retrieval of past 
+        Represents the short-term memory of a conversation, storing a trajectory of
+        ResourceRecords across multiple turns. This memory enables retrieval of past
         context, intents, tasks, and outputs for use in dynamic and contextual reasoning.
 
 
         Args:
-            trajectory (List[List[ResourceRecord]]): Memory structure for the conversation where 
-                                                    each list of ResourceRecord objects encompasses 
+            trajectory (List[List[ResourceRecord]]): Memory structure for the conversation where
+                                                    each list of ResourceRecord objects encompasses
                                                     the information of a single conversation turn
             chat_history (List[dict]): List of chat history messages
             **kwargs: Additional arguments including:
                 - llm_config (LLMConfig, optional): Configuration for LLM and embedding models
-        """          
+        """
         if trajectory is None:
             trajectory = []
         self.trajectory = trajectory[-5:]  # Use the last 5 turns from the trajectory
@@ -92,8 +94,8 @@ class ShortTermMemory:
             threshold (float, optional): The similarity score threshold for filtering relevant records. Defaults to 0.55.
 
         Returns:
-            Tuple[bool, List[ResourceRecord]]: A tuple where the first element is a boolean indicating 
-                                           whether relevant records were found, and the second element is a 
+            Tuple[bool, List[ResourceRecord]]: A tuple where the first element is a boolean indicating
+                                           whether relevant records were found, and the second element is a
                                            list of the top-k relevant `ResourceRecord` objects based on the query.
         """
         if not self.trajectory:
@@ -101,7 +103,7 @@ class ShortTermMemory:
 
         query_embedding = self._get_embedding(query)
         scored_records = []
-        
+
         weights = {
             "task": 0.1,
             "intent": 0.50,  # Increased weight for intent-> add the new retrieve_intent logic here
@@ -109,9 +111,7 @@ class ShortTermMemory:
             "output": 0.2,
             "recency": 0.05,  # Reduced weight for recency
         }
-        
-        
-        
+
         # Loop through the trajectory and score the records
         for turn_idx, turn in enumerate(self.trajectory):
             if not turn:  # Skip empty turns
@@ -124,7 +124,7 @@ class ShortTermMemory:
                     "intent": 0.0,
                     "context": 0.0,
                     "output": 0.0,
-                    "recency": recency_score
+                    "recency": recency_score,
                 }
 
                 # Calculate task similarity
@@ -207,11 +207,11 @@ class ShortTermMemory:
             threshold (float, optional): The similarity score threshold for filtering relevant intents. Defaults to 0.4.
 
         Returns:
-            Tuple[bool, Optional[str]]: A tuple where the first element is a boolean indicating 
-                                     whether a relevant intent was found, and the second element is the 
-                                     most relevant intent (if found), or None if no relevant intent meets 
+            Tuple[bool, Optional[str]]: A tuple where the first element is a boolean indicating
+                                     whether a relevant intent was found, and the second element is the
+                                     most relevant intent (if found), or None if no relevant intent meets
                                      the threshold.
-        """        
+        """
         if not self.trajectory:
             return False, None
 
@@ -250,7 +250,6 @@ class ShortTermMemory:
         else:
             return False, None
 
-
     async def personalize(self):
         """
         Loops through the last 5 records in the trajectory and generates personalized intents
@@ -266,12 +265,12 @@ class ShortTermMemory:
         user_utterances.reverse()
         
         # Loop through the trajectory and score the records
-        tasks=[]
+        tasks = []
         for turn_idx, turn in enumerate(self.trajectory):
             # Get corresponding user utterance for this turn
             user_utterance = user_utterances[turn_idx] if turn_idx < len(user_utterances) else ""
             for record in turn:
-                # Check if personalized_intent is already set               
+                # Check if personalized_intent is already set
                 if not record.personalized_intent:
                     tasks.append(self._set_personalized_intent(record, user_utterance))
 
@@ -289,7 +288,9 @@ class ShortTermMemory:
             )
         )
 
-    async def generate_personalized_product_attribute_intent(self, record: ResourceRecord, user_utterance: str) -> str:
+    async def generate_personalized_product_attribute_intent(
+        self, record: ResourceRecord, user_utterance: str
+    ) -> str:
         """
         Args:
             user_utterance (str): User utterance in chat_history corresponding to the record.
@@ -318,7 +319,6 @@ class ShortTermMemory:
             - Basic User Intent: {user_intent}
             - User utterance: {user_utterance}
             """
-        
 
         prompt = (
         intro.strip() + "\nHere are the exemplars.\n" +
@@ -327,8 +327,11 @@ class ShortTermMemory:
         inputs_section.strip()
     )
         response = await self.llm.ainvoke(prompt)
-        content = response.get("content") if isinstance(response, dict) else getattr(response, "content", "")
-        
+        content = (
+            response.get("content")
+            if isinstance(response, dict)
+            else getattr(response, "content", "")
+        )
 
         match = re.search(r'Personalized Intent:\s*(.+)', content, re.IGNORECASE | re.DOTALL)
         
