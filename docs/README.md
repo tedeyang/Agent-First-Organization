@@ -23,26 +23,26 @@
 
 ## Install Docusaurus required dependencies
 
-```bash
-cd docs # navigate to the docs folder from the root directory: AgentOrg/docs
-npm install
-```
+  ```bash
+  cd docs # navigate to the docs folder from the root directory: AgentOrg/docs
+  npm install
+  ```
 
 ## Start the site
 
-```bash
-npm run start
-```
+  ```bash
+  npm run start
+  ```
 
-The `npm run start` command builds your website locally and serves it through a development server, ready for you to view at http://localhost:3000/.
-
+The `npm run start` command builds your website locally and serves it through a development server, ready for you to view at <http://localhost:3000/>.
+  
 Test your production build locally:
 
-```bash
-npm run serve
-```
-
+  ```bash
+  npm run serve
+  ```
 The `build` folder is now served at [http://localhost:3000/](http://localhost:3000/).
+
 
 ## Deploy your site
 
