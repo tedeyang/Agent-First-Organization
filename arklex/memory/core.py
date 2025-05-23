@@ -12,8 +12,13 @@ from sklearn.metrics.pairwise import cosine_similarity
 from arklex.memory.prompts import intro, final_examples, output_instructions
 from arklex.utils.graph_state import ResourceRecord, LLMConfig
 from arklex.utils.model_config import MODEL
-from arklex.utils.model_provider_config import PROVIDER_MAP, PROVIDER_EMBEDDINGS, PROVIDER_EMBEDDING_MODELS
+from arklex.utils.model_provider_config import (
+    PROVIDER_MAP,
+    PROVIDER_EMBEDDINGS,
+    PROVIDER_EMBEDDING_MODELS,
+)
 from Levenshtein import ratio
+
 
 class ShortTermMemory:
     def __init__(
@@ -39,33 +44,37 @@ class ShortTermMemory:
         if trajectory is None:
             trajectory = []
         self.trajectory = trajectory[-5:]  # Use the last 5 turns from the trajectory
-        
+
         if chat_history is None:
             chat_history = ""
-        
+
         # Get last 5 turns from chat history string
         chat_lines = chat_history.split("\n")
         turns = []
         current_turn = []
-        
+
         for line in chat_lines:
             if line.strip():  # Skip empty lines
                 current_turn.append(line)
                 if line.startswith("user:"):  # End of a turn
                     turns.append("\n".join(current_turn))
                     current_turn = []
-        
+
         # Take last 5 turns
         self.chat_history = "\n".join(turns[-5:])
-        
+
         # Initialize embedding model with caching
-        self.embedding_model = PROVIDER_EMBEDDINGS.get(llm_config.llm_provider, OpenAIEmbeddings)(
-            **{ 'model': PROVIDER_EMBEDDING_MODELS[llm_config.llm_provider] } if llm_config.llm_provider != 'anthropic' else { 'model_name': PROVIDER_EMBEDDING_MODELS[llm_config.llm_provider] }
+        self.embedding_model = PROVIDER_EMBEDDINGS.get(
+            llm_config.llm_provider, OpenAIEmbeddings
+        )(
+            **{"model": PROVIDER_EMBEDDING_MODELS[llm_config.llm_provider]}
+            if llm_config.llm_provider != "anthropic"
+            else {"model_name": PROVIDER_EMBEDDING_MODELS[llm_config.llm_provider]}
         )
         self.llm = PROVIDER_MAP.get(llm_config.llm_provider, ChatOpenAI)(
             model=llm_config.model_type_or_path
         )
-        
+
         # Initialize embedding cache
         self._embedding_cache = {}
 
@@ -73,7 +82,9 @@ class ShortTermMemory:
     def _get_embedding(self, text: str) -> np.ndarray:
         """Get embedding for text with caching."""
         if text not in self._embedding_cache:
-            self._embedding_cache[text] = np.array(self.embedding_model.embed_query(text)).reshape(1, -1)
+            self._embedding_cache[text] = np.array(
+                self.embedding_model.embed_query(text)
+            ).reshape(1, -1)
         return self._embedding_cache[text]
 
     async def _batch_get_embeddings(self, texts: List[str]) -> List[np.ndarray]:
@@ -85,7 +96,9 @@ class ShortTermMemory:
         """Async wrapper for getting embeddings."""
         return self._get_embedding(text)
 
-    def retrieve_records(self, query: str, top_k: int = 3, threshold: float = 0.55) -> Tuple[bool, List[ResourceRecord]]:
+    def retrieve_records(
+        self, query: str, top_k: int = 3, threshold: float = 0.55
+    ) -> Tuple[bool, List[ResourceRecord]]:
         """
 
         Args:
@@ -116,7 +129,7 @@ class ShortTermMemory:
         for turn_idx, turn in enumerate(self.trajectory):
             if not turn:  # Skip empty turns
                 continue
-                
+
             recency_score = (turn_idx + 1) / 5
             for record in turn:
                 score_components = {
@@ -132,14 +145,18 @@ class ShortTermMemory:
 
                 if task:
                     task_embedding = self._get_embedding(task)
-                    task_similarity = cosine_similarity(query_embedding, task_embedding)[0][
-                        0
-                    ]
+                    task_similarity = cosine_similarity(
+                        query_embedding, task_embedding
+                    )[0][0]
                     score_components["task"] = task_similarity
 
                 # Calculate intent similarity
                 if record.personalized_intent:
-                    match = re.search(r"intent:\s*(.+?)\s*product:\s*(.+?)\s*attribute:\s*(.+)", record.personalized_intent, re.IGNORECASE)
+                    match = re.search(
+                        r"intent:\s*(.+?)\s*product:\s*(.+?)\s*attribute:\s*(.+)",
+                        record.personalized_intent,
+                        re.IGNORECASE,
+                    )
                     if match:
                         personalized_intent = match.group(1).strip().lower()
                         product = match.group(2).strip().lower()
@@ -147,8 +164,10 @@ class ShortTermMemory:
 
                         # First check cosine similarity of personalized intent as a filter
                         intent_embedding = self._get_embedding(personalized_intent)
-                        cosine_similarity_score = cosine_similarity(query_embedding, intent_embedding)[0][0]
-                        
+                        cosine_similarity_score = cosine_similarity(
+                            query_embedding, intent_embedding
+                        )[0][0]
+
                         # Only proceed with string comparison if cosine similarity is above 0.7
                         if cosine_similarity_score > 0.7:
                             # Combine product and attribute for string comparison
@@ -165,7 +184,9 @@ class ShortTermMemory:
                 # Calculate context similarity
                 for step in record.steps or []:
                     if isinstance(step, dict) and "context_generate" in step:
-                        context_embedding = self._get_embedding(step["context_generate"])
+                        context_embedding = self._get_embedding(
+                            step["context_generate"]
+                        )
                         context_similarity = cosine_similarity(
                             query_embedding, context_embedding
                         )[0][0]
@@ -223,7 +244,11 @@ class ShortTermMemory:
         for turn_idx, turn in enumerate(self.trajectory):
             for record in turn:
                 if record.personalized_intent:
-                    match = re.search(r"intent:\s*(.+?)\s*product:\s*(.+?)\s*attribute:\s*(.+)", record.personalized_intent, re.IGNORECASE)
+                    match = re.search(
+                        r"intent:\s*(.+?)\s*product:\s*(.+?)\s*attribute:\s*(.+)",
+                        record.personalized_intent,
+                        re.IGNORECASE,
+                    )
                     if match:
                         personalized_intent = match.group(1).strip().lower()
                         product = match.group(2).strip().lower()
@@ -231,7 +256,9 @@ class ShortTermMemory:
 
                         # First check cosine similarity of personalized intent as a filter
                         intent_embedding = self._get_embedding(personalized_intent)
-                        cosine_similarity_score = cosine_similarity(query_embedding, intent_embedding)[0][0]
+                        cosine_similarity_score = cosine_similarity(
+                            query_embedding, intent_embedding
+                        )[0][0]
 
                         # Only proceed with string comparison if cosine similarity is above 0.7
                         if cosine_similarity_score > 0.7:
@@ -260,15 +287,17 @@ class ShortTermMemory:
         for line in self.chat_history.split("\n"):
             if line.startswith("user:"):
                 user_utterances.append(line.replace("user:", "").strip())
-        
+
         # Reverse the utterances to match with trajectory (most recent first)
         user_utterances.reverse()
-        
+
         # Loop through the trajectory and score the records
         tasks = []
         for turn_idx, turn in enumerate(self.trajectory):
             # Get corresponding user utterance for this turn
-            user_utterance = user_utterances[turn_idx] if turn_idx < len(user_utterances) else ""
+            user_utterance = (
+                user_utterances[turn_idx] if turn_idx < len(user_utterances) else ""
+            )
             for record in turn:
                 # Check if personalized_intent is already set
                 if not record.personalized_intent:
@@ -276,8 +305,6 @@ class ShortTermMemory:
 
         if tasks:
             await asyncio.gather(*tasks)
-            
-        
 
     async def _set_personalized_intent(
         self, record: ResourceRecord, user_utterance: str
@@ -321,11 +348,14 @@ class ShortTermMemory:
             """
 
         prompt = (
-        intro.strip() + "\nHere are the exemplars.\n" +
-        final_examples.strip() + "\n\n" +
-        output_instructions.strip()+ "\n\n" +
-        inputs_section.strip()
-    )
+            intro.strip()
+            + "\nHere are the exemplars.\n"
+            + final_examples.strip()
+            + "\n\n"
+            + output_instructions.strip()
+            + "\n\n"
+            + inputs_section.strip()
+        )
         response = await self.llm.ainvoke(prompt)
         content = (
             response.get("content")
@@ -333,10 +363,10 @@ class ShortTermMemory:
             else getattr(response, "content", "")
         )
 
-        match = re.search(r'Personalized Intent:\s*(.+)', content, re.IGNORECASE | re.DOTALL)
-        
-       
+        match = re.search(
+            r"Personalized Intent:\s*(.+)", content, re.IGNORECASE | re.DOTALL
+        )
+
         personalized_intent = match.group(1).strip() if match else content.strip()
 
         return personalized_intent
-    

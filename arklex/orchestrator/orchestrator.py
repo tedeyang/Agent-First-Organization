@@ -266,15 +266,14 @@ class AgentOrg:
             "parameters": params,
             "allow_global_intent_switch": True,
         }
-        
-       
+
         stm = ShortTermMemory(
             params.memory.trajectory, chat_history_str, llm_config=self.llm_config
         )
         asyncio.run(stm.personalize())
-        message_state.trajectory=params.memory.trajectory
+        message_state.trajectory = params.memory.trajectory
         found_records, relevant_records = stm.retrieve_records(text)
-        
+
         found_intent, relevant_intent = stm.retrieve_intent(text)
         if found_records:
             message_state.relevant_records = relevant_records
@@ -297,7 +296,11 @@ class AgentOrg:
                     resource_id="planner",
                     resource_name="planner",
                     can_skipped=False,
-                    is_leaf=len(list(self.task_graph.graph.successors(params.taskgraph.curr_node)))
+                    is_leaf=len(
+                        list(
+                            self.task_graph.graph.successors(params.taskgraph.curr_node)
+                        )
+                    )
                     == 0,
                     attributes={"value": "", "direct": False},
                 )

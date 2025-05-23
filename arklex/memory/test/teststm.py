@@ -247,12 +247,18 @@ assistant: We have several products in our store. Are you looking for something 
         bot_type="test",
         llm_config=llm_config,
     )
-    stm_case1 = ShortTermMemory(trajectory_case1, chat_history_case1, llm_config=bot_config.llm_config)
+    stm_case1 = ShortTermMemory(
+        trajectory_case1, chat_history_case1, llm_config=bot_config.llm_config
+    )
     asyncio.run(stm_case1.personalize())
 
     # Test case 1
-    found_case1, records_case1 = stm_case1.retrieve_records("Show me the denim apron with 5 pockets")
-    found_intent_case1, intent_case1 = stm_case1.retrieve_intent("I want to see the denim apron with 5 pockets")
+    found_case1, records_case1 = stm_case1.retrieve_records(
+        "Show me the denim apron with 5 pockets"
+    )
+    found_intent_case1, intent_case1 = stm_case1.retrieve_intent(
+        "I want to see the denim apron with 5 pockets"
+    )
     print(f"Expected Behavior: found_intent=True, allow_global_intent_switch=False")
     print(f"Actual Results:")
     print(f"- found_intent: {found_intent_case1} (Expected: True)")
@@ -273,12 +279,16 @@ user: Do you have any aprons?
 assistant: Yes, we have several aprons available."""
 
     # Create STM instance for case 2
-    stm_case2 = ShortTermMemory(trajectory_case2, chat_history_case2, llm_config=bot_config.llm_config)
+    stm_case2 = ShortTermMemory(
+        trajectory_case2, chat_history_case2, llm_config=bot_config.llm_config
+    )
     asyncio.run(stm_case2.personalize())
 
     # Test case 2
     found_case2, records_case2 = stm_case2.retrieve_records("Does it have pockets?")
-    found_intent_case2, intent_case2 = stm_case2.retrieve_intent("Does it have pockets?")
+    found_intent_case2, intent_case2 = stm_case2.retrieve_intent(
+        "Does it have pockets?"
+    )
     print(f"Expected Behavior: found_intent=True, allow_global_intent_switch=False")
     print(f"Actual Results:")
     print(f"- found_intent: {found_intent_case2} (Expected: True)")
@@ -299,7 +309,9 @@ user: I need an apron.
 assistant: I can help you find the perfect apron."""
 
     # Create STM instance for case 3
-    stm_case3 = ShortTermMemory(trajectory_case3, chat_history_case3, llm_config=bot_config.llm_config)
+    stm_case3 = ShortTermMemory(
+        trajectory_case3, chat_history_case3, llm_config=bot_config.llm_config
+    )
     asyncio.run(stm_case3.personalize())
 
     # Test case 3
@@ -326,12 +338,18 @@ user: Show me hats.
 assistant: Here are our hat collections."""
 
     # Create STM instance for case 4
-    stm_case4 = ShortTermMemory(trajectory_case4, chat_history_case4, llm_config=bot_config.llm_config)
+    stm_case4 = ShortTermMemory(
+        trajectory_case4, chat_history_case4, llm_config=bot_config.llm_config
+    )
     asyncio.run(stm_case4.personalize())
 
     # Test case 4
-    found_case4, records_case4 = stm_case4.retrieve_records("Do you have navy blue hats?")
-    found_intent_case4, intent_case4 = stm_case4.retrieve_intent("Show me navy blue hats")
+    found_case4, records_case4 = stm_case4.retrieve_records(
+        "Do you have navy blue hats?"
+    )
+    found_intent_case4, intent_case4 = stm_case4.retrieve_intent(
+        "Show me navy blue hats"
+    )
     print(f"Expected Behavior: found_intent=True, allow_global_intent_switch=False")
     print(f"Actual Results:")
     print(f"- found_intent: {found_intent_case4} (Expected: True)")

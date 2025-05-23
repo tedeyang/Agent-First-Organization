@@ -127,7 +127,7 @@ Thought 4: Use that summary plus Task, Agent Response, Basic Intent, and User Ut
 # Thought 3: Summarize: We have two headphones, one being wireless lasts 30h, and the other—wired—draws from device. Double check the user_utterance to make sure that you are not inferring attributes which have NOT been mentioned by the user!
 # Thought 4: Derive intent based on this summary, task, context_generate, user_intent, user_utterance. Think about it. Don't infer product or attributes that the user has not mentioned. The user is asking specifically for headphones, and we have two models of them to offer.
 
-# Personalized Intent: 
+# Personalized Intent:
 # User wants to know if we have headphones in stock.
 
 # EXAMPLE 3 (Attribute‑specific follow‑up):
