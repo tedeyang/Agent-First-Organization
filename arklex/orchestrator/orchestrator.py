@@ -3,6 +3,7 @@ import copy
 import janus
 import json
 import logging
+import re
 import time
 from dotenv import load_dotenv
 from langchain_core.runnables import RunnableLambda
@@ -62,7 +63,8 @@ class AgentOrg:
         self.env: Env = env
 
         # Update planner model info now that LLMConfig is defined
-        self.env.planner.set_llm_config_and_build_resource_library(self.llm_config)
+        self.env.planner.set_llm_config_and_build_resource_library(
+            self.llm_config)
 
     def init_params(
         self, inputs: Dict[str, Any]
@@ -85,9 +87,11 @@ class AgentOrg:
         # Update turn_id and function_calling_trajectory
         params.metadata.turn_id += 1
         if not params.memory.function_calling_trajectory:
-            params.memory.function_calling_trajectory = copy.deepcopy(chat_history_copy)
+            params.memory.function_calling_trajectory = copy.deepcopy(
+                chat_history_copy)
         else:
-            params.memory.function_calling_trajectory.extend(chat_history_copy[-2:])
+            params.memory.function_calling_trajectory.extend(
+                chat_history_copy[-2:])
 
         params.memory.trajectory.append([])
 
@@ -157,7 +161,8 @@ class AgentOrg:
             if node_attribute.get("value", "").strip():
                 params = self.post_process_node(node_info, params)
                 return_response: OrchestratorResp = OrchestratorResp(
-                    answer=node_attribute["value"], parameters=params.model_dump()
+                    answer=node_attribute["value"], parameters=params.model_dump(
+                    )
                 )
                 # Multiple choice list
                 if (
@@ -258,8 +263,9 @@ class AgentOrg:
         chat_history_str: str
         params: Params
         message_state: MessageState
-        text, chat_history_str, params, message_state = self.init_params(inputs)
-        ##### TaskGraph Chain
+        text, chat_history_str, params, message_state = self.init_params(
+            inputs)
+        # TaskGraph Chain
         taskgraph_inputs: Dict[str, Any] = {
             "text": text,
             "chat_history_str": chat_history_str,
@@ -277,8 +283,10 @@ class AgentOrg:
         for turn in params.memory.trajectory:
             for record in turn:
                 if record.personalized_intent:
-                    logger.info(f"Personalized Intent: {record.personalized_intent}")
-                    logger.info(f"Original Intent: {record.personalized_intent}")
+                    logger.info(
+                        f"Personalized Intent: {record.personalized_intent}")
+                    logger.info(
+                        f"Original Intent: {record.personalized_intent}")
 
         found_records, relevant_records = stm.retrieve_records(text)
 
@@ -317,7 +325,8 @@ class AgentOrg:
                     can_skipped=False,
                     is_leaf=len(
                         list(
-                            self.task_graph.graph.successors(params.taskgraph.curr_node)
+                            self.task_graph.graph.successors(
+                                params.taskgraph.curr_node)
                         )
                     )
                     == 0,
@@ -330,7 +339,8 @@ class AgentOrg:
             # Check if current node can be skipped
             can_skip = self.check_skip_node(node_info, params)
             if can_skip:
-                params = self.post_process_node(node_info, params, {"is_skipped": True})
+                params = self.post_process_node(
+                    node_info, params, {"is_skipped": True})
                 continue
             logger.info(f"The current node info is : {node_info}")
 
@@ -375,7 +385,10 @@ class AgentOrg:
             if not stream_type:
                 message_state = ToolGenerator.context_generate(message_state)
             else:
-                message_state = ToolGenerator.stream_context_generate(message_state)
+                message_state = ToolGenerator.stream_context_generate(
+                    message_state)
+
+        message_state.response = self._post_process(message_state)
 
         return OrchestratorResp(
             answer=message_state.response,
@@ -383,11 +396,42 @@ class AgentOrg:
             human_in_the_loop=params.metadata.hitl,
         )
 
+    def _post_process(self, message_state: MessageState) -> str:
+        answer, context, resources = message_state.response, message_state.sys_instruct, message_state.trajectory
+        for resource in resources:
+            # include every resource except `context_generate` step, work in progress
+            context += resource[0].output
+
+        answer_links = self._extract_links(answer)
+        if answer_links:
+            context_links = self._extract_links(context)
+            if not answer_links.issubset(context_links):
+                missing_links = answer_links - context_links
+                answer = self._remove_invalid_links(answer, missing_links)
+                # regenerate clean, fluent response
+
+        return answer
+
+    def _extract_links(self, text: str) -> set:
+        url_pattern = r'(?:https?://|www\.)(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
+        links = re.findall(url_pattern, text)
+        return {link.rstrip('.,;)!?"\'')
+                for link in links}
+
+    def _remove_invalid_links(self, text: str, links: set) -> str:
+        sorted_links = sorted([re.escape(link)
+                              for link in links], key=len, reverse=True)
+        links_regex = '|'.join(sorted_links)
+        cleaned_text = re.sub(links_regex, '', text)
+        cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
+        return cleaned_text
+
     def get_response(
         self,
         inputs: Dict[str, Any],
         stream_type: Optional[StreamType] = None,
         message_queue: Optional[janus.SyncQueue] = None,
     ) -> Dict[str, Any]:
-        orchestrator_response = self._get_response(inputs, stream_type, message_queue)
+        orchestrator_response = self._get_response(
+            inputs, stream_type, message_queue)
         return orchestrator_response.model_dump()
