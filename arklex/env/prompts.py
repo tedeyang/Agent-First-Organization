@@ -104,6 +104,18 @@ The response must be the name of one of the actions ({actions_name}).
 If the provided value matches any of the following values: {value_list} (they may not be exactly the same and you can reformulate the value), please provide the reformulated value. Otherwise, respond None. 
 Your response should only be the reformulated value or None.
 """,
+            # ===== regenerate answer prompt ===== #
+            "regenerate_response": """{sys_instruct}
+----------------
+Conversation:
+{formatted_chat}
+Answer:
+{original_answer}
+Task:
+Rephrase the "Answer" for fluency and coherence. Ensure it flows naturally after any link removals. DO NOT ADD INFO. **Do not include phrases that explicitly refer to removed links, such as "check out this link" or "here it is."**
+---------------
+assistant: 
+""",
         }
     elif bot_config.language == "CN":
         ### ================================== Generator Prompts ================================== ###

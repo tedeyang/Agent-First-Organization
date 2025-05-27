@@ -27,9 +27,17 @@ from arklex.utils.graph_state import (
     OrchestratorResp,
     NodeTypeEnum,
 )
+
+from arklex.env.prompts import load_prompts
 from arklex.utils.utils import format_chat_history
 from arklex.utils.model_config import MODEL
+from arklex.utils.model_provider_config import PROVIDER_MAP
 from arklex.memory import ShortTermMemory
+
+from langchain.prompts import PromptTemplate
+from langchain_openai import ChatOpenAI
+from langchain_core.output_parsers import StrOutputParser
+
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -388,7 +396,7 @@ class AgentOrg:
                 message_state = ToolGenerator.stream_context_generate(
                     message_state)
 
-        message_state.response = self._post_process(message_state)
+        self._post_process(message_state)
 
         return OrchestratorResp(
             answer=message_state.response,
@@ -396,35 +404,56 @@ class AgentOrg:
             human_in_the_loop=params.metadata.hitl,
         )
 
-    def _post_process(self, message_state: MessageState) -> str:
-        answer, context, resources = message_state.response, message_state.sys_instruct, message_state.trajectory
-        for resource in resources:
-            # include every resource except `context_generate` step, work in progress
-            context += resource[0].output
-
-        answer_links = self._extract_links(answer)
+    def _post_process(self, message_state: MessageState) -> None:
+        context = message_state.sys_instruct + "".join(
+            resource[0].output for resource in message_state.trajectory
+        )
+        answer_links = self._extract_links(message_state.response)
         if answer_links:
             context_links = self._extract_links(context)
             if not answer_links.issubset(context_links):
                 missing_links = answer_links - context_links
-                answer = self._remove_invalid_links(answer, missing_links)
-                # regenerate clean, fluent response
-
-        return answer
+                logger.info(
+                    f"Some answer links are NOT present in the context. Missing: {missing_links}"
+                )
+                message_state.response = self._remove_invalid_links(
+                    message_state.response, missing_links
+                )
+                message_state.response = self._rephrase_answer(message_state)
 
     def _extract_links(self, text: str) -> set:
-        url_pattern = r'(?:https?://|www\.)(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
+        url_pattern = r"(?:https?://|www\.)(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
         links = re.findall(url_pattern, text)
-        return {link.rstrip('.,;)!?"\'')
-                for link in links}
+        return {link.rstrip(".,;)!?\"'") for link in links}
 
     def _remove_invalid_links(self, text: str, links: set) -> str:
-        sorted_links = sorted([re.escape(link)
-                              for link in links], key=len, reverse=True)
-        links_regex = '|'.join(sorted_links)
-        cleaned_text = re.sub(links_regex, '', text)
-        cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
-        return cleaned_text
+        sorted_links = sorted(
+            [re.escape(link) for link in links], key=len, reverse=True
+        )
+        links_regex = "|".join(sorted_links)
+        cleaned_text = re.sub(links_regex, "", text)
+        return re.sub(r"\s+", " ", cleaned_text).strip()
+
+    def _rephrase_answer(self, state: MessageState) -> str:
+        """Rephrases the answer using an LLM after link removal."""
+        llm_config = state.bot_config.llm_config
+        llm = PROVIDER_MAP.get(llm_config.llm_provider, ChatOpenAI)(
+            model=llm_config.model_type_or_path, temperature=0.1
+        )
+        prompt: PromptTemplate = PromptTemplate.from_template(
+            load_prompts(state.bot_config)["regenerate_response"]
+        )
+        input_prompt = prompt.invoke(
+            {
+                "sys_instruct": state.sys_instruct,
+                "original_answer": state.response,
+                "formatted_chat": state.user_message.history,
+            }
+        )
+        final_chain = llm | StrOutputParser()
+        logger.info(f"Prompt: {input_prompt.text}")
+        answer: str = final_chain.invoke(input_prompt.text)
+        return answer
 
     def get_response(
         self,
