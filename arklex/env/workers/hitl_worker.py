@@ -249,7 +249,7 @@ class HITLWorkerChatFlag(HITLWorker):
 
         return True, message
 
-    def _execute(self, state: MessageState) -> MessageState:
+    def _execute(self, state: MessageState, **kwargs: Any) -> MessageState:
         if not state.metadata.hitl:
             need_hitl: bool
             message: str
@@ -300,7 +300,7 @@ class HITLWorkerMCFlag(HITLWorker):
     def verify_literal(self, message: str) -> bool:
         return "buy" in message
 
-    def _execute(self, state: MessageState) -> MessageState:
+    def _execute(self, state: MessageState, **kwargs: Any) -> MessageState:
         if not state.metadata.hitl:
             need_hitl: bool
             _: str

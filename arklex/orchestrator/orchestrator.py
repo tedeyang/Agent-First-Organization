@@ -69,6 +69,9 @@ class AgentOrg:
         self.env.planner.set_llm_config_and_build_resource_library(
             self.llm_config)
 
+        self.hitl_worker_available = any(worker.get('name') ==
+                                         'HITLWorkerChatFlag' for worker in self.task_graph.product_kwargs['workers'])
+
     def init_params(
         self, inputs: Dict[str, Any]
     ) -> Tuple[str, str, Params, MessageState]:
@@ -391,7 +394,8 @@ class AgentOrg:
                 message_state = ToolGenerator.stream_context_generate(
                     message_state)
 
-        message_state = post_process_response(message_state)
+        message_state = post_process_response(
+            message_state, params, self.hitl_worker_available)
 
         return OrchestratorResp(
             answer=message_state.response,
