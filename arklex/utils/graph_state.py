@@ -7,10 +7,12 @@ The module provides comprehensive state management for tracking conversation pro
 resource records, and orchestrator responses throughout the system's operation.
 """
 
-from typing import Any, Optional, List, Dict
-from pydantic import BaseModel, Field
-from enum import Enum
 import uuid
+from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
+
+from pydantic import BaseModel, Field
+
 from arklex.utils.slot import Slot
 
 
@@ -97,6 +99,7 @@ class MessageState(BaseModel):
     # stream
     is_stream: bool = Field(default=False)
     message_queue: Any = Field(exclude=True, default=None)
+    stream_type: str = Field(default="")
     # memory records
     relevant_records: Optional[List[ResourceRecord]] = Field(default=None)
 

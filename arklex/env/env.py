@@ -7,19 +7,18 @@ planners and slot filling systems. The module supports dynamic loading of tools 
 state management, and execution flow control.
 """
 
-import os
-import logging
-import uuid
 import importlib
-from typing import Optional, Dict, Any, List, Union, Callable
+import logging
+import os
+import uuid
 from functools import partial
+from typing import Any, Callable, Dict, List, Optional, Union
 
+from arklex.env.planner.react_planner import DefaultPlanner, ReactPlanner
 from arklex.env.tools.tools import Tool
 from arklex.env.workers.worker import BaseWorker
-from arklex.env.planner.react_planner import ReactPlanner, DefaultPlanner
-from arklex.utils.graph_state import Params, MessageState, NodeInfo
 from arklex.orchestrator.NLU.nlu import SlotFilling
-
+from arklex.utils.graph_state import MessageState, NodeInfo, Params
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +44,7 @@ class DefaulResourceInitializer(BaseResourceInitializer):
             path: str = tool["path"]
             try:  # try to import the tool to check its existance
                 filepath: str = os.path.join("arklex.env.tools", path)
-                module_name: str = filepath.replace(os.sep, ".").rstrip(".py")
+                module_name: str = filepath.replace(os.sep, ".").replace(".py", "")
                 module = importlib.import_module(module_name)
                 func: Callable = getattr(module, name)
             except Exception as e:
@@ -164,9 +163,11 @@ class Env:
                     "role": "tool",
                     "tool_call_id": call_id,
                     "name": self.id2name[id],
-                    "content": response_state.response
-                    if response_state.response
-                    else response_state.message_flow,
+                    "content": (
+                        response_state.response
+                        if response_state.response
+                        else response_state.message_flow
+                    ),
                 }
             )
             params.taskgraph.node_status[params.taskgraph.curr_node] = (

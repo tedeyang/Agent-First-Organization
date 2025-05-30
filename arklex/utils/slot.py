@@ -7,9 +7,10 @@ slot verification processes. The module supports various data types and provides
 utilities for structured input/output handling in slot filling operations.
 """
 
-from pydantic import BaseModel, create_model, Field
-from typing import Union, List, Dict, Type, Optional, Any, Tuple
 import logging
+from typing import Any, Dict, List, Optional, Tuple, Type, Union
+
+from pydantic import BaseModel, Field, create_model
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +75,8 @@ def structured_input_output(slots: List[Slot]) -> Tuple[SlotInputList, Type]:
     output_format = create_model(
         "DynamicSlotOutputs",
         **{
-            slot.name: Optional[TypeMapping.string_to_type(slot.type)] for slot in slots
+            slot.name: (Optional[TypeMapping.string_to_type(slot.type)], None)
+            for slot in slots
         },
     )
     return SlotInputList(slot_input_list=input_slots), output_format
