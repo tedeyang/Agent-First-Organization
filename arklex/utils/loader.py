@@ -122,11 +122,34 @@ class Loader:
         pass
 
     def to_crawled_url_objs(self, url_list: List[str]) -> List[CrawledObject]:
+        """Convert a list of URLs to CrawledObject instances.
+
+        This function takes a list of URLs and converts them into CrawledObject instances
+        by first creating DocObject instances and then crawling the URLs.
+
+        Args:
+            url_list (List[str]): List of URLs to convert.
+
+        Returns:
+            List[CrawledObject]: List of CrawledObject instances containing crawled content.
+        """
         url_objs = [DocObject(str(uuid.uuid4()), url) for url in url_list]
         crawled_url_objs = self.crawl_urls(url_objs)
         return crawled_url_objs
 
     def crawl_urls(self, url_objects: list[DocObject]) -> List[CrawledObject]:
+        """Crawl a list of URLs and extract their content.
+
+        This function uses Selenium WebDriver to crawl a list of URLs and extract their
+        content. It handles both successful and failed crawls, creating appropriate
+        CrawledObject instances for each case.
+
+        Args:
+            url_objects (list[DocObject]): List of DocObject instances containing URLs to crawl.
+
+        Returns:
+            List[CrawledObject]: List of CrawledObject instances containing crawled content.
+        """
         logger.info(f"Start crawling {len(url_objects)} urls")
         options = webdriver.ChromeOptions()
         options.add_argument("--no-sandbox")
@@ -198,6 +221,18 @@ class Loader:
         return docs
 
     def get_all_urls(self, base_url: str, max_num: int) -> List[str]:
+        """Get all URLs from a base URL up to a maximum number.
+
+        This function performs a breadth-first search of URLs starting from a base URL,
+        collecting all valid URLs up to the specified maximum number.
+
+        Args:
+            base_url (str): The starting URL to crawl from.
+            max_num (int): Maximum number of URLs to collect.
+
+        Returns:
+            List[str]: List of collected URLs, sorted alphabetically.
+        """
         logger.info(
             f"Getting all pages for base url: {base_url}, maximum number is: {max_num}"
         )
@@ -370,7 +405,8 @@ class Loader:
         """Crawl a local file and extract its content.
 
         This function reads and processes a local file, extracting its content
-        and metadata based on the file type.
+        and metadata based on the file type. It supports various file formats
+        including PDF, Word, Excel, Markdown, and text files.
 
         Args:
             local_obj (DocObject): The local file object to process.
