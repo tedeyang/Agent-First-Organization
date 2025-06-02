@@ -4,6 +4,13 @@ This module provides functionality for running and evaluating agents on the TAU 
 including support for different environments (retail, airline), user strategies, and
 model providers. It handles task execution, result collection, and metric calculation
 for evaluating agent performance.
+
+The module includes:
+- Task execution and result collection
+- Performance metric calculation (average reward, pass^k)
+- Concurrent task execution with configurable concurrency
+- Checkpointing and result persistence
+- Environment and agent management
 """
 
 import os
@@ -27,7 +34,8 @@ def run(config: RunConfig) -> List[EnvRunResult]:
 
     This function executes the benchmark tasks according to the provided configuration,
     including environment setup, task execution, and result collection. It supports
-    multiple trials, task shuffling, and concurrent execution.
+    multiple trials, task shuffling, and concurrent execution. Results are saved to
+    a checkpoint file for persistence and analysis.
 
     Args:
         config (RunConfig): Configuration for the benchmark run, including environment,
@@ -152,7 +160,8 @@ def agent_factory(config: RunConfig) -> Agent:
     """Create an agent instance based on the configuration.
 
     This function creates and returns an appropriate agent instance for the benchmark
-    based on the provided configuration.
+    based on the provided configuration. Currently, it creates an AgentFirstOrg
+    instance with the specified taskgraph directory.
 
     Args:
         config (RunConfig): Configuration for the agent, including taskgraph directory.
@@ -169,14 +178,16 @@ def get_metrics(results: List[EnvRunResult]) -> Tuple[float, Dict[int, float]]:
     """Calculate performance metrics from benchmark results.
 
     This function calculates the average reward and pass^k metrics from the benchmark
-    results, where pass^k represents the probability of passing k trials.
+    results. The pass^k metric represents the probability of passing k trials, which
+    is calculated using the binomial coefficient formula from the TAU benchmark paper.
 
     Args:
         results (List[EnvRunResult]): List of results from task executions.
 
     Returns:
-        Tuple[float, Dict[int, float]]: A tuple containing the average reward and
-            a dictionary mapping k to pass^k values.
+        Tuple[float, Dict[int, float]]: A tuple containing:
+            - float: The average reward across all tasks
+            - Dict[int, float]: A dictionary mapping k to pass^k values
     """
 
     def is_successful(reward: float) -> bool:
@@ -204,7 +215,8 @@ def get_metrics(results: List[EnvRunResult]) -> Tuple[float, Dict[int, float]]:
 def display_metrics(avg_reward: float, pass_hat_ks: Dict[int, float]) -> None:
     """Display benchmark performance metrics.
 
-    This function prints the average reward and pass^k metrics in a formatted way.
+    This function prints the average reward and pass^k metrics in a formatted way,
+    providing a clear overview of the benchmark performance.
 
     Args:
         avg_reward (float): The average reward across all tasks.
