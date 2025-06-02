@@ -13,10 +13,11 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from pydantic import BaseModel, Field
 
+from arklex.types import StreamType
 from arklex.utils.slot import Slot
 
 
-### Bot-related classes
+# Bot-related classes
 class LLMConfig(BaseModel):
     model_type_or_path: str
     llm_provider: str
@@ -30,7 +31,7 @@ class BotConfig(BaseModel):
     llm_config: LLMConfig
 
 
-### Message-related classes
+# Message-related classes
 
 
 class ConvoMessage(BaseModel):
@@ -43,7 +44,7 @@ class OrchestratorMessage(BaseModel):
     attribute: dict
 
 
-### Task status-related classes
+# Task status-related classes
 
 
 class StatusEnum(str, Enum):
@@ -99,7 +100,7 @@ class MessageState(BaseModel):
     # stream
     is_stream: bool = Field(default=False)
     message_queue: Any = Field(exclude=True, default=None)
-    stream_type: str = Field(default="")
+    stream_type: (Optional[StreamType]) = Field(default="")
     # memory records
     relevant_records: Optional[List[ResourceRecord]] = Field(default=None)
 
@@ -128,7 +129,8 @@ class Taskgraph(BaseModel):
 
 class Memory(BaseModel):
     trajectory: List[List[ResourceRecord]] = Field(default_factory=list)
-    function_calling_trajectory: List[Dict[str, Any]] = Field(default_factory=list)
+    function_calling_trajectory: List[Dict[str, Any]] = Field(
+        default_factory=list)
 
 
 class Params(BaseModel):
