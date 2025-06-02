@@ -4,6 +4,12 @@ This module provides functionality for evaluating agents on the TAU benchmark,
 including configuration generation, task graph creation, and evaluation execution.
 It supports different environments, user strategies, and model providers, with
 configurable parameters for trials, task selection, and concurrency.
+
+The module includes:
+- Tool mapping and initialization
+- Configuration generation for the retail environment
+- Task graph generation and management
+- Evaluation execution with customizable parameters
 """
 
 import argparse
@@ -43,7 +49,8 @@ def get_tool_name_class_map() -> Dict[str, Any]:
     """Create a mapping of tool names to their class implementations.
 
     This function creates a dictionary that maps tool names to their corresponding
-    class implementations from the ALL_TOOLS list.
+    class implementations from the ALL_TOOLS list. This mapping is used for tool
+    initialization and execution during the benchmark evaluation.
 
     Returns:
         Dict[str, Any]: A dictionary mapping tool names to their class implementations.
@@ -60,6 +67,8 @@ class TauBenchResourceInitializer(DefaulResourceInitializer):
 
     This class extends the default resource initializer to handle TAU benchmark
     specific tool initialization, including parameter mapping and slot creation.
+    It manages the creation and configuration of tools used in the benchmark
+    evaluation process.
     """
 
     @staticmethod
@@ -67,7 +76,8 @@ class TauBenchResourceInitializer(DefaulResourceInitializer):
         """Initialize tools for the TAU benchmark.
 
         This method creates tool instances with appropriate parameters, slots,
-        and descriptions based on the provided tool information.
+        and descriptions based on the provided tool information. It handles the
+        creation of tool functions, parameter slots, and output configurations.
 
         Args:
             tools (Dict[str, Any]): Dictionary of tool information to initialize.
@@ -130,8 +140,9 @@ def generate_tau_bench_config(output_dir: str) -> None:
     """Generate TAU benchmark configuration file.
 
     This function creates a configuration file for the TAU benchmark with
-    predefined settings for the retail environment, including tools, workers,
-    and objectives.
+    predefined settings for the retail environment. The configuration includes
+    tools, workers, objectives, and other necessary parameters for running
+    the benchmark evaluation.
 
     Args:
         output_dir (str): Directory where the configuration file will be saved.
@@ -176,7 +187,7 @@ def generate_taskgraph(config_file: str, output_dir: str) -> None:
 
     This function creates a task graph using the provided configuration and
     saves it to the specified output directory. It also updates the task graph
-    with API URLs.
+    with API URLs for NLU and slot filling services.
 
     Args:
         config_file (str): Path to the configuration file.
@@ -211,8 +222,8 @@ def run_tau_bench_eval(
     """Run TAU benchmark evaluation.
 
     This function executes the TAU benchmark evaluation with the specified
-    parameters, including task graph directory, output directory, number of
-    trials, task IDs, environment, and user strategy.
+    parameters. It handles the configuration and execution of the evaluation
+    process, including task selection, trial management, and result collection.
 
     Args:
         taskgraph_dir (str): Directory containing the task graph.
