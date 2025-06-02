@@ -153,7 +153,7 @@ class TaskGraph(TaskGraphBase):
                 params.taskgraph.available_global_intents.pop(intent)
 
         params.taskgraph.curr_node = sample_node
-
+        
         node_info = NodeInfo(
             node_id=sample_node,
             type=node_info.get("type", ""),
@@ -163,7 +163,11 @@ class TaskGraph(TaskGraphBase):
             is_leaf=len(list(self.graph.successors(sample_node))) == 0,
             attributes=node_info["attribute"],
             add_flow_stack=False,
-            additional_args={"tags": node_info["attribute"].get("tags", {})},
+            additional_args={
+                "tags": node_info["attribute"].get("tags", {}),
+                **{k2: v2 for k, v in node_info["attribute"].get("node_specific_data", {}).items() if isinstance(v, dict) for k2, v2 in v.items()},
+                **{k: v for k, v in node_info["attribute"].get("node_specific_data", {}).items() if not isinstance(v, dict)}
+            },
         )
 
         return node_info, params
@@ -281,7 +285,11 @@ class TaskGraph(TaskGraphBase):
                 can_skipped=False,
                 is_leaf=len(list(self.graph.successors(curr_node))) == 0,
                 attributes=node_info["attribute"],
-                additional_args={"tags": node_info["attribute"].get("tags", {})},
+                additional_args={
+                    "tags": node_info["attribute"].get("tags", {}),
+                    **{k2: v2 for k, v in node_info["attribute"].get("node_specific_data", {}).items() if isinstance(v, dict) for k2, v2 in v.items()},
+                    **{k: v for k, v in node_info["attribute"].get("node_specific_data", {}).items() if not isinstance(v, dict)}
+                },
             )
             return True, node_info, params
         return False, NodeInfo(), params
