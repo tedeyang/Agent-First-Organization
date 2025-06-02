@@ -65,22 +65,41 @@ def get_api_bot_response(
 def predict(data: Dict[str, Any]) -> Dict[str, Any]:
     """Predict a response based on the provided chat data.
 
-    This function processes the chat history and parameters to generate a response
-    from the bot using the get_api_bot_response function.
+    This endpoint processes chat interactions through the Arklex framework. It takes a dictionary
+    containing the chat history, parameters, and worker/tool configurations, and returns the
+    bot's response along with updated parameters.
+
+    The endpoint expects the following structure in the input data:
+    {
+        "history": List[Dict[str, str]],  # List of previous chat messages
+        "parameters": Dict[str, Any],     # Current conversation parameters
+        "workers": List[Dict[str, Any]],  # Worker configurations
+        "tools": List[Dict[str, Any]]     # Tool configurations
+    }
 
     Args:
-        data (Dict[str, Any]): Dictionary containing chat history, parameters, workers, and tools.
+        data (Dict[str, Any]): Dictionary containing:
+            - history: List of previous chat messages
+            - parameters: Current conversation parameters
+            - workers: List of worker configurations
+            - tools: List of tool configurations
 
     Returns:
-        Dict[str, Any]: A dictionary containing the bot's response and updated parameters.
+        Dict[str, Any]: A dictionary containing:
+            - answer: The bot's response text
+            - parameters: Updated conversation parameters
     """
+    # Extract conversation components from input data
     history: List[Dict[str, str]] = data["history"]
     params: Dict[str, Any] = data["parameters"]
     workers: List[Dict[str, Any]] = data["workers"]
     tools: List[Dict[str, Any]] = data["tools"]
     user_text: str = history[-1]["content"]
 
+    # Initialize environment with provided workers and tools
     env = Env(tools=tools, workers=workers, slotsfillapi="")
+
+    # Get bot response using the orchestrator
     answer, params = get_api_bot_response(args, history[:-1], user_text, params, env)
     return {"answer": answer, "parameters": params}
 

@@ -76,6 +76,7 @@ def get_api_bot_response(
 
 
 if __name__ == "__main__":
+    # Set up command line argument parsing for configuration
     parser = argparse.ArgumentParser()
     parser.add_argument("--input-dir", type=str, default="./examples/test")
     parser.add_argument("--model", type=str, default=MODEL["model_type_or_path"])
@@ -89,18 +90,22 @@ if __name__ == "__main__":
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
     )
     args = parser.parse_args()
+
+    # Set up environment variables and model configuration
     os.environ["DATA_DIR"] = args.input_dir
     model: Dict[str, str] = {
         "model_type_or_path": args.model,
         "llm_provider": args.llm_provider,
     }
+
+    # Initialize logging with specified level
     log_level = getattr(logging, args.log_level.upper(), logging.WARNING)
     logger = init_logger(
         log_level=log_level,
         filename=os.path.join(os.path.dirname(__file__), "logs", "arklex.log"),
     )
 
-    # Initialize env
+    # Load task graph configuration and initialize environment
     config: Dict[str, Any] = json.load(
         open(os.path.join(args.input_dir, "taskgraph.json"))
     )
@@ -111,10 +116,13 @@ if __name__ == "__main__":
         slotsfillapi=config["slotfillapi"],
     )
 
+    # Initialize chat history and parameters
     history: List[Dict[str, str]] = []
     params: Dict[str, Any] = {}
     user_prefix: str = "user"
     worker_prefix: str = "assistant"
+
+    # Find and display the initial message from the start node
     for node in config["nodes"]:
         if node[1].get("type", "") == "start":
             start_message: str = node[1]["attribute"]["value"]
@@ -122,6 +130,7 @@ if __name__ == "__main__":
     history.append({"role": worker_prefix, "content": start_message})
     pprint_with_color(f"Bot: {start_message}")
 
+    # Main conversation loop
     while True:
         user_text: str = input("You: ")
         if user_text.lower() == "quit":

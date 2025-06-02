@@ -1,3 +1,9 @@
+"""
+Tool for finding contacts by email via HubSpot in the Arklex framework.
+
+This module provides a tool for searching and retrieving contact information by email using the HubSpot API. It is designed for use within the Arklex tool system and supports updating communication history.
+"""
+
 import json
 from datetime import datetime, timezone
 import inspect
