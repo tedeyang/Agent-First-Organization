@@ -341,6 +341,35 @@ class Tool:
         state = self._execute(state, **fixed_args)
         return state
 
+    def to_openai_tool_def(self) -> dict:
+        """Convert the tool to an OpenAI tool definition.
+
+        Returns:
+            dict: The OpenAI tool definition.
+        """
+        parameters = {
+            "type": "object",
+            "properties": {},
+            "required": [slot.name for slot in self.slots if slot.required]
+        }
+        for slot in self.slots:
+            if slot.items:
+                parameters["properties"][slot.name] = {
+                    "type": "array",
+                    "items": slot.items
+                }
+            else:
+                parameters["properties"][slot.name] = {
+                    "type": slot.type,
+                    "description": slot.description
+                }
+        return {
+            "type": "function",
+            "name": self.name,
+            "description": self.description,
+            "parameters": parameters
+        }
+    
     def __str__(self) -> str:
         """Get a string representation of the tool.
 
