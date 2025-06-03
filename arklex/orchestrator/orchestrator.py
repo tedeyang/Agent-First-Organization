@@ -1,9 +1,24 @@
-"""Orchestrator implementation for the Arklex framework.
+"""Orchestrator for the Arklex framework.
 
-This module provides the main orchestrator functionality for managing conversations and workflows.
-The AgentOrg class is responsible for coordinating the flow of conversation, managing the task graph,
-and handling the interaction between different components of the system. It processes user input,
-manages conversation state, and determines appropriate responses based on the current context.
+This module implements the core orchestrator functionality that manages the flow of
+conversation and task execution in the Arklex framework. It coordinates between
+different components of the system, including NLU processing, task graph execution,
+and response generation.
+
+The module is organized into several key components:
+1. Orchestrator: Main orchestrator class for managing conversation flow
+2. Task Execution: Methods for executing tasks and managing task states
+3. Message Processing: Methods for handling user messages and generating responses
+4. State Management: Methods for maintaining conversation and task states
+5. Resource Management: Methods for handling system resources and connections
+
+Key Features:
+- Comprehensive conversation flow management
+- Task graph execution and state tracking
+- Message processing and response generation
+- Resource management and cleanup
+- Error handling and recovery
+- State persistence and restoration
 """
 
 import asyncio
