@@ -11,6 +11,34 @@ The module is organized into several key components:
 2. Connection Pool: Management of database connection pools
 3. Query Execution: Methods for executing SQL queries and transactions
 4. Resource Management: Proper handling of database connections and resources
+
+Key Features:
+- Connection pooling for efficient resource management
+- Environment-based configuration
+- Automatic connection timeout handling
+- Comprehensive error handling and logging
+- Support for parameterized queries
+- Transaction management
+- Resource cleanup
+
+Usage:
+    from arklex.utils.mysql import MySQLPool
+
+    # Initialize connection pool
+    pool = MySQLPool(
+        pool_size=10,
+        host="localhost",
+        port=3306,
+        user="root",
+        password="password",
+        database="mydb"
+    )
+
+    # Execute queries
+    results = pool.fetchall("SELECT * FROM users WHERE age > %s", (18,))
+
+    # Execute updates
+    pool.execute("UPDATE users SET status = %s WHERE id = %s", ("active", 1))
 """
 
 import os
@@ -27,11 +55,11 @@ CONNECTION_TIMEOUT: int = int(os.getenv("MYSQL_CONNECTION_TIMEOUT", 10))
 
 # Database configuration loaded from environment variables
 MYSQL_CONFIG: Dict[str, Optional[str]] = {
-    "user": os.getenv("MYSQL_USERNAME"),
-    "password": os.getenv("MYSQL_PASSWORD"),
-    "host": os.getenv("MYSQL_HOSTNAME"),
-    "port": os.getenv("MYSQL_PORT"),
-    "database": os.getenv("MYSQL_DB_NAME"),
+    "user": os.getenv("MYSQL_USERNAME"),  # Database username
+    "password": os.getenv("MYSQL_PASSWORD"),  # Database password
+    "host": os.getenv("MYSQL_HOSTNAME"),  # Database host address
+    "port": os.getenv("MYSQL_PORT"),  # Database port number
+    "database": os.getenv("MYSQL_DB_NAME"),  # Database name
 }
 
 # Maximum number of connections in the connection pool
