@@ -5,20 +5,50 @@ conversation and task execution in the Arklex framework. It coordinates between
 different components of the system, including NLU processing, task graph execution,
 and response generation.
 
-The module is organized into several key components:
-1. Orchestrator: Main orchestrator class for managing conversation flow
-2. Task Execution: Methods for executing tasks and managing task states
-3. Message Processing: Methods for handling user messages and generating responses
-4. State Management: Methods for maintaining conversation and task states
-5. Resource Management: Methods for handling system resources and connections
+Key Components:
+- AgentOrg: Main orchestrator class for managing conversation flow
+- Task Execution: Methods for executing tasks and managing task states
+- Message Processing: Methods for handling user messages and generating responses
+- State Management: Methods for maintaining conversation and task states
+- Resource Management: Methods for handling system resources and connections
 
-Key Features:
+Features:
 - Comprehensive conversation flow management
 - Task graph execution and state tracking
 - Message processing and response generation
 - Resource management and cleanup
 - Error handling and recovery
 - State persistence and restoration
+- Nested graph support
+- Streaming response handling
+- Memory management
+- Tool integration
+
+Usage:
+    from arklex.orchestrator import AgentOrg
+    from arklex.env.env import Env
+
+    # Initialize environment
+    env = Env()
+
+    # Load configuration
+    config = {
+        "role": "customer_service",
+        "user_objective": "Handle customer inquiries",
+        "model": {...},
+        "workers": [...],
+        "tools": [...]
+    }
+
+    # Create orchestrator
+    orchestrator = AgentOrg(config, env)
+
+    # Process message
+    response = orchestrator.get_response({
+        "text": "user message",
+        "chat_history": [...],
+        "parameters": {...}
+    })
 """
 
 import asyncio
@@ -72,10 +102,13 @@ class AgentOrg:
     proper execution of tasks.
 
     Attributes:
-        config (Dict[str, Any]): Configuration settings.
-        env (Any): Environment object.
-        memory (Any): Memory management object.
-        task_graph (Any): Task graph object.
+        user_prefix (str): Prefix for user messages
+        worker_prefix (str): Prefix for worker messages
+        environment_prefix (str): Prefix for environment messages
+        product_kwargs (Dict[str, Any]): Configuration settings
+        llm_config (LLMConfig): Language model configuration
+        task_graph (TaskGraph): Task graph for conversation flow
+        env (Env): Environment with tools and workers
     """
 
     def __init__(
