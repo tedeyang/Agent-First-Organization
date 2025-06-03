@@ -26,7 +26,7 @@ Features:
 
 Usage:
     from arklex.orchestrator.prompts import REACT_INSTRUCTION
-    
+
     # Format the instruction with context
     formatted_prompt = REACT_INSTRUCTION.format(
         conversation_record=history,
