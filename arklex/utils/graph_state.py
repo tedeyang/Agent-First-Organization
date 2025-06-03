@@ -373,7 +373,7 @@ class Memory(BaseModel):
     function_calling_trajectory: List[Dict[str, Any]] = Field(default_factory=list)
 
 
-class Parameters(BaseModel):
+class Params(BaseModel):
     """Parameters for task processing.
 
     This class holds the parameters needed for task processing, including
