@@ -19,6 +19,23 @@ Key Features:
 - Structured input/output formatting for slot filling
 - Verification of slot values
 - Enum-based value validation
+- Dynamic type creation for slot outputs
+- Comprehensive logging for debugging
+
+Usage:
+    from arklex.utils.slot import Slot, structured_input_output, format_slotfilling_output
+
+    # Create slots
+    slots = [
+        Slot(name="name", type="str", description="User's name"),
+        Slot(name="age", type="int", description="User's age")
+    ]
+
+    # Format for slot filling
+    input_format, output_type = structured_input_output(slots)
+
+    # Process slot filling results
+    updated_slots = format_slotfilling_output(slots, response)
 """
 
 import logging
@@ -195,6 +212,15 @@ def structured_input_output(slots: List[Slot]) -> Tuple[SlotInputList, Type]:
             - SlotInputList: Formatted input structure with slot information
             - Type: Dynamic output type for slot filling results, with fields
                    matching the slot names and types
+
+    Example:
+        slots = [
+            Slot(name="name", type="str"),
+            Slot(name="age", type="int")
+        ]
+        input_format, output_type = structured_input_output(slots)
+        # input_format contains SlotInputList with slot information
+        # output_type is a dynamic Pydantic model with name and age fields
     """
     # Convert slots to SlotInput format
     input_slots = [
@@ -238,6 +264,15 @@ def format_slotfilling_output(slots: List[Slot], response: Any) -> List[Slot]:
 
     Returns:
         List[Slot]: Updated list of slots with filled values from the response.
+
+    Example:
+        slots = [
+            Slot(name="name", type="str"),
+            Slot(name="age", type="int")
+        ]
+        response = DynamicSlotOutputs(name="John", age=30)
+        updated_slots = format_slotfilling_output(slots, response)
+        # updated_slots contains slots with updated values
     """
     logger.info(f"filled_slots: {response}")
     filled_slots = response.model_dump()
