@@ -9,11 +9,13 @@ The Orchestrator takes JSON/YAML configuration as input, reconstructs a task gra
 ## Key Components
 
 ### Graph Structure
+
 - **Nodes**: Represent workers that execute specific sub-tasks
 - **Edges**: Represent user intents and define the flow between workers
 - **Leaf Nodes**: Mark the completion of a task
 
 ### Worker Management
+
 - Workers execute defined sub-tasks
 - Each worker may require:
   - User input
@@ -22,6 +24,7 @@ The Orchestrator takes JSON/YAML configuration as input, reconstructs a task gra
 - Workers return results that influence the next steps
 
 ### Task Handling
+
 - Support for multiple concurrent tasks
 - Task detection through NLU module
 - Graph traversal based on user intents
@@ -72,6 +75,7 @@ status = orchestrator.get_task_status()
 ## Configuration
 
 The orchestrator accepts configuration in JSON or YAML format, defining:
+
 - Task graph structure
 - Worker definitions
 - Edge conditions
