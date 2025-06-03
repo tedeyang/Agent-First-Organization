@@ -12,6 +12,12 @@ from langchain_core.output_parsers import StrOutputParser
 
 logger = logging.getLogger(__name__)
 
+RAG_NODES_STEPS = {
+    "FaissRAGWorker": "faiss_retrieve",
+    "milvus_rag_worker": "milvus_retrieve",
+    "9aa47724-0b77-4752-9528-cf4b06a46915": "faiss_retrieve",
+}
+
 
 def post_process_response(
     message_state: MessageState, params: Params, hitl_worker_available: bool
@@ -38,17 +44,24 @@ def _build_context(message_state: MessageState):
         for resource in resource_group:
             if _include_resource(resource):
                 context += " " + resource.output
-            # add RAG document sources
-            if resource.info.get('name') == 'FaissRAGWorker':
-                sources = [
-                    doc['source']
-                    for step in resource.steps
-                    if 'faiss_retrieve' in step
-                    for doc in step['faiss_retrieve']
-                ]
-
-                context += " ".join(sources)
-
+            # add RAG document content
+            rag_step_type = RAG_NODES_STEPS.get(resource.info.get("id"))
+            if rag_step_type:
+                links = set()
+                for step in resource.steps:
+                    if rag_step_type in step:
+                        for doc in step[rag_step_type]:
+                            try:
+                                for field_value in doc.values():
+                                    if isinstance(field_value, str):
+                                        links.update(
+                                            _extract_links(field_value))
+                            except Exception as e:
+                                logger.warning(
+                                    f"Error extracting links from doc: {e} — doc: {doc}"
+                                )
+                if links:
+                    context += " " + " ".join(links)
     return context
 
 
