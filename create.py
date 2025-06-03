@@ -59,20 +59,31 @@ def generate_taskgraph(args: argparse.Namespace) -> None:
 def init_worker(args: argparse.Namespace) -> None:
     """Initialize workers based on the provided configuration.
 
-    This function loads the configuration and initializes workers such as FaissRAGWorker
-    or DataBaseWorker based on the specified worker names in the configuration.
+    This function initializes and sets up various workers required by the Arklex framework
+    based on the configuration file. It supports different types of workers including:
+    - FaissRAGWorker: For RAG (Retrieval-Augmented Generation) functionality
+    - DataBaseWorker: For database operations including search, booking, and cancellation
+
+    The function reads the worker configurations from the provided config file and
+    initializes the appropriate workers based on their names. Each worker type
+    requires specific setup procedures and dependencies.
 
     Args:
-        args (argparse.Namespace): Command-line arguments containing configuration and output settings.
+        args (argparse.Namespace): Command-line arguments containing:
+            - config: Path to the configuration file
+            - output_dir: Directory where worker data will be stored
     """
-    ## TODO: Need to customized based on different use cases
+    # Load configuration from the specified file
     config: Dict[str, Any] = json.load(open(args.config))
     workers: List[Dict[str, Any]] = config["workers"]
     worker_names: Set[str] = set([worker["name"] for worker in workers])
+
+    # Initialize FaissRAGWorker if specified in configuration
     if "FaissRAGWorker" in worker_names:
         logger.info("Initializing FaissRAGWorker...")
         build_rag(args.output_dir, config["rag_docs"])
 
+    # Initialize DataBaseWorker and related workers if specified
     elif any(
         node in worker_names
         for node in (

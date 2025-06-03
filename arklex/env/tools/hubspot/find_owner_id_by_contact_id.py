@@ -1,3 +1,9 @@
+"""
+Tool for finding the owner ID of a contact via HubSpot in the Arklex framework.
+
+This module implements a tool for retrieving the owner ID associated with a contact using the HubSpot API. It is designed for integration with the Arklex tool system.
+"""
+
 import inspect
 import hubspot
 from hubspot.crm.objects.emails import ApiException

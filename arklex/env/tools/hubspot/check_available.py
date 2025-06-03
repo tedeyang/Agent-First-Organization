@@ -1,3 +1,9 @@
+"""
+Tool for finding available meeting times for a representative via HubSpot in the Arklex framework.
+
+This module provides a tool for retrieving available meeting slots for a specific representative using the HubSpot API. It is designed for use within the Arklex tool system and supports slot extraction and time zone management.
+"""
+
 from datetime import datetime, timezone
 import inspect
 import pytz

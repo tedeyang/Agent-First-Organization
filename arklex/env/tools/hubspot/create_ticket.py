@@ -1,3 +1,9 @@
+"""
+Tool for creating support tickets via HubSpot in the Arklex framework.
+
+This module implements a tool for creating support tickets for customers using the HubSpot API. It handles ticket creation, association with contacts, and is designed for integration with the Arklex tool system.
+"""
+
 from datetime import datetime
 import inspect
 import hubspot
