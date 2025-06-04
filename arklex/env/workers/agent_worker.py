@@ -81,7 +81,7 @@ class AgentWorker(BaseWorker):
         return state
 
     def generator(self, state: MessageState) -> MessageState:
-        logger.info("\n\n\n\nGenerating response using the agent worker.\n\n\n\n")
+        logger.info("\nGenerating response using the agent worker.")
         user_message = state.user_message
         orchestrator_message = state.orchestrator_message
         message_flow: str = state.response + "\n" + state.message_flow
@@ -144,3 +144,18 @@ class AgentWorker(BaseWorker):
         graph = self.action_graph.compile()
         result: Dict[str, Any] = graph.invoke(msg_state)
         return result
+
+    def execute(self, msg_state: MessageState, **kwargs: Any) -> MessageState:
+        try:
+            response_return: Dict[str, Any] = self._execute(msg_state, **kwargs)
+            response_state: MessageState = MessageState.model_validate(response_return)
+            response_state.trajectory[-1][-1].output = (
+                response_state.response
+                if response_state.response
+                else response_state.message_flow
+            )
+            return response_state
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            msg_state.status = StatusEnum.INCOMPLETE
+            return msg_state
