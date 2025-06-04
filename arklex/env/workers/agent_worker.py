@@ -28,9 +28,49 @@ class AgentWorker(BaseWorker):
         super().__init__()
         self.action_graph: StateGraph = self._create_action_graph()
         self.llm: Optional[BaseChatModel] = None
+        self.actions = {
+            "generate": "Answer a question or generate a response based on the user input.",
+            "end_conversation": "End the conversation",
+        }
 
     def verify_action(self, state: MessageState) -> str:
-        pass
+        agent_task: str = state.orchestrator_message.attribute.get("task", "")
+        actions_info: str = "\n".join(
+            [f"{name}: {description}" for name, description in self.actions.items()]
+        )
+        actions_name: str = ", ".join(self.actions.keys())
+        logger.info(state)
+
+        prompts: Dict[str, str] = load_prompts(state.bot_config)
+        prompt: PromptTemplate = PromptTemplate.from_template(
+            prompts["agent_action_prompt"]
+        )
+        input_prompt = prompt.invoke(
+            {
+                "agent_task": agent_task,
+                "actions_info": actions_info,
+                "actions_name": actions_name,
+                "formatted_chat": state.user_message.history,
+            }
+        )
+        chunked_prompt: str = chunk_string(
+            input_prompt.text, tokenizer=MODEL["tokenizer"], max_length=MODEL["context"]
+        )
+        logger.info(f"Chunked prompt for deciding choosing DB action: {chunked_prompt}")
+        final_chain = self.llm | StrOutputParser()
+        try:
+            answer: str = final_chain.invoke(chunked_prompt)
+            for action_name in self.actions.keys():
+                if action_name in answer:
+                    logger.info(f"Chosen action in the database worker: {action_name}")
+                    return action_name
+            logger.info(f"Base action chosen in the database worker: Others")
+            return "generator"
+        except Exception as e:
+            logger.error(
+                f"Error occurred while choosing action in the database worker: {e}"
+            )
+            return "generator"
 
     def end_conversation(self, state: MessageState) -> MessageState:
         pass
@@ -55,3 +95,4 @@ class AgentWorker(BaseWorker):
         graph = self.action_graph.compile()
         result: Dict[str, Any] = graph.invoke(msg_state)
         return result
+
