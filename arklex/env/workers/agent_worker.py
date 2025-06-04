@@ -81,7 +81,53 @@ class AgentWorker(BaseWorker):
         return state
 
     def generator(self, state: MessageState) -> MessageState:
-        pass
+        logger.info("\n\n\n\nGenerating response using the agent worker.\n\n\n\n")
+        user_message = state.user_message
+        orchestrator_message = state.orchestrator_message
+        message_flow: str = state.response + "\n" + state.message_flow
+
+        orch_msg_content: str = (
+            "None" if not orchestrator_message.message else orchestrator_message.message
+        )
+        orch_msg_attr: Dict[str, Any] = orchestrator_message.attribute
+        direct_response: bool = orch_msg_attr.get("direct_response", False)
+        if direct_response:
+            state.message_flow = ""
+            state.response = orch_msg_content
+            return state
+
+        prompts: Dict[str, str] = load_prompts(state.bot_config)
+        if message_flow and message_flow != "\n":
+            prompt: PromptTemplate = PromptTemplate.from_template(
+                prompts["message_flow_generator_prompt"]
+            )
+            input_prompt = prompt.invoke(
+                {
+                    "sys_instruct": state.sys_instruct,
+                    "message": orch_msg_content,
+                    "formatted_chat": user_message.history,
+                    "context": message_flow,
+                }
+            )
+        else:
+            prompt: PromptTemplate = PromptTemplate.from_template(
+                prompts["message_generator_prompt"]
+            )
+            input_prompt = prompt.invoke(
+                {
+                    "sys_instruct": state.sys_instruct,
+                    "message": orch_msg_content,
+                    "formatted_chat": user_message.history,
+                }
+            )
+        logger.info(f"Prompt: {input_prompt.text}")
+        final_chain = self.llm | StrOutputParser()
+        answer: str = final_chain.invoke(input_prompt.text)
+
+        state.message_flow = ""
+        state.response = answer
+        state = trace(input=answer, state=state)
+        return state
 
     def _create_action_graph(self) -> StateGraph:
         workflow = StateGraph(MessageState)
