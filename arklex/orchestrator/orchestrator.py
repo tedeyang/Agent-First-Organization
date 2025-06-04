@@ -63,6 +63,7 @@ from typing import Any, Dict, Tuple, List, Optional, Union
 from arklex.env.nested_graph.nested_graph import NESTED_GRAPH_ID, NestedGraph
 from arklex.env.env import Env
 from arklex.orchestrator.task_graph import TaskGraph
+from arklex.orchestrator.post_process import post_process_response
 from arklex.env.tools.utils import ToolGenerator
 from arklex.types import StreamType
 from arklex.utils.graph_state import (
@@ -79,9 +80,12 @@ from arklex.utils.graph_state import (
     OrchestratorResp,
     NodeTypeEnum,
 )
+
+
 from arklex.utils.utils import format_chat_history
 from arklex.utils.model_config import MODEL
 from arklex.memory import ShortTermMemory
+
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -142,7 +146,11 @@ class AgentOrg:
         self.env: Env = env
 
         # Update planner model info now that LLMConfig is defined
-        self.env.planner.set_llm_config_and_build_resource_library(self.llm_config)
+        self.env.planner.set_llm_config_and_build_resource_library(
+            self.llm_config)
+
+        self.hitl_worker_available = any(worker.get('name') ==
+                                         'HITLWorkerChatFlag' for worker in self.task_graph.product_kwargs['workers'])
 
     def init_params(
         self, inputs: Dict[str, Any]
@@ -178,9 +186,11 @@ class AgentOrg:
         # Update turn_id and function_calling_trajectory
         params.metadata.turn_id += 1
         if not params.memory.function_calling_trajectory:
-            params.memory.function_calling_trajectory = copy.deepcopy(chat_history_copy)
+            params.memory.function_calling_trajectory = copy.deepcopy(
+                chat_history_copy)
         else:
-            params.memory.function_calling_trajectory.extend(chat_history_copy[-2:])
+            params.memory.function_calling_trajectory.extend(
+                chat_history_copy[-2:])
 
         params.memory.trajectory.append([])
 
@@ -293,7 +303,8 @@ class AgentOrg:
             if node_attribute.get("value", "").strip():
                 params = self.post_process_node(node_info, params)
                 return_response: OrchestratorResp = OrchestratorResp(
-                    answer=node_attribute["value"], parameters=params.model_dump()
+                    answer=node_attribute["value"], parameters=params.model_dump(
+                    )
                 )
                 # Multiple choice list
                 if (
@@ -441,8 +452,9 @@ class AgentOrg:
         chat_history_str: str
         params: Params
         message_state: MessageState
-        text, chat_history_str, params, message_state = self.init_params(inputs)
-        ##### TaskGraph Chain
+        text, chat_history_str, params, message_state = self.init_params(
+            inputs)
+        # TaskGraph Chain
         taskgraph_inputs: Dict[str, Any] = {
             "text": text,
             "chat_history_str": chat_history_str,
@@ -460,8 +472,10 @@ class AgentOrg:
         for turn in params.memory.trajectory:
             for record in turn:
                 if record.personalized_intent:
-                    logger.info(f"Personalized Intent: {record.personalized_intent}")
-                    logger.info(f"Original Intent: {record.personalized_intent}")
+                    logger.info(
+                        f"Personalized Intent: {record.personalized_intent}")
+                    logger.info(
+                        f"Original Intent: {record.personalized_intent}")
 
         found_records, relevant_records = stm.retrieve_records(text)
 
@@ -500,7 +514,8 @@ class AgentOrg:
                     can_skipped=False,
                     is_leaf=len(
                         list(
-                            self.task_graph.graph.successors(params.taskgraph.curr_node)
+                            self.task_graph.graph.successors(
+                                params.taskgraph.curr_node)
                         )
                     )
                     == 0,
@@ -513,7 +528,8 @@ class AgentOrg:
             # Check if current node can be skipped
             can_skip = self.check_skip_node(node_info, params)
             if can_skip:
-                params = self.post_process_node(node_info, params, {"is_skipped": True})
+                params = self.post_process_node(
+                    node_info, params, {"is_skipped": True})
                 continue
             logger.info(f"The current node info is : {node_info}")
 
@@ -558,7 +574,11 @@ class AgentOrg:
             if not stream_type:
                 message_state = ToolGenerator.context_generate(message_state)
             else:
-                message_state = ToolGenerator.stream_context_generate(message_state)
+                message_state = ToolGenerator.stream_context_generate(
+                    message_state)
+
+        message_state = post_process_response(
+            message_state, params, self.hitl_worker_available)
 
         return OrchestratorResp(
             answer=message_state.response,
@@ -572,6 +592,7 @@ class AgentOrg:
         stream_type: Optional[StreamType] = None,
         message_queue: Optional[janus.SyncQueue] = None,
     ) -> Dict[str, Any]:
+
         """Get a response from the orchestrator with additional metadata.
 
         This function wraps the _get_response method to provide additional metadata about
