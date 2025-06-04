@@ -35,10 +35,13 @@ def post_process_response(
         )
         message_state.response = _rephrase_answer(message_state)
 
+    if hitl_worker_available and not message_state.metadata.hitl:
+        _live_chat_verifier(message_state, params)
+
     return message_state
 
 
-def _build_context(message_state: MessageState):
+def _build_context(message_state: MessageState) -> str:
     context = message_state.sys_instruct
     for resource_group in message_state.trajectory:
         for resource in resource_group:
@@ -65,7 +68,7 @@ def _build_context(message_state: MessageState):
     return context
 
 
-def _include_resource(resource: ResourceRecord):
+def _include_resource(resource: ResourceRecord) -> bool:
     """Determines whether a ResourceRecord's output should be included in context.
 
     Excludes any output where a 'context_generate' flag is present in steps.
@@ -75,7 +78,8 @@ def _include_resource(resource: ResourceRecord):
 
 def _extract_links(text: str) -> set:
     markdown_links = re.findall(r"\[[^\]]+\]\((https?://[^\s)]+)\)", text)
-    raw_links = re.findall(r"(?:https?://|www\.)[^\s)\"']+", text)
+    cleaned_text = re.sub(r"\[[^\]]+\]\((https?://[^\s)]+)\)", "", text)
+    raw_links = re.findall(r"(?:https?://|www\.)[^\s)\"']+", cleaned_text)
     all_links = set(markdown_links + raw_links)
     return {link.rstrip(".,;)!?\"'") for link in all_links}
 
@@ -108,3 +112,50 @@ def _rephrase_answer(state: MessageState) -> str:
     logger.info(f"Prompt: {input_prompt.text}")
     answer: str = final_chain.invoke(input_prompt.text)
     return answer
+
+
+def _live_chat_verifier(message_state: MessageState, params: Params) -> None:
+    """
+    Determines if a live chat takeover is needed.
+    Triggers handover if bot doesn't know the answer AND is NOT asking a clarifying question,
+    and a HITL worker is available.
+    """
+    # early detection of confident bot response
+    # if response has valid, verified link
+    if _extract_links(message_state.response):
+        return
+
+    # ADD SOMETHING THAT LOOKS AT RAG confidence scores
+
+    if should_trigger_handoff(message_state):
+        print(
+            f"\n* Live Chat Initiated: Bot was uncertain about the response.\n"
+            f"* Original Bot Response:\n{message_state.response}\n"
+        )
+        worker = HITLWorkerChatFlag()
+        worker._execute(state=message_state)
+
+
+def should_trigger_handoff(state: MessageState) -> bool:
+    input_prompt = f"""
+    You are a helpful assistant evaluating a chatbot's response. 
+    Here is the chatbot's response:
+
+    \"\"\"{state.response}\"\"\"
+
+    Does this response indicate that the bot does NOT know the answer 
+    and is NOT trying to ask for clarification.
+    If chatbot's response has link or url, then it does know the answer.
+    Only respond with "YES" or "NO".
+    """
+
+    llm_config = state.bot_config.llm_config
+    llm = PROVIDER_MAP.get(llm_config.llm_provider, ChatOpenAI)(
+        model=llm_config.model_type_or_path, temperature=0.1
+    )
+
+    final_chain = llm | StrOutputParser()
+    logger.info(f"Prompt: {input_prompt}")
+    result: str = final_chain.invoke(input_prompt)
+
+    return result.strip().lower() == "yes"
