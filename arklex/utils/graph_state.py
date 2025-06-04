@@ -278,7 +278,7 @@ class MessageState(BaseModel):
     # stream
     is_stream: bool = Field(default=False)
     message_queue: Any = Field(exclude=True, default=None)
-    stream_type: str = Field(default="")
+    stream_type: Optional[str] = Field(default=None)
     # memory records
     relevant_records: Optional[List[ResourceRecord]] = Field(default=None)
 
