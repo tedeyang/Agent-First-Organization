@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 RAG_NODES_STEPS = {
     "FaissRAGWorker": "faiss_retrieve",
     "milvus_rag_worker": "milvus_retrieve",
-    "9aa47724-0b77-4752-9528-cf4b06a46915": "faiss_retrieve",
+    "rag_message_worker": "milvus_retrieve"
 }
 
 
