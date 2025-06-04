@@ -40,6 +40,7 @@ class AgentWorker(BaseWorker):
         )
         actions_name: str = ", ".join(self.actions.keys())
         logger.info(state)
+        personalized_intent: str = state.trajectory[-1][-1].personalized_intent
 
         prompts: Dict[str, str] = load_prompts(state.bot_config)
         prompt: PromptTemplate = PromptTemplate.from_template(
@@ -73,15 +74,17 @@ class AgentWorker(BaseWorker):
             return "generator"
 
     def end_conversation(self, state: MessageState) -> MessageState:
-        pass
+        logger.info("Ending the conversation.")
+        state.response = "Thank you for using Arklex. Goodbye!"
+        state.status = StatusEnum.COMPLETE
+        state.message_flow = ""
+        return state
 
     def generator(self, state: MessageState) -> MessageState:
         pass
 
     def _create_action_graph(self) -> StateGraph:
         workflow = StateGraph(MessageState)
-        # Add nodes for each worker
-
         workflow.add_node("generator", self.generator)
         workflow.add_node("end_conversation", self.end_conversation)
         workflow.add_conditional_edges(START, self.verify_action)
@@ -95,4 +98,3 @@ class AgentWorker(BaseWorker):
         graph = self.action_graph.compile()
         result: Dict[str, Any] = graph.invoke(msg_state)
         return result
-
