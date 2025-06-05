@@ -33,14 +33,18 @@ class AgentWorker(BaseWorker):
             "end_conversation": "End the conversation",
         }
 
-    def verify_action(self, state: MessageState) -> str:
+    def verify_action(self, state: MessageState, **kwargs: Any) -> str:
+        
+        logger.info("\n\n\nkwargs for agent worker execution:")
+        logger.info(kwargs)
+
+        
         agent_task: str = state.orchestrator_message.attribute.get("task", "")
         actions_info: str = "\n".join(
             [f"{name}: {description}" for name, description in self.actions.items()]
         )
         actions_name: str = ", ".join(self.actions.keys())
         logger.info(state)
-        personalized_intent: str = state.trajectory[-1][-1].personalized_intent
 
         prompts: Dict[str, str] = load_prompts(state.bot_config)
         prompt: PromptTemplate = PromptTemplate.from_template(
@@ -133,7 +137,9 @@ class AgentWorker(BaseWorker):
         workflow = StateGraph(MessageState)
         workflow.add_node("generator", self.generator)
         workflow.add_node("end_conversation", self.end_conversation)
-        workflow.add_conditional_edges(START, self.verify_action)
+        workflow.add_conditional_edges(
+            START, lambda state, **kwargs: self.verify_action(state, **kwargs)
+        )
 
         return workflow
 
