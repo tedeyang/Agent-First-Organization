@@ -15,7 +15,6 @@ import os
 
 from arklex.env.env import Environment
 from arklex.orchestrator.orchestrator import AgentOrg
-from arklex.utils.graph_state import MessageState
 
 
 class MockTool:
