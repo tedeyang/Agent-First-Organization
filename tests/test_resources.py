@@ -3,32 +3,14 @@
 This module provides test resources for testing the Arklex framework.
 """
 
-import logging
 import json
 import os
-from typing import Any, Dict, List, Tuple, Type, Optional
+from typing import Any, Dict, List, Tuple, Type
 
 import pytest
 
-from arklex.env.env import Environment
 from tests.utils.utils_workers import MCWorkerOrchestrator, MsgWorkerOrchestrator
 from tests.utils.utils_tools import ShopifyToolOrchestrator
-
-logger = logging.getLogger(__name__)
-
-
-class TestResources:
-    """Test resources for the Arklex framework.
-
-    This class provides test resources for testing the Arklex framework.
-    """
-
-    def __init__(self) -> None:
-        """Initialize the test resources."""
-        self.env = Environment(
-            tools=[], workers=[], slot_filler_api="", planner_enabled=True
-        )
-
 
 TEST_CASES: List[Tuple[Type[Any], str, str]] = [
     (
