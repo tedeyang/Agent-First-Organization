@@ -66,7 +66,15 @@ def mock_openai_client():
     def fake_embed_query(text, *args, **kwargs):
         return dummy_embedding
 
-    # Patch LangChain OpenAIEmbeddings methods directly
+    # Create a mock chat completion response
+    mock_chat_completion = MagicMock()
+    mock_chat_completion.choices = [
+        MagicMock(
+            message=MagicMock(content='{"result": "dummy response"}', role="assistant")
+        )
+    ]
+
+    # Patch all OpenAI client methods
     with (
         patch(
             "langchain_openai.OpenAIEmbeddings.embed_documents",
@@ -77,8 +85,10 @@ def mock_openai_client():
             side_effect=fake_embed_query,
         ),
         patch.object(openai.OpenAI, "embeddings", create=True) as mock_embeddings,
+        patch.object(openai.OpenAI, "chat", create=True) as mock_chat,
     ):
         mock_embeddings.create.return_value = dummy_response
+        mock_chat.completions.create.return_value = mock_chat_completion
         yield
 
 
