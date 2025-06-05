@@ -9,6 +9,8 @@ with support for custom validation through abstract methods.
 import json
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple
+import contextlib
+from unittest.mock import patch
 
 from arklex.env.env import Environment
 from arklex.orchestrator.orchestrator import AgentOrg
@@ -67,24 +69,31 @@ class MockResourceInitializer:
         Returns:
             Dict[str, Dict[str, Any]]: Dictionary mapping tool IDs to their configurations
         """
+        print("\n=== Debug: MockResourceInitializer.init_tools ===")
+        print(f"Input tools: {json.dumps(tools, indent=2)}")
+
         tools_map = {}
         if not tools:
+            print("No tools provided, creating dummy tool")
             dummy_tool = MockTool("dummy_tool", "A dummy tool for testing.")
-            tools_map["dummy_tool"] = {
-                "execute": (lambda mt=dummy_tool: mt),
-                "info": dummy_tool.info,
-                "output": dummy_tool.output,
-            }
+            tools_map["dummy_tool"] = dummy_tool
+            print(f"Created dummy tool map: {json.dumps(tools_map, indent=2)}")
             return tools_map
+
         for tool in tools:
             name = tool.get("name", tool.get("id", "unnamed_tool"))
             description = tool.get("description", "No description provided.")
+            print(f"\nProcessing tool: {name}")
+            print(f"Tool config: {json.dumps(tool, indent=2)}")
+
             mock_tool = MockTool(name, description)
-            tools_map[tool.get("id", name)] = {
-                "execute": (lambda mt=mock_tool: mt),
-                "info": mock_tool.info,
-                "output": mock_tool.output,
-            }
+            tool_id = tool.get("id", name)
+            tools_map[tool_id] = mock_tool
+            print(f"Added tool to map with ID: {tool_id}")
+            print(f"Tool entry: {json.dumps(tools_map[tool_id].__dict__, indent=2)}")
+
+        print("\nFinal tools map:")
+        print(json.dumps({k: v.__dict__ for k, v in tools_map.items()}, indent=2))
         return tools_map
 
     @staticmethod
@@ -97,19 +106,48 @@ class MockResourceInitializer:
         Returns:
             Dict[str, Dict[str, Any]]: Dictionary mapping worker IDs to their configurations
         """
+        print("\n=== Debug: MockResourceInitializer.init_workers ===")
+        print(f"Input workers: {json.dumps(workers, indent=2)}")
+
         workers_map = {}
         if not workers:
+            print("No workers provided, returning empty map")
             return workers_map
+
         for worker in workers:
             name = worker.get("name", worker.get("id", "unnamed_worker"))
             description = worker.get("description", "No description provided.")
+            print(f"\nProcessing worker: {name}")
+            print(f"Worker config: {json.dumps(worker, indent=2)}")
+
             mock_tool = MockTool(name, description)
-            workers_map[worker.get("id", name)] = {
-                "execute": (lambda mt=mock_tool: mt),
-                "info": mock_tool.info,
-                "output": mock_tool.output,
-            }
+            worker_id = worker.get("id", name)
+            workers_map[worker_id] = mock_tool
+            print(f"Added worker to map with ID: {worker_id}")
+            print(
+                f"Worker entry: {json.dumps(workers_map[worker_id].__dict__, indent=2)}"
+            )
+
+        print("\nFinal workers map:")
+        print(json.dumps({k: v.__dict__ for k, v in workers_map.items()}, indent=2))
         return workers_map
+
+
+@contextlib.contextmanager
+def mock_llm_invoke():
+    class DummyAIMessage:
+        def __init__(self, content):
+            self.content = content
+
+    def dummy_invoke(*args, **kwargs):
+        # Return a plausible planner response for all tests
+        # This should look like a real planner output
+        return DummyAIMessage(
+            '{"name": "respond", "arguments": {"content": "Here are the products: A, B, and C. Which one do you want to know more about?"}}'
+        )
+
+    with patch("arklex.env.planner.react_planner.ChatOpenAI.invoke", new=dummy_invoke):
+        yield
 
 
 class MockOrchestrator(ABC):
@@ -250,6 +288,7 @@ class MockOrchestrator(ABC):
         Raises:
             AssertionError: If the test validation fails.
         """
-        history, params = self._initialize_test()
-        history, params = self._execute_conversation(test_case, history, params)
-        self._validate_result(test_case, history, params)
+        with mock_llm_invoke():
+            history, params = self._initialize_test()
+            history, params = self._execute_conversation(test_case, history, params)
+            self._validate_result(test_case, history, params)
