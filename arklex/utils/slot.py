@@ -279,3 +279,72 @@ def format_slotfilling_output(slots: List[Slot], response: Any) -> List[Slot]:
     for slot in slots:
         slot.value = filled_slots[slot.name]
     return slots
+
+
+def format_slot_output(slots: List[Slot], response: Any) -> List[Slot]:
+    """Format slot output from response.
+
+    Args:
+        slots: List of slots to format
+        response: Response to format
+
+    Returns:
+        List of formatted slots
+    """
+    updated_slots = []
+    for slot in slots:
+        if slot.name in response:
+            slot.value = response[slot.name]
+            updated_slots.append(slot)
+    return updated_slots
+
+
+def validate_slot_values(slots: List[Slot]) -> List[str]:
+    """Validate slot values.
+
+    Args:
+        slots: List of slots to validate
+
+    Returns:
+        List of validation errors
+    """
+    errors = []
+    for slot in slots:
+        if slot.required and not slot.value:
+            errors.append(f"Required slot '{slot.name}' is missing")
+        elif slot.value and slot.type == "integer":
+            try:
+                int(slot.value)
+            except ValueError:
+                errors.append(f"Slot '{slot.name}' must be an integer")
+        elif slot.value and slot.type == "float":
+            try:
+                float(slot.value)
+            except ValueError:
+                errors.append(f"Slot '{slot.name}' must be a float")
+        elif slot.value and slot.type == "boolean":
+            if slot.value.lower() not in ["true", "false"]:
+                errors.append(f"Slot '{slot.name}' must be a boolean")
+        elif slot.value and slot.enum and slot.value not in slot.enum:
+            errors.append(f"Slot '{slot.name}' must be one of {slot.enum}")
+    return errors
+
+
+def convert_slot_values(slots: List[Slot]) -> List[Slot]:
+    """Convert slot values to appropriate types.
+
+    Args:
+        slots: List of slots to convert
+
+    Returns:
+        List of converted slots
+    """
+    for slot in slots:
+        if slot.value:
+            if slot.type == "integer":
+                slot.value = int(slot.value)
+            elif slot.type == "float":
+                slot.value = float(slot.value)
+            elif slot.type == "boolean":
+                slot.value = slot.value.lower() == "true"
+    return slots

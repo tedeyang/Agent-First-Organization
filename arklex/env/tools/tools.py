@@ -1,9 +1,7 @@
-"""Tool management and execution for the Arklex framework.
+"""Tool management for the Arklex framework.
 
-This module provides functionality for registering, managing, and executing tools in the Arklex framework.
-It includes a decorator for tool registration, a base Tool class for tool implementation, and utilities
-for slot filling and tool execution. The module supports dynamic tool registration, parameter validation,
-and error handling during tool execution.
+This module provides functionality for managing tools, including
+initialization, execution, and slot filling integration.
 """
 
 import os
@@ -61,6 +59,73 @@ def register_tool(
         return tool
 
     return inner
+
+
+class BaseTool:
+    """Base class for tools.
+
+    This class provides the base functionality for tools, including
+    initialization, execution, and slot filling integration.
+
+    Attributes:
+        slot_fill_api (Optional[SlotFiller]): Slot filling API instance
+        // ... rest of attributes ...
+    """
+
+    def __init__(self, name: str, description: str) -> None:
+        """Initialize the tool.
+
+        Args:
+            name: Name of the tool
+            description: Description of the tool's functionality
+        """
+        self.name = name
+        self.description = description
+        self.slot_fill_api: Optional[SlotFiller] = None
+
+    def init_slot_filler(self, slot_fill_api: SlotFiller) -> None:
+        """Initialize the slot filling API.
+
+        Args:
+            slot_fill_api: Slot filling API instance
+        """
+        self.slot_fill_api = slot_fill_api
+
+    def execute(self, message_state: MessageState) -> Any:
+        """Execute the tool.
+
+        Args:
+            message_state: Current message state
+
+        Returns:
+            Result of tool execution
+        """
+        # do slot filling
+        if self.slot_fill_api:
+            slots = self._get_required_slots()
+            filled_slots = self.slot_fill_api.execute(slots, message_state.text)
+            message_state.slots = filled_slots
+
+        return self._execute_impl(message_state)
+
+    def _execute_impl(self, message_state: MessageState) -> Any:
+        """Implementation of tool execution.
+
+        Args:
+            message_state: Current message state
+
+        Returns:
+            Result of tool execution
+        """
+        raise NotImplementedError
+
+    def _get_required_slots(self) -> List[Slot]:
+        """Get required slots for the tool.
+
+        Returns:
+            List of required slots
+        """
+        raise NotImplementedError
 
 
 class Tool:
