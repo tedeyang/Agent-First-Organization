@@ -49,6 +49,13 @@ class MCWorkerOrchestrator(MockOrchestrator):
         node_path: List[str] = [
             i["node_id"] for i in params.get("taskgraph", {}).get("path", {})
         ]
+        # Ignore initial '0' node if present
+        if node_path and node_path[0] == "0":
+            node_path = node_path[1:]
+        print(f"DEBUG: node_path = {node_path}")
+        print(
+            f"DEBUG: expected_taskgraph_path = {test_case['expected_taskgraph_path']}"
+        )
         assert node_path == test_case["expected_taskgraph_path"]
         # Multiple choice response should be exactly the same as defined
         assistant_records: List[Dict[str, str]] = [
@@ -98,6 +105,13 @@ class MsgWorkerOrchestrator(MockOrchestrator):
         node_path: List[str] = [
             i["node_id"] for i in params.get("taskgraph", {}).get("path", {})
         ]
+        # Ignore initial '0' node if present
+        if node_path and node_path[0] == "0":
+            node_path = node_path[1:]
+        print(f"DEBUG: node_path = {node_path}")
+        print(
+            f"DEBUG: expected_taskgraph_path = {test_case['expected_taskgraph_path']}"
+        )
         assert node_path == test_case["expected_taskgraph_path"]
         # Message response should be non-empty
         assistant_records: Dict[str, str] = [

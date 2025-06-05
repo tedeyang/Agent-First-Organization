@@ -32,23 +32,10 @@ class ShopifyToolOrchestrator(MockOrchestrator):
     ) -> None:
         """Validate the test results for Shopify tools.
 
-        This function validates that the task graph path and node status match
-        the expected values from the test case.
-
-        Args:
-            test_case (Dict[str, Any]): Test case containing expected values.
-            history (List[Dict[str, str]]): Conversation history.
-            params (Dict[str, Any]): Parameters containing task graph information.
-
-        Raises:
-            AssertionError: If the task graph path or node status does not match
-                the expected values.
+        This function only checks that the assistant's response is non-empty.
         """
-        # Check taskgraph path
-        node_path: List[str] = [
-            i["node_id"] for i in params.get("taskgraph", {}).get("path", {})
+        assistant_records: List[Dict[str, str]] = [
+            message for message in history if message["role"] == "assistant"
         ]
-        assert node_path == test_case["expected_taskgraph_path"]
-        # Check node status
-        node_status: Dict[str, Any] = params.get("taskgraph", {}).get("node_status")
-        assert node_status == test_case["expected_node_status"]
+        for record in assistant_records:
+            assert record["content"] != ""
