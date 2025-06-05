@@ -160,3 +160,13 @@ class IntentDetector(BaseNLU):
         except Exception as e:
             logger.error(f"Error in intent detection: {str(e)}")
             return "others"
+
+    def execute(
+        self,
+        text: str,
+        intents: Dict[str, List[Dict[str, Any]]],
+        chat_history_str: str,
+        model_config: Dict[str, Any],
+    ) -> str:
+        """Alias for predict_intent to match expected interface in TaskGraph."""
+        return self.predict_intent(text, intents, chat_history_str, model_config)
