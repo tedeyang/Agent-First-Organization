@@ -40,18 +40,18 @@ Usage:
     node_info, updated_params = task_graph.get_node({"input": "user message"})
 """
 
+import collections
 import copy
 import logging
-import collections
-from typing import Tuple, Dict, List, Any, Optional, Union, DefaultDict
+from typing import Any, DefaultDict, Dict, List, Optional, Tuple, Union
 
 import networkx as nx
 import numpy as np
 
 from arklex.env.nested_graph.nested_graph import NestedGraph
-from arklex.utils.utils import normalize, str_similarity
-from arklex.utils.graph_state import NodeInfo, Params, PathNode, StatusEnum, LLMConfig
 from arklex.orchestrator.NLU.nlu import NLU, SlotFilling
+from arklex.utils.graph_state import LLMConfig, NodeInfo, Params, PathNode, StatusEnum
+from arklex.utils.utils import normalize, str_similarity
 
 logger = logging.getLogger(__name__)
 
@@ -245,6 +245,8 @@ class TaskGraph(TaskGraphBase):
             attributes=node_info["attribute"],
             add_flow_stack=False,
             additional_args={
+                "successors": list(self.graph.successors(sample_node)),
+                "predecessors": list(self.graph.predecessors(sample_node)),
                 "tags": node_info["attribute"].get("tags", {}),
                 **{
                     k2: v2
