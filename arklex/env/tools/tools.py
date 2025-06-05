@@ -16,7 +16,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from arklex.utils.graph_state import MessageState, StatusEnum
 from arklex.utils.slot import Slot
-from arklex.orchestrator.NLU.nlu import SlotFilling
+from arklex.orchestrator.NLU.core.slot import SlotFiller
 from arklex.utils.utils import format_chat_history
 from arklex.exceptions import ToolExecutionError, AuthenticationError
 
@@ -75,7 +75,7 @@ class Tool:
         name (str): The name of the tool.
         description (str): Description of the tool's functionality.
         output (List[str]): List of output field names.
-        slotfillapi (Optional[SlotFilling]): Slot filling API instance.
+        slotfillapi (Optional[SlotFiller]): Slot filling API instance.
         info (Dict[str, Any]): Tool information including parameters and requirements.
         slots (List[Slot]): List of slot instances.
         isResponse (bool): Whether the tool is a response tool.
@@ -106,7 +106,7 @@ class Tool:
         self.name: str = name
         self.description: str = description
         self.output: List[str] = outputs
-        self.slotfillapi: Optional[SlotFilling] = None
+        self.slotfillapi: Optional[SlotFiller] = None
         self.info: Dict[str, Any] = self.get_info(slots)
         self.slots: List[Slot] = [Slot.model_validate(slot) for slot in slots]
         self.isResponse: bool = isResponse
@@ -148,11 +148,11 @@ class Tool:
             },
         }
 
-    def init_slotfilling(self, slotfillapi: SlotFilling) -> None:
+    def init_slotfilling(self, slotfillapi: SlotFiller) -> None:
         """Initialize the slot filling API.
 
         Args:
-            slotfillapi (SlotFilling): The slot filling API instance to use.
+            slotfillapi (SlotFiller): The slot filling API instance to use.
         """
         self.slotfillapi = slotfillapi
 
