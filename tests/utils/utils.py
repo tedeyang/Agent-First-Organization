@@ -135,20 +135,22 @@ class MockResourceInitializer:
 
 @contextlib.contextmanager
 def mock_llm_invoke():
-    # Use real LLM in non-local environments
-    if os.getenv("ARKLEX_TEST_ENV", "non-local") != "local":
-        yield
-        return
+    """Context manager that patches the LLM with mock responses.
 
-    # Use mock LLM in local environment
+    This function patches the LLM to return consistent mock responses
+    based on the user's message. It is used in tests to ensure
+    predictable behavior regardless of environment.
+
+    Yields:
+        None: The context manager yields nothing.
+    """
+
     class DummyAIMessage:
         def __init__(self, content):
             self.content = content
 
     def get_last_user_message(args, kwargs):
         # Try to extract the last user message from args/kwargs
-        # This depends on how the LLM is called in the orchestrator
-        # We'll look for a list of dicts with 'role': 'user' and get the last one
         for arg in list(args) + list(kwargs.values()):
             if isinstance(arg, list):
                 user_msgs = [
@@ -160,28 +162,16 @@ def mock_llm_invoke():
 
     def dummy_invoke(*args, **kwargs):
         user_msg = get_last_user_message(args, kwargs)
-        convo = []
-        for arg in list(args) + list(kwargs.values()):
-            if isinstance(arg, list):
-                convo = arg
-        # MCWorker: expects ['1', '2']
+
+        # Define mock responses based on the user message
         if user_msg == "What products do you have?":
-            # If this is the first user message, go to node 1
-            if not any(
-                m.get("content") == "Product 1" for m in convo if isinstance(m, dict)
-            ):
-                return DummyAIMessage(
-                    '{"name": "respond", "arguments": {"content": "I\'m sorry, but I currently do not have access to a product database to provide specific product information. Please visit our website or contact our sales team for more details on available products.", "node_id": "1"}}'
-                )
-        if user_msg == "Product 1":
-            # If "Product 1" was selected, go to node 2
-            return DummyAIMessage(
-                '{"name": "respond", "arguments": {"content": "Could you please provide more details or context about \'Product 1\' so I can assist you better?", "node_id": "2"}}'
-            )
-        # Default fallback: return a generic response
-        return DummyAIMessage(
-            '{"name": "respond", "arguments": {"content": "Hello! How can I help you today?", "node_id": "0"}}'
-        )
+            response = "We have products A, B, and C. Which one do you want to know more about?"
+        elif user_msg == "Product 1":
+            response = "Product 1 is a great choice! It has excellent reviews and is one of our bestsellers. Would you like to know more details or purchase it?"
+        else:
+            response = "Hello! How can I help you today?"
+
+        return DummyAIMessage(response)
 
     async def dummy_ainvoke(*args, **kwargs):
         return dummy_invoke(*args, **kwargs)

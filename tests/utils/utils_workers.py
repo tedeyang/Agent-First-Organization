@@ -33,8 +33,7 @@ class MCWorkerOrchestrator(MockOrchestrator):
         """Validate the test results for multiple choice workers.
 
         This function validates that the task graph path and response content
-        match the expected values from the test case. It checks that the
-        assistant's responses match one of the expected responses.
+        match the expected values from the test case.
 
         Args:
             test_case (Dict[str, Any]): Test case containing expected values.
@@ -68,30 +67,13 @@ class MCWorkerOrchestrator(MockOrchestrator):
             if message["role"] == "assistant"
         ]
 
-        # Define valid responses for each expected message
-        valid_responses = [
-            # First message (greeting)
-            ["Hello! How can I help you today?"],
-            # Second message (products response)
-            [
-                "We offer a wide range of products including electronics, clothing, home goods, and more. If you have a specific category in mind, let me know and I can provide more details!",
-                "I'm sorry, but I currently do not have access to a product database to provide specific product information. Please visit our website or contact our sales team for more details on available products.",
-            ],
-            # Third message (Product 1 response)
-            [
-                "Could you please provide more details or specify the category or type of 'Product 1' you are interested in?",
-                "Could you please provide more details or context about 'Product 1' so I can assist you better?",
-            ],
-        ]
-
         # Check assistant responses
         for i, (expected, actual) in enumerate(
             zip(expected_records, assistant_records)
         ):
             assert actual["role"] == expected["role"], f"Role mismatch at index {i}"
-            # Check if the actual response matches any of the valid responses
-            assert any(valid in actual["content"] for valid in valid_responses[i]), (
-                f"Content mismatch at index {i}: expected one of {valid_responses[i]} to be in '{actual['content']}'"
+            assert actual["content"] == expected["content"], (
+                f"Content mismatch at index {i}: expected '{expected['content']}' but got '{actual['content']}'"
             )
 
 

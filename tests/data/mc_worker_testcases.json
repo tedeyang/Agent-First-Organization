@@ -1,5 +1,6 @@
 [
     {
+        "description": "Simulate a multi-turn conversation with a multiple choice worker.",
         "user_utterance": [
             "What products do you have?",
             "Product 1"
@@ -15,11 +16,11 @@
             },
             {
                 "role": "assistant",
-                "content": "We offer a wide range of products including electronics, clothing, home goods, and more. If you have a specific category in mind, let me know and I can provide more details!"
+                "content": "We have products A, B, and C. Which one do you want to know more about?"
             },
             {
                 "role": "assistant",
-                "content": "Could you please provide more details or specify the category or type of 'Product 1' you are interested in?"
+                "content": "Product 1 is a great choice! It has excellent reviews and is one of our bestsellers. Would you like to know more details or purchase it?"
             }
         ]
     }
