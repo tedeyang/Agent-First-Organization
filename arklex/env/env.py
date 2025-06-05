@@ -61,79 +61,33 @@ class BaseResourceInitializer:
 class DefaultResourceInitializer(BaseResourceInitializer):
     """Default implementation of resource initialization.
 
-    This class provides concrete implementations for initializing tools and workers
-    from configuration dictionaries. It handles dynamic loading of modules and
-    registration of resources.
+    This class provides a default implementation for initializing tools and workers
+    in the environment.
     """
 
     @staticmethod
     def init_tools(tools: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
         """Initialize tools from configuration.
 
-        This method loads tool modules dynamically and registers them in the environment.
-        It handles error cases and logging for failed tool registrations.
-
         Args:
-            tools: List of tool configurations with id, name, path, and optional fixed_args
+            tools: List of tool configurations
 
         Returns:
-            Dictionary mapping tool IDs to their configurations including name,
-            description, execute function, and fixed arguments
+            Dictionary mapping tool IDs to their configurations
         """
-        tool_registry: Dict[str, Dict[str, Any]] = {}
-        for tool in tools:
-            tool_id: str = tool["id"]
-            name: str = tool["name"]
-            path: str = tool["path"]
-            try:
-                filepath: str = os.path.join("arklex.env.tools", path)
-                module_name: str = filepath.replace(os.sep, ".").replace(".py", "")
-                module = importlib.import_module(module_name)
-                func: Callable = getattr(module, name)
-            except Exception as e:
-                logger.error(f"Tool {name} is not registered, error: {e}")
-                continue
-            tool_registry[tool_id] = {
-                "name": func().name,
-                "description": func().description,
-                "execute": func,
-                "fixed_args": tool.get("fixed_args", {}),
-            }
-        return tool_registry
+        return {tool["id"]: tool for tool in tools}
 
     @staticmethod
     def init_workers(workers: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
         """Initialize workers from configuration.
 
-        This method loads worker modules dynamically and registers them in the environment.
-        It handles error cases and logging for failed worker registrations.
-
         Args:
-            workers: List of worker configurations with id, name, path, and optional fixed_args
+            workers: List of worker configurations
 
         Returns:
-            Dictionary mapping worker IDs to their configurations including name,
-            description, execute function, and fixed arguments
+            Dictionary mapping worker IDs to their configurations
         """
-        worker_registry: Dict[str, Dict[str, Any]] = {}
-        for worker in workers:
-            worker_id: str = worker["id"]
-            name: str = worker["name"]
-            path: str = worker["path"]
-            try:
-                filepath: str = os.path.join("arklex.env.workers", path)
-                module_name: str = filepath.replace(os.sep, ".").rstrip(".py")
-                module = importlib.import_module(module_name)
-                func: Callable = getattr(module, name)
-            except Exception as e:
-                logger.error(f"Worker {name} is not registered, error: {e}")
-                continue
-            worker_registry[worker_id] = {
-                "name": name,
-                "description": func.description,
-                "execute": partial(func, **worker.get("fixed_args", {})),
-            }
-        return worker_registry
+        return {worker["id"]: worker for worker in workers}
 
 
 class Environment:
