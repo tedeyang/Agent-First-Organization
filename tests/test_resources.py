@@ -18,12 +18,18 @@ OrchestratorType = Type[Any]
 TestCaseConfig = Tuple[OrchestratorType, str, str]
 
 
-@dataclass
+@dataclass(frozen=True)
+@pytest.mark.no_collect
 class TestCaseConfig:
     """Configuration for a test case suite.
 
     This class holds the configuration for a set of test cases, including
     the orchestrator class to test and the paths to its configuration files.
+
+    Attributes:
+        orchestrator_cls: The orchestrator class to test
+        config_file: Path to the taskgraph configuration file
+        test_cases_file: Path to the test cases file
     """
 
     orchestrator_cls: OrchestratorType
