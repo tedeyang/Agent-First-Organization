@@ -169,6 +169,17 @@ class Environment:
         self.slot_fill_api = self.initialize_slot_fill_api(slot_fill_api)
         self.resource_initializer = resource_initializer or DefaultResourceInitializer()
         self.planner_enabled = planner_enabled
+        if planner_enabled:
+            tools_map = DefaultResourceInitializer.init_tools(self.tools)
+            workers_map = {
+                worker["id"]: {**worker, "description": worker.get("description", "")}
+                for worker in self.workers
+            }
+            name2id = {tool["name"]: tool["id"] for tool in self.tools}
+            name2id.update({worker["name"]: worker["id"] for worker in self.workers})
+            self.planner = ReactPlanner(tools_map, workers_map, name2id)
+        else:
+            self.planner = None
 
     def initialize_slot_fill_api(self, slot_fill_api: str) -> SlotFiller:
         """Initialize the slot filling API.

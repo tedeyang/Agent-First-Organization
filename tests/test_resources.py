@@ -25,7 +25,9 @@ class TestResources:
 
     def __init__(self) -> None:
         """Initialize the test resources."""
-        self.env = Environment(tools=[], workers=[], slot_fill_api="")
+        self.env = Environment(
+            tools=[], workers=[], slot_fill_api="", planner_enabled=True
+        )
 
 
 TEST_CASES: List[Tuple[Type[Any], str, str]] = [

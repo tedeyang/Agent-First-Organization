@@ -59,6 +59,7 @@ class MockOrchestrator(ABC):
                 tools=self.config["tools"],
                 workers=self.config["workers"],
                 slot_fill_api=self.config["slotfillapi"],
+                planner_enabled=True,
             ),
         )
         return orchestrator.get_response(data)
