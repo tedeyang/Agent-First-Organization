@@ -143,17 +143,15 @@ class MockOrchestrator(ABC):
             "chat_history": history,
             "parameters": params,
         }
+        from tests.utils.utils import MockResourceInitializer
+
         env_kwargs = dict(
             tools=self.config["tools"],
             workers=self.config["workers"],
             slot_fill_api=self.config["slotfillapi"],
             planner_enabled=True,
+            resource_initializer=MockResourceInitializer(),
         )
-        if (
-            hasattr(self, "resource_initializer")
-            and self.resource_initializer is not None
-        ):
-            env_kwargs["resource_initializer"] = self.resource_initializer
         orchestrator = AgentOrg(
             config=self.config,
             env=Environment(**env_kwargs),
