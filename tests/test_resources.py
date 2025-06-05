@@ -4,6 +4,7 @@ This module provides test resources for testing the Arklex framework.
 """
 
 import json
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, Type, cast
 
@@ -12,19 +13,38 @@ import pytest
 from tests.utils.utils_workers import MCWorkerOrchestrator, MsgWorkerOrchestrator
 from tests.utils.utils_tools import ShopifyToolOrchestrator
 
+# Type aliases for better readability
+OrchestratorType = Type[Any]
+TestCaseConfig = Tuple[OrchestratorType, str, str]
+
+
+@dataclass
+class TestCase:
+    """Represents a test case configuration."""
+
+    orchestrator_cls: OrchestratorType
+    config_file: str
+    test_cases_file: str
+
+    @property
+    def name(self) -> str:
+        """Get the name of the test case."""
+        return f"{self.orchestrator_cls.__name__}-{self.config_file}-{self.test_cases_file}"
+
+
 # Test case configuration for different orchestrator types
-TEST_CASES: List[Tuple[Type[Any], str, str]] = [
-    (
+TEST_CASES: List[TestCase] = [
+    TestCase(
         MCWorkerOrchestrator,
         "mc_worker_taskgraph.json",
         "mc_worker_testcases.json",
     ),
-    (
+    TestCase(
         MsgWorkerOrchestrator,
         "message_worker_taskgraph.json",
         "message_worker_testcases.json",
     ),
-    (
+    TestCase(
         ShopifyToolOrchestrator,
         "shopify_tool_taskgraph.json",
         "shopify_tool_testcases.json",
@@ -32,15 +52,35 @@ TEST_CASES: List[Tuple[Type[Any], str, str]] = [
 ]
 
 
+def load_test_cases(test_cases_path: Path) -> List[Dict[str, Any]]:
+    """Load test cases from a JSON file.
+
+    Args:
+        test_cases_path (Path): Path to the test cases file.
+
+    Returns:
+        List[Dict[str, Any]]: List of test cases.
+
+    Raises:
+        pytest.fail: If the file cannot be loaded or parsed.
+    """
+    try:
+        with open(test_cases_path, "r") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        pytest.fail(f"Test cases file not found: {test_cases_path}", pytrace=True)
+    except json.JSONDecodeError as e:
+        pytest.fail(
+            f"Invalid JSON in test cases file {test_cases_path}: {str(e)}", pytrace=True
+        )
+
+
 @pytest.mark.parametrize(
-    "orchestrator_cls, config_file_name, test_cases_file_name",
+    "test_case",
     TEST_CASES,
+    ids=lambda tc: tc.name,
 )
-def test_resources(
-    orchestrator_cls: Type[Any],
-    config_file_name: str,
-    test_cases_file_name: str,
-) -> None:
+def test_resources(test_case: TestCase) -> None:
     """Run test cases for a specific orchestrator class.
 
     This function loads test cases from a file and runs them using the specified
@@ -48,34 +88,25 @@ def test_resources(
     messages.
 
     Args:
-        orchestrator_cls (Type[Any]): The orchestrator class to test.
-        config_file_name (str): Name of the configuration file.
-        test_cases_file_name (str): Name of the test cases file.
+        test_case (TestCase): The test case configuration.
 
     Raises:
         pytest.fail: If any test case fails, with a detailed error message
             including the test case number and orchestrator class name.
     """
     data_dir = Path(__file__).parent / "data"
-    config_path = data_dir / config_file_name
-    test_cases_path = data_dir / test_cases_file_name
+    config_path = data_dir / test_case.config_file
+    test_cases_path = data_dir / test_case.test_cases_file
 
-    test_resources_instance = orchestrator_cls(str(config_path))
+    test_resources_instance = test_case.orchestrator_cls(str(config_path))
+    test_cases = load_test_cases(test_cases_path)
 
-    try:
-        with open(test_cases_path, "r") as f:
-            test_cases: List[Dict[str, Any]] = json.load(f)
-    except (json.JSONDecodeError, FileNotFoundError) as e:
-        pytest.fail(
-            f"Failed to load test cases from {test_cases_file_name}: {str(e)}",
-            pytrace=True,
-        )
-
-    for i, test_case in enumerate(test_cases):
+    for i, test_case_data in enumerate(test_cases):
         try:
-            test_resources_instance.run_single_test(test_case)
+            test_resources_instance.run_single_test(test_case_data)
         except Exception as e:
             pytest.fail(
-                f"Test case {i} failed for {orchestrator_cls.__name__} from {test_cases_file_name}: {str(e)}",
+                f"Test case {i} failed for {test_case.orchestrator_cls.__name__} "
+                f"from {test_case.test_cases_file}: {str(e)}",
                 pytrace=True,
             )
