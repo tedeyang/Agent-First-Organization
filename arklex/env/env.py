@@ -9,7 +9,7 @@ import logging
 import os
 import uuid
 from functools import partial
-from typing import Any, Callable, Dict, List, Optional, Union, Tuple, cast
+from typing import Any, Callable, Dict, List, Optional, Union, Tuple
 
 from arklex.env.planner.react_planner import DefaultPlanner, ReactPlanner
 from arklex.env.tools.tools import Tool

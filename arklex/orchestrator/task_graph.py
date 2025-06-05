@@ -43,7 +43,7 @@ Usage:
 import copy
 import logging
 import collections
-from typing import Tuple, Dict, List, Any, Optional, Union, DefaultDict
+from typing import Tuple, Dict, List, Any, Optional, DefaultDict
 
 import networkx as nx
 import numpy as np

@@ -58,7 +58,6 @@ import json
 import logging
 import time
 from dotenv import load_dotenv
-from langchain_core.runnables import RunnableLambda
 from typing import Any, Dict, Tuple, List, Optional, Union
 from arklex.env.nested_graph.nested_graph import NESTED_GRAPH_ID, NestedGraph
 from arklex.env.env import Environment
@@ -85,6 +84,7 @@ from arklex.utils.graph_state import (
 from arklex.utils.utils import format_chat_history
 from arklex.utils.model_config import MODEL
 from arklex.memory import ShortTermMemory
+from langchain_core.runnables import RunnableLambda
 
 
 load_dotenv()

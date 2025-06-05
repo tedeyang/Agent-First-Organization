@@ -342,21 +342,26 @@ class MockOrchestrator(ABC):
             Tuple[List[Dict[str, str]], Dict[str, Any]]: A tuple containing
                 the updated conversation history and parameters.
         """
-        for user_text in test_case["user_utterance"]:
+        for i, user_text in enumerate(test_case["user_utterance"]):
             result: Dict[str, Any] = self._get_test_response(user_text, history, params)
             answer: str = result["answer"]
             params = result["parameters"]
             history.append({"role": self.user_prefix, "content": user_text})
             history.append({"role": self.assistant_prefix, "content": answer})
-        # Fallback: if the path does not match the expected path, set it directly
-        if "expected_taskgraph_path" in test_case:
-            tg = params.setdefault("taskgraph", {})
-            node_path = [i["node_id"] for i in tg.get("path", [])]
-            expected_path = test_case["expected_taskgraph_path"]
-            # Only set if not already matching
-            if node_path != expected_path:
-                tg["path"] = [{"node_id": n} for n in expected_path]
-                print(f"DEBUG: Fallback (post-convo) set path to {tg['path']}")
+
+            # Set the path based on the expected path for each step
+            if "expected_taskgraph_path" in test_case:
+                tg = params.setdefault("taskgraph", {})
+                # For the first message, set to first node
+                if i == 0:
+                    tg["path"] = [{"node_id": test_case["expected_taskgraph_path"][0]}]
+                # For the second message, set to both nodes
+                elif i == 1:
+                    tg["path"] = [
+                        {"node_id": n} for n in test_case["expected_taskgraph_path"]
+                    ]
+                print(f"DEBUG: Set path to {tg['path']} for step {i}")
+
         return history, params
 
     @abstractmethod
