@@ -45,6 +45,9 @@ python3 -m pytest tests/test_resources.py::test_resources[MCWorkerOrchestrator-m
 
 # Run tests matching a pattern
 python3 -m pytest tests/test_resources.py -k "MCWorker" -v
+
+# Run tests with specific markers
+python3 -m pytest tests/test_resources.py -m "not slow" -v
 ```
 
 ## Test Structure
@@ -157,6 +160,43 @@ TEST_CASES: List[TestCaseConfig] = [
 }
 ```
 
+### Conditional Branching
+
+```json
+{
+    "user_utterance": [
+        "Hello",
+        "I want to buy a product",
+        "Tell me about Product A",
+        "What's the price?",
+        "That's too expensive",
+        "What about Product B?"
+    ],
+    "expected_taskgraph_path": ["0", "1", "2", "3", "4", "5"]
+}
+```
+
+### Slot Filling
+
+```json
+{
+    "user_utterance": [
+        "Hello",
+        "I want to order a product",
+        "Product A",
+        "Size large",
+        "Color blue",
+        "Yes, that's correct"
+    ],
+    "expected_taskgraph_path": ["0", "1", "2", "3", "4", "5"],
+    "expected_slots": {
+        "product": "Product A",
+        "size": "large",
+        "color": "blue"
+    }
+}
+```
+
 ## Mock LLM Responses
 
 When running tests locally, the mock LLM provides predefined responses based on the conversation context. Here's how to customize these responses in `tests/utils/utils.py`:
@@ -169,6 +209,35 @@ def dummy_invoke(*args, **kwargs):
             '{"name": "respond", "arguments": {"content": "We have products A, B, and C", "node_id": "1"}}'
         )
     # Add more response patterns as needed
+```
+
+### Common Response Patterns
+
+1. **Product Information**
+
+```python
+if "product" in user_msg.lower():
+    return DummyAIMessage(
+        '{"name": "respond", "arguments": {"content": "This product features...", "node_id": "2"}}'
+    )
+```
+
+2. **Price Queries**
+
+```python
+if "price" in user_msg.lower():
+    return DummyAIMessage(
+        '{"name": "respond", "arguments": {"content": "The price is $99.99", "node_id": "3"}}'
+    )
+```
+
+3. **Confirmation Handling**
+
+```python
+if any(word in user_msg.lower() for word in ["yes", "correct", "right"]):
+    return DummyAIMessage(
+        '{"name": "respond", "arguments": {"content": "Great! Let's proceed.", "node_id": "4"}}'
+    )
 ```
 
 ## Known Warnings
@@ -236,3 +305,13 @@ If you encounter issues not covered here:
    - Regularly update test cases as features evolve
    - Remove obsolete test cases
    - Keep documentation in sync with code changes
+
+4. **Performance**
+   - Use local testing for quick development cycles
+   - Run integration tests before merging
+   - Consider test execution time in CI/CD pipelines
+
+5. **Documentation**
+   - Keep test cases well-documented
+   - Document any special test requirements
+   - Update examples when adding new features
