@@ -116,9 +116,7 @@ class IntentDetector(BaseNLU):
             intents, chat_history_str
         )
 
-        response = self.model_service.get_model_response(
-            prompt, model_config, note="intent detection"
-        )
+        response = self.model_service.get_response(prompt)
 
         pred_intent = idx2intents_mapping.get(response.strip(), "others")
         logger.info(f"Predicted intent: {pred_intent}")
