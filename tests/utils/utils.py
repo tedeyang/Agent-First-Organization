@@ -8,7 +8,7 @@ with support for custom validation through abstract methods.
 
 import json
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Generator
 import contextlib
 from unittest.mock import patch
 import os
@@ -134,7 +134,7 @@ class MockResourceInitializer:
 
 
 @contextlib.contextmanager
-def mock_llm_invoke():
+def mock_llm_invoke() -> Generator[None, None, None]:
     """Context manager that patches the LLM with mock responses.
 
     This function patches the LLM to return consistent mock responses
@@ -146,11 +146,11 @@ def mock_llm_invoke():
     """
 
     class DummyAIMessage:
-        def __init__(self, content):
+        def __init__(self, content: str) -> None:
             self.content = content
 
-    def get_last_user_message(args, kwargs):
-        # Try to extract the last user message from args/kwargs
+    def get_last_user_message(args, kwargs) -> str:
+        """Extract the last user message from args/kwargs."""
         for arg in list(args) + list(kwargs.values()):
             if isinstance(arg, list):
                 user_msgs = [
@@ -160,9 +160,8 @@ def mock_llm_invoke():
                     return user_msgs[-1].get("content", "")
         return ""
 
-    def dummy_invoke(*args, **kwargs):
+    def dummy_invoke(*args, **kwargs) -> DummyAIMessage:
         user_msg = get_last_user_message(args, kwargs)
-
         # Define mock responses based on the user message
         if user_msg == "What products do you have?":
             response = "We have the following products, which one do you want to know more about?"
@@ -170,7 +169,6 @@ def mock_llm_invoke():
             response = "Product 1 is good"
         else:
             response = "Hello! How can I help you today?"
-
         return DummyAIMessage(response)
 
     async def dummy_ainvoke(*args, **kwargs):
