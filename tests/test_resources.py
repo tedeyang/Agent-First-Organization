@@ -4,23 +4,28 @@ This module provides test resources for testing the Arklex framework.
 """
 
 import json
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Tuple, Type, cast
+from typing import Any, Dict, List, Type
 
 import pytest
 
 from tests.utils.utils_workers import MCWorkerOrchestrator, MsgWorkerOrchestrator
 from tests.utils.utils_tools import ShopifyToolOrchestrator
+from tests.utils.test_config import CaseConfig
+
+
+# Register custom markers
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "no_collect: mark a class to be excluded from pytest collection"
+    )
+
 
 # Type aliases for better readability
 OrchestratorType = Type[Any]
-TestCaseConfig = Tuple[OrchestratorType, str, str]
 
 
-@dataclass(frozen=True)
-@pytest.mark.no_collect
-class TestCaseConfig:
+class CaseConfig:
     """Configuration for a test case suite.
 
     This class holds the configuration for a set of test cases, including
@@ -32,29 +37,47 @@ class TestCaseConfig:
         test_cases_file: Path to the test cases file
     """
 
-    orchestrator_cls: OrchestratorType
-    config_file: str
-    test_cases_file: str
+    def __init__(
+        self,
+        orchestrator_cls: OrchestratorType,
+        config_file: str,
+        test_cases_file: str,
+    ):
+        self.orchestrator_cls = orchestrator_cls
+        self.config_file = config_file
+        self.test_cases_file = test_cases_file
 
     @property
     def name(self) -> str:
         """Get the name of the test case configuration."""
         return f"{self.orchestrator_cls.__name__}-{self.config_file}-{self.test_cases_file}"
 
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, CaseConfig):
+            return NotImplemented
+        return (
+            self.orchestrator_cls == other.orchestrator_cls
+            and self.config_file == other.config_file
+            and self.test_cases_file == other.test_cases_file
+        )
+
+    def __hash__(self) -> int:
+        return hash((self.orchestrator_cls, self.config_file, self.test_cases_file))
+
 
 # Test case configuration for different orchestrator types
-TEST_CASES: List[TestCaseConfig] = [
-    TestCaseConfig(
+TEST_CASES: List[CaseConfig] = [
+    CaseConfig(
         MCWorkerOrchestrator,
         "mc_worker_taskgraph.json",
         "mc_worker_testcases.json",
     ),
-    TestCaseConfig(
+    CaseConfig(
         MsgWorkerOrchestrator,
         "message_worker_taskgraph.json",
         "message_worker_testcases.json",
     ),
-    TestCaseConfig(
+    CaseConfig(
         ShopifyToolOrchestrator,
         "shopify_tool_taskgraph.json",
         "shopify_tool_testcases.json",
@@ -90,7 +113,7 @@ def load_test_cases(test_cases_path: Path) -> List[Dict[str, Any]]:
     TEST_CASES,
     ids=lambda tc: tc.name,
 )
-def test_resources(test_case: TestCaseConfig) -> None:
+def test_resources(test_case: CaseConfig) -> None:
     """Run test cases for a specific orchestrator class.
 
     This function loads test cases from a file and runs them using the specified
@@ -98,7 +121,7 @@ def test_resources(test_case: TestCaseConfig) -> None:
     messages.
 
     Args:
-        test_case (TestCaseConfig): The test case configuration.
+        test_case (CaseConfig): The test case configuration.
 
     Raises:
         pytest.fail: If any test case fails, with a detailed error message
