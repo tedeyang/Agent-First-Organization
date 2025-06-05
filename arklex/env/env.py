@@ -143,17 +143,19 @@ class Environment:
         """
         return SlotFiller(slot_fill_api)
 
-    def _init_tools(self) -> None:
-        """Initialize tools with slot filling API."""
-        for tool in self.tools:
-            if hasattr(tool, "init_slot_filler"):
-                tool.init_slot_filler(self.slot_fill_api)
+    def init_slotfiller(self, slotfiller_api: str) -> None:
+        """Initialize slot filler for tools and workers.
 
-    def _init_workers(self) -> None:
-        """Initialize workers with slot filling API."""
-        for worker in self.workers:
-            if hasattr(worker, "init_slot_filler"):
-                worker.init_slot_filler(self.slot_fill_api)
+        Args:
+            slotfiller_api (str): URL for the slot filler API
+        """
+        for tool in self.tools.values():
+            if hasattr(tool, "init_slotfiller"):
+                tool.init_slotfiller(slotfiller_api)
+
+        for worker in self.workers.values():
+            if hasattr(worker, "init_slotfiller"):
+                worker.init_slotfiller(slotfiller_api)
 
     def step(
         self, id: str, message_state: MessageState, params: Params, node_info: NodeInfo

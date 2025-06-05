@@ -213,13 +213,13 @@ class Tool:
             },
         }
 
-    def init_slotfilling(self, slotfillapi: SlotFiller) -> None:
-        """Initialize the slot filling API.
+    def init_slotfiller(self, slotfiller_api: str) -> None:
+        """Initialize slot filler for the tool.
 
         Args:
-            slotfillapi (SlotFiller): The slot filling API instance to use.
+            slotfiller_api (str): URL for the slot filler API
         """
-        self.slotfillapi = slotfillapi
+        self.slotfiller = SlotFiller(slotfiller_api)
 
     def _init_slots(self, state: MessageState) -> None:
         """Initialize slots with default values from the message state.

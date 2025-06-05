@@ -26,7 +26,7 @@ class TestResources:
     def __init__(self) -> None:
         """Initialize the test resources."""
         self.env = Environment(
-            tools=[], workers=[], slot_fill_api="", planner_enabled=True
+            tools=[], workers=[], slot_filler_api="", planner_enabled=True
         )
 
 

@@ -16,12 +16,12 @@ class TraceType(Enum):
 
     Attributes:
         IntentDetection: Traces for intent detection operations
-        SlotFilling: Traces for slot filling operations
+        SlotFiller: Traces for slot filling operations
         ToolExecution: Traces for tool execution operations
     """
 
     IntentDetection = "IntentDetection"  # Intent detection operation traces
-    SlotFilling = "SlotFilling"  # Slot filling operation traces
+    SlotFiller = "SlotFiller"  # Slot filling operation traces
     ToolExecution = "ToolExecution"  # Tool execution operation traces
 
 

@@ -244,35 +244,15 @@ def structured_input_output(slots: List[Slot]) -> Tuple[SlotInputList, Type]:
     return SlotInputList(slot_input_list=input_slots), output_format
 
 
-def format_slotfilling_output(slots: List[Slot], response: Any) -> List[Slot]:
-    """Format the output of slot filling operations.
-
-    This function updates the values of slots based on the response from a slot
-    filling operation. It takes the response from the slot filling model and
-    updates the corresponding slots with the new values.
-
-    The function:
-    1. Logs the filled slots for debugging
-    2. Extracts values from the response
-    3. Updates each slot with its corresponding value
-    4. Maintains type safety throughout the process
+def format_slotfiller_output(slots: List[Slot], response: Any) -> List[Slot]:
+    """Format the output of slot filler.
 
     Args:
-        slots (List[Slot]): List of slots to update.
-        response (Any): Response from the slot filling operation, expected to be
-                       a Pydantic model with fields matching slot names.
+        slots (List[Slot]): List of slots to format
+        response (Any): Response from slot filler
 
     Returns:
-        List[Slot]: Updated list of slots with filled values from the response.
-
-    Example:
-        slots = [
-            Slot(name="name", type="str"),
-            Slot(name="age", type="int")
-        ]
-        response = DynamicSlotOutputs(name="John", age=30)
-        updated_slots = format_slotfilling_output(slots, response)
-        # updated_slots contains slots with updated values
+        List[Slot]: Formatted slots
     """
     logger.info(f"filled_slots: {response}")
     filled_slots = response.model_dump()
