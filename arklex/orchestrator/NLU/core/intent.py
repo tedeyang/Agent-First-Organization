@@ -117,6 +117,7 @@ class IntentDetector(BaseNLU):
         )
 
         response = self.model_service.get_response(prompt)
+        response = response.split(")")[0].strip()
 
         pred_intent = idx2intents_mapping.get(response.strip(), "others")
         logger.info(f"Predicted intent: {pred_intent}")

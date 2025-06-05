@@ -154,7 +154,8 @@ class AgentOrg:
         )
 
         # Update planner model info now that LLMConfig is defined
-        self.env.planner.set_llm_config_and_build_resource_library(self.llm_config)
+        if self.env.planner:
+            self.env.planner.set_llm_config_and_build_resource_library(self.llm_config)
 
         self.hitl_worker_available = any(
             worker.get("name") == "HITLWorkerChatFlag"

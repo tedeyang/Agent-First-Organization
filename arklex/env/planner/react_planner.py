@@ -235,7 +235,7 @@ class ReactPlanner(DefaultPlanner):
             worker_name: PlannerResource(
                 name=worker_name,
                 type="worker",
-                description=workers_map[worker_name]["description"],
+                description=workers_map[worker_name].get("description", ""),
                 parameters=[],
                 required=[],
                 returns={},
