@@ -1,39 +1,7 @@
-"""Environment management and resource initialization for the Arklex framework.
+"""Environment management for the Arklex framework.
 
-This module provides functionality for managing the execution environment, including tool and
-worker initialization, resource registration, and step-by-step execution of actions. It
-includes classes for resource initialization, environment management, and integration with
-planners and slot filling systems.
-
-Key Components:
-- BaseResourceInitializer: Abstract base class for resource initialization
-- DefaultResourceInitializer: Concrete implementation for tool and worker initialization
-- Env: Main environment class for managing resources and execution
-
-Key Features:
-- Dynamic loading of tools and workers
-- Resource registration and management
-- Integration with planners and slot filling
-- Step-by-step execution control
-- State management and tracking
-- Error handling and logging
-
-Usage:
-    # Initialize environment with tools and workers
-    env = Env(
-        tools=tool_configs,
-        workers=worker_configs,
-        slotsfillapi=slot_filling_api,
-        planner_enabled=True
-    )
-
-    # Execute a step in the environment
-    response_state, params = env.step(
-        id=resource_id,
-        message_state=current_state,
-        params=parameters,
-        node_info=node_information
-    )
+This module provides functionality for managing the environment, including
+worker initialization, tool management, and slot filling integration.
 """
 
 import importlib
@@ -49,7 +17,7 @@ from arklex.env.workers.worker import BaseWorker
 from arklex.orchestrator.NLU.core.slot import SlotFiller
 from arklex.utils.graph_state import MessageState, NodeInfo, Params
 
-logger: logging.Logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class BaseResourceInitializer:
@@ -90,7 +58,7 @@ class BaseResourceInitializer:
         raise NotImplementedError
 
 
-class DefaulResourceInitializer(BaseResourceInitializer):
+class DefaultResourceInitializer(BaseResourceInitializer):
     """Default implementation of resource initialization.
 
     This class provides concrete implementations for initializing tools and workers
@@ -168,66 +136,62 @@ class DefaulResourceInitializer(BaseResourceInitializer):
         return worker_registry
 
 
-class Env:
-    """Main environment class for managing resources and execution.
+class Environment:
+    """Environment management for workers and tools.
 
-    This class manages the execution environment, including tool and worker initialization,
-    resource registration, and step-by-step execution of actions. It integrates with
-    planners and slot filling systems for comprehensive environment management.
+    This class manages the environment for workers and tools, including
+    initialization, state management, and slot filling integration.
+
+    Attributes:
+        slot_fill_api (SlotFiller): Slot filling API instance
+        // ... rest of attributes ...
     """
 
     def __init__(
         self,
         tools: List[Dict[str, Any]],
         workers: List[Dict[str, Any]],
-        slotsfillapi: str = "",
-        resource_inizializer: Optional[BaseResourceInitializer] = None,
+        slot_fill_api: str = "",
+        resource_initializer: Optional[BaseResourceInitializer] = None,
         planner_enabled: bool = False,
     ) -> None:
-        """Initialize the environment with tools and workers.
+        """Initialize the environment.
 
         Args:
-            tools: List of tool configurations
-            workers: List of worker configurations
-            slotsfillapi: API endpoint for slot filling
-            resource_inizializer: Optional custom resource initializer
-            planner_enabled: Whether to enable the planner
+            tools: List of tools to initialize
+            workers: List of workers to initialize
+            slot_fill_api: API endpoint for slot filling
+            resource_initializer: Resource initializer instance
+            planner_enabled: Whether planning is enabled
         """
-        if resource_inizializer is None:
-            resource_inizializer = DefaulResourceInitializer()
-        self.tools: Dict[str, Dict[str, Any]] = resource_inizializer.init_tools(tools)
-        self.workers: Dict[str, Dict[str, Any]] = resource_inizializer.init_workers(
-            workers
-        )
-        self.name2id: Dict[str, str] = {
-            resource["name"]: id
-            for id, resource in {**self.tools, **self.workers}.items()
-        }
-        self.id2name: Dict[str, str] = {
-            id: resource["name"]
-            for id, resource in {**self.tools, **self.workers}.items()
-        }
-        self.slotfillapi: SlotFiller = self.initialize_slotfillapi(slotsfillapi)
+        self.tools = tools
+        self.workers = workers
+        self.slot_fill_api = self.initialize_slot_fill_api(slot_fill_api)
+        self.resource_initializer = resource_initializer or DefaultResourceInitializer()
+        self.planner_enabled = planner_enabled
 
-        if planner_enabled:
-            self.planner: Union[ReactPlanner, DefaultPlanner] = ReactPlanner(
-                tools_map=self.tools, workers_map=self.workers, name2id=self.name2id
-            )
-        else:
-            self.planner: Union[ReactPlanner, DefaultPlanner] = DefaultPlanner(
-                tools_map=self.tools, workers_map=self.workers, name2id=self.name2id
-            )
-
-    def initialize_slotfillapi(self, slotsfillapi: str) -> SlotFiller:
+    def initialize_slot_fill_api(self, slot_fill_api: str) -> SlotFiller:
         """Initialize the slot filling API.
 
         Args:
-            slotsfillapi: API endpoint for slot filling
+            slot_fill_api: API endpoint for slot filling
 
         Returns:
-            Initialized slot filling API instance
+            SlotFiller: Initialized slot filling API instance
         """
-        return SlotFiller(slotsfillapi)
+        return SlotFiller(slot_fill_api)
+
+    def _init_tools(self) -> None:
+        """Initialize tools with slot filling API."""
+        for tool in self.tools:
+            if hasattr(tool, "init_slot_filler"):
+                tool.init_slot_filler(self.slot_fill_api)
+
+    def _init_workers(self) -> None:
+        """Initialize workers with slot filling API."""
+        for worker in self.workers:
+            if hasattr(worker, "init_slot_filler"):
+                worker.init_slot_filler(self.slot_fill_api)
 
     def step(
         self, id: str, message_state: MessageState, params: Params, node_info: NodeInfo
@@ -250,7 +214,7 @@ class Env:
         if id in self.tools:
             logger.info(f"{self.tools[id]['name']} tool selected")
             tool: Tool = self.tools[id]["execute"]()
-            tool.init_slotfilling(self.slotfillapi)
+            tool.init_slotfilling(self.slot_fill_api)
             combined_args: Dict[str, Any] = {
                 **self.tools[id]["fixed_args"],
                 **(node_info.additional_args or {}),
@@ -268,7 +232,7 @@ class Env:
             logger.info(f"{self.workers[id]['name']} worker selected")
             worker: BaseWorker = self.workers[id]["execute"]()
             if hasattr(worker, "init_slotfilling"):
-                worker.init_slotfilling(self.slotfillapi)
+                worker.init_slotfilling(self.slot_fill_api)
             response_state = worker.execute(message_state, **node_info.additional_args)
             call_id: str = str(uuid.uuid4())
             params.memory.function_calling_trajectory.append(

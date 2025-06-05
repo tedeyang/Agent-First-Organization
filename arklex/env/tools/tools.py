@@ -100,7 +100,7 @@ class BaseTool:
         Returns:
             Result of tool execution
         """
-        # do slot filling
+        # Perform slot filling
         if self.slot_fill_api:
             slots = self._get_required_slots()
             filled_slots = self.slot_fill_api.execute(slots, message_state.text)
