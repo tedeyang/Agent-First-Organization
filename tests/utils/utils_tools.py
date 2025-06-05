@@ -9,7 +9,7 @@ import os
 import json
 from typing import Any, Dict, List
 
-from tests.utils.utils import MockOrchestrator
+from tests.utils.utils import MockOrchestrator, MockResourceInitializer
 
 
 class ShopifyToolOrchestrator(MockOrchestrator):
@@ -22,6 +22,7 @@ class ShopifyToolOrchestrator(MockOrchestrator):
         fixed_args: str = os.environ.get("SHOPIFY_FIXED_ARGS", "{}")
         self.fixed_args: Dict[str, Any] = json.loads(fixed_args)
         super().__init__(config_file_path, self.fixed_args)
+        self.resource_initializer = MockResourceInitializer()
 
     def _validate_result(
         self,

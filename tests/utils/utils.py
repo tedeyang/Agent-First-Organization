@@ -68,6 +68,9 @@ class MockResourceInitializer:
             Dict[str, Dict[str, Any]]: Dictionary mapping tool IDs to their configurations
         """
         tools_map = {}
+        if not tools:
+            # Always return at least an empty dict with the expected structure
+            return tools_map
         for tool in tools:
             mock_tool = MockTool(tool["name"], tool["description"])
             tools_map[tool["id"]] = {
@@ -88,6 +91,9 @@ class MockResourceInitializer:
             Dict[str, Dict[str, Any]]: Dictionary mapping worker IDs to their configurations
         """
         workers_map = {}
+        if not workers:
+            # Always return at least an empty dict with the expected structure
+            return workers_map
         for worker in workers:
             mock_tool = MockTool(worker["name"], worker["description"])
             workers_map[worker["id"]] = {
@@ -137,15 +143,20 @@ class MockOrchestrator(ABC):
             "chat_history": history,
             "parameters": params,
         }
+        env_kwargs = dict(
+            tools=self.config["tools"],
+            workers=self.config["workers"],
+            slot_fill_api=self.config["slotfillapi"],
+            planner_enabled=True,
+        )
+        if (
+            hasattr(self, "resource_initializer")
+            and self.resource_initializer is not None
+        ):
+            env_kwargs["resource_initializer"] = self.resource_initializer
         orchestrator = AgentOrg(
             config=self.config,
-            env=Environment(
-                tools=self.config["tools"],
-                workers=self.config["workers"],
-                slot_fill_api=self.config["slotfillapi"],
-                planner_enabled=True,
-                resource_initializer=MockResourceInitializer(),
-            ),
+            env=Environment(**env_kwargs),
         )
         return orchestrator.get_response(data)
 

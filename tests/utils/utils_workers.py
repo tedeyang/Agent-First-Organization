@@ -7,11 +7,9 @@ content.
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
-from arklex.env.env import Environment
-from arklex.utils.graph_state import MessageState, NodeInfo, Params
-from tests.utils.utils import MockOrchestrator
+from tests.utils.utils import MockOrchestrator, MockResourceInitializer
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +22,7 @@ class MCWorkerOrchestrator(MockOrchestrator):
             config_file_path (str): Path to the configuration file.
         """
         super().__init__(config_file_path)
+        self.resource_initializer = MockResourceInitializer()
 
     def _validate_result(
         self,
@@ -73,6 +72,7 @@ class MsgWorkerOrchestrator(MockOrchestrator):
             config_file_path (str): Path to the configuration file.
         """
         super().__init__(config_file_path)
+        self.resource_initializer = MockResourceInitializer()
 
     def _validate_result(
         self,
