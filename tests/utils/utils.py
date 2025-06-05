@@ -171,12 +171,12 @@ def mock_llm_invoke():
                 m.get("content") == "Product 1" for m in convo if isinstance(m, dict)
             ):
                 return DummyAIMessage(
-                    '{"name": "respond", "arguments": {"content": "We have the following products, which one do you want to know more about?", "node_id": "1"}}'
+                    '{"name": "respond", "arguments": {"content": "I\'m sorry, but I currently do not have access to a product database to provide specific product information. Please visit our website or contact our sales team for more details on available products.", "node_id": "1"}}'
                 )
         if user_msg == "Product 1":
             # If "Product 1" was selected, go to node 2
             return DummyAIMessage(
-                '{"name": "respond", "arguments": {"content": "Product 1 is good", "node_id": "2"}}'
+                '{"name": "respond", "arguments": {"content": "Could you please provide more details or context about \'Product 1\' so I can assist you better?", "node_id": "2"}}'
             )
         # Default fallback: return a generic response
         return DummyAIMessage(
