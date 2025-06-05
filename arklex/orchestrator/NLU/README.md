@@ -4,21 +4,21 @@ This directory contains the Natural Language Understanding (NLU) components of t
 
 ## Components
 
-### Core NLU (`nlu.py`)
+### Core Components
 
-- Intent detection and classification
-- Slot filling and value extraction
-- Input processing and validation
-- Response formatting
-- Error handling
+- `core/intent.py`: Intent detection and classification
+- `core/slot.py`: Slot filling and value extraction
+- `core/base.py`: Base interfaces and abstract classes
 
-### API Layer (`api.py`)
+### Services
 
-- FastAPI endpoints for NLU services
-- Model interaction and response generation
-- Input/output formatting
-- Error handling and validation
-- Configuration management
+- `services/model_service.py`: Model interaction and configuration
+- `services/api_service.py`: API client and request handling
+
+### API Layer
+
+- `api/routes.py`: FastAPI endpoints for NLU services
+- `api/schemas.py`: Request/response models and validation
 
 ## Features
 
@@ -48,59 +48,82 @@ This directory contains the Natural Language Understanding (NLU) components of t
 
 ## Usage
 
-### Core NLU
+### Intent Detection
 
 ```python
-from arklex.orchestrator.NLU.nlu import NLU, SlotFilling
+from arklex.orchestrator.NLU.core.intent import IntentDetector
 
-# Initialize NLU
-nlu = NLU(config={
-    "model": "gpt-4",
-    "api_key": "your-api-key"
+# Initialize intent detector
+intent_detector = IntentDetector(config={
+    "api_url": "your_api_url",
+    "api_key": "your_api_key"
 })
 
 # Detect intent
-intent = nlu.execute("I want to book a flight")
+intent = intent_detector.execute(
+    "I want to book a flight",
+    candidate_intents={
+        "book_flight": [...],
+        "check_status": [...]
+    }
+)
+```
 
-# Initialize slot filling
-slot_filler = SlotFilling(config={
-    "model": "gpt-4",
-    "api_key": "your-api-key"
+### Slot Filling
+
+```python
+from arklex.orchestrator.NLU.core.slot import SlotFiller
+from arklex.utils.slot import Slot
+
+# Initialize the slot filler
+slot_filler = SlotFiller(config={
+    "api_url": "your_api_url",
+    "api_key": "your_api_key"
 })
 
-# Fill slots
-slots = slot_filler.execute(
-    "I want to fly to New York on Monday",
-    required_slots=["destination", "date"]
-)
+# Define slots
+slots = [
+    Slot(
+        name="name",
+        description="The user's full name",
+        required=True,
+        type="string"
+    ),
+    Slot(
+        name="age",
+        description="The user's age",
+        required=True,
+        type="integer"
+    )
+]
+
+# Fill slots from text
+filled_slots = slot_filler.execute(slots, "My name is John and I am 30 years old")
 ```
 
 ### API Endpoints
 
 ```python
 from fastapi import FastAPI
-from arklex.orchestrator.NLU.api import NLUModelAPI, SlotFillModelAPI
+from arklex.orchestrator.NLU.api.routes import create_app
 
-app = FastAPI()
+app = create_app()
 
-# Initialize APIs
-nlu_api = NLUModelAPI()
-slot_api = SlotFillModelAPI()
-
-# Add endpoints
-app.post("/nlu/predict")(nlu_api.predict)
-app.post("/slotfill/predict")(slot_api.predict)
-app.post("/slotfill/verify")(slot_api.verify)
+# The app will have these endpoints:
+# - POST /intent/predict: Intent detection
+# - POST /slot/predict: Slot filling
+# - POST /slot/verify: Slot verification
 ```
 
 ## Configuration
 
-### NLU Configuration
+### Intent Detection Configuration
 
 ```json
 {
+    "api_url": "your_api_url",
+    "api_key": "your_api_key",
     "model": "gpt-4",
-    "api_key": "your-api-key",
     "temperature": 0.7,
     "max_tokens": 100,
     "timeout": 30
@@ -111,12 +134,12 @@ app.post("/slotfill/verify")(slot_api.verify)
 
 ```json
 {
+    "api_url": "your_api_url",
+    "api_key": "your_api_key",
     "model": "gpt-4",
-    "api_key": "your-api-key",
     "temperature": 0.7,
     "max_tokens": 100,
-    "timeout": 30,
-    "required_slots": ["destination", "date"]
+    "timeout": 30
 }
 ```
 
