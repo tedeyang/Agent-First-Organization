@@ -35,6 +35,18 @@ This will make actual API calls to the LLM service, useful for:
 - Testing API integration
 - Catching service-specific issues
 
+### Running Specific Test Cases
+
+To run a specific test case:
+
+```bash
+# Run a specific orchestrator test
+python3 -m pytest tests/test_resources.py::test_resources[MCWorkerOrchestrator-mc_worker_taskgraph.json-mc_worker_testcases.json] -v
+
+# Run tests matching a pattern
+python3 -m pytest tests/test_resources.py -k "MCWorker" -v
+```
+
 ## Test Structure
 
 The test suite is organized as follows:
@@ -92,14 +104,71 @@ Create a test cases file in `tests/data/`:
 Add your test case to `TEST_CASES` in `tests/test_resources.py`:
 
 ```python
-TEST_CASES: List[TestCase] = [
+TEST_CASES: List[TestCaseConfig] = [
     # ... existing test cases ...
-    TestCase(
+    TestCaseConfig(
         YourNewOrchestrator,
         "your_taskgraph.json",
         "your_testcases.json"
     ),
 ]
+```
+
+## Example Test Cases
+
+### Basic Conversation Flow
+
+```json
+{
+    "user_utterance": [
+        "Hello",
+        "I want to buy a product",
+        "Tell me about Product A"
+    ],
+    "expected_taskgraph_path": ["0", "1", "2"]
+}
+```
+
+### Error Handling
+
+```json
+{
+    "user_utterance": [
+        "Hello",
+        "Invalid input",
+        "What products do you have?"
+    ],
+    "expected_taskgraph_path": ["0", "1", "2"]
+}
+```
+
+### Complex Multi-turn Dialog
+
+```json
+{
+    "user_utterance": [
+        "Hello",
+        "I want to buy a product",
+        "Tell me about Product A",
+        "What's the price?",
+        "I'll take it"
+    ],
+    "expected_taskgraph_path": ["0", "1", "2", "3", "4"]
+}
+```
+
+## Mock LLM Responses
+
+When running tests locally, the mock LLM provides predefined responses based on the conversation context. Here's how to customize these responses in `tests/utils/utils.py`:
+
+```python
+def dummy_invoke(*args, **kwargs):
+    user_msg = get_last_user_message(args, kwargs)
+    if user_msg == "What products do you have?":
+        return DummyAIMessage(
+            '{"name": "respond", "arguments": {"content": "We have products A, B, and C", "node_id": "1"}}'
+        )
+    # Add more response patterns as needed
 ```
 
 ## Known Warnings
@@ -149,3 +218,21 @@ If you encounter issues not covered here:
 2. Review the test case configuration
 3. Verify the orchestrator implementation
 4. Contact the development team for assistance
+
+## Best Practices
+
+1. **Test Case Design**
+   - Keep test cases focused and atomic
+   - Test both happy paths and error cases
+   - Include edge cases and boundary conditions
+   - Document complex test scenarios
+
+2. **Mock Responses**
+   - Keep mock responses simple and predictable
+   - Document any assumptions in the mock behavior
+   - Update mocks when API behavior changes
+
+3. **Maintenance**
+   - Regularly update test cases as features evolve
+   - Remove obsolete test cases
+   - Keep documentation in sync with code changes
