@@ -165,9 +165,9 @@ def mock_llm_invoke():
 
         # Define mock responses based on the user message
         if user_msg == "What products do you have?":
-            response = "We have products A, B, and C. Which one do you want to know more about?"
+            response = "We have the following products, which one do you want to know more about?"
         elif user_msg == "Product 1":
-            response = "Product 1 is a great choice! It has excellent reviews and is one of our bestsellers. Would you like to know more details or purchase it?"
+            response = "Product 1 is good"
         else:
             response = "Hello! How can I help you today?"
 
