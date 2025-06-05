@@ -1,7 +1,5 @@
 [
     {
-        "description": "Simulate the user asking about available products with multiple choice function.",
-        "criteria": "The second assistant message should be about available products and the third assistant message should be about Product 1.",
         "user_utterance": [
             "What products do you have?",
             "Product 1"
@@ -10,22 +8,14 @@
             "1",
             "2"
         ],
-        "expected_conversation": [
+        "expected_records": [
             {
                 "role": "assistant",
                 "content": "Hello! How can I help you today?"
             },
             {
-                "role": "user",
-                "content": "What products do you have?"
-            },
-            {
                 "role": "assistant",
                 "content": "I'm sorry, but I currently do not have access to a product database to provide specific product information. Please visit our website or contact our sales team for more details on available products."
-            },
-            {
-                "role": "user",
-                "content": "Product 1"
             },
             {
                 "role": "assistant",
