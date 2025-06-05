@@ -177,14 +177,9 @@ def mock_llm_invoke():
             return DummyAIMessage(
                 '{"name": "respond", "arguments": {"content": "Product 1 is good", "node_id": "2"}}'
             )
-        # MsgWorker: expects ['1']
-        if user_msg == "What products do you have?":
-            return DummyAIMessage(
-                '{"name": "respond", "arguments": {"content": "We have products A, B, and C. Which one do you want to know more about?", "node_id": "1"}}'
-            )
-        # Default fallback: always return a JSON with node_id '1'
+        # Default fallback: return a generic response
         return DummyAIMessage(
-            '{"name": "respond", "arguments": {"content": "We have products A, B, and C. Which one do you want to know more about?", "node_id": "1"}}'
+            '{"name": "respond", "arguments": {"content": "Hello! How can I help you today?", "node_id": "0"}}'
         )
 
     async def dummy_ainvoke(*args, **kwargs):
