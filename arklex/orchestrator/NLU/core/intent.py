@@ -39,7 +39,9 @@ class IntentDetector(BaseNLU):
         api_service: Optional service for remote API-based intent detection
     """
 
-    def __init__(self, api_url: Optional[str] = None) -> None:
+    def __init__(
+        self, api_url: Optional[str] = None, model_config: Optional[dict] = None
+    ) -> None:
         """Initialize the intent detector.
 
         Creates a new intent detector instance, optionally configuring it
@@ -49,12 +51,19 @@ class IntentDetector(BaseNLU):
             api_url: Optional URL for remote API service. If provided,
                     the detector will use the remote API instead of
                     local model-based detection.
+            model_config: Optional model configuration dictionary. If not provided,
+                    a default config will be used.
 
         Note:
             If api_url is not provided, the detector will use local
             model-based intent detection exclusively.
         """
-        self.model_service = ModelService()
+        if model_config is None:
+            model_config = {
+                "model_type_or_path": "gpt-3.5-turbo",
+                "llm_provider": "openai",
+            }
+        self.model_service = ModelService(model_config)
         self.api_service = APIClientService(api_url) if api_url else None
 
     def _detect_intent_remote(

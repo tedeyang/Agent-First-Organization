@@ -10,7 +10,7 @@ import json
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple
 
-from arklex.env.env import Env
+from arklex.env.env import Environment
 from arklex.orchestrator.orchestrator import AgentOrg
 
 
@@ -55,10 +55,10 @@ class MockOrchestrator(ABC):
         }
         orchestrator = AgentOrg(
             config=self.config,
-            env=Env(
+            env=Environment(
                 tools=self.config["tools"],
                 workers=self.config["workers"],
-                slotsfillapi=self.config["slotfillapi"],
+                slot_fill_api=self.config["slotfillapi"],
             ),
         )
         return orchestrator.get_response(data)

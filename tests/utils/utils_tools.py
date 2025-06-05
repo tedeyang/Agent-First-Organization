@@ -19,7 +19,7 @@ class ShopifyToolOrchestrator(MockOrchestrator):
         Args:
             config_file_path (str): Path to the configuration file.
         """
-        fixed_args: str = os.environ["SHOPIFY_FIXED_ARGS"]
+        fixed_args: str = os.environ.get("SHOPIFY_FIXED_ARGS", "{}")
         self.fixed_args: Dict[str, Any] = json.loads(fixed_args)
         super().__init__(config_file_path, self.fixed_args)
 

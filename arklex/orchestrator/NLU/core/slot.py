@@ -42,7 +42,9 @@ class SlotFiller(BaseSlotFilling):
         api_service: Optional service for remote API-based slot filling
     """
 
-    def __init__(self, api_url: Optional[str] = None) -> None:
+    def __init__(
+        self, api_url: Optional[str] = None, model_config: Optional[dict] = None
+    ) -> None:
         """Initialize the slot filler.
 
         Creates a new slot filler instance, optionally configuring it
@@ -52,12 +54,19 @@ class SlotFiller(BaseSlotFilling):
             api_url: Optional URL for remote API service. If provided,
                     the filler will use the remote API instead of
                     local model-based slot filling.
+            model_config: Optional model configuration dictionary. If not provided,
+                    a default config will be used.
 
         Note:
             If api_url is not provided, the filler will use local
             model-based slot filling exclusively.
         """
-        self.model_service = ModelService()
+        if model_config is None:
+            model_config = {
+                "model_type_or_path": "gpt-3.5-turbo",
+                "llm_provider": "openai",
+            }
+        self.model_service = ModelService(model_config)
         self.api_service = APIClientService(api_url) if api_url else None
 
     def _verify_slot_remote(
