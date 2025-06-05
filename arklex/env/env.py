@@ -46,7 +46,7 @@ from typing import Any, Callable, Dict, List, Optional, Union, Tuple, cast
 from arklex.env.planner.react_planner import DefaultPlanner, ReactPlanner
 from arklex.env.tools.tools import Tool
 from arklex.env.workers.worker import BaseWorker
-from arklex.orchestrator.NLU.nlu import SlotFilling
+from arklex.orchestrator.NLU.core.slot import SlotFiller
 from arklex.utils.graph_state import MessageState, NodeInfo, Params
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -207,7 +207,7 @@ class Env:
             id: resource["name"]
             for id, resource in {**self.tools, **self.workers}.items()
         }
-        self.slotfillapi: SlotFilling = self.initialize_slotfillapi(slotsfillapi)
+        self.slotfillapi: SlotFiller = self.initialize_slotfillapi(slotsfillapi)
 
         if planner_enabled:
             self.planner: Union[ReactPlanner, DefaultPlanner] = ReactPlanner(
@@ -218,16 +218,16 @@ class Env:
                 tools_map=self.tools, workers_map=self.workers, name2id=self.name2id
             )
 
-    def initialize_slotfillapi(self, slotsfillapi: str) -> SlotFilling:
+    def initialize_slotfillapi(self, slotsfillapi: str) -> SlotFiller:
         """Initialize the slot filling API.
 
         Args:
             slotsfillapi: API endpoint for slot filling
 
         Returns:
-            Initialized SlotFilling instance
+            Initialized slot filling API instance
         """
-        return SlotFilling(slotsfillapi)
+        return SlotFiller(slotsfillapi)
 
     def step(
         self, id: str, message_state: MessageState, params: Params, node_info: NodeInfo
