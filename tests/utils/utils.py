@@ -135,11 +135,12 @@ class MockResourceInitializer:
 
 @contextlib.contextmanager
 def mock_llm_invoke():
-    # Default to using real LLM unless explicitly set to local
+    # Use real LLM in non-local environments
     if os.getenv("ARKLEX_TEST_ENV", "non-local") != "local":
         yield
         return
 
+    # Use mock LLM in local environment
     class DummyAIMessage:
         def __init__(self, content):
             self.content = content
