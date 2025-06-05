@@ -19,8 +19,12 @@ TestCaseConfig = Tuple[OrchestratorType, str, str]
 
 
 @dataclass
-class TestCase:
-    """Represents a test case configuration."""
+class TestCaseConfig:
+    """Configuration for a test case suite.
+
+    This class holds the configuration for a set of test cases, including
+    the orchestrator class to test and the paths to its configuration files.
+    """
 
     orchestrator_cls: OrchestratorType
     config_file: str
@@ -28,23 +32,23 @@ class TestCase:
 
     @property
     def name(self) -> str:
-        """Get the name of the test case."""
+        """Get the name of the test case configuration."""
         return f"{self.orchestrator_cls.__name__}-{self.config_file}-{self.test_cases_file}"
 
 
 # Test case configuration for different orchestrator types
-TEST_CASES: List[TestCase] = [
-    TestCase(
+TEST_CASES: List[TestCaseConfig] = [
+    TestCaseConfig(
         MCWorkerOrchestrator,
         "mc_worker_taskgraph.json",
         "mc_worker_testcases.json",
     ),
-    TestCase(
+    TestCaseConfig(
         MsgWorkerOrchestrator,
         "message_worker_taskgraph.json",
         "message_worker_testcases.json",
     ),
-    TestCase(
+    TestCaseConfig(
         ShopifyToolOrchestrator,
         "shopify_tool_taskgraph.json",
         "shopify_tool_testcases.json",
@@ -80,7 +84,7 @@ def load_test_cases(test_cases_path: Path) -> List[Dict[str, Any]]:
     TEST_CASES,
     ids=lambda tc: tc.name,
 )
-def test_resources(test_case: TestCase) -> None:
+def test_resources(test_case: TestCaseConfig) -> None:
     """Run test cases for a specific orchestrator class.
 
     This function loads test cases from a file and runs them using the specified
@@ -88,7 +92,7 @@ def test_resources(test_case: TestCase) -> None:
     messages.
 
     Args:
-        test_case (TestCase): The test case configuration.
+        test_case (TestCaseConfig): The test case configuration.
 
     Raises:
         pytest.fail: If any test case fails, with a detailed error message
