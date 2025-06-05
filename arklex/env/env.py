@@ -171,10 +171,7 @@ class Environment:
         self.planner_enabled = planner_enabled
         if planner_enabled:
             tools_map = DefaultResourceInitializer.init_tools(self.tools)
-            workers_map = {
-                worker["id"]: {**worker, "description": worker.get("description", "")}
-                for worker in self.workers
-            }
+            workers_map = DefaultResourceInitializer.init_workers(self.workers)
             name2id = {tool["name"]: tool["id"] for tool in self.tools}
             name2id.update({worker["name"]: worker["id"] for worker in self.workers})
             self.planner = ReactPlanner(tools_map, workers_map, name2id)
