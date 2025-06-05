@@ -12,6 +12,90 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from arklex.env.env import Environment
 from arklex.orchestrator.orchestrator import AgentOrg
+from arklex.utils.graph_state import MessageState
+
+
+class MockTool:
+    """Mock tool for testing purposes.
+
+    This class provides a mock implementation of a tool that can be used in tests.
+    It simulates tool execution by returning predefined responses.
+    """
+
+    def __init__(self, name: str, description: str) -> None:
+        """Initialize the mock tool.
+
+        Args:
+            name (str): Name of the tool
+            description (str): Description of the tool's functionality
+        """
+        self.name = name
+        self.description = description
+        self.info = {
+            "type": "function",
+            "function": {
+                "name": name,
+                "description": description,
+                "parameters": {"type": "object", "properties": {}, "required": []},
+            },
+        }
+        self.output = []
+
+    def execute(self) -> "MockTool":
+        """Return self to simulate tool execution.
+
+        Returns:
+            MockTool: The mock tool instance
+        """
+        return self
+
+
+class MockResourceInitializer:
+    """Mock resource initializer for testing purposes.
+
+    This class provides a mock implementation of resource initialization that
+    creates mock tools and workers for testing.
+    """
+
+    @staticmethod
+    def init_tools(tools: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+        """Initialize mock tools from configuration.
+
+        Args:
+            tools (List[Dict[str, Any]]): List of tool configurations
+
+        Returns:
+            Dict[str, Dict[str, Any]]: Dictionary mapping tool IDs to their configurations
+        """
+        tools_map = {}
+        for tool in tools:
+            mock_tool = MockTool(tool["name"], tool["description"])
+            tools_map[tool["id"]] = {
+                "execute": lambda: mock_tool,
+                "info": mock_tool.info,
+                "output": mock_tool.output,
+            }
+        return tools_map
+
+    @staticmethod
+    def init_workers(workers: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+        """Initialize mock workers from configuration.
+
+        Args:
+            workers (List[Dict[str, Any]]): List of worker configurations
+
+        Returns:
+            Dict[str, Dict[str, Any]]: Dictionary mapping worker IDs to their configurations
+        """
+        workers_map = {}
+        for worker in workers:
+            mock_tool = MockTool(worker["name"], worker["description"])
+            workers_map[worker["id"]] = {
+                "execute": lambda: mock_tool,
+                "info": mock_tool.info,
+                "output": mock_tool.output,
+            }
+        return workers_map
 
 
 class MockOrchestrator(ABC):
@@ -60,6 +144,7 @@ class MockOrchestrator(ABC):
                 workers=self.config["workers"],
                 slot_fill_api=self.config["slotfillapi"],
                 planner_enabled=True,
+                resource_initializer=MockResourceInitializer(),
             ),
         )
         return orchestrator.get_response(data)
