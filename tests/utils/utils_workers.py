@@ -14,6 +14,19 @@ from tests.utils.utils import MockOrchestrator, MockResourceInitializer
 logger = logging.getLogger(__name__)
 
 
+def _extract_node_path(params: Dict[str, Any]) -> List[str]:
+    """Extract the node path from taskgraph parameters, ignoring initial '0' node if present."""
+    node_path = [i["node_id"] for i in params.get("taskgraph", {}).get("path", {})]
+    if node_path and node_path[0] == "0":
+        node_path = node_path[1:]
+    return node_path
+
+
+def _get_assistant_records(history: List[Dict[str, str]]) -> List[Dict[str, str]]:
+    """Extract assistant messages from conversation history."""
+    return [message for message in history if message["role"] == "assistant"]
+
+
 class MCWorkerOrchestrator(MockOrchestrator):
     def __init__(self, config_file_path: str) -> None:
         """Initialize the multiple choice worker orchestrator.
@@ -32,8 +45,7 @@ class MCWorkerOrchestrator(MockOrchestrator):
     ) -> None:
         """Validate the test results for multiple choice workers.
 
-        This function validates that the task graph path and response content
-        match the expected values from the test case.
+        Checks that the task graph path and assistant responses match expected values.
 
         Args:
             test_case (Dict[str, Any]): Test case containing expected values.
@@ -41,40 +53,28 @@ class MCWorkerOrchestrator(MockOrchestrator):
             params (Dict[str, Any]): Parameters containing task graph information.
 
         Raises:
-            AssertionError: If the task graph path or response content does not
-                match the expected values.
+            AssertionError: If the task graph path or response content does not match expected values.
         """
-        # Check taskgraph path
-        node_path: List[str] = [
-            i["node_id"] for i in params.get("taskgraph", {}).get("path", {})
-        ]
-        # Ignore initial '0' node if present
-        if node_path and node_path[0] == "0":
-            node_path = node_path[1:]
+        node_path = _extract_node_path(params)
         print(f"DEBUG: node_path = {node_path}")
         print(
             f"DEBUG: expected_taskgraph_path = {test_case['expected_taskgraph_path']}"
         )
-        assert node_path == test_case["expected_taskgraph_path"]
+        assert node_path == test_case["expected_taskgraph_path"], (
+            f"Taskgraph path mismatch: expected {test_case['expected_taskgraph_path']}, got {node_path}"
+        )
 
-        # Get assistant responses from history
-        assistant_records: List[Dict[str, str]] = [
-            message for message in history if message["role"] == "assistant"
-        ]
-        expected_records: List[Dict[str, str]] = [
+        assistant_records = _get_assistant_records(history)
+        expected_records = [
             message
             for message in test_case["expected_conversation"]
             if message["role"] == "assistant"
         ]
-
-        # Check that each assistant response matches the expected response
         for i, (actual, expected) in enumerate(
             zip(assistant_records, expected_records)
         ):
             assert actual["content"] == expected["content"], (
-                f"Response {i} mismatch:\n"
-                f"Expected: {expected['content']}\n"
-                f"Actual: {actual['content']}"
+                f"Response {i} mismatch:\nExpected: {expected['content']}\nActual: {actual['content']}"
             )
 
 
@@ -96,8 +96,7 @@ class MsgWorkerOrchestrator(MockOrchestrator):
     ) -> None:
         """Validate the test results for message workers.
 
-        This function validates that the task graph path is correct and that
-        the assistant's response is non-empty.
+        Checks that the task graph path is correct and the assistant's response is non-empty.
 
         Args:
             test_case (Dict[str, Any]): Test case containing expected values.
@@ -105,23 +104,17 @@ class MsgWorkerOrchestrator(MockOrchestrator):
             params (Dict[str, Any]): Parameters containing task graph information.
 
         Raises:
-            AssertionError: If the task graph path is incorrect or if the
-                assistant's response is empty.
+            AssertionError: If the task graph path is incorrect or if the assistant's response is empty.
         """
-        # Check taskgraph path
-        node_path: List[str] = [
-            i["node_id"] for i in params.get("taskgraph", {}).get("path", {})
-        ]
-        # Ignore initial '0' node if present
-        if node_path and node_path[0] == "0":
-            node_path = node_path[1:]
+        node_path = _extract_node_path(params)
         print(f"DEBUG: node_path = {node_path}")
         print(
             f"DEBUG: expected_taskgraph_path = {test_case['expected_taskgraph_path']}"
         )
-        assert node_path == test_case["expected_taskgraph_path"]
-        # Message response should be non-empty
-        assistant_records: Dict[str, str] = [
-            message for message in history if message["role"] == "assistant"
-        ][0]
-        assert assistant_records["content"] != ""
+        assert node_path == test_case["expected_taskgraph_path"], (
+            f"Taskgraph path mismatch: expected {test_case['expected_taskgraph_path']}, got {node_path}"
+        )
+        assistant_records = _get_assistant_records(history)
+        assert assistant_records and assistant_records[0]["content"] != "", (
+            "Assistant response should be non-empty"
+        )
