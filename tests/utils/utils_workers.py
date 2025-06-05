@@ -63,17 +63,18 @@ class MCWorkerOrchestrator(MockOrchestrator):
         ]
         expected_records: List[Dict[str, str]] = [
             message
-            for message in test_case["expected_records"]
+            for message in test_case["expected_conversation"]
             if message["role"] == "assistant"
         ]
 
-        # Check assistant responses
-        for i, (expected, actual) in enumerate(
-            zip(expected_records, assistant_records)
+        # Check that each assistant response matches the expected response
+        for i, (actual, expected) in enumerate(
+            zip(assistant_records, expected_records)
         ):
-            assert actual["role"] == expected["role"], f"Role mismatch at index {i}"
             assert actual["content"] == expected["content"], (
-                f"Content mismatch at index {i}: expected '{expected['content']}' but got '{actual['content']}'"
+                f"Response {i} mismatch:\n"
+                f"Expected: {expected['content']}\n"
+                f"Actual: {actual['content']}"
             )
 
 
