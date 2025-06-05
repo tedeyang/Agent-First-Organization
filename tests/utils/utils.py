@@ -11,6 +11,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple
 import contextlib
 from unittest.mock import patch
+import os
 
 from arklex.env.env import Environment
 from arklex.orchestrator.orchestrator import AgentOrg
@@ -135,6 +136,11 @@ class MockResourceInitializer:
 
 @contextlib.contextmanager
 def mock_llm_invoke():
+    # Default to using real LLM unless explicitly set to local
+    if os.getenv("ARKLEX_TEST_ENV", "non-local") != "local":
+        yield
+        return
+
     class DummyAIMessage:
         def __init__(self, content):
             self.content = content
