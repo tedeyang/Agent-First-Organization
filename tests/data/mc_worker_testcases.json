@@ -15,11 +15,11 @@
             },
             {
                 "role": "assistant",
-                "content": "I'm sorry, but I currently do not have access to a product database to provide specific product information. Please visit our website or contact our sales team for more details on available products."
+                "content": "We offer a wide range of products including electronics, clothing, home goods, and more. If you have a specific category in mind, let me know and I can provide more details!"
             },
             {
                 "role": "assistant",
-                "content": "Could you please provide more details or context about 'Product 1' so I can assist you better?"
+                "content": "Could you please provide more details or specify the category or type of 'Product 1' you are interested in?"
             }
         ]
     }
