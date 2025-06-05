@@ -69,12 +69,19 @@ class MockResourceInitializer:
         """
         tools_map = {}
         if not tools:
-            # Always return at least an empty dict with the expected structure
+            dummy_tool = MockTool("dummy_tool", "A dummy tool for testing.")
+            tools_map["dummy_tool"] = {
+                "execute": (lambda mt=dummy_tool: mt),
+                "info": dummy_tool.info,
+                "output": dummy_tool.output,
+            }
             return tools_map
         for tool in tools:
-            mock_tool = MockTool(tool["name"], tool["description"])
-            tools_map[tool["id"]] = {
-                "execute": lambda: mock_tool,
+            name = tool.get("name", tool.get("id", "unnamed_tool"))
+            description = tool.get("description", "No description provided.")
+            mock_tool = MockTool(name, description)
+            tools_map[tool.get("id", name)] = {
+                "execute": (lambda mt=mock_tool: mt),
                 "info": mock_tool.info,
                 "output": mock_tool.output,
             }
@@ -92,12 +99,13 @@ class MockResourceInitializer:
         """
         workers_map = {}
         if not workers:
-            # Always return at least an empty dict with the expected structure
             return workers_map
         for worker in workers:
-            mock_tool = MockTool(worker["name"], worker["description"])
-            workers_map[worker["id"]] = {
-                "execute": lambda: mock_tool,
+            name = worker.get("name", worker.get("id", "unnamed_worker"))
+            description = worker.get("description", "No description provided.")
+            mock_tool = MockTool(name, description)
+            workers_map[worker.get("id", name)] = {
+                "execute": (lambda mt=mock_tool: mt),
                 "info": mock_tool.info,
                 "output": mock_tool.output,
             }
