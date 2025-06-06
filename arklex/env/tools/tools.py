@@ -246,16 +246,32 @@ class Tool:
         tool_success: bool = False
         if not missing_required:
             logger.info("all required slots filled")
-            kwargs: Dict[str, Any] = {
-                slot.name: slot.value for slot in slots if slot.value is not None
-            }
+            # Get all slot values, including optional ones that have values
+            kwargs: Dict[str, Any] = {}
+            for slot in slots:
+                # Always include the slot value, even if None
+                kwargs[slot.name] = slot.value if slot.value is not None else ""
+
             combined_kwargs: Dict[str, Any] = {
                 **kwargs,
                 **fixed_args,
                 **self.llm_config,
             }
             try:
-                response = self.func(**combined_kwargs)
+                # Get the function signature to check required arguments
+                sig = inspect.signature(self.func)
+                required_args = [
+                    name
+                    for name, param in sig.parameters.items()
+                    if param.default == inspect.Parameter.empty
+                ]
+
+                # Ensure all required arguments are present
+                for arg in required_args:
+                    if arg not in kwargs:
+                        kwargs[arg] = ""
+
+                response = self.func(**kwargs)
                 tool_success = True
             except ToolExecutionError as tee:
                 logger.error(traceback.format_exc())
