@@ -337,7 +337,7 @@ Please choose the most appropriate intent by providing only the corresponding nu
         The prompt includes slot definitions and the context to analyze.
 
         Args:
-            slots: List of slot definitions to fill
+            slots: List of slot definitions to fill (can be dict or Pydantic model)
             context: Input context to extract values from
             type: Type of slot filling operation (default: "chat")
 
@@ -347,15 +347,29 @@ Please choose the most appropriate intent by providing only the corresponding nu
         # Format slot definitions
         slot_definitions = []
         for slot in slots:
-            # Use direct attribute access for Pydantic models
-            slot_type = getattr(slot, "type", "string")
-            description = getattr(slot, "description", "")
-            required = "required" if getattr(slot, "required", False) else "optional"
-            items = getattr(slot, "items", {})
+            # Handle both dict and Pydantic model inputs
+            if isinstance(slot, dict):
+                slot_name = slot.get("name", "")
+                slot_type = slot.get("type", "string")
+                description = slot.get("description", "")
+                required = "required" if slot.get("required", False) else "optional"
+                items = slot.get("items", {})
+            else:
+                slot_name = getattr(slot, "name", "")
+                slot_type = getattr(slot, "type", "string")
+                description = getattr(slot, "description", "")
+                required = (
+                    "required" if getattr(slot, "required", False) else "optional"
+                )
+                items = getattr(slot, "items", {})
 
-            slot_def = f"- {slot.name} ({slot_type}, {required}): {description}"
+            slot_def = f"- {slot_name} ({slot_type}, {required}): {description}"
             if items:
-                enum_values = getattr(items, "enum", [])
+                enum_values = (
+                    items.get("enum", [])
+                    if isinstance(items, dict)
+                    else getattr(items, "enum", [])
+                )
                 if enum_values:
                     slot_def += f"\n  Possible values: {', '.join(enum_values)}"
             slot_definitions.append(slot_def)
@@ -387,7 +401,7 @@ Please choose the most appropriate intent by providing only the corresponding nu
 
         Args:
             response: Model's response containing extracted slot values
-            slots: Original slot definitions
+            slots: Original slot definitions (can be dict or Pydantic model)
 
         Returns:
             Updated list of slots with extracted values
@@ -401,12 +415,19 @@ Please choose the most appropriate intent by providing only the corresponding nu
 
             # Update slot values
             for slot in slots:
-                # Use attribute access for Pydantic models
-                slot_name = getattr(slot, "name", None)
-                if slot_name in extracted_values:
-                    slot.value = extracted_values[slot_name]
+                # Handle both dict and Pydantic model inputs
+                if isinstance(slot, dict):
+                    slot_name = slot.get("name", "")
+                    if slot_name in extracted_values:
+                        slot["value"] = extracted_values[slot_name]
+                    else:
+                        slot["value"] = None
                 else:
-                    slot.value = None
+                    slot_name = getattr(slot, "name", "")
+                    if slot_name in extracted_values:
+                        setattr(slot, "value", extracted_values[slot_name])
+                    else:
+                        setattr(slot, "value", None)
 
             return slots
         except json.JSONDecodeError as e:
