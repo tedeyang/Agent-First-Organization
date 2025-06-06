@@ -271,7 +271,7 @@ class Tool:
                     if arg not in kwargs:
                         kwargs[arg] = ""
 
-                response = self.func(**kwargs)
+                response = self.func(**combined_kwargs)
                 tool_success = True
             except ToolExecutionError as tee:
                 logger.error(traceback.format_exc())
