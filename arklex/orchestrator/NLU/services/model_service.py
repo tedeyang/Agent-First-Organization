@@ -299,3 +299,89 @@ Chat History:
 Please choose the most appropriate intent by providing only the corresponding number."""
 
         return prompt, idx2intents_mapping
+
+    def format_slot_input(
+        self, slots: List[Dict[str, Any]], context: str, type: str = "chat"
+    ) -> str:
+        """Format input for slot filling.
+
+        Creates a prompt for the model to extract slot values from the given context.
+        The prompt includes slot definitions and the context to analyze.
+
+        Args:
+            slots: List of slot definitions to fill
+            context: Input context to extract values from
+            type: Type of slot filling operation (default: "chat")
+
+        Returns:
+            Formatted prompt string for slot filling
+        """
+        # Format slot definitions
+        slot_definitions = []
+        for slot in slots:
+            slot_type = slot.get("type", "string")
+            description = slot.get("description", "")
+            required = "required" if slot.get("required", False) else "optional"
+            items = slot.get("items", {})
+
+            slot_def = f"- {slot['name']} ({slot_type}, {required}): {description}"
+            if items:
+                enum_values = items.get("enum", [])
+                if enum_values:
+                    slot_def += f"\n  Possible values: {', '.join(enum_values)}"
+            slot_definitions.append(slot_def)
+
+        # Create the prompt
+        system_prompt = (
+            "You are a slot filling assistant. Your task is to extract specific "
+            "information from the given context based on the slot definitions. "
+            "Return the extracted values in JSON format."
+        )
+
+        user_prompt = (
+            f"Context:\n{context}\n\n"
+            f"Slot definitions:\n" + "\n".join(slot_definitions) + "\n\n"
+            "Please extract the values for the defined slots from the context. "
+            "Return the results in JSON format with slot names as keys and "
+            "extracted values as values. If a slot value cannot be found, "
+            "set its value to null."
+        )
+
+        return user_prompt, system_prompt
+
+    def process_slot_response(
+        self, response: str, slots: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """Process the model's response for slot filling.
+
+        Parses the model's response and updates the slot values accordingly.
+
+        Args:
+            response: Model's response containing extracted slot values
+            slots: Original slot definitions
+
+        Returns:
+            Updated list of slots with extracted values
+
+        Raises:
+            ValueError: If response parsing fails
+        """
+        try:
+            # Parse the JSON response
+            extracted_values = json.loads(response)
+
+            # Update slot values
+            for slot in slots:
+                slot_name = slot["name"]
+                if slot_name in extracted_values:
+                    slot["value"] = extracted_values[slot_name]
+                else:
+                    slot["value"] = None
+
+            return slots
+        except json.JSONDecodeError as e:
+            logger.error(f"Error parsing slot filling response: {str(e)}")
+            raise ValueError(f"Failed to parse slot filling response: {str(e)}")
+        except Exception as e:
+            logger.error(f"Error processing slot filling response: {str(e)}")
+            raise ValueError(f"Failed to process slot filling response: {str(e)}")
