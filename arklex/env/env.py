@@ -189,6 +189,9 @@ class Environment:
         Returns:
             Initialized SlotFiller instance
         """
+        if not isinstance(slotsfillapi, str):
+            logger.error("slotsfillapi must be a string")
+            return None
         return SlotFiller(slotsfillapi)
 
     def step(
@@ -209,7 +212,7 @@ class Environment:
         if id in self.tools:
             logger.info(f"{self.tools[id]['name']} tool selected")
             tool: Tool = self.tools[id]["execute"]()
-            tool.init_slotfilling(self.slotfillapi)
+            tool.init_slotfiller(self.slotfillapi)
             combined_args: Dict[str, Any] = {
                 **self.tools[id]["fixed_args"],
                 **(node_info.additional_args or {}),
