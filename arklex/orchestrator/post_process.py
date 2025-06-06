@@ -1,5 +1,6 @@
 import logging
 import re
+from typing import Any
 
 from arklex.env.prompts import load_prompts
 from arklex.env.workers.hitl_worker import HITLWorkerChatFlag
@@ -15,7 +16,7 @@ logger = logging.getLogger(__name__)
 RAG_NODES_STEPS = {
     "FaissRAGWorker": "faiss_retrieve",
     "milvus_rag_worker": "milvus_retrieve",
-    "rag_message_worker": "milvus_retrieve"
+    "rag_message_worker": "milvus_retrieve",
 }
 
 
@@ -52,17 +53,14 @@ def _build_context(message_state: MessageState) -> str:
             if rag_step_type:
                 links = set()
                 for step in resource.steps:
-                    if rag_step_type in step:
-                        for doc in step[rag_step_type]:
-                            try:
-                                for field_value in doc.values():
-                                    if isinstance(field_value, str):
-                                        links.update(
-                                            _extract_links(field_value))
-                            except Exception as e:
-                                logger.warning(
-                                    f"Error extracting links from doc: {e} — doc: {doc}"
-                                )
+                    try:
+                        if rag_step_type in step:
+                            links.update(_extract_links_from_nested_dict(step))
+                    except Exception as e:
+                        logger.warning(
+                            f"Error extracting links from step: {e} — step: {step}"
+                        )
+
                 if links:
                     context += " " + " ".join(links)
     return context
@@ -82,6 +80,23 @@ def _extract_links(text: str) -> set:
     raw_links = re.findall(r"(?:https?://|www\.)[^\s)\"']+", cleaned_text)
     all_links = set(markdown_links + raw_links)
     return {link.rstrip(".,;)!?\"'") for link in all_links}
+
+
+def _extract_links_from_nested_dict(step: Any) -> set:
+    links = set()
+
+    def _recurse(val: Any) -> None:
+        if isinstance(val, str):
+            links.update(_extract_links(val))
+        elif isinstance(val, dict):
+            for v in val.values():
+                _recurse(v)
+        elif isinstance(val, list):
+            for item in val:
+                _recurse(item)
+
+    _recurse(step)
+    return links
 
 
 def _remove_invalid_links(response: str, links: set) -> str:
