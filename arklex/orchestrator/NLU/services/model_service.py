@@ -191,7 +191,14 @@ class ModelService:
 
         return definition_str, exemplars_str, intents_choice, count
 
-    def get_response(self, prompt: str, system_prompt: Optional[str] = None) -> str:
+    def get_response(
+        self,
+        prompt: str,
+        model_config: Optional[Dict[str, Any]] = None,
+        system_prompt: Optional[str] = None,
+        response_format: Optional[str] = None,
+        note: Optional[str] = None,
+    ) -> str:
         """Get response from the model.
 
         Sends a prompt to the model and returns its response as a string.
@@ -199,7 +206,11 @@ class ModelService:
 
         Args:
             prompt: User prompt to send to the model
+            model_config: Optional model configuration parameters. If not provided,
+                         uses the instance's model_config.
             system_prompt: Optional system prompt for model context
+            response_format: Optional format specification for the response
+            note: Optional note for logging purposes
 
         Returns:
             Model response as string
@@ -208,11 +219,23 @@ class ModelService:
             ValueError: If model response is invalid or empty
         """
         try:
-            messages = self._format_messages(prompt, system_prompt)
+            # Use instance model_config if none provided
+            config = model_config if model_config is not None else self.model_config
+
+            # Format messages with system prompt if provided
+            messages = []
+            if system_prompt:
+                messages.append(SystemMessage(content=system_prompt))
+            messages.append(HumanMessage(content=prompt))
+
+            # Get response from model
             response = self.model.invoke(messages)
 
             if not response or not response.content:
                 raise ValueError("Empty response from model")
+
+            if note:
+                logger.info(f"Model response for {note}: {response.content}")
 
             return response.content
         except Exception as e:
@@ -220,7 +243,10 @@ class ModelService:
             raise ValueError(f"Failed to get model response: {str(e)}")
 
     def get_json_response(
-        self, prompt: str, system_prompt: Optional[str] = None
+        self,
+        prompt: str,
+        model_config: Optional[Dict[str, Any]] = None,
+        system_prompt: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Get JSON response from the model.
 
@@ -229,6 +255,8 @@ class ModelService:
 
         Args:
             prompt: User prompt to send to the model
+            model_config: Optional model configuration parameters. If not provided,
+                         uses the instance's model_config.
             system_prompt: Optional system prompt for model context
 
         Returns:
@@ -238,7 +266,7 @@ class ModelService:
             ValueError: If JSON parsing fails or response is invalid
         """
         try:
-            response = self.get_response(prompt, system_prompt)
+            response = self.get_response(prompt, model_config, system_prompt)
             return json.loads(response)
         except json.JSONDecodeError as e:
             logger.error(f"Error parsing JSON response: {str(e)}")
@@ -302,7 +330,7 @@ Please choose the most appropriate intent by providing only the corresponding nu
 
     def format_slot_input(
         self, slots: List[Dict[str, Any]], context: str, type: str = "chat"
-    ) -> str:
+    ) -> Tuple[str, str]:
         """Format input for slot filling.
 
         Creates a prompt for the model to extract slot values from the given context.
@@ -314,24 +342,25 @@ Please choose the most appropriate intent by providing only the corresponding nu
             type: Type of slot filling operation (default: "chat")
 
         Returns:
-            Formatted prompt string for slot filling
+            Tuple of (user_prompt, system_prompt)
         """
         # Format slot definitions
         slot_definitions = []
         for slot in slots:
-            slot_type = slot.get("type", "string")
-            description = slot.get("description", "")
-            required = "required" if slot.get("required", False) else "optional"
-            items = slot.get("items", {})
+            # Use direct attribute access for Pydantic models
+            slot_type = getattr(slot, "type", "string")
+            description = getattr(slot, "description", "")
+            required = "required" if getattr(slot, "required", False) else "optional"
+            items = getattr(slot, "items", {})
 
-            slot_def = f"- {slot['name']} ({slot_type}, {required}): {description}"
+            slot_def = f"- {slot.name} ({slot_type}, {required}): {description}"
             if items:
-                enum_values = items.get("enum", [])
+                enum_values = getattr(items, "enum", [])
                 if enum_values:
                     slot_def += f"\n  Possible values: {', '.join(enum_values)}"
             slot_definitions.append(slot_def)
 
-        # Create the prompt
+        # Create the prompts
         system_prompt = (
             "You are a slot filling assistant. Your task is to extract specific "
             "information from the given context based on the slot definitions. "
@@ -372,11 +401,12 @@ Please choose the most appropriate intent by providing only the corresponding nu
 
             # Update slot values
             for slot in slots:
-                slot_name = slot["name"]
+                # Use attribute access for Pydantic models
+                slot_name = getattr(slot, "name", None)
                 if slot_name in extracted_values:
-                    slot["value"] = extracted_values[slot_name]
+                    slot.value = extracted_values[slot_name]
                 else:
-                    slot["value"] = None
+                    slot.value = None
 
             return slots
         except json.JSONDecodeError as e:

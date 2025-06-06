@@ -111,7 +111,7 @@ class SlotFiller(BaseSlotFilling):
         logger.info("Using local model for slot verification")
         prompt = self.model_service.format_verification_input(slot, chat_history_str)
 
-        response = self.model_service.get_model_response(
+        response = self.model_service.get_response(
             prompt, model_config, note="slot verification"
         )
 
@@ -168,10 +168,16 @@ class SlotFiller(BaseSlotFilling):
             List of filled slots
         """
         logger.info("Using local model for slot filling")
-        prompt = self.model_service.format_slot_input(slots, context, type)
+        user_prompt, system_prompt = self.model_service.format_slot_input(
+            slots, context, type
+        )
 
-        response = self.model_service.get_model_response(
-            prompt, model_config, response_format="json", note="slot filling"
+        response = self.model_service.get_response(
+            user_prompt,
+            model_config,
+            system_prompt=system_prompt,
+            response_format="json",
+            note="slot filling",
         )
 
         filled_slots = self.model_service.process_slot_response(response, slots)
