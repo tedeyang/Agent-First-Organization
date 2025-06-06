@@ -1,3 +1,6 @@
+from arklex.utils.slot import Slot
+
+
 class ShopifySlots:
     def to_list(baseSlot: dict):
         slot = baseSlot.copy()
@@ -8,11 +11,37 @@ class ShopifySlots:
 
     @classmethod
     def get_all_slots(cls):
-        return [
-            slot
-            for slot in cls.__dict__.values()
-            if isinstance(slot, dict) or isinstance(slot, list)
-        ]
+        slots = []
+        for slot in cls.__dict__.values():
+            if isinstance(slot, dict):
+                # Convert dict to Slot object
+                slot_obj = Slot(
+                    name=slot["name"],
+                    type=slot["type"],
+                    value=None,
+                    enum=slot.get("enum", []),
+                    description=slot["description"],
+                    prompt=slot.get("prompt", ""),
+                    required=slot.get("required", False),
+                    verified=slot.get("verified", False),
+                )
+                slots.append(slot_obj)
+            elif isinstance(slot, list):
+                # Handle list of slots
+                for s in slot:
+                    if isinstance(s, dict):
+                        slot_obj = Slot(
+                            name=s["name"],
+                            type=s["type"],
+                            value=None,
+                            enum=s.get("enum", []),
+                            description=s["description"],
+                            prompt=s.get("prompt", ""),
+                            required=s.get("required", False),
+                            verified=s.get("verified", False),
+                        )
+                        slots.append(slot_obj)
+        return slots
 
     USER_ID = {
         "name": "user_id",
@@ -25,7 +54,7 @@ class ShopifySlots:
     PRODUCT_ID = {
         "name": "product_id",
         "type": "str",
-        "description": "The product id, such as 'gid://shopify/Product/2938501948327'.",  # If there is only 1 product, return in list with single item. If there are multiple product ids, please return all of them in a list.",
+        "description": "The product id, such as 'gid://shopify/Product/2938501948327'.",
         "prompt": "In order to proceed, please choose a specific product.",
         "verified": True,
     }
@@ -143,7 +172,7 @@ class ShopifyGetWebProductSlots(ShopifySlots):
     WEB_PRODUCT_ID = {
         "name": "web_product_id",
         "type": "str",
-        "description": "The product id that the user is currently seeing, such as 'gid://shopify/Product/2938501948327'.",  # If there is only 1 product, return in list with single item. If there are multiple product ids, please return all of them in a list.",
+        "description": "The product id that the user is currently seeing, such as 'gid://shopify/Product/2938501948327'.",
         "prompt": "In order to proceed, please choose a specific product.",
         "required": True,
         "verified": True,

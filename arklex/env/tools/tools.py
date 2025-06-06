@@ -213,7 +213,12 @@ class Tool:
             self.slots, chat_history_str, self.llm_config
         )
         logger.info(f"{slots=}")
-        if not all([slot.value and slot.verified for slot in slots if slot.required]):
+
+        # Check if any required slots are missing or unverified
+        missing_required = any(
+            not (slot.value and slot.verified) for slot in slots if slot.required
+        )
+        if missing_required:
             for slot in slots:
                 # if there is extracted slots values but haven't been verified
                 if slot.value and not slot.verified:
@@ -231,17 +236,19 @@ class Tool:
                     else:
                         slot.verified = True
                 # if there is no extracted slots values, then should prompt the user to fill the slot
-                if not slot.value:
+                if not slot.value and slot.required:
                     response = slot.prompt
                     break
 
             state.status = StatusEnum.INCOMPLETE
 
-        # if slot.value is not empty for all slots, and all the slots has been verified, then execute the function
+        # if all required slots are filled and verified, then execute the function
         tool_success: bool = False
-        if all([slot.value and slot.verified for slot in slots if slot.required]):
-            logger.info("all slots filled")
-            kwargs: Dict[str, Any] = {slot.name: slot.value for slot in slots}
+        if not missing_required:
+            logger.info("all required slots filled")
+            kwargs: Dict[str, Any] = {
+                slot.name: slot.value for slot in slots if slot.value is not None
+            }
             combined_kwargs: Dict[str, Any] = {
                 **kwargs,
                 **fixed_args,
