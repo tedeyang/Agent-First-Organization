@@ -10,7 +10,6 @@ import uuid
 import inspect
 import traceback
 import json
-import functools
 from typing import Any, Callable, Dict, List, Optional
 
 from arklex.utils.graph_state import MessageState, StatusEnum
@@ -54,14 +53,10 @@ def register_tool(
         )
         key: str = f"{relative_path}-{func.__name__}"
 
-        tool_instance = Tool(func, key, desc, slots, outputs, isResponse)
+        def tool() -> "Tool":
+            return Tool(func, key, desc, slots, outputs, isResponse)
 
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            return func(*args, **kwargs)
-
-        wrapper._tool = tool_instance
-        return wrapper
+        return tool
 
     return inner
 
@@ -116,37 +111,27 @@ class Tool:
         self.properties: Dict[str, Dict[str, Any]] = {}
         self.llm_config: Dict[str, Any] = {}
 
-    def get_info(self, slots: List[Any]) -> Dict[str, Any]:
+    def get_info(self, slots: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Get tool information including parameters and requirements.
 
         This method processes the slot definitions to create a structured
         representation of the tool's parameters and requirements.
 
         Args:
-            slots (List[Any]): List of slot definitions (dict or Slot).
+            slots (List[Dict[str, Any]]): List of slot definitions.
 
         Returns:
             Dict[str, Any]: Tool information including parameters and requirements.
         """
         self.properties = {}
         for slot in slots:
-            if isinstance(slot, dict):
-                slot_dict = slot
-            else:  # Slot object
-                slot_dict = slot.dict()
-            self.properties[slot_dict["name"]] = {
+            self.properties[slot["name"]] = {
                 k: v
-                for k, v in slot_dict.items()
+                for k, v in slot.items()
                 if k in ["type", "description", "prompt", "items"]
             }
         required: List[str] = [
-            (slot["name"] if isinstance(slot, dict) else slot.name)
-            for slot in slots
-            if (
-                slot.get("required", False)
-                if isinstance(slot, dict)
-                else getattr(slot, "required", False)
-            )
+            slot["name"] for slot in slots if slot.get("required", False)
         ]
         return {
             "type": "function",
