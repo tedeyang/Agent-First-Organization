@@ -42,6 +42,7 @@ class MockTool:
             },
         }
         self.output = []
+        self.fixed_args = {}
 
     def execute(self) -> "MockTool":
         """Return self to simulate tool execution.
@@ -50,6 +51,22 @@ class MockTool:
             MockTool: The mock tool instance
         """
         return self
+
+    # Add dict-style access for compatibility with production code
+    def __getitem__(self, key: str) -> Any:
+        return getattr(self, key)
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        setattr(self, key, value)
+
+    def __contains__(self, key: str) -> bool:
+        return hasattr(self, key)
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
+    def __repr__(self) -> str:
+        return f"MockTool(name={self.name!r}, description={self.description!r})"
 
 
 class MockResourceInitializer:
@@ -77,7 +94,9 @@ class MockResourceInitializer:
             print("No tools provided, creating dummy tool")
             dummy_tool = MockTool("dummy_tool", "A dummy tool for testing.")
             tools_map["dummy_tool"] = dummy_tool
-            print(f"Created dummy tool map: {json.dumps(tools_map, indent=2)}")
+            print(
+                f"Created dummy tool map: {json.dumps({k: v.__dict__ for k, v in tools_map.items()}, indent=2)}"
+            )
             return tools_map
 
         for tool in tools:
@@ -135,7 +154,7 @@ class MockResourceInitializer:
 
 @contextlib.contextmanager
 def mock_llm_invoke() -> Generator[None, None, None]:
-    """Context manager that patches the LLM with mock responses.
+    """Context manager that patches the LLM with mock responses and mocks OpenAI embeddings.
 
     This function patches the LLM to return consistent mock responses
     based on the user's message. It is used in tests to ensure
@@ -174,9 +193,24 @@ def mock_llm_invoke() -> Generator[None, None, None]:
     async def dummy_ainvoke(*args, **kwargs):
         return dummy_invoke(*args, **kwargs)
 
+    def dummy_embed_documents(self, texts, *args, **kwargs):
+        # Return a list of fake embedding vectors (e.g., all zeros)
+        return [[0.0] * 1536 for _ in texts]
+
+    def dummy_embed_query(self, text, *args, **kwargs):
+        return [0.0] * 1536
+
     with (
         patch("arklex.env.planner.react_planner.ChatOpenAI.invoke", new=dummy_invoke),
         patch("arklex.env.planner.react_planner.ChatOpenAI.ainvoke", new=dummy_ainvoke),
+        patch(
+            "langchain_openai.embeddings.base.OpenAIEmbeddings.embed_documents",
+            new=dummy_embed_documents,
+        ),
+        patch(
+            "langchain_openai.embeddings.base.OpenAIEmbeddings.embed_query",
+            new=dummy_embed_query,
+        ),
     ):
         yield
 
