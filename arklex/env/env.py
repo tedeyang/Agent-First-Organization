@@ -184,14 +184,16 @@ class Environment:
         """Initialize the slot filling API.
 
         Args:
-            slotsfillapi: API endpoint for slot filling
+            slotsfillapi: API endpoint for slot filling. If not a string or empty,
+                         falls back to local model-based slot filling.
 
         Returns:
-            Initialized SlotFiller instance
+            SlotFiller: Initialized slot filler instance, either API-based or local model-based.
         """
-        if not isinstance(slotsfillapi, str):
-            logger.error("slotsfillapi must be a string")
-            return None
+        if not isinstance(slotsfillapi, str) or not slotsfillapi:
+            logger.warning("Using local model-based slot filling")
+            return SlotFiller(None)
+        logger.info(f"Initializing SlotFiller with API URL: {slotsfillapi}")
         return SlotFiller(slotsfillapi)
 
     def step(

@@ -10,6 +10,10 @@ import json
 from typing import Any, Dict, List
 
 from tests.utils.utils import MockOrchestrator, MockResourceInitializer
+from arklex.orchestrator.NLU.core.slot import SlotFiller
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ShopifyToolOrchestrator(MockOrchestrator):
@@ -39,3 +43,23 @@ class ShopifyToolOrchestrator(MockOrchestrator):
         ]
         for record in assistant_records:
             assert record["content"] != ""
+
+    def initialize_slotfillapi(self, slotsfillapi: str) -> SlotFiller:
+        """Initialize the slot filling API.
+
+        Args:
+            slotsfillapi: API endpoint for slot filling
+
+        Returns:
+            Initialized SlotFiller instance
+        """
+        if not isinstance(slotsfillapi, str):
+            logger.error("slotsfillapi must be a string")
+            return None
+        if not slotsfillapi:
+            logger.warning(
+                "slotsfillapi is empty, using local model-based slot filling"
+            )
+            return SlotFiller(None)
+        logger.info(f"Initializing SlotFiller with API URL: {slotsfillapi}")
+        return SlotFiller(slotsfillapi)

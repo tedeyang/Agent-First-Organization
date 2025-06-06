@@ -67,7 +67,11 @@ class SlotFiller(BaseSlotFilling):
                 "llm_provider": "openai",
             }
         self.model_service = ModelService(model_config)
-        self.api_service = APIClientService(api_url) if api_url else None
+        if api_url is not None and not isinstance(api_url, str):
+            logger.error("api_url must be a string")
+            self.api_service = None
+        else:
+            self.api_service = APIClientService(api_url) if api_url else None
 
     def _verify_slot_remote(
         self, slot: Dict[str, Any], chat_history_str: str, model_config: Dict[str, Any]
@@ -238,3 +242,28 @@ class SlotFiller(BaseSlotFilling):
         except Exception as e:
             logger.error(f"Error in slot filling: {str(e)}")
             return slots
+
+
+def initialize_slotfillapi(slotsfillapi: str) -> SlotFiller:
+    """Initialize the slot filling API.
+
+    This function creates a new SlotFiller instance, configuring it to use either
+    a remote API service or local model-based slot filling based on the provided
+    API URL.
+
+    Args:
+        slotsfillapi: API endpoint for slot filling. If not a string or empty,
+                     falls back to local model-based slot filling.
+
+    Returns:
+        SlotFiller: Initialized slot filler instance, either API-based or local model-based.
+
+    Note:
+        The function will automatically fall back to local model-based slot filling
+        if the API URL is invalid or not provided.
+    """
+    if not isinstance(slotsfillapi, str) or not slotsfillapi:
+        logger.warning("Using local model-based slot filling")
+        return SlotFiller(None)
+    logger.info(f"Initializing SlotFiller with API URL: {slotsfillapi}")
+    return SlotFiller(slotsfillapi)

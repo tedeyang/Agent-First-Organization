@@ -9,6 +9,7 @@ import logging
 import uuid
 import inspect
 import traceback
+import json
 from typing import Any, Callable, Dict, List, Optional
 
 from arklex.utils.graph_state import MessageState, StatusEnum
@@ -60,73 +61,6 @@ def register_tool(
     return inner
 
 
-class BaseTool:
-    """Base class for tools.
-
-    This class provides the base functionality for tools, including
-    initialization, execution, and slot filling integration.
-
-    Attributes:
-        slot_fill_api (Optional[SlotFiller]): Slot filling API instance
-        // ... rest of attributes ...
-    """
-
-    def __init__(self, name: str, description: str) -> None:
-        """Initialize the tool.
-
-        Args:
-            name: Name of the tool
-            description: Description of the tool's functionality
-        """
-        self.name = name
-        self.description = description
-        self.slot_fill_api: Optional[SlotFiller] = None
-
-    def init_slot_filler(self, slot_fill_api: SlotFiller) -> None:
-        """Initialize the slot filling API.
-
-        Args:
-            slot_fill_api: Slot filling API instance
-        """
-        self.slot_fill_api = slot_fill_api
-
-    def execute(self, message_state: MessageState) -> Any:
-        """Execute the tool.
-
-        Args:
-            message_state: Current message state
-
-        Returns:
-            Result of tool execution
-        """
-        # Perform slot filling
-        if self.slot_fill_api:
-            slots = self._get_required_slots()
-            filled_slots = self.slot_fill_api.execute(slots, message_state.text)
-            message_state.slots = filled_slots
-
-        return self._execute_impl(message_state)
-
-    def _execute_impl(self, message_state: MessageState) -> Any:
-        """Implementation of tool execution.
-
-        Args:
-            message_state: Current message state
-
-        Returns:
-            Result of tool execution
-        """
-        raise NotImplementedError
-
-    def _get_required_slots(self) -> List[Slot]:
-        """Get required slots for the tool.
-
-        Returns:
-            List of required slots
-        """
-        raise NotImplementedError
-
-
 class Tool:
     """Base class for tools in the Arklex framework.
 
@@ -170,7 +104,7 @@ class Tool:
         self.name: str = name
         self.description: str = description
         self.output: List[str] = outputs
-        self.slotfillapi: Optional[SlotFiller] = None
+        self.slotfiller: Optional[SlotFiller] = None
         self.info: Dict[str, Any] = self.get_info(slots)
         self.slots: List[Slot] = [Slot.model_validate(slot) for slot in slots]
         self.isResponse: bool = isResponse
@@ -213,10 +147,10 @@ class Tool:
         }
 
     def init_slotfiller(self, slotfiller_api: str) -> None:
-        """Initialize slot filler for the tool.
+        """Initialize the slot filler for this tool.
 
         Args:
-            slotfiller_api (str): URL for the slot filler API
+            slotfiller_api: API endpoint for slot filling
         """
         self.slotfiller = SlotFiller(slotfiller_api)
 
@@ -275,7 +209,7 @@ class Tool:
         self._init_slots(state)
         # do slotfilling
         chat_history_str: str = format_chat_history(state.function_calling_trajectory)
-        slots: List[Slot] = self.slotfillapi.execute(
+        slots: List[Slot] = self.slotfiller.fill_slots(
             self.slots, chat_history_str, self.llm_config
         )
         logger.info(f"{slots=}")
@@ -286,7 +220,7 @@ class Tool:
                     # check whether it verified or not
                     verification_needed: bool
                     thought: str
-                    verification_needed, thought = self.slotfillapi.verify_needed(
+                    verification_needed, thought = self.slotfiller.verify_needed(
                         slot, chat_history_str, self.llm_config
                     )
                     if verification_needed:
