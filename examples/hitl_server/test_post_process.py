@@ -1,4 +1,4 @@
-# Go to the parent folder of this file (hitl_server), then Run `pytest `test_post_process.py` to test the code in this file.
+# Go to the parent folder of this file (hitl_server), then Run `pytest test_post_process.py` to test the code in this file.
 import io
 import json
 import os
