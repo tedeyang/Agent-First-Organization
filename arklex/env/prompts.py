@@ -217,7 +217,7 @@ assistant (for speech):
 Conversation:
 {formatted_chat}
 ----------------
-Only answer yes or no.
+The answer has to be in English and should only be yes or no.
 ----------------
 Answer:
 """,
@@ -245,16 +245,11 @@ If the provided value matches any of the following values: {value_list} (they ma
 Your response should only be the reformulated value or None.
 """,
             # ===== regenerate answer prompt ===== #
-            "regenerate_response": """{sys_instruct}
-----------------
-Conversation:
-{formatted_chat}
+            "regenerate_response": """
 Answer:
 {original_answer}
 Task:
-Rephrase the "Answer" for fluency and coherence. Ensure it flows naturally after any link removals. DO NOT ADD INFO. **Do not include phrases that explicitly refer to removed links, such as "check out this link" or "here it is."**
----------------
-assistant: 
+Rephrase the "Answer" only to fix fluency or coherence issues caused by removed or broken links (e.g. empty markdown links like [text]()). Do not modify any valid or working links that are still present in the text. Do not add or infer new information, and keep the original tone and meaning unchanged.
 """,
         }
     elif bot_config.language == "CN":
@@ -328,7 +323,7 @@ assistant:
 Conversation:
 {formatted_chat}
 ----------------
-Only answer yes or no.
+The answer has to be in English and should only be yes or no.
 ----------------
 Answer:
 """,
