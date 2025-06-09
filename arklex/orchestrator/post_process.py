@@ -100,8 +100,7 @@ def _extract_links_from_nested_dict(step: Any) -> set:
 
 
 def _remove_invalid_links(response: str, links: set) -> str:
-    sorted_links = sorted([re.escape(link)
-                          for link in links], key=len, reverse=True)
+    sorted_links = sorted([re.escape(link) for link in links], key=len, reverse=True)
     links_regex = "|".join(sorted_links)
     cleaned_response = re.sub(links_regex, "", response)
     return re.sub(r"\s+", " ", cleaned_response).strip()
@@ -140,7 +139,31 @@ def _live_chat_verifier(message_state: MessageState, params: Params) -> None:
     if _extract_links(message_state.response):
         return
 
-    # ADD SOMETHING THAT LOOKS AT RAG confidence scores
+    # look at RAG confidence scores
+    rag_confidence = 0.0
+    num_of_docs = 0
+
+    for resource in message_state.trajectory[-1]:
+        rag_step_type = RAG_NODES_STEPS.get(resource.info.get("id"))
+        if rag_step_type:
+            for step in resource.steps:
+                try:
+                    if rag_step_type in step:
+                        confidence, docs = _extract_confidence_from_nested_dict(step)
+                        rag_confidence += confidence
+                        num_of_docs += docs
+                except Exception as e:
+                    logger.warning(
+                        f"Error extracting confidence from step: {e} — step: {step}"
+                    )
+    try:
+        rag_average = rag_confidence / num_of_docs
+    except ZeroDivisionError:
+        rag_average = 0.0
+
+    # confident in answer generated from RAG
+    if rag_average >= 0.35:
+        return
 
     if should_trigger_handoff(message_state):
         print(
@@ -149,6 +172,26 @@ def _live_chat_verifier(message_state: MessageState, params: Params) -> None:
         )
         worker = HITLWorkerChatFlag()
         worker._execute(state=message_state)
+
+
+def _extract_confidence_from_nested_dict(step: Any) -> tuple[float, int]:
+    confidence = 0.0
+    num_of_docs = 0
+
+    def _recurse(val: Any) -> None:
+        if isinstance(val, dict):
+            nonlocal confidence, num_of_docs
+            if "confidence" in val and isinstance(val["confidence"], (int, float)):
+                confidence += val["confidence"]
+                num_of_docs += 1
+            for v in val.values():
+                _recurse(v)
+        elif isinstance(val, list):
+            for item in val:
+                _recurse(item)
+
+    _recurse(step)
+    return confidence, num_of_docs
 
 
 def should_trigger_handoff(state: MessageState) -> bool:
