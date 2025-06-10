@@ -6,19 +6,19 @@ for slot filling and tool execution. The module supports dynamic tool registrati
 and error handling during tool execution.
 """
 
-import os
-import logging
-import json
-import uuid
 import inspect
+import json
+import logging
+import os
 import traceback
+import uuid
 from typing import Any, Callable, Dict, List, Optional
 
+from arklex.exceptions import AuthenticationError, ToolExecutionError
+from arklex.orchestrator.NLU.nlu import SlotFilling
 from arklex.utils.graph_state import MessageState, StatusEnum
 from arklex.utils.slot import Slot
-from arklex.orchestrator.NLU.nlu import SlotFilling
 from arklex.utils.utils import format_chat_history
-from arklex.exceptions import ToolExecutionError, AuthenticationError
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +109,7 @@ class Tool:
         self.slotfillapi: Optional[SlotFilling] = None
         self.info: Dict[str, Any] = self.get_info(slots)
         self.slots: List[Slot] = [Slot.model_validate(slot) for slot in slots]
+        self.openai_slots: List[Dict[str, Any]] = self._format_slots(slots)
         self.isResponse: bool = isResponse
         self.properties: Dict[str, Dict[str, Any]] = {}
         self.llm_config: Dict[str, Any] = {}
@@ -356,3 +357,65 @@ class Tool:
             str: A detailed string representation of the tool.
         """
         return f"{self.__class__.__name__}"
+
+    def _format_slots(self, slots: list) -> List[Slot]:
+        format_slots = []
+        for slot in slots:
+            format_slots.append(
+                Slot(
+                    name=slot["name"],
+                    type=slot["type"],
+                    value="",
+                    description=slot.get("description", ""),
+                    prompt=slot.get("prompt", ""),
+                    required=slot.get("required", False),
+                    items=slot.get("items", None),
+                )
+            )
+        return format_slots
+
+    def get_openai_info(self, slots: list) -> Dict[str, Any]:
+        self.properties = {}
+        for slot in slots:
+            self.properties[slot["name"]] = {
+                k: v for k, v in slot.items() if k != "name" and k != "required"
+            }
+        required = [slot["name"] for slot in slots if slot.get("required", False)]
+        return {
+            "type": "function",
+            "function": {
+                "name": self.name,
+                "description": self.description,
+                "parameters": {
+                    "type": "object",
+                    "properties": self.properties,
+                    "required": required,
+                },
+            },
+        }
+
+    def to_openai_tool_def(self) -> dict:
+        parameters = {
+            "type": "object",
+            "properties": {},
+            "required": [slot.name for slot in self.openai_slots if slot.required],
+        }
+        for slot in self.openai_slots:
+            if hasattr(slot, "items") and slot.items:
+                parameters["properties"][slot.name] = {
+                    "type": "array",
+                    "items": slot.items,
+                }
+            else:
+                parameters["properties"][slot.name] = {
+                    "type": slot.type,
+                    "description": slot.description,
+                }
+        return {
+            "type": "function",
+            "function": {
+                "name": self.name,
+                "description": self.description,
+                "parameters": parameters,
+            },
+        }
