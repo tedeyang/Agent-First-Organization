@@ -41,7 +41,7 @@ import logging
 import os
 import uuid
 from functools import partial
-from typing import Any, Callable, Dict, List, Optional, Union, Tuple, cast
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
 
 from arklex.env.planner.react_planner import DefaultPlanner, ReactPlanner
 from arklex.env.tools.tools import Tool
@@ -266,7 +266,15 @@ class Env:
 
         elif id in self.workers:
             logger.info(f"{self.workers[id]['name']} worker selected")
-            worker: BaseWorker = self.workers[id]["execute"]()
+            if id == "agent_worker":
+                worker: BaseWorker = self.workers[id]["execute"](
+                    successors=node_info.additional_args["successors"],
+                    predecessors=node_info.additional_args["predecessors"],
+                    tools=self.tools,
+                )
+            else:
+                worker: BaseWorker = self.workers[id]["execute"]()
+
             if hasattr(worker, "init_slotfilling"):
                 worker.init_slotfilling(self.slotfillapi)
             response_state = worker.execute(message_state, **node_info.additional_args)
