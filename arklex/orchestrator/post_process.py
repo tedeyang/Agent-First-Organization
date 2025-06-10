@@ -19,6 +19,12 @@ RAG_NODES_STEPS = {
     "rag_message_worker": "milvus_retrieve",
 }
 
+RAG_CONFIDENCE_THRESHOLD = {
+    "FaissRAGWorker": 0.35,
+    "milvus_rag_worker": 70.0,
+    "rag_message_worker": 70.0,
+}
+
 
 def post_process_response(
     message_state: MessageState, params: Params, hitl_worker_available: bool
@@ -144,6 +150,7 @@ def _live_chat_verifier(message_state: MessageState, params: Params) -> None:
     # look at RAG confidence scores
     rag_confidence = 0.0
     num_of_docs = 0
+    rag_confidence_threshold = 0.0
 
     for resource in message_state.trajectory[-1]:
         rag_step_type = RAG_NODES_STEPS.get(resource.info.get("id"))
@@ -151,6 +158,9 @@ def _live_chat_verifier(message_state: MessageState, params: Params) -> None:
             for step in resource.steps:
                 try:
                     if rag_step_type in step:
+                        rag_confidence_threshold = RAG_CONFIDENCE_THRESHOLD.get(
+                            resource.info.get("id")
+                        )
                         confidence, docs = _extract_confidence_from_nested_dict(step)
                         rag_confidence += confidence
                         num_of_docs += docs
@@ -159,12 +169,12 @@ def _live_chat_verifier(message_state: MessageState, params: Params) -> None:
                         f"Error extracting confidence from step: {e} — step: {step}"
                     )
     try:
-        rag_average = rag_confidence / num_of_docs
+        rag_avg_confidence = rag_confidence / num_of_docs
     except ZeroDivisionError:
-        rag_average = 0.0
+        rag_avg_confidence = 0.0
 
     # confident in answer generated from RAG
-    if rag_average >= 0.35:
+    if rag_avg_confidence >= rag_confidence_threshold:
         return
 
     if should_trigger_handoff(message_state):
