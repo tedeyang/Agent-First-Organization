@@ -2,6 +2,7 @@
 import io
 import json
 import os
+import logging
 from contextlib import redirect_stdout
 from typing import Any, Dict, List, Tuple
 
@@ -14,14 +15,17 @@ with open("test_cases_post_process.json", encoding="utf-8") as f:
 
 
 @pytest.fixture(scope="session")
-def config_and_env() -> Tuple[Dict[str, Any], Environment, str]:
+def config_and_env(
+    request: pytest.FixtureRequest,
+) -> Tuple[Dict[str, Any], Environment, str]:
     """Load config and environment once per test session."""
     with open("taskgraph.json", encoding="utf-8") as f:
         config = json.load(f)
 
+    print(request.config.getoption("--model"))
     model = {
-        "model_type_or_path": "gpt-4o-mini",
-        "llm_provider": "openai",
+        "model_type_or_path": str(request.config.getoption("--model")),
+        "llm_provider": str(request.config.getoption("--llm-provider")),
     }
     config["input_dir"] = "./"
     config["model"] = model
@@ -58,17 +62,22 @@ class TestLiveChatDetection:
         self,
         test_case: Dict[str, Any],
         config_and_env: Tuple[Dict[str, Any], Environment, str],
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         config, env, start_message = config_and_env
         user_text = test_case["user_utterance"]
         expected_live_chat = test_case["expect_live_chat"]
+        expected_log_message = test_case.get("expect_log_message")
 
         history: List[Dict[str, str]] = [
             {"role": "assistant", "content": start_message}
         ]
 
-        captured_logs = io.StringIO()
-        with redirect_stdout(captured_logs):
+        # Configure caplog to capture INFO level messages from all loggers
+        caplog.set_level(logging.INFO)
+
+        captured_stdout_sio = io.StringIO()
+        with redirect_stdout(captured_stdout_sio):
             output, self.params, hitl = get_api_bot_response(
                 config=config,
                 history=history,
@@ -78,16 +87,25 @@ class TestLiveChatDetection:
             )
 
         live_chat_triggered = hitl is not None
-        logs_output = captured_logs.getvalue()
+        stdout_output = captured_stdout_sio.getvalue()
+        logs_output = caplog.text
+        full_captured_output = stdout_output + logs_output
 
         assert live_chat_triggered == expected_live_chat, (
             f"\nTest Failed\nExpected live chat: {expected_live_chat}, got: {live_chat_triggered}\n"
-            f"User: {user_text}\nBot: {output}"
+            f"User: {user_text}\nBot: {output}\nFull Captured Output:\n{full_captured_output}"
         )
 
         if expected_live_chat:
             assert (
                 "* Live Chat Initiated: Bot was uncertain about the response."
-                in logs_output
+                in stdout_output
             )
-            assert "* Original Bot Response:" in logs_output
+            assert "* Original Bot Response:" in stdout_output
+
+        if expected_log_message:
+            assert expected_log_message in logs_output, (
+                f"\nTest Failed: Missing expected log message.\n"
+                f"Expected: '{expected_log_message}'\n"
+                f"Actual Logs:\n{logs_output}"
+            )

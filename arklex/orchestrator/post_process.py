@@ -136,6 +136,11 @@ def _live_chat_verifier(message_state: MessageState, params: Params) -> None:
     if _extract_links(message_state.response):
         return
 
+    # check for relevance of the user's question
+    if not _is_question_relevant(params):
+        logger.info(f"User's question is not relevant. Skipping live chat initiation.")
+        return
+
     # look at RAG confidence scores
     rag_confidence = 0.0
     num_of_docs = 0
@@ -191,17 +196,29 @@ def _extract_confidence_from_nested_dict(step: Any) -> tuple[float, int]:
     return confidence, num_of_docs
 
 
+def _is_question_relevant(params: Params) -> bool:
+    """Returns True if a question is relevant (no_intent is False), False otherwise.
+    To be improved in the future to be more robust
+    """
+    return params.taskgraph.nlu_records and not params.taskgraph.nlu_records[-1].get(
+        "no_intent", False
+    )
+
+
 def should_trigger_handoff(state: MessageState) -> bool:
     input_prompt = f"""
-    You are a helpful assistant evaluating a chatbot's response. 
-    Here is the chatbot's response:
+    You are an AI assistant evaluating a chatbot's response to determine if human intervention is needed.
 
+    Chatbot's Response to User:
     \"\"\"{state.response}\"\"\"
 
-    Does this response indicate that the bot does NOT know the answer 
-    and is NOT trying to ask for clarification.
-    If chatbot's response has link or url, then it does know the answer.
-    Only respond with "YES" or "NO".
+    Does this response indicate the chatbot:
+    1.  **Does NOT know the answer** (e.g., it's generic, evasive, or explicitly states lack of information)?
+    2.  **Is NOT attempting to ask a clarifying question** (e.g., asking for more details, or offering specific options to narrow down the query)?
+
+    Respond "YES" if BOTH conditions are met (bot is stuck and not trying to clarify).
+    Otherwise, respond "NO".
+    Your response must be "YES" or "NO" only.
     """
 
     llm_config = state.bot_config.llm_config
@@ -210,7 +227,6 @@ def should_trigger_handoff(state: MessageState) -> bool:
     )
 
     final_chain = llm | StrOutputParser()
-    logger.info(f"Prompt: {input_prompt}")
     result: str = final_chain.invoke(input_prompt)
 
     return result.strip().lower() == "yes"
