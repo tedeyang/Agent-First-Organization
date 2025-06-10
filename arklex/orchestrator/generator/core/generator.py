@@ -133,10 +133,10 @@ class Generator:
             allow_nested_graph (bool): Whether to allow nested graph generation
         """
         # Extract configuration values
-        self.product_kwargs = config.get("product_kwargs", {})
+        self.product_kwargs = config
         self.role = config.get("role", "")
-        self.u_objective = config.get("u_objective", "")
-        self.b_objective = config.get("b_objective", "")
+        self.u_objective = config.get("user_objective", "")
+        self.b_objective = config.get("builder_objective", "")
         self.intro = config.get("intro", "")
         self.instruction_docs = config.get("instruction_docs", [])
         self.task_docs = config.get("task_docs", [])
