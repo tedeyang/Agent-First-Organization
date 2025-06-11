@@ -67,8 +67,10 @@ def test_generator_with_custom_resource_initializer(minimal_config, mock_model):
     class CustomInitializer(BaseResourceInitializer):
         def init_workers(self, workers):
             return {"custom_worker": {}}
+
         def init_tools(self, tools):
             return {"custom_tool": {}}
+
     gen = Generator(
         config=minimal_config,
         model=mock_model,
