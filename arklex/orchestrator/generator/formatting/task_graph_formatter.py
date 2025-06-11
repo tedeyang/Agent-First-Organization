@@ -251,10 +251,11 @@ class TaskGraphFormatter:
                 self._calculate_node_depth(task["task_id"], adj_list, depths)
 
         # Group tasks by depth
-        levels = {}
+        levels = {1: []}  # Initialize with level 1
         for task_id, depth in depths.items():
-            if depth not in levels:
-                levels[depth] = []
-            levels[depth].append(task_id)
+            level = depth + 1  # Start from level 1
+            if level not in levels:
+                levels[level] = []
+            levels[level].append(task_id)
 
         return {"levels": levels, "max_depth": max(depths.values()) if depths else 0}

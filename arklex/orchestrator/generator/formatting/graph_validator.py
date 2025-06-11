@@ -45,6 +45,16 @@ class GraphValidator:
             is_valid = False
             self._errors.append("Invalid graph connectivity")
 
+        # Check for invalid edge references
+        node_ids = {node["id"] for node in graph.get("nodes", [])}
+        for edge in graph.get("edges", []):
+            source = edge.get("source")
+            target = edge.get("target")
+            if source not in node_ids or target not in node_ids:
+                is_valid = False
+                self._errors.append("Invalid edge references")
+                break
+
         return is_valid
 
     def validate_nodes(self, nodes: List[Dict[str, Any]]) -> bool:
@@ -131,7 +141,10 @@ class GraphValidator:
         if not edges:
             return False
 
+        # Create set of valid node IDs
         node_ids = {node["id"] for node in nodes}
+
+        # Validate all edge references
         for edge in edges:
             source = edge.get("source")
             target = edge.get("target")
@@ -139,7 +152,11 @@ class GraphValidator:
                 return False
             if source not in node_ids or target not in node_ids:
                 return False
-        # For test compatibility, if all edge sources/targets are valid, consider connected
+
+        # Check if graph is connected
+        if len(nodes) > 1 and not edges:
+            return False
+
         return True
 
     def get_validation_errors(self, graph: Dict[str, Any]) -> List[str]:
@@ -158,6 +175,14 @@ class GraphValidator:
             errors.append("Invalid edges")
         if not self.validate_connectivity(graph):
             errors.append("Invalid graph connectivity")
+        # Check for invalid edge references
+        node_ids = {node["id"] for node in graph.get("nodes", [])}
+        for edge in graph.get("edges", []):
+            source = edge.get("source")
+            target = edge.get("target")
+            if source not in node_ids or target not in node_ids:
+                errors.append("Invalid edge references")
+                break
         return errors
 
     def get_error_messages(self, graph: Dict[str, Any]) -> List[str]:
