@@ -1,259 +1,195 @@
 {
     "nodes": [
-        [
-            "0",
-            {
-                "resource": {
-                    "id": "message_worker",
-                    "name": "MessageWorker"
-                },
-                "attribute": {
-                    "value": "Hello! How can I help you?",
-                    "task": "start message",
-                    "directed": false
-                },
-                "limit": 1,
-                "type": "start"
-            }
-        ],
-        [
-            "1",
-            {
-                "resource": {
-                    "id": "message_worker",
-                    "name": "MessageWorker"
-                },
-                "attribute": {
-                    "value": "Can you please provide more details about the product you are interested in?",
-                    "task": "Use MessageWorker to ask the user for specific details about the products.",
-                    "directed": false
-                },
-                "limit": 1
-            }
-        ],
-        [
-            "2",
-            {
-                "resource": {
-                    "id": "nested_graph",
-                    "name": "NestedGraph"
-                },
-                "attribute": {
-                    "value": "4",
-                    "task": "Authenticate user",
-                    "directed": false
-                },
-                "limit": 1
-            }
-        ],
-        [
-            "3",
-            {
-                "resource": {
-                    "id": "message_worker",
-                    "name": "MessageWorker"
-                },
-                "attribute": {
-                    "value": "Here is some products you might be interested in: [retrieved information].",
-                    "task": "Use MessageWorker to deliver the retrieved information to the user.",
-                    "directed": false
-                },
-                "limit": 1
-            }
-        ],
-        [
-            "4",
-            {
-                "resource": {
-                    "id": "message_worker",
-                    "name": "MessageWorker"
-                },
-                "attribute": {
-                    "value": "Are you Luigi?",
-                    "task": "Ask if user is Luigi",
-                    "directed": false
-                },
-                "limit": 1,
-                "type": "nested_graph_start"
-            }
-        ],
-        [
-            "6",
-            {
-                "resource": {
-                    "id": "message_worker",
-                    "name": "MessageWorker"
-                },
-                "attribute": {
-                    "value": "Hi Luigi, I will do immediately what you have requested",
-                    "task": "Give access to the user.",
-                    "directed": true
-                },
-                "limit": 1
-            }
-        ],
-        [
-            "7",
-            {
-                "resource": {
-                    "id": "message_worker",
-                    "name": "MessageWorker"
-                },
-                "attribute": {
-                    "value": "I won't do anything if you're not Luigi!!!",
-                    "task": "Don't give access to the user.",
-                    "directed": true
-                },
-                "limit": 1
-            }
-        ],
-        [
-            "8",
-            {
-                "resource": {
-                    "id": "nested_graph",
-                    "name": "NestedGraph"
-                },
-                "attribute": {
-                    "value": "9",
-                    "task": "Check user email",
-                    "directed": false
-                },
-                "limit": 1
-            }
-        ],
-        [
-            "9",
-            {
-                "resource": {
-                    "id": "message_worker",
-                    "name": "MessageWorker"
-                },
-                "attribute": {
-                    "value": "is your email test@test.com?",
-                    "task": "ask if user's email is test@test.com",
-                    "directed": false
-                },
-                "limit": 1
-            }
-        ],
-        [
-            "10",
-            {
-                "resource": {
-                    "id": "message_worker",
-                    "name": "MessageWorker"
-                },
-                "attribute": {
-                    "value": "The conversation is over",
-                    "task": "terminate the conversation",
-                    "directed": false
-                },
-                "limit": 1
-            }
-        ]
-    ],
-    "edges": [
-        [
-            "0",
-            "1",
-            {
-                "intent": "User inquires about product information",
-                "attribute": {
-                    "weight": 1,
-                    "pred": true,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "1",
-            "2",
-            {
-                "intent": "None",
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "2",
-            "3",
-            {
-                "intent": "None",
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "4",
-            "6",
-            {
-                "intent": "User answer yes",
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "4",
-            "8",
-            {
-                "intent": "User answer no",
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "9",
-            "10",
-            {
-                "intent": "None",
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ]
-    ],
-    "role": "customer service assistant",
-    "user_objective": "",
-    "builder_objective": "",
-    "domain": "",
-    "intro": "",
-    "task_docs": [],
-    "rag_docs": [],
-    "tasks": [],
-    "workers": [
         {
-            "id": "message_worker",
-            "name": "MessageWorker",
-            "path": "message_worker.py"
+            "id": "task1",
+            "name": "Task 1",
+            "description": "Description for task 1",
+            "type": "task",
+            "data": {
+                "task_id": "task1",
+                "name": "Task 1",
+                "description": "Description for task 1",
+                "steps": [
+                    {
+                        "step_id": "step1",
+                        "description": "Step 1 description",
+                        "required_fields": [
+                            "field1",
+                            "field2"
+                        ]
+                    }
+                ],
+                "dependencies": [],
+                "required_resources": [],
+                "estimated_duration": "1 hour",
+                "priority": 1,
+                "created_at": "2025-06-11T09:37:39.778922",
+                "modified_at": "2025-06-11T09:37:39.778928",
+                "version": "1.0"
+            },
+            "style": {
+                "color": "#808080",
+                "border": {
+                    "color": "#000000",
+                    "width": 2,
+                    "style": "solid",
+                    "radius": 4
+                },
+                "padding": {
+                    "top": 10,
+                    "right": 10,
+                    "bottom": 10,
+                    "left": 10
+                },
+                "text_color": "#000000",
+                "background_color": "#ffffff",
+                "opacity": 1.0
+            },
+            "steps": [
+                {
+                    "step_id": "step1",
+                    "description": "Step 1 description",
+                    "required_fields": [
+                        "field1",
+                        "field2"
+                    ]
+                }
+            ],
+            "dependencies": [],
+            "required_resources": [],
+            "estimated_duration": "1 hour",
+            "priority": 1
         },
         {
-            "id": "default_worker",
-            "name": "DefaultWorker",
-            "path": "default_worker.py"
+            "id": "task2",
+            "name": "Task 2",
+            "description": "Description for task 2",
+            "type": "task",
+            "data": {
+                "task_id": "task2",
+                "name": "Task 2",
+                "description": "Description for task 2",
+                "steps": [
+                    {
+                        "step_id": "step2",
+                        "description": "Step 2 description",
+                        "required_fields": [
+                            "field1",
+                            "field2"
+                        ]
+                    }
+                ],
+                "dependencies": [],
+                "required_resources": [],
+                "estimated_duration": "1 hour",
+                "priority": 1,
+                "created_at": "2025-06-11T09:37:39.778942",
+                "modified_at": "2025-06-11T09:37:39.778944",
+                "version": "1.0"
+            },
+            "style": {
+                "color": "#808080",
+                "border": {
+                    "color": "#000000",
+                    "width": 2,
+                    "style": "solid",
+                    "radius": 4
+                },
+                "padding": {
+                    "top": 10,
+                    "right": 10,
+                    "bottom": 10,
+                    "left": 10
+                },
+                "text_color": "#000000",
+                "background_color": "#ffffff",
+                "opacity": 1.0
+            },
+            "steps": [
+                {
+                    "step_id": "step2",
+                    "description": "Step 2 description",
+                    "required_fields": [
+                        "field1",
+                        "field2"
+                    ]
+                }
+            ],
+            "dependencies": [],
+            "required_resources": [],
+            "estimated_duration": "1 hour",
+            "priority": 1
+        },
+        {
+            "id": "task3",
+            "name": "Task 3",
+            "description": "Description for task 3",
+            "type": "task",
+            "data": {
+                "task_id": "task3",
+                "name": "Task 3",
+                "description": "Description for task 3",
+                "steps": [
+                    {
+                        "step_id": "step3",
+                        "description": "Step 3 description",
+                        "required_fields": [
+                            "field1",
+                            "field2"
+                        ]
+                    }
+                ],
+                "dependencies": [],
+                "required_resources": [],
+                "estimated_duration": "1 hour",
+                "priority": 1,
+                "created_at": "2025-06-11T09:37:39.778950",
+                "modified_at": "2025-06-11T09:37:39.778952",
+                "version": "1.0"
+            },
+            "style": {
+                "color": "#808080",
+                "border": {
+                    "color": "#000000",
+                    "width": 2,
+                    "style": "solid",
+                    "radius": 4
+                },
+                "padding": {
+                    "top": 10,
+                    "right": 10,
+                    "bottom": 10,
+                    "left": 10
+                },
+                "text_color": "#000000",
+                "background_color": "#ffffff",
+                "opacity": 1.0
+            },
+            "steps": [
+                {
+                    "step_id": "step3",
+                    "description": "Step 3 description",
+                    "required_fields": [
+                        "field1",
+                        "field2"
+                    ]
+                }
+            ],
+            "dependencies": [],
+            "required_resources": [],
+            "estimated_duration": "1 hour",
+            "priority": 1
         }
     ],
-    "tools": [],
+    "edges": [],
+    "metadata": {
+        "created_at": "2025-06-11T09:37:39.778959",
+        "modified_at": "2025-06-11T09:37:39.778960",
+        "version": "1.0",
+        "num_nodes": 3,
+        "num_edges": 0,
+        "max_depth": 1
+    },
     "nluapi": "",
     "slotfillapi": ""
 }
