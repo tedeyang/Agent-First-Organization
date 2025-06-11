@@ -57,7 +57,7 @@ class BestPracticeManager:
     Attributes:
         model: The language model used for practice generation
         role (str): The role or context for practice generation
-        u_objective (str): User's objective for the task graph
+        user_objective (str): User's objective for the task graph
         _practices (Dict[str, BestPractice]): Cache of generated practices
         _practice_categories (Dict[str, List[str]]): Practice categorization
 
@@ -74,18 +74,18 @@ class BestPracticeManager:
         self,
         model: Any,
         role: str,
-        u_objective: str,
+        user_objective: str,
     ) -> None:
         """Initialize the BestPracticeManager with required components.
 
         Args:
             model: The language model to use for practice generation
             role (str): The role or context for practice generation
-            u_objective (str): User's objective for the task graph
+            user_objective (str): User's objective for the task graph
         """
         self.model = model
         self.role = role
-        self.u_objective = u_objective
+        self.user_objective = user_objective
         self._practices: Dict[str, BestPractice] = {}
         self._practice_categories: Dict[str, List[str]] = {}
 
@@ -207,7 +207,17 @@ class BestPracticeManager:
             practice_definitions (List[BestPractice]): List of practice definitions
 
         Returns:
-            List[Dict[str, Any]]: List of validated practices
+            List[Dict[str, Any]]: List of validated practices with the following structure:
+                {
+                    "practice_id": str,
+                    "name": str,
+                    "description": str,
+                    "steps": List[Dict[str, Any]],
+                    "rationale": str,
+                    "examples": List[str],
+                    "priority": int,
+                    "category": str
+                }
         """
         validated_practices = []
         for practice_def in practice_definitions:
@@ -262,39 +272,48 @@ class BestPracticeManager:
     def _optimize_practices(
         self, practices: List[Dict[str, Any]]
     ) -> List[Dict[str, Any]]:
-        """Optimize practices for efficiency.
+        """Optimize practices for efficiency and effectiveness.
+
+        This method analyzes and optimizes the practices to ensure they are
+        efficient and effective in achieving their goals.
 
         Args:
             practices (List[Dict[str, Any]]): List of practices to optimize
 
         Returns:
-            List[Dict[str, Any]]: Optimized practices
+            List[Dict[str, Any]]: List of optimized practices with the same structure
+                as the input practices
         """
         optimized_practices = []
         for practice in practices:
             # Optimize steps
-            optimized_steps = self._optimize_steps(practice["steps"])
-            practice["steps"] = optimized_steps
+            practice["steps"] = self._optimize_steps(practice["steps"])
             optimized_practices.append(practice)
         return optimized_practices
 
     def _optimize_steps(self, steps: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Optimize practice steps.
+        """Optimize individual steps within a practice.
+
+        This method analyzes and optimizes the steps to ensure they are
+        clear, concise, and effective.
 
         Args:
-            steps (List[Dict[str, Any]]): Steps to optimize
+            steps (List[Dict[str, Any]]): List of steps to optimize
 
         Returns:
-            List[Dict[str, Any]]: Optimized steps
+            List[Dict[str, Any]]: List of optimized steps with the same structure
+                as the input steps
         """
         optimized_steps = []
-        for i, step in enumerate(steps):
-            optimized_step = {
-                "step_id": f"step_{i + 1}",
-                "description": step.get("description", ""),
-                "order": i + 1,
-            }
-            optimized_steps.append(optimized_step)
+        for step in steps:
+            # Ensure step has required fields
+            if "step_id" not in step:
+                step["step_id"] = f"step_{len(optimized_steps) + 1}"
+            if "description" not in step:
+                step["description"] = "Step description"
+            if "required_fields" not in step:
+                step["required_fields"] = []
+            optimized_steps.append(step)
         return optimized_steps
 
     def _convert_to_dict(self, practice_def: BestPractice) -> Dict[str, Any]:

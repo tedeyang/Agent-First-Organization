@@ -56,7 +56,7 @@ class ReusableTaskManager:
     Attributes:
         model: The language model used for template generation
         role (str): The role or context for template generation
-        u_objective (str): User's objective for the task graph
+        user_objective (str): User's objective for the task graph
         _templates (Dict[str, ReusableTask]): Cache of generated templates
         _template_categories (Dict[str, List[str]]): Template categorization
 
@@ -74,18 +74,18 @@ class ReusableTaskManager:
         self,
         model: Any,
         role: str,
-        u_objective: str,
+        user_objective: str,
     ) -> None:
         """Initialize the ReusableTaskManager with required components.
 
         Args:
             model: The language model to use for template generation
             role (str): The role or context for template generation
-            u_objective (str): User's objective for the task graph
+            user_objective (str): User's objective for the task graph
         """
         self.model = model
         self.role = role
-        self.u_objective = u_objective
+        self.user_objective = user_objective
         self._templates: Dict[str, ReusableTask] = {}
         self._template_categories: Dict[str, List[str]] = {}
 
@@ -240,11 +240,25 @@ class ReusableTaskManager:
     ) -> Dict[str, ReusableTask]:
         """Create reusable templates from components.
 
+        This method processes components to create reusable task templates
+        that can be instantiated with different parameters.
+
         Args:
             components (List[Dict[str, Any]]): List of components to process
 
         Returns:
-            Dict[str, ReusableTask]: Dictionary of created templates
+            Dict[str, ReusableTask]: Dictionary mapping template IDs to ReusableTask objects
+                with the following structure:
+                {
+                    "template_id": str,
+                    "name": str,
+                    "description": str,
+                    "steps": List[Dict[str, Any]],
+                    "parameters": Dict[str, Any],
+                    "examples": List[Dict[str, Any]],
+                    "version": str,
+                    "category": str
+                }
         """
         templates = {}
         for i, component in enumerate(components):
@@ -266,11 +280,25 @@ class ReusableTaskManager:
     ) -> Dict[str, Dict[str, Any]]:
         """Validate generated templates.
 
+        This method ensures that all templates meet the required format
+        and quality standards.
+
         Args:
             templates (Dict[str, ReusableTask]): Dictionary of templates to validate
 
         Returns:
-            Dict[str, Dict[str, Any]]: Dictionary of validated templates
+            Dict[str, Dict[str, Any]]: Dictionary mapping template IDs to validated templates
+                with the following structure:
+                {
+                    "template_id": str,
+                    "name": str,
+                    "description": str,
+                    "steps": List[Dict[str, Any]],
+                    "parameters": Dict[str, Any],
+                    "examples": List[Dict[str, Any]],
+                    "version": str,
+                    "category": str
+                }
         """
         validated_templates = {}
         for template_id, template in templates.items():
@@ -341,33 +369,35 @@ class ReusableTaskManager:
     ) -> Dict[str, Any]:
         """Create a task instance from a template.
 
+        This method takes a template and parameters to create a concrete
+        task instance that can be used in a task graph.
+
         Args:
-            template (ReusableTask): Template to create instance from
+            template (ReusableTask): Template to instantiate
             parameters (Dict[str, Any]): Parameters for instantiation
 
         Returns:
-            Dict[str, Any]: Instantiated task
+            Dict[str, Any]: Instantiated task with the following structure:
+                {
+                    "task_id": str,
+                    "name": str,
+                    "description": str,
+                    "steps": List[Dict[str, Any]],
+                    "parameters": Dict[str, Any],
+                    "template_id": str,
+                    "version": str
+                }
         """
+        # Create instance
         instance = {
-            "task_id": f"{template.template_id}_instance",
+            "task_id": f"task_{template.template_id}",
             "name": template.name,
             "description": template.description,
-            "steps": [],
+            "steps": template.steps,
+            "parameters": parameters,
+            "template_id": template.template_id,
+            "version": template.version,
         }
-
-        # Instantiate steps with parameters
-        for i, step in enumerate(template.steps):
-            instantiated_step = {
-                "step_id": f"step_{i + 1}",
-                "description": step.get("description", step.get("task", "")),
-                "required_fields": [],
-            }
-            # Replace parameters in step
-            for field in step.get("required_fields", []):
-                if field in parameters:
-                    instantiated_step["required_fields"].append(parameters[field])
-            instance["steps"].append(instantiated_step)
-
         return instance
 
     def _categorize_templates(self, templates: Dict[str, Dict[str, Any]]) -> None:

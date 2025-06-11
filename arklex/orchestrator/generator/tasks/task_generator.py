@@ -37,7 +37,7 @@ class TaskDefinition:
         steps (List[Dict[str, Any]]): List of steps to complete the task
         dependencies (List[str]): List of task IDs this task depends on
         required_resources (List[str]): List of resources required for the task
-        estimated_duration (Optional[int]): Estimated duration in minutes
+        estimated_duration (Optional[str]): Estimated duration as a string (e.g., "1 hour")
         priority (int): Task priority (1-5, where 5 is highest)
     """
 
@@ -47,7 +47,7 @@ class TaskDefinition:
     steps: List[Dict[str, Any]]
     dependencies: List[str]
     required_resources: List[str]
-    estimated_duration: Optional[int]
+    estimated_duration: Optional[str]
     priority: int
 
 
@@ -64,7 +64,7 @@ class TaskGenerator:
     Attributes:
         model: The language model used for task generation
         role (str): The role or context for task generation
-        u_objective (str): User's objective for the task graph
+        user_objective (str): User's objective for the task graph
         instructions (str): Processed instruction documents
         documents (str): Processed task documents
         _task_definitions (Dict[str, TaskDefinition]): Cache of generated task definitions
@@ -84,7 +84,7 @@ class TaskGenerator:
         self,
         model: Any,
         role: str,
-        u_objective: str,
+        user_objective: str,
         instructions: str,
         documents: str,
     ) -> None:
@@ -93,13 +93,13 @@ class TaskGenerator:
         Args:
             model: The language model to use for task generation
             role (str): The role or context for task generation
-            u_objective (str): User's objective for the task graph
+            user_objective (str): User's objective for the task graph
             instructions (str): Processed instruction documents
             documents (str): Processed task documents
         """
         self.model = model
         self.role = role
-        self.u_objective = u_objective
+        self.user_objective = user_objective
         self.instructions = instructions
         self.documents = documents
         self._task_definitions: Dict[str, TaskDefinition] = {}
@@ -232,7 +232,17 @@ class TaskGenerator:
             tasks (List[TaskDefinition]): Tasks to validate
 
         Returns:
-            List[Dict[str, Any]]: Validated tasks
+            List[Dict[str, Any]]: List of validated tasks as dictionaries with the following structure:
+                {
+                    "task_id": str,
+                    "name": str,
+                    "description": str,
+                    "steps": List[Dict[str, Any]],
+                    "dependencies": List[str],
+                    "required_resources": List[str],
+                    "estimated_duration": Optional[str],
+                    "priority": int
+                }
         """
         validated_tasks = []
         for task in tasks:

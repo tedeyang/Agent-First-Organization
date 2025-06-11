@@ -81,7 +81,7 @@ def task_generator(mock_model):
     return TaskGenerator(
         model=mock_model,
         role="product_manager",
-        u_objective="Create a new product",
+        user_objective="Create a new product",
         instructions=[],
         documents=[],
     )
@@ -91,7 +91,7 @@ def task_generator(mock_model):
 def best_practice_manager(mock_model):
     """Create a BestPracticeManager instance for testing."""
     return BestPracticeManager(
-        model=mock_model, role="product_manager", u_objective="Create a new product"
+        model=mock_model, role="product_manager", user_objective="Create a new product"
     )
 
 
@@ -99,7 +99,7 @@ def best_practice_manager(mock_model):
 def reusable_task_manager(mock_model):
     """Create a ReusableTaskManager instance for testing."""
     return ReusableTaskManager(
-        model=mock_model, role="product_manager", u_objective="Create a new product"
+        model=mock_model, role="product_manager", user_objective="Create a new product"
     )
 
 
@@ -298,15 +298,15 @@ def test_integration_generation_pipeline(mock_model):
     task_generator = TaskGenerator(
         model=mock_model,
         role="product_manager",
-        u_objective="Create a new product",
+        user_objective="Create a new product",
         instructions=[],
         documents=[],
     )
     best_practice_manager = BestPracticeManager(
-        model=mock_model, role="product_manager", u_objective="Create a new product"
+        model=mock_model, role="product_manager", user_objective="Create a new product"
     )
     reusable_task_manager = ReusableTaskManager(
-        model=mock_model, role="product_manager", u_objective="Create a new product"
+        model=mock_model, role="product_manager", user_objective="Create a new product"
     )
 
     # Generate tasks

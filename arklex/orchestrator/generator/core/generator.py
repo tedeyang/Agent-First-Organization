@@ -81,8 +81,8 @@ class Generator:
     Attributes:
         product_kwargs (Dict[str, Any]): Configuration settings for the generator
         role (str): The role or context for task generation
-        u_objective (str): User's objective for the task graph
-        b_objective (str): Builder's objective for the task graph
+        user_objective (str): User's objective for the task graph
+        builder_objective (str): Builder's objective for the task graph
         intro (str): Introduction text for the task graph
         instruction_docs (List[str]): Documentation for instructions
         task_docs (List[str]): Documentation for tasks
@@ -100,6 +100,7 @@ class Generator:
         instructions (str): Processed instruction documents
         reusable_tasks (Dict[str, Any]): Generated reusable tasks
         tasks (List[Dict[str, Any]]): Generated tasks
+        resource_initializer: The resource initializer for the generator
 
     Methods:
         generate(): Main method to generate the task graph
@@ -118,7 +119,7 @@ class Generator:
         config: Dict[str, Any],
         model: Any,
         output_dir: Optional[str] = None,
-        resource_inizializer: Optional[BaseResourceInitializer] = None,
+        resource_initializer: Optional[BaseResourceInitializer] = None,
         interactable_with_user: bool = True,
         allow_nested_graph: bool = True,
     ) -> None:
@@ -129,7 +130,7 @@ class Generator:
                 settings for task graph generation
             model: The language model to use for task generation
             output_dir (Optional[str]): Directory for saving generated files
-            resource_inizializer (Optional[BaseResourceInitializer]): Resource initializer
+            resource_initializer (Optional[BaseResourceInitializer]): Resource initializer
                 for setting up workers and tools
             interactable_with_user (bool): Whether to allow user interaction
             allow_nested_graph (bool): Whether to allow nested graph generation
@@ -137,8 +138,8 @@ class Generator:
         # Extract configuration values
         self.product_kwargs = config
         self.role = config.get("role", "")
-        self.u_objective = config.get("user_objective", "")
-        self.b_objective = config.get("builder_objective", "")
+        self.user_objective = config.get("user_objective", "")
+        self.builder_objective = config.get("builder_objective", "")
         self.intro = config.get("intro", "")
         self.instruction_docs = config.get("instruction_docs", [])
         self.task_docs = config.get("task_docs", [])
@@ -147,12 +148,13 @@ class Generator:
         self.example_conversations = config.get("example_conversations", [])
 
         # Initialize resource initializer
-        if resource_inizializer is None:
-            resource_inizializer = DefaultResourceInitializer()
-        self.workers = resource_inizializer.init_workers(
+        if resource_initializer is None:
+            resource_initializer = DefaultResourceInitializer()
+        self.resource_initializer = resource_initializer
+        self.workers = resource_initializer.init_workers(
             self.product_kwargs.get("workers", [])
         )
-        self.tools = resource_inizializer.init_tools(
+        self.tools = resource_initializer.init_tools(
             self.product_kwargs.get("tools", [])
         )
 
@@ -196,7 +198,7 @@ class Generator:
             self._task_generator = TaskGenerator(
                 model=self.model,
                 role=self.role,
-                u_objective=self.u_objective,
+                user_objective=self.user_objective,
                 instructions=self.instructions,
                 documents=self.documents,
             )
@@ -212,7 +214,7 @@ class Generator:
             self._best_practice_manager = BestPracticeManager(
                 model=self.model,
                 role=self.role,
-                u_objective=self.u_objective,
+                user_objective=self.user_objective,
             )
         return self._best_practice_manager
 
@@ -226,7 +228,7 @@ class Generator:
             self._reusable_task_manager = ReusableTaskManager(
                 model=self.model,
                 role=self.role,
-                u_objective=self.u_objective,
+                user_objective=self.user_objective,
             )
         return self._reusable_task_manager
 
@@ -320,20 +322,21 @@ class Generator:
         # Step 5: Refine best practices through human-in-the-loop if enabled
         finetuned_best_practices = []
         if self.interactable_with_user and UI_AVAILABLE:
-            hitl_result = TaskEditorApp(self.tasks).run()
-
-            for idx_t, task in enumerate(hitl_result):
-                steps = task["steps"]
-                format_steps = []
-                for idx_s, step in enumerate(steps):
-                    format_steps.append({"step": idx_s + 1, "task": step})
-                finetuned_best_practice = best_practice_manager.finetune_best_practice(
-                    format_steps
-                )
-                logger.info(
-                    f"Finetuned best practice for task {idx_t}: {finetuned_best_practice}"
-                )
-                finetuned_best_practices.append(finetuned_best_practice)
+            try:
+                hitl_result = TaskEditorApp(self.tasks).run()
+                if hitl_result is not None:
+                    for idx_t, task in enumerate(hitl_result):
+                        finetuned_best_practices.append(
+                            best_practice_manager.finetune_best_practice(
+                                best_practices[idx_t], task
+                            )
+                        )
+                else:
+                    logger.warning("TaskEditorApp returned None, using original tasks")
+                    finetuned_best_practices = best_practices
+            except Exception as e:
+                logger.error(f"Error in human-in-the-loop refinement: {str(e)}")
+                finetuned_best_practices = best_practices
         else:
             finetuned_best_practices = best_practices
 
