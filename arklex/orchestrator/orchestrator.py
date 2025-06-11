@@ -1,9 +1,54 @@
-"""Orchestrator implementation for the Arklex framework.
+"""Orchestrator for the Arklex framework.
 
-This module provides the main orchestrator functionality for managing conversations and workflows.
-The AgentOrg class is responsible for coordinating the flow of conversation, managing the task graph,
-and handling the interaction between different components of the system. It processes user input,
-manages conversation state, and determines appropriate responses based on the current context.
+This module implements the core orchestrator functionality that manages the flow of
+conversation and task execution in the Arklex framework. It coordinates between
+different components of the system, including NLU processing, task graph execution,
+and response generation.
+
+Key Components:
+- AgentOrg: Main orchestrator class for managing conversation flow
+- Task Execution: Methods for executing tasks and managing task states
+- Message Processing: Methods for handling user messages and generating responses
+- State Management: Methods for maintaining conversation and task states
+- Resource Management: Methods for handling system resources and connections
+
+Features:
+- Comprehensive conversation flow management
+- Task graph execution and state tracking
+- Message processing and response generation
+- Resource management and cleanup
+- Error handling and recovery
+- State persistence and restoration
+- Nested graph support
+- Streaming response handling
+- Memory management
+- Tool integration
+
+Usage:
+    from arklex.orchestrator import AgentOrg
+    from arklex.env.env import Env
+
+    # Initialize environment
+    env = Env()
+
+    # Load configuration
+    config = {
+        "role": "customer_service",
+        "user_objective": "Handle customer inquiries",
+        "model": {...},
+        "workers": [...],
+        "tools": [...]
+    }
+
+    # Create orchestrator
+    orchestrator = AgentOrg(config, env)
+
+    # Process message
+    response = orchestrator.get_response({
+        "text": "user message",
+        "chat_history": [...],
+        "parameters": {...}
+    })
 """
 
 import asyncio
@@ -13,11 +58,12 @@ import json
 import logging
 import time
 from dotenv import load_dotenv
-from langchain_core.runnables import RunnableLambda
+from langchain.chat_models import ChatOpenAI
 from typing import Any, Dict, Tuple, List, Optional, Union
 from arklex.env.nested_graph.nested_graph import NESTED_GRAPH_ID, NestedGraph
-from arklex.env.env import Env
+from arklex.env.env import Environment
 from arklex.orchestrator.task_graph import TaskGraph
+from arklex.orchestrator.post_process import post_process_response
 from arklex.env.tools.utils import ToolGenerator
 from arklex.types import StreamType
 from arklex.utils.graph_state import (
@@ -34,9 +80,14 @@ from arklex.utils.graph_state import (
     OrchestratorResp,
     NodeTypeEnum,
 )
+
+
 from arklex.utils.utils import format_chat_history
 from arklex.utils.model_config import MODEL
 from arklex.memory import ShortTermMemory
+from arklex.utils.model_provider_config import PROVIDER_MAP
+from langchain_core.runnables import RunnableLambda
+
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -57,14 +108,20 @@ class AgentOrg:
     proper execution of tasks.
 
     Attributes:
-        config (Dict[str, Any]): Configuration settings.
-        env (Any): Environment object.
-        memory (Any): Memory management object.
-        task_graph (Any): Task graph object.
+        user_prefix (str): Prefix for user messages
+        worker_prefix (str): Prefix for worker messages
+        environment_prefix (str): Prefix for environment messages
+        product_kwargs (Dict[str, Any]): Configuration settings
+        llm_config (LLMConfig): Language model configuration
+        task_graph (TaskGraph): Task graph for conversation flow
+        env (Environment): Environment with tools and workers
     """
 
     def __init__(
-        self, config: Union[str, Dict[str, Any]], env: Env, **kwargs: Any
+        self,
+        config: Union[str, Dict[str, Any]],
+        env: Optional[Environment],
+        **kwargs: Any,
     ) -> None:
         """Initialize the AgentOrg orchestrator.
 
@@ -74,7 +131,7 @@ class AgentOrg:
         Args:
             config (Union[str, Dict[str, Any]]): Configuration file path or dictionary containing
                 product settings, model configuration, and other parameters.
-            env (Env): Environment object containing tools, workers, and other resources.
+            env (Environment): Environment object containing tools, workers, and other resources.
             **kwargs (Any): Additional keyword arguments for customization.
         """
         self.user_prefix: str = "user"
@@ -91,10 +148,27 @@ class AgentOrg:
         self.task_graph: TaskGraph = TaskGraph(
             "taskgraph", self.product_kwargs, self.llm_config
         )
-        self.env: Env = env
+        self.env: Environment = env or Environment(
+            tools=self.product_kwargs.get("tools", []),
+            workers=self.product_kwargs.get("workers", []),
+            slot_fill_api=self.product_kwargs.get("slot_fill_api", ""),
+            planner_enabled=True,
+        )
+
+        # Initialize LLM directly
+        self.llm = PROVIDER_MAP.get(self.llm_config.llm_provider, ChatOpenAI)(
+            model=self.llm_config.model_type_or_path,
+            temperature=0.0,
+        )
 
         # Update planner model info now that LLMConfig is defined
-        self.env.planner.set_llm_config_and_build_resource_library(self.llm_config)
+        if self.env.planner:
+            self.env.planner.set_llm_config_and_build_resource_library(self.llm_config)
+
+        self.hitl_worker_available = any(
+            worker.get("name") == "HITLWorkerChatFlag"
+            for worker in self.task_graph.product_kwargs["workers"]
+        )
 
     def init_params(
         self, inputs: Dict[str, Any]
@@ -159,7 +233,7 @@ class AgentOrg:
         )
         return text, chat_history_str, params, message_state
 
-    def check_skip_node(self, node_info: NodeInfo, params: Params) -> bool:
+    def check_skip_node(self, node_info: NodeInfo, chat_history_str: str) -> bool:
         """Check if a node can be skipped in the task graph.
 
         This function determines whether a node can be skipped based on its configuration
@@ -173,15 +247,37 @@ class AgentOrg:
         Returns:
             bool: True if the node can be skipped, False otherwise.
         """
-        # NOTE: Do not check the node limit to decide whether the node can be skipped because skipping a node when should not is unwanted.
-        return False
         if not node_info.can_skipped:
             return False
-        cur_node_id: str = params.taskgraph.curr_node
-        if cur_node_id in params.taskgraph.node_limit:
-            if params.taskgraph.node_limit[cur_node_id] <= 0:
-                return True
-        return False
+
+        task = node_info.attributes.get("task", "")
+        if not task:
+            return False
+
+        prompt = f"""Given the following conversation history:
+{chat_history_str}
+
+And the task: "{task}"
+
+Your job is to decide whether the user has already provided the information needed for this task.
+The information may hide in the user's messages or assistant's responses.
+Check for synonyms and variations of phrasing in both the user's messages and assistant's responses.
+Reply with 'yes' only if either of these conditions are met (user provided info), otherwise 'no'.
+Answer with only 'yes' or 'no'"""
+        logger.info(f"prompt for check skip node: {prompt}")
+
+        try:
+            response = self.llm.invoke(prompt)
+            logger.info(f"LLM response for task verification: {response}")
+            response_text = (
+                response.content.lower().strip()
+                if hasattr(response, "content")
+                else str(response).lower().strip()
+            )
+            return response_text == "yes"
+        except Exception as e:
+            logger.error(f"Error in LLM task verification: {str(e)}")
+            return False
 
     def post_process_node(
         self, node_info: NodeInfo, params: Params, update_info: Dict[str, Any] = {}
@@ -394,7 +490,7 @@ class AgentOrg:
         params: Params
         message_state: MessageState
         text, chat_history_str, params, message_state = self.init_params(inputs)
-        ##### TaskGraph Chain
+        # TaskGraph Chain
         taskgraph_inputs: Dict[str, Any] = {
             "text": text,
             "chat_history_str": chat_history_str,
@@ -463,7 +559,7 @@ class AgentOrg:
             taskgraph_inputs["allow_global_intent_switch"] = False
             params.metadata.timing.taskgraph = time.time() - taskgraph_start_time
             # Check if current node can be skipped
-            can_skip = self.check_skip_node(node_info, params)
+            can_skip = self.check_skip_node(node_info, chat_history_str)
             if can_skip:
                 params = self.post_process_node(node_info, params, {"is_skipped": True})
                 continue
@@ -511,6 +607,10 @@ class AgentOrg:
                 message_state = ToolGenerator.context_generate(message_state)
             else:
                 message_state = ToolGenerator.stream_context_generate(message_state)
+
+        message_state = post_process_response(
+            message_state, params, self.hitl_worker_available
+        )
 
         return OrchestratorResp(
             answer=message_state.response,

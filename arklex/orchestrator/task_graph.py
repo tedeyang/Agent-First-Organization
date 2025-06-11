@@ -1,15 +1,49 @@
-"""Task graph implementation for the Arklex framework.
+"""Task graph management and execution for the Arklex framework.
 
-This module provides the core task graph functionality for orchestrating conversations and workflows.
-It includes classes for managing task graphs, handling intents, and processing nodes in the conversation flow.
-The TaskGraph class is responsible for managing the flow of conversation and determining the next steps
-based on user input and available intents.
+This module provides functionality for managing and executing task graphs, including
+node management, state tracking, and integration with intent detection and slot filling systems.
+
+Key Components:
+- TaskGraphBase: Base class for task graph functionality
+- TaskGraph: Main class for managing conversation flow and intent handling
+- NodeInfo: Information about graph nodes
+- Params: Parameters for graph traversal
+- PathNode: Node information for path tracking
+
+Features:
+- Directed graph structure for task flow
+- Intent-based node navigation
+- Global and local intent handling
+- Node state management
+- Path tracking and history
+- Resource management
+- Slot filling integration
+- Intent detection integration
+
+Usage:
+    from arklex.orchestrator.task_graph import TaskGraph
+    from arklex.utils.graph_state import LLMConfig, Params
+
+    # Initialize task graph
+    config = {
+        "nodes": [...],
+        "edges": [...],
+        "intent_api": {...},
+        "slotfillapi": {...}
+    }
+
+    llm_config = LLMConfig(...)
+    task_graph = TaskGraph("conversation", config, llm_config)
+
+    # Process input
+    params = Params(...)
+    node_info, updated_params = task_graph.get_node({"input": "user message"})
 """
 
 import copy
 import logging
 import collections
-from typing import Tuple, Dict, List, Any, Optional, Union, DefaultDict
+from typing import Tuple, Dict, List, Any, Optional, DefaultDict
 
 import networkx as nx
 import numpy as np
@@ -17,12 +51,30 @@ import numpy as np
 from arklex.env.nested_graph.nested_graph import NestedGraph
 from arklex.utils.utils import normalize, str_similarity
 from arklex.utils.graph_state import NodeInfo, Params, PathNode, StatusEnum, LLMConfig
-from arklex.orchestrator.NLU.nlu import NLU, SlotFilling
+from arklex.orchestrator.NLU.core.slot import SlotFiller
+from arklex.orchestrator.NLU.core.intent import IntentDetector
 
 logger = logging.getLogger(__name__)
 
 
 class TaskGraphBase:
+    """Base class for task graph functionality.
+
+    This class provides the fundamental structure and methods for managing task graphs.
+    It handles graph creation, intent management, and node traversal.
+
+    Attributes:
+        graph (nx.DiGraph): The directed graph representing the task flow
+        product_kwargs (Dict[str, Any]): Configuration settings for the graph
+        intents (DefaultDict[str, List[Dict[str, Any]]]): Global intents for node navigation
+        start_node (Optional[str]): The initial node in the graph
+
+    Methods:
+        create_graph(): Creates the graph structure
+        get_pred_intents(): Gets predicted intents from graph edges
+        get_start_node(): Gets the starting node of the graph
+    """
+
     def __init__(self, name: str, product_kwargs: Dict[str, Any]) -> None:
         self.graph: nx.DiGraph = nx.DiGraph(name=name)
         self.product_kwargs: Dict[str, Any] = product_kwargs
@@ -53,9 +105,51 @@ class TaskGraphBase:
 
 
 class TaskGraph(TaskGraphBase):
+    """Task graph management and execution.
+
+    This class manages the execution of task graphs, including node management,
+    state tracking, and integration with intent detection and slot filling systems.
+
+    Attributes:
+        unsure_intent (Dict[str, Any]): Default intent for unknown inputs
+        initial_node (Optional[str]): Initial node for conversation flow
+        llm_config (LLMConfig): Configuration for language model
+        intent_detector (IntentDetector): Intent detection API
+        slotfillapi (SlotFiller): Slot filling API
+
+    Methods:
+        create_graph(): Creates the conversation graph
+        get_initial_flow(): Gets the initial flow for conversation
+        jump_to_node(): Jumps to a node based on intent
+        get_current_node(): Gets the current node in conversation
+        get_available_global_intents(): Gets available global intents
+        update_node_limit(): Updates node visit limits
+        get_local_intent(): Gets local intents for current node
+        handle_multi_step_node(): Handles multi-step node processing
+        handle_incomplete_node(): Handles incomplete node processing
+        global_intent_prediction(): Predicts global intents
+        local_intent_prediction(): Predicts local intents
+        handle_unknown_intent(): Handles unknown intents
+        handle_leaf_node(): Handles leaf node processing
+        get_node(): Gets next node based on input
+        postprocess_node(): Post-processes node information
+    """
+
     def __init__(
-        self, name: str, product_kwargs: Dict[str, Any], llm_config: LLMConfig
+        self,
+        name: str,
+        product_kwargs: Dict[str, Any],
+        llm_config: LLMConfig,
+        slotfillapi: str = "",
     ) -> None:
+        """Initialize the task graph.
+
+        Args:
+            name: Name of the task graph
+            product_kwargs: Configuration settings for the graph
+            llm_config: Configuration for language model
+            slotfillapi: API endpoint for slot filling
+        """
         super().__init__(name, product_kwargs)
         self.unsure_intent: Dict[str, Any] = {
             "intent": "others",
@@ -70,10 +164,10 @@ class TaskGraph(TaskGraphBase):
         }
         self.initial_node: Optional[str] = self.get_initial_flow()
         self.llm_config: LLMConfig = llm_config
-        self.nluapi: NLU = NLU(self.product_kwargs.get("nluapi"))
-        self.slotfillapi: SlotFilling = SlotFilling(
-            self.product_kwargs.get("slotfillapi")
+        self.intent_detector: IntentDetector = IntentDetector(
+            self.product_kwargs.get("intent_api")
         )
+        self.slotfillapi: SlotFiller = SlotFiller(slotfillapi)
 
     def create_graph(self) -> None:
         nodes: List[Dict[str, Any]] = self.product_kwargs["nodes"]
@@ -153,20 +247,33 @@ class TaskGraph(TaskGraphBase):
                 params.taskgraph.available_global_intents.pop(intent)
 
         params.taskgraph.curr_node = sample_node
-        
+
         node_info = NodeInfo(
             node_id=sample_node,
             type=node_info.get("type", ""),
             resource_id=resource_id,
             resource_name=resource_name,
-            can_skipped=True,
+            can_skipped=node_info.get("attribute", {}).get("can_skipped", False),
             is_leaf=len(list(self.graph.successors(sample_node))) == 0,
             attributes=node_info["attribute"],
             add_flow_stack=False,
             additional_args={
                 "tags": node_info["attribute"].get("tags", {}),
-                **{k2: v2 for k, v in node_info["attribute"].get("node_specific_data", {}).items() if isinstance(v, dict) for k2, v2 in v.items()},
-                **{k: v for k, v in node_info["attribute"].get("node_specific_data", {}).items() if not isinstance(v, dict)}
+                **{
+                    k2: v2
+                    for k, v in node_info["attribute"]
+                    .get("node_specific_data", {})
+                    .items()
+                    if isinstance(v, dict)
+                    for k2, v2 in v.items()
+                },
+                **{
+                    k: v
+                    for k, v in node_info["attribute"]
+                    .get("node_specific_data", {})
+                    .items()
+                    if not isinstance(v, dict)
+                },
             },
         )
 
@@ -282,13 +389,26 @@ class TaskGraph(TaskGraphBase):
                 node_id=curr_node,
                 resource_id=resource_id,
                 resource_name=resource_name,
-                can_skipped=False,
+                can_skipped=node_info.get("attribute", {}).get("can_skipped", False),
                 is_leaf=len(list(self.graph.successors(curr_node))) == 0,
                 attributes=node_info["attribute"],
                 additional_args={
                     "tags": node_info["attribute"].get("tags", {}),
-                    **{k2: v2 for k, v in node_info["attribute"].get("node_specific_data", {}).items() if isinstance(v, dict) for k2, v2 in v.items()},
-                    **{k: v for k, v in node_info["attribute"].get("node_specific_data", {}).items() if not isinstance(v, dict)}
+                    **{
+                        k2: v2
+                        for k, v in node_info["attribute"]
+                        .get("node_specific_data", {})
+                        .items()
+                        if isinstance(v, dict)
+                        for k2, v2 in v.items()
+                    },
+                    **{
+                        k: v
+                        for k, v in node_info["attribute"]
+                        .get("node_specific_data", {})
+                        .items()
+                        if not isinstance(v, dict)
+                    },
                 },
             )
             return True, node_info, params
@@ -304,7 +424,7 @@ class TaskGraph(TaskGraphBase):
         status: StatusEnum = node_status.get(curr_node, StatusEnum.COMPLETE)
         if status == StatusEnum.INCOMPLETE:
             logger.info(
-                f"no local or global intent found, the current node is not complete"
+                "no local or global intent found, the current node is not complete"
             )
             node_info: NodeInfo
             node_info, params = self._get_node(curr_node, params)
@@ -344,7 +464,7 @@ class TaskGraph(TaskGraphBase):
                 f"Available global intents with unsure intent: {candidate_intents}"
             )
 
-            pred_intent = self.nluapi.execute(
+            pred_intent = self.intent_detector.execute(
                 self.text,
                 candidate_intents,
                 self.chat_history_str,
@@ -450,7 +570,7 @@ class TaskGraph(TaskGraphBase):
             )
         )
         logger.info(f"Check intent under current node: {curr_local_intents_w_unsure}")
-        pred_intent: str = self.nluapi.execute(
+        pred_intent: str = self.intent_detector.execute(
             self.text,
             curr_local_intents_w_unsure,
             self.chat_history_str,
@@ -598,7 +718,7 @@ class TaskGraph(TaskGraphBase):
         if (
             not curr_local_intents and allow_global_intent_switch
         ):  # no local intent under the current node
-            logger.info(f"no local intent under the current node")
+            logger.info("no local intent under the current node")
             is_global_intent_found: bool
             pred_intent: Optional[str]
             node_output: NodeInfo
@@ -622,7 +742,7 @@ class TaskGraph(TaskGraphBase):
         # if completed and no local intents -> randomly choose one of the next connected nodes (edges with intent = None)
         if not curr_local_intents:
             logger.info(
-                f"no local or global intent found, move to the next connected node(s)"
+                "no local or global intent found, move to the next connected node(s)"
             )
             has_random_next_node: bool
             node_output: Dict[str, Any]

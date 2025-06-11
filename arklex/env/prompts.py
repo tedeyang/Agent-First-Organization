@@ -4,14 +4,84 @@ This module provides prompt templates for various components of the system, incl
 generators, RAG (Retrieval-Augmented Generation), workers, and database operations. It
 supports multiple languages (currently English and Chinese) and includes templates for
 different use cases such as vanilla generation, context-aware generation, message flow
-generation, and database interactions. The module ensures consistent prompt formatting
-and language-specific adaptations.
+generation, and database interactions.
+
+Key Components:
+- Generator Prompts:
+  - Vanilla generation for basic responses
+  - Context-aware generation with RAG
+  - Message flow generation with additional context
+  - Speech-specific variants for voice interactions
+- RAG Prompts:
+  - Contextualized question formulation
+  - Retrieval necessity determination
+- Worker Prompts:
+  - Worker selection based on task and context
+- Database Prompts:
+  - Action selection based on user intent
+  - Slot value validation and reformulation
+
+Key Features:
+- Multi-language support (EN/CN)
+- Speech-specific prompt variants
+- Context-aware generation
+- Message flow integration
+- Database interaction templates
+- Consistent formatting across languages
+
+Usage:
+    # Initialize bot configuration
+    config = BotConfig(language="EN")
+
+    # Load prompts for the specified language
+    prompts = load_prompts(config)
+
+    # Use prompts in generation
+    response = generator.generate(
+        prompt=prompts["generator_prompt"],
+        context=context,
+        chat_history=history
+    )
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, Union
+from dataclasses import dataclass
 
 
-def load_prompts(bot_config: Any) -> Dict[str, str]:
+@dataclass
+class BotConfig:
+    """Configuration for bot language settings.
+
+    This class defines the language configuration for the bot, which determines
+    which set of prompts to use for generation and interaction.
+
+    Attributes:
+        language: The language code for the bot (e.g., "EN" for English, "CN" for Chinese)
+    """
+
+    language: str
+
+
+def load_prompts(bot_config: BotConfig) -> Dict[str, str]:
+    """Load prompt templates based on bot configuration.
+
+    This function loads the appropriate set of prompt templates based on the
+    specified language in the bot configuration. It includes templates for
+    various generation scenarios, RAG operations, worker selection, and
+    database interactions.
+
+    Args:
+        bot_config: Bot configuration specifying the language
+
+    Returns:
+        Dictionary mapping prompt names to their templates
+
+    Note:
+        Currently supports English (EN) and Chinese (CN) languages.
+        Each language has its own set of specialized prompts for different
+        use cases and interaction modes.
+    """
+    prompts: Dict[str, str]
     if bot_config.language == "EN":
         ### ================================== Generator Prompts ================================== ###
         prompts = {
@@ -147,7 +217,7 @@ assistant (for speech):
 Conversation:
 {formatted_chat}
 ----------------
-Only answer yes or no.
+The answer has to be in English and should only be yes or no.
 ----------------
 Answer:
 """,
@@ -173,6 +243,16 @@ The response must be the name of one of the actions ({actions_name}).
             "database_slot_prompt": """The user has provided a value for the slot {slot}. The value is {value}. 
 If the provided value matches any of the following values: {value_list} (they may not be exactly the same and you can reformulate the value), please provide the reformulated value. Otherwise, respond None. 
 Your response should only be the reformulated value or None.
+""",
+            # ===== regenerate answer prompt ===== #
+            "regenerate_response": """
+Original Answer:
+{original_answer}
+----------------
+Task:
+Rephrase the Original Answer only to fix fluency or coherence issues caused by removed or broken links (e.g. empty markdown links like [text]()). Do not modify any valid or working links that are still present in the text. Do not add or infer new information, and keep the original tone and meaning unchanged.
+----------------
+Revised Answer:
 """,
         }
     elif bot_config.language == "CN":
@@ -246,7 +326,7 @@ Your response should only be the reformulated value or None.
 Conversation:
 {formatted_chat}
 ----------------
-Only answer yes or no.
+The answer has to be in English and should only be yes or no.
 ----------------
 Answer:
 """,
@@ -275,5 +355,5 @@ Answer:
 """,
         }
     else:
-        raise ValueError(f"Language {bot_config.language} is not supported")
+        raise ValueError(f"Unsupported language: {bot_config.language}")
     return prompts
