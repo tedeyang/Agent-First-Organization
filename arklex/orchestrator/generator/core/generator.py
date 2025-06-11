@@ -150,9 +150,11 @@ class Generator:
         if resource_inizializer is None:
             resource_inizializer = DefaultResourceInitializer()
         self.workers = resource_inizializer.init_workers(
-            self.product_kwargs.get("workers")
+            self.product_kwargs.get("workers", [])
         )
-        self.tools = resource_inizializer.init_tools(self.product_kwargs.get("tools"))
+        self.tools = resource_inizializer.init_tools(
+            self.product_kwargs.get("tools", [])
+        )
 
         # Set configuration flags
         self.interactable_with_user = interactable_with_user

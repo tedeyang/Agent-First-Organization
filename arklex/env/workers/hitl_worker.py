@@ -261,8 +261,7 @@ class HITLWorkerChatFlag(HITLWorker):
     mode: str = "chat"
 
     def verify_literal(self, state: MessageState) -> Tuple[bool, str]:
-        """[TODO] Need to implement for orchestrator message as well
-        (as of 2025-02-20)
+        """TODO: Implement orchestrator message handling for HITL worker
         This method is to check the message from the user, since in the NLU, we already determine that the user wants to chat with the human in the loop.
 
         Args:

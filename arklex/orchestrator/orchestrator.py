@@ -531,7 +531,7 @@ Answer with only 'yes' or 'no'"""
             self.task_graph.postprocess_node
         )
 
-        # TODO: when planner is re-implemented, execute/break the loop based on whether the planner should be used (bot config).
+        # TODO: Implement planner-based loop control based on bot configuration
         msg_counter = 0
 
         n_node_performed = 0

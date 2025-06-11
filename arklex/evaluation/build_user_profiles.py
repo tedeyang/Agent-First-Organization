@@ -133,9 +133,7 @@ def build_profile(
                     random_index: int = random.choice(range(len(user_profiles[key])))
                     user_profile[key] = user_profiles[key][random_index]
             # based on the user's profile, select the attribute
-            strategy: str = (
-                "react"  ## TODO: temporary strategy, need to set in the config later
-            )
+            strategy: str = "react"  # TODO: Move strategy configuration to config file
             attributes, matched_attribute_to_goal = pick_attributes(
                 user_profile,
                 augmented_attributes,
