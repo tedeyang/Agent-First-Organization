@@ -33,6 +33,7 @@ from langchain_community.document_loaders import (
     TextLoader,
 )
 import base64
+from selenium.webdriver.chrome.service import Service
 
 # Configure logging
 logging.basicConfig(
@@ -42,19 +43,26 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-CHROME_DRIVER_VERSION = "125.0.6422.7"
+CHROME_DRIVER_VERSION = "137.0.7151.69"
 MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
 
 
-def encode_image(image_path):
-    """Encode the image to base64."""
+def encode_image(image_path: str) -> str | None:
+    """Encode the image to base64.
+
+    Args:
+        image_path (str): Path to the image file.
+
+    Returns:
+        str | None: Base64-encoded string if successful, None otherwise.
+    """
     try:
         with open(image_path, "rb") as image_file:
             return base64.b64encode(image_file.read()).decode("utf-8")
     except FileNotFoundError:
         logger.error(f"Error: The file {image_path} was not found.")
         return None
-    except Exception as e:  # Added general exception handling
+    except Exception as e:
         logger.error(f"Error: {e}")
         return None
 
@@ -66,7 +74,7 @@ class SourceType(Enum):
 
 
 class DocObject:
-    def __init__(self, id: str, source: str):
+    def __init__(self, id: str, source: str) -> None:
         self.id = id
         self.source = source
 
@@ -77,12 +85,12 @@ class CrawledObject(DocObject):
         id: str,
         source: str,
         content: str,
-        metadata={},
-        is_chunk=False,
-        is_error=False,
-        error_message=None,
-        source_type=SourceType.WEB,
-    ):
+        metadata: dict = {},
+        is_chunk: bool = False,
+        is_error: bool = False,
+        error_message: str | None = None,
+        source_type: SourceType = SourceType.WEB,
+    ) -> None:
         super().__init__(id, source)
         self.content = content
         self.metadata = metadata
@@ -91,7 +99,7 @@ class CrawledObject(DocObject):
         self.error_message = error_message
         self.source_type = source_type
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
             "id": self.id,
             "source": self.source,
@@ -104,7 +112,7 @@ class CrawledObject(DocObject):
         }
 
     @classmethod
-    def from_dict(cls, data: dict):
+    def from_dict(cls, data: dict) -> "CrawledObject":
         return cls(
             id=data["id"],
             source=data["source"],
@@ -118,7 +126,7 @@ class CrawledObject(DocObject):
 
 
 class Loader:
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
     def to_crawled_url_objs(self, url_list: List[str]) -> List[CrawledObject]:
@@ -159,12 +167,12 @@ class Loader:
         options.add_argument("--disable-extensions")
         options.add_argument("--disable-infobars")
         options.add_argument("--remote-debugging-pipe")
-        chrome_driver_path = Path(
-            ChromeDriverManager(driver_version=CHROME_DRIVER_VERSION).install()
-        )
-        options.binary_location = str(chrome_driver_path.parent.absolute())
-        logger.info(f"chrome binary location: {options.binary_location}")
-        driver = webdriver.Chrome(options=options)
+        chrome_driver_path = ChromeDriverManager(
+            driver_version=CHROME_DRIVER_VERSION
+        ).install()
+        service = Service(executable_path=chrome_driver_path)
+        logger.info(f"Using chromedriver at: {chrome_driver_path}")
+        driver = webdriver.Chrome(service=service, options=options)
 
         docs: List[CrawledObject] = []
         for url_obj in url_objects:
@@ -252,7 +260,7 @@ class Loader:
         logger.info(f"URLs visited: {urls_visited}")
         return sorted(urls_visited[:max_num])
 
-    def get_outsource_urls(self, curr_url: str, base_url: str):
+    def get_outsource_urls(self, curr_url: str, base_url: str) -> list[str]:
         """Get outsource URLs from a given URL.
 
         This function extracts URLs from a webpage that point to external resources.
@@ -263,7 +271,7 @@ class Loader:
             base_url (str): The base URL for filtering and validation.
 
         Returns:
-            List[str]: List of valid outsource URLs.
+            list[str]: List of valid outsource URLs.
         """
         headers = {
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Safari/605.1.15"
@@ -292,7 +300,7 @@ class Loader:
             logger.error(f"Fail to get the page from {curr_url}: {err}")
         return list(set(new_urls))
 
-    def _check_url(self, full_url, base_url):
+    def _check_url(self, full_url: str, base_url: str) -> bool:
         """Check if a URL is valid and belongs to the base URL.
 
         This function validates a URL by checking if it is properly formatted and
@@ -541,7 +549,7 @@ class Loader:
             )
 
     @staticmethod
-    def save(file_path: str, docs: List[CrawledObject]):
+    def save(file_path: str, docs: List[CrawledObject]) -> None:
         """Save a list of CrawledObject instances to a file.
 
         This function serializes and saves CrawledObject instances to a file

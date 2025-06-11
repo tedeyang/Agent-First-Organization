@@ -15,6 +15,10 @@ from typing import Dict, Any, Optional
 from pathlib import Path
 import json
 import logging
+import requests
+import os
+import hashlib
+from bs4 import BeautifulSoup
 
 from arklex.orchestrator.generator.docs.document_validator import DocumentValidator
 
@@ -88,16 +92,35 @@ class DocumentLoader:
         """Load a task document.
 
         Args:
-            doc_path (Path): Path to the task document
+            doc_path (Path or str): Path or URL to the task document
 
         Returns:
             Dict[str, Any]: The loaded task document
         """
         # Load and parse document (skip validate_document)
         # Check cache first
-        if str(doc_path) in self._cache:
-            document = self._cache[str(doc_path)]
+        cache_key = str(doc_path)
+        if cache_key in self._cache:
+            document = self._cache[cache_key]
         else:
+            if isinstance(doc_path, str) and doc_path.startswith("http"):
+                # Download and save to cache_dir
+                response = requests.get(doc_path)
+                response.raise_for_status()
+                # Use a hash of the URL for the filename to avoid collisions
+                url_hash = hashlib.md5(doc_path.encode("utf-8")).hexdigest()
+                ext = os.path.splitext(doc_path)[-1] or ".html"
+                filename = f"url_{url_hash}{ext}"
+                file_path = os.path.join(self._cache_dir, filename)
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write(response.text)
+                from pathlib import Path
+
+                doc_path = Path(file_path)
+            if isinstance(doc_path, str):
+                from pathlib import Path
+
+                doc_path = Path(doc_path)
             if not doc_path.exists():
                 raise FileNotFoundError(f"Document not found: {doc_path}")
             if hasattr(doc_path, "read_text"):
@@ -105,11 +128,30 @@ class DocumentLoader:
             else:
                 with open(doc_path, "r") as f:
                     content = f.read()
-            if hasattr(json, "loads") and callable(getattr(json, "loads")):
-                document = json.loads(content)
-            else:
-                document = json.loads(content)
-            self._cache[str(doc_path)] = document
+            try:
+                if hasattr(json, "loads") and callable(getattr(json, "loads")):
+                    document = json.loads(content)
+                else:
+                    document = json.loads(content)
+            except json.JSONDecodeError:
+                # If not JSON, try parsing as HTML
+                try:
+                    soup = BeautifulSoup(content, "html.parser")
+                    # Convert HTML to a task document structure
+                    document = {
+                        "task_id": "html_task",
+                        "name": soup.title.string if soup.title else "HTML Document",
+                        "description": "Document parsed from HTML",
+                        "steps": [
+                            {"step_id": i, "description": p.get_text()}
+                            for i, p in enumerate(soup.find_all("p"), 1)
+                        ],
+                    }
+                except Exception as e:
+                    raise ValueError(
+                        f"Content at {doc_path} is neither valid JSON nor parseable HTML. Error: {e}"
+                    )
+            self._cache[cache_key] = document
         if not self._validate_task_document(document):
             raise ValueError(f"Invalid task document structure: {doc_path}")
         return document

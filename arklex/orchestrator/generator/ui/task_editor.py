@@ -58,9 +58,14 @@ class TaskEditorApp(App):
 
         # Populate the tree with tasks and steps
         for task in self.tasks:
-            task_node = self.task_tree.root.add(task["task_name"], expand=True)
+            task_node = self.task_tree.root.add(task["name"], expand=True)
             for step in task["steps"]:
-                task_node.add_leaf(step)
+                label = (
+                    step["description"]
+                    if isinstance(step, dict) and "description" in step
+                    else str(step)
+                )
+                task_node.add_leaf(label)
 
         yield self.task_tree
         yield Label(

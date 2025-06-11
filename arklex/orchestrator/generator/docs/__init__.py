@@ -35,7 +35,7 @@ Usage:
     doc_loader = DocumentLoader(output_dir="output")
 
     # Load task documentation
-    task_docs = doc_loader.load_task_docs([
+    task_docs = doc_loader.load_task_document([
         "path/to/task1.md",
         "path/to/task2.md"
     ])

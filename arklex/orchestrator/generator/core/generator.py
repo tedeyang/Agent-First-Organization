@@ -109,6 +109,8 @@ class Generator:
         _initialize_best_practice_manager(): Initializes the best practice manager
         _initialize_reusable_task_manager(): Initializes the reusable task manager
         _initialize_task_graph_formatter(): Initializes the task graph formatter
+        _load_multiple_task_documents(): Helper to load multiple task documents and aggregate them as a list
+        _load_multiple_instruction_documents(): Helper to load multiple instruction documents and aggregate them as a list
     """
 
     def __init__(
@@ -233,16 +235,40 @@ class Generator:
             TaskGraphFormatter: Initialized task graph formatter instance
         """
         if self._task_graph_formatter is None:
-            self._task_graph_formatter = TaskGraphFormatter(
-                model=self.model,
-                role=self.role,
-                u_objective=self.u_objective,
-                product_kwargs=self.product_kwargs,
-                workers=self.workers,
-                tools=self.tools,
-                reusable_tasks=self.reusable_tasks,
-            )
+            self._task_graph_formatter = TaskGraphFormatter()
         return self._task_graph_formatter
+
+    def _load_multiple_task_documents(self, doc_loader, doc_paths):
+        """Helper to load multiple task documents and aggregate them as a list."""
+        if isinstance(doc_paths, list):
+            sources = [
+                doc["source"] if isinstance(doc, dict) and "source" in doc else doc
+                for doc in doc_paths
+            ]
+            return [doc_loader.load_task_document(src) for src in sources]
+        else:
+            src = (
+                doc_paths["source"]
+                if isinstance(doc_paths, dict) and "source" in doc_paths
+                else doc_paths
+            )
+            return [doc_loader.load_task_document(src)]
+
+    def _load_multiple_instruction_documents(self, doc_loader, doc_paths):
+        """Helper to load multiple instruction documents and aggregate them as a list."""
+        if isinstance(doc_paths, list):
+            sources = [
+                doc["source"] if isinstance(doc, dict) and "source" in doc else doc
+                for doc in doc_paths
+            ]
+            return [doc_loader.load_instruction_document(src) for src in sources]
+        else:
+            src = (
+                doc_paths["source"]
+                if isinstance(doc_paths, dict) and "source" in doc_paths
+                else doc_paths
+            )
+            return [doc_loader.load_instruction_document(src)]
 
     def generate(self) -> Dict[str, Any]:
         """Generate a complete task graph.
@@ -259,8 +285,10 @@ class Generator:
         """
         # Step 1: Load documentation and instructions
         doc_loader = self._initialize_document_loader()
-        self.documents = doc_loader.load_task_docs(self.task_docs)
-        self.instructions = doc_loader.load_instructions(self.instruction_docs)
+        self.documents = self._load_multiple_task_documents(doc_loader, self.task_docs)
+        self.instructions = self._load_multiple_instruction_documents(
+            doc_loader, self.instruction_docs
+        )
 
         # Step 2: Generate tasks
         task_generator = self._initialize_task_generator()
@@ -290,12 +318,7 @@ class Generator:
         # Step 5: Refine best practices through human-in-the-loop if enabled
         finetuned_best_practices = []
         if self.interactable_with_user and UI_AVAILABLE:
-            hitl_result = TaskEditorApp(
-                self.tasks,
-                best_practices,
-                self.role,
-                self.u_objective,
-            ).run()
+            hitl_result = TaskEditorApp(self.tasks).run()
 
             for idx_t, task in enumerate(hitl_result):
                 steps = task["steps"]
@@ -314,9 +337,7 @@ class Generator:
 
         # Step 6: Format the final task graph
         task_graph_formatter = self._initialize_task_graph_formatter()
-        task_graph = task_graph_formatter.format_task_graph(
-            finetuned_best_practices, self.tasks
-        )
+        task_graph = task_graph_formatter.format_task_graph(self.tasks)
 
         return task_graph
 
