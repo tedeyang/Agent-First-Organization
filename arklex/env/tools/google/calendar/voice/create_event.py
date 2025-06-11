@@ -4,9 +4,9 @@ import json
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
 
-from voicebot.tools.tools import register_tool
+from arklex.env.tools.tools import register_tool
 import pytz
-from voicebot.tools.google.calendar.utils import AUTH_ERROR
+from arklex.env.tools.google.calendar.utils import AUTH_ERROR
 import logging
 
 logger = logging.getLogger(__name__)

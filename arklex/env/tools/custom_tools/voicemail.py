@@ -1,7 +1,7 @@
 import logging
 import threading
 import time
-from voicebot.tools.tools import register_tool
+from arklex.env.tools.tools import register_tool
 from twilio.rest import Client as TwilioClient
 
 logger = logging.getLogger(__name__)

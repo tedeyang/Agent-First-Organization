@@ -2,8 +2,8 @@ import datetime
 import logging
 from typing import List
 import uuid
-from voicebot.tools.tools import register_tool
-from voicebot.types import Transcript
+from arklex.env.tools.tools import register_tool
+from arklex.env.tools.types import Transcript
 
 logger = logging.getLogger(__name__)
 

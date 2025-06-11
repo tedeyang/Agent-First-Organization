@@ -112,6 +112,8 @@ class Tool:
         self.isResponse: bool = isResponse
         self.properties: Dict[str, Dict[str, Any]] = {}
         self.llm_config: Dict[str, Any] = {}
+        self.fixed_args = {}
+        self.auth = {}
 
     def get_info(self, slots: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Get tool information including parameters and requirements.
@@ -347,6 +349,12 @@ class Tool:
         Returns:
             dict: The OpenAI tool definition.
         """
+        PYTHON_TO_JSON_SCHEMA = {
+            "str": "string",
+            "int": "integer", 
+            "float": "number",
+            "bool": "boolean",
+        }
         parameters = {
             "type": "object",
             "properties": {},
@@ -360,7 +368,7 @@ class Tool:
                 }
             else:
                 parameters["properties"][slot.name] = {
-                    "type": slot.type,
+                    "type": PYTHON_TO_JSON_SCHEMA[slot.type],
                     "description": slot.description
                 }
         return {

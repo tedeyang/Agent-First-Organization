@@ -1,5 +1,5 @@
 import logging
-from voicebot.tools.tools import register_tool
+from arklex.env.tools.tools import register_tool
 from arklex.env.tools.RAG.retrievers.milvus_retriever import MilvusRetriever
 
 logger = logging.getLogger(__name__)
@@ -10,7 +10,7 @@ description = "Retrieve relevant inforamtion required to answer an user's questi
 slots = [
     {
         "name": "query",
-        "type": "string",
+        "type": "str",
         "description": "The query to search for in the knowledge base",
         "prompt": "Please provide the minimum time to query the busy times",
         "required": True

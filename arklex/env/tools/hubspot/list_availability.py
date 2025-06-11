@@ -3,7 +3,7 @@ import pytz
 from hubspot import HubSpot
 import logging
 
-from voicebot.tools.tools import register_tool
+from arklex.env.tools.tools import register_tool
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +12,7 @@ description = "List the availability of the company representative from Husbspot
 slots = [
     {
         "name": "timezone",
-        "type": "string",
+        "type": "str",
         "enum": pytz.common_timezones,
         "description": "The timezone of the user. For example, 'America/New_York'.",
         "prompt": "Could you please provide your timezone or where are you now?",
@@ -20,7 +20,7 @@ slots = [
     },
     {
         "name": "duration",
-        "type": "integer",
+        "type": "int",
         "enum": [15, 30, 60],
         "description": "The duration of the meeting in minutes.",
         "required": True

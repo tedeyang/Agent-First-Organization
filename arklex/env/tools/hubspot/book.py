@@ -3,7 +3,7 @@ import pytz
 from hubspot import HubSpot
 import logging
 
-from voicebot.tools.tools import register_tool
+from arklex.env.tools.tools import register_tool
 
 logger = logging.getLogger(__name__)
 
@@ -12,38 +12,38 @@ description = "Schedule a meeting for the customer with the specific representat
 slots = [
     {
         "name": "first_name",
-        "type": "string",
+        "type": "str",
         "required": True,
         "description": "First name of the customer."
     },
     {
         "name": "last_name",
-        "type": "string",
+        "type": "str",
         "required": True,
         "description": "Last name of the customer."
     },
     {
         "name": "email",
-        "type": "string",
+        "type": "str",
         "required": True,
         "description": "Email of the customer."
     },
     {
         "name": "start_time",
-        "type": "string",
+        "type": "str",
         "required": True,
-        "description": "The start time that the meeting will take place. The meeting's start time includes the hour, as the date alone is not sufficient. The format should be 'YYYY-MM-DDTHH:MM:SS'. Today is {today}.".format(today=datetime.now().isoformat()),
+        "description": "The start time that the meeting will take place. The meeting's start time includes the hour, as the date alone is not sufficient. Datetime in ISO8601 format without timezone like 'YYYY-MM-DDTHH:MM:SS'. Eg. {today}.".format(today=datetime.now().isoformat()),
     },
     {
         "name": "duration",
-        "type": "integer",
+        "type": "int",
         "enum": [15, 30, 60],
         "description": "The duration of the meeting in minutes.",
         "required": True,
     },
     {
         "name": "timezone",
-        "type": "string",
+        "type": "str",
         "enum": pytz.common_timezones,
         "description": "The timezone of the user. For example, 'America/New_York'.",
         "prompt": "Could you please provide your timezone or where are you now?",
