@@ -44,7 +44,7 @@ def test_generator_generate_calls_components(minimal_config, mock_model):
         patch("arklex.orchestrator.generator.core.generator.UI_AVAILABLE", False),
     ):
         doc_loader = Mock()
-        doc_loader.load_task_docs.return_value = "docs"
+        doc_loader.load_task_document.return_value = "docs"
         doc_loader.load_instructions.return_value = "instructions"
         doc_loader_patch.return_value = doc_loader
         task_gen = Mock()
