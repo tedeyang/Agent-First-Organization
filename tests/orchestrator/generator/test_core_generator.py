@@ -13,8 +13,8 @@ def mock_model():
 def minimal_config():
     return {
         "role": "test_role",
-        "u_objective": "test_objective",
-        "b_objective": "test_builder_objective",
+        "user_objective": "test_objective",
+        "builder_objective": "test_builder_objective",
         "intro": "test_intro",
         "instruction_docs": [],
         "task_docs": [],
