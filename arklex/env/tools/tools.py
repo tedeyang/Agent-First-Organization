@@ -20,6 +20,12 @@ from arklex.exceptions import ToolExecutionError, AuthenticationError
 
 logger = logging.getLogger(__name__)
 
+PYTHON_TO_JSON_SCHEMA = {
+    "str": "string",
+    "int": "integer", 
+    "float": "number",
+    "bool": "boolean",
+}
 
 def register_tool(
     desc: str,
@@ -370,12 +376,6 @@ class Tool:
         Returns:
             dict: The OpenAI tool definition.
         """
-        PYTHON_TO_JSON_SCHEMA = {
-            "str": "string",
-            "int": "integer", 
-            "float": "number",
-            "bool": "boolean",
-        }
         parameters = {
             "type": "object",
             "properties": {},
