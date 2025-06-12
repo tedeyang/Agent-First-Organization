@@ -4,21 +4,22 @@ import traceback
 from functools import partial
 from typing import Any, Dict, Optional
 
-from arklex.env.prompts import load_prompts
-from arklex.env.tools.tools import register_tool
-from arklex.env.tools.utils import trace
-from arklex.env.workers.worker import BaseWorker, register_worker
-from arklex.types import EventType, StreamType
-from arklex.utils.graph_state import MessageState, StatusEnum
-from arklex.utils.model_config import MODEL
-from arklex.utils.model_provider_config import PROVIDER_MAP
-from arklex.utils.utils import chunk_string
 from langchain.prompts import PromptTemplate
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages.ai import AIMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_openai import ChatOpenAI
 from langgraph.graph import START, StateGraph
+
+from arklex.env.agents.agent import BaseAgent, register_agent
+from arklex.env.prompts import load_prompts
+from arklex.env.tools.tools import register_tool
+from arklex.env.tools.utils import trace
+from arklex.types import EventType, StreamType
+from arklex.utils.graph_state import MessageState, StatusEnum
+from arklex.utils.model_config import MODEL
+from arklex.utils.model_provider_config import PROVIDER_MAP
+from arklex.utils.utils import chunk_string
 
 logger = logging.getLogger(__name__)
 
@@ -27,14 +28,12 @@ logger = logging.getLogger(__name__)
 def end_conversation(state: MessageState) -> MessageState:
     logger.info("Ending the conversation.")
     state.response = "Thank you for using Arklex. Goodbye!"
-    state.status = StatusEnum.COMPLETE
-    state.message_flow = ""
     return state
 
 
-@register_worker
-class AgentWorker(BaseWorker):
-    description: str = "General-purpose Arklex agent worker for chat or voice."
+@register_agent
+class OpenAIAgent(BaseAgent):
+    description: str = "General-purpose Arklex agent for chat or voice."
 
     def __init__(self, successors: list, predecessors: list, tools: list) -> None:
         super().__init__()
@@ -42,7 +41,6 @@ class AgentWorker(BaseWorker):
         self.llm: Optional[BaseChatModel] = None
 
         self.available_tools: dict[str, Any] = {}
-        self.available_workers: dict[str, Any] = {}
 
         for node in successors + predecessors:
             if node.resource_id in tools:
@@ -62,10 +60,10 @@ class AgentWorker(BaseWorker):
         self.tool_defs.append(end_conversation_tool_def)
         self.tool_map["end_conversation"] = end_conversation_tool.func
 
-        logger.info(f"AgentWorker initialized with {len(self.tool_defs)} tools.")
+        logger.info(f"OpenAIAgent initialized with {len(self.tool_defs)} tools.")
 
     def generate(self, state: MessageState) -> MessageState:
-        logger.info("\nGenerating response using the agent worker.")
+        logger.info("\nGenerating response using the agent.")
         user_message = state.user_message
         orchestrator_message = state.orchestrator_message
 
@@ -148,5 +146,4 @@ class AgentWorker(BaseWorker):
         except Exception as e:
             logger.error(traceback.format_exc())
             msg_state.status = StatusEnum.INCOMPLETE
-            return msg_state
             return msg_state
