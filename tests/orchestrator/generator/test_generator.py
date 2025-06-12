@@ -177,11 +177,21 @@ class TestBestPracticeManager:
 
     def test_finetune_best_practice(self, best_practice_manager):
         """Test best practice refinement."""
-        steps = [{"task": "Original step"}, {"task": "New step"}]
-        refined_practices = best_practice_manager.finetune_best_practice(steps)
-        assert isinstance(refined_practices, list)
-        assert len(refined_practices) > 0
-        assert all(isinstance(practice, dict) for practice in refined_practices)
+        practice = {
+            "practice_id": "test1",
+            "name": "Test Practice",
+            "description": "Test Description",
+            "steps": [{"task": "Original step"}],
+            "rationale": "Test Rationale",
+            "examples": [],
+            "priority": 3,
+            "category": "test",
+        }
+        task = {"name": "Test Task", "steps": [{"task": "New step"}]}
+        refined_practice = best_practice_manager.finetune_best_practice(practice, task)
+        assert isinstance(refined_practice, dict)
+        assert "steps" in refined_practice
+        assert len(refined_practice["steps"]) > 0
 
     def test_validate_practices(self, best_practice_manager):
         """Test practice validation."""

@@ -125,46 +125,49 @@ class BestPracticeManager:
         return optimized_practices
 
     def finetune_best_practice(
-        self, steps: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
-        """Refine a best practice based on feedback.
+        self, practice: Dict[str, Any], task: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Refine a best practice based on feedback and task information.
 
-        This method takes a set of steps and refines them into a well-structured
-        best practice, incorporating feedback and improvements.
+        This method takes a practice and a task, and refines the practice based on
+        the task's requirements and feedback.
 
         Args:
-            steps (List[Dict[str, Any]]): List of steps to refine
+            practice (Dict[str, Any]): The practice to refine
+            task (Dict[str, Any]): The task information to use for refinement
 
         Returns:
-            List[Dict[str, Any]]: Refined best practice steps
+            Dict[str, Any]: Refined practice
         """
         try:
             # Create practice definition
             practice_def = BestPractice(
-                practice_id="",
-                name="Refined Practice",
-                description="",
-                steps=steps,
-                rationale="",
-                examples=[],
-                priority=3,
-                category="refined",
+                practice_id=practice.get("practice_id", ""),
+                name=practice.get("name", "Refined Practice"),
+                description=practice.get("description", ""),
+                steps=task.get("steps", []),
+                rationale=practice.get("rationale", ""),
+                examples=practice.get("examples", []),
+                priority=practice.get("priority", 3),
+                category=practice.get("category", "refined"),
             )
 
             # Validate practice
             if not self._validate_practice_definition(practice_def):
                 logger.warning("Invalid practice definition")
-                return steps
+                return practice
 
             # Optimize steps
-            optimized_steps = self._optimize_steps(steps)
+            optimized_steps = self._optimize_steps(practice_def.steps)
             logger.info("Optimized practice steps")
 
-            return optimized_steps
+            # Update practice with optimized steps
+            practice["steps"] = optimized_steps
+            return practice
 
         except Exception as e:
             logger.error(f"Error refining practice: {str(e)}")
-            return steps
+            return practice
 
     def _generate_practice_definitions(
         self, tasks: List[Dict[str, Any]]

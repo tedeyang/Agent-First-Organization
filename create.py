@@ -10,7 +10,9 @@ import argparse
 import json
 import logging
 import os
-from typing import Any, Dict, List, Set
+import tempfile
+import zipfile
+from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
 
@@ -22,6 +24,7 @@ from arklex.env.tools.RAG.build_rag import build_rag
 from arklex.env.tools.database.build_database import build_database
 from arklex.utils.model_config import MODEL
 from arklex.utils.model_provider_config import LLM_PROVIDERS, PROVIDER_MAP
+from arklex.utils.loader import Loader
 
 logger = init_logger(
     log_level=logging.INFO,
@@ -98,43 +101,130 @@ def init_worker(args: argparse.Namespace) -> None:
         build_database(args.output_dir)
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+def load_documents(
+    config: Dict[str, Any], document_dir: Optional[str] = None
+) -> List[Dict[str, str]]:
+    """Load documents from various sources specified in the config.
+
+    Args:
+        config (Dict[str, Any]): Configuration containing document sources
+        document_dir (Optional[str]): Directory containing documents
+
+    Returns:
+        List[Dict[str, str]]: List of loaded documents
+    """
+    loader = Loader()
+    all_docs = []
+
+    # Process all document types consistently
+    doc_types = ["instructions", "task_docs", "rag_docs"]
+    for doc_type in doc_types:
+        if doc_type in config:
+            docs = config[doc_type]
+            if isinstance(docs, list):
+                for doc in docs:
+                    source = doc.get("source")
+                    doc_type = doc.get(
+                        "type", "text"
+                    )  # Default to text if type not specified
+                    num_docs = doc.get("num", 1)
+
+                    try:
+                        if doc_type == "url":
+                            urls = loader.get_all_urls(source, num_docs)
+                            crawled_docs = loader.to_crawled_url_objs(urls)
+                            all_docs.extend(crawled_docs)
+                        elif doc_type == "file":
+                            if os.path.isfile(source):
+                                if source.lower().endswith(".zip"):
+                                    with tempfile.TemporaryDirectory() as temp_dir:
+                                        with zipfile.ZipFile(source, "r") as zip_ref:
+                                            zip_ref.extractall(temp_dir)
+                                        file_list = []
+                                        for root, _, files in os.walk(temp_dir):
+                                            for file in files:
+                                                file_list.append(
+                                                    os.path.join(root, file)
+                                                )
+                                        all_docs.extend(
+                                            loader.to_crawled_local_objs(file_list)
+                                        )
+                                else:
+                                    all_docs.extend(
+                                        loader.to_crawled_local_objs([source])
+                                    )
+                            elif os.path.isdir(source):
+                                file_list = [
+                                    os.path.join(source, f) for f in os.listdir(source)
+                                ]
+                                all_docs.extend(loader.to_crawled_local_objs(file_list))
+                            else:
+                                raise FileNotFoundError(
+                                    f"Source path '{source}' does not exist"
+                                )
+                        elif doc_type == "text":
+                            all_docs.extend(loader.to_crawled_text([source]))
+                        else:
+                            raise ValueError(f"Unsupported document type: {doc_type}")
+                    except Exception as e:
+                        logger.error(f"Error processing document {source}: {str(e)}")
+                        continue
+
+    # Convert CrawledObjects to dictionaries
+    return [doc.to_dict() for doc in all_docs]
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Create a task graph from a config file"
+    )
+    parser.add_argument("--config", type=str, required=True, help="Path to config file")
+    parser.add_argument("--log-level", type=str, default="INFO", help="Logging level")
     parser.add_argument(
-        "--config",
+        "--output-dir",
         type=str,
-        default="./arklex/orchestrator/examples/customer_service_config.json",
-    )
-    parser.add_argument("--output-dir", type=str, default="./examples/test")
-    parser.add_argument("--model", type=str, default=MODEL["model_type_or_path"])
-    parser.add_argument(
-        "--llm-provider", type=str, default=MODEL["llm_provider"], choices=LLM_PROVIDERS
-    )
-    parser.add_argument(
-        "--log-level",
-        type=str,
-        default="INFO",
-        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-    )
-    parser.add_argument(
-        "--task", type=str, choices=["gen_taskgraph", "init", "all"], default="all"
+        default=None,
+        help="Output directory for cache and results",
     )
     args = parser.parse_args()
-    MODEL["model_type_or_path"] = args.model
-    MODEL["llm_provider"] = args.llm_provider
-    log_level = getattr(logging, args.log_level.upper(), logging.INFO)
-    logger = init_logger(
-        log_level=log_level,
-        filename=os.path.join(os.path.dirname(__file__), "logs", "arklex.log"),
+
+    # Set up logging
+    logger.setLevel(getattr(logging, args.log_level.upper()))
+
+    # Load config
+    with open(args.config, "r") as f:
+        config = json.load(f)
+
+    # Load documents
+    documents = load_documents(config)
+    logger.info(f"Loaded {len(documents)} documents")
+
+    # Instantiate model
+    model = PROVIDER_MAP.get(MODEL["llm_provider"], ChatOpenAI)(
+        model=MODEL["model_type_or_path"], timeout=30000
     )
 
-    if not os.path.exists(args.output_dir):
-        os.makedirs(args.output_dir, exist_ok=True)
+    # Determine output directory
+    output_dir = args.output_dir or os.path.join(os.path.dirname(args.config), "output")
+    os.makedirs(output_dir, exist_ok=True)
 
-    if args.task == "all":
-        generate_taskgraph(args)
-        init_worker(args)
-    elif args.task == "gen_taskgraph":
-        generate_taskgraph(args)
-    elif args.task == "init":
-        init_worker(args)
+    # Initialize generator with model and output_dir
+    generator = Generator(config, model, output_dir)
+
+    # Generate task graph
+    task_graph = generator.generate()
+    logger.info("Task graph generated successfully")
+
+    # Build RAG if specified
+    if "rag_docs" in config:
+        build_rag(os.path.dirname(args.config), config["rag_docs"])
+        logger.info("RAG system built successfully")
+
+    # Build database if specified
+    if "database" in config:
+        build_database(config["database"])
+        logger.info("Database built successfully")
+
+
+if __name__ == "__main__":
+    main()
