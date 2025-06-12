@@ -31,6 +31,7 @@ from langchain_community.document_loaders import (
     UnstructuredExcelLoader,
     UnstructuredMarkdownLoader,
     TextLoader,
+    UnstructuredPowerPointLoader,
 )
 import base64
 
@@ -423,22 +424,21 @@ class Loader:
                 err_msg = f"No file type detected for file: {str(file_path)}"
                 raise FileNotFoundError(err_msg)
 
-            if file_type in ["pdf", "png", "jpg", "jpeg"] and (
+            if file_type in ["pdf", "png", "jpg", "jpeg", "pptx", "ppt"] and (
                 MISTRAL_API_KEY is not None
                 and MISTRAL_API_KEY != "<your-mistral-api-key>"
             ):
                 # Call the Mistral API to extract data.
                 client = Mistral(api_key=MISTRAL_API_KEY)
-                if file_type == "pdf":
-                    # For pdf's
-                    uploaded_pdf = client.files.upload(
+                if file_type in ["pdf", "pptx", "ppt"]:
+                    uploaded_doc = client.files.upload(
                         file={
                             "file_name": file_name,
                             "content": open(file_path, "rb"),
                         },
                         purpose="ocr",
                     )
-                    signed_url = client.files.get_signed_url(file_id=uploaded_pdf.id)
+                    signed_url = client.files.get_signed_url(file_id=uploaded_doc.id)
                     ocr_response = client.ocr.process(
                         model="mistral-ocr-latest",
                         document={
@@ -510,6 +510,8 @@ class Loader:
                 loader = TextLoader(file_path)
             elif file_type == "md":
                 loader = UnstructuredMarkdownLoader(file_path)
+            elif file_type == "pptx" or file_type == "ppt":
+                loader = UnstructuredPowerPointLoader(file_path, mode="single")
             else:
                 err_msg = "Unsupported file type. If you are trying to upload a pdf, make sure it is less than 50MB. Images are only supported with the advanced parser."
                 raise NotImplementedError(err_msg)
