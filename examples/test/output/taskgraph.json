@@ -1,0 +1,349 @@
+{
+    "nodes": [
+        {
+            "id": "task_1",
+            "name": "Provide detailed information on product specifications and their intended business applications",
+            "description": "User inquires about robotic product specifications and business use",
+            "type": "task",
+            "data": {
+                "task_id": "",
+                "name": "Provide detailed information on product specifications and their intended business applications",
+                "description": "User inquires about robotic product specifications and business use",
+                "steps": [
+                    {
+                        "task": "Execute Provide detailed information on product specifications and their intended business applications",
+                        "step_id": "step_1",
+                        "description": "Step description",
+                        "required_fields": []
+                    }
+                ],
+                "dependencies": [],
+                "required_resources": [],
+                "estimated_duration": "1 hour",
+                "priority": 3,
+                "created_at": "2025-06-13T08:35:00.222573",
+                "modified_at": "2025-06-13T08:35:00.222581",
+                "version": "1.0"
+            },
+            "style": {
+                "color": "#808080",
+                "border": {
+                    "color": "#000000",
+                    "width": 2,
+                    "style": "solid",
+                    "radius": 4
+                },
+                "padding": {
+                    "top": 10,
+                    "right": 10,
+                    "bottom": 10,
+                    "left": 10
+                },
+                "text_color": "#000000",
+                "background_color": "#ffffff",
+                "opacity": 1.0
+            },
+            "steps": [
+                {
+                    "task": "Execute Provide detailed information on product specifications and their intended business applications",
+                    "step_id": "step_1",
+                    "description": "Step description",
+                    "required_fields": []
+                }
+            ],
+            "dependencies": [],
+            "required_resources": [],
+            "estimated_duration": "1 hour",
+            "priority": 3
+        },
+        {
+            "id": "task_2",
+            "name": "Assist users in deciding whether to rent or purchase robots based on their business needs",
+            "description": "User wants assistance in rental versus purchase decisions",
+            "type": "task",
+            "data": {
+                "task_id": "",
+                "name": "Assist users in deciding whether to rent or purchase robots based on their business needs",
+                "description": "User wants assistance in rental versus purchase decisions",
+                "steps": [
+                    {
+                        "task": "Execute Assist users in deciding whether to rent or purchase robots based on their business needs",
+                        "step_id": "step_1",
+                        "description": "Step description",
+                        "required_fields": []
+                    }
+                ],
+                "dependencies": [],
+                "required_resources": [],
+                "estimated_duration": "1 hour",
+                "priority": 3,
+                "created_at": "2025-06-13T08:35:00.222618",
+                "modified_at": "2025-06-13T08:35:00.222620",
+                "version": "1.0"
+            },
+            "style": {
+                "color": "#808080",
+                "border": {
+                    "color": "#000000",
+                    "width": 2,
+                    "style": "solid",
+                    "radius": 4
+                },
+                "padding": {
+                    "top": 10,
+                    "right": 10,
+                    "bottom": 10,
+                    "left": 10
+                },
+                "text_color": "#000000",
+                "background_color": "#ffffff",
+                "opacity": 1.0
+            },
+            "steps": [
+                {
+                    "task": "Execute Assist users in deciding whether to rent or purchase robots based on their business needs",
+                    "step_id": "step_1",
+                    "description": "Step description",
+                    "required_fields": []
+                }
+            ],
+            "dependencies": [],
+            "required_resources": [],
+            "estimated_duration": "1 hour",
+            "priority": 3
+        },
+        {
+            "id": "task_3",
+            "name": "Provide information about the ClouTea shop and the role of ADAM robot in beverage making",
+            "description": "User has questions about ClouTea shop services",
+            "type": "task",
+            "data": {
+                "task_id": "",
+                "name": "Provide information about the ClouTea shop and the role of ADAM robot in beverage making",
+                "description": "User has questions about ClouTea shop services",
+                "steps": [
+                    {
+                        "task": "Execute Provide information about the ClouTea shop and the role of ADAM robot in beverage making",
+                        "step_id": "step_1",
+                        "description": "Step description",
+                        "required_fields": []
+                    }
+                ],
+                "dependencies": [],
+                "required_resources": [],
+                "estimated_duration": "1 hour",
+                "priority": 3,
+                "created_at": "2025-06-13T08:35:00.222630",
+                "modified_at": "2025-06-13T08:35:00.222631",
+                "version": "1.0"
+            },
+            "style": {
+                "color": "#808080",
+                "border": {
+                    "color": "#000000",
+                    "width": 2,
+                    "style": "solid",
+                    "radius": 4
+                },
+                "padding": {
+                    "top": 10,
+                    "right": 10,
+                    "bottom": 10,
+                    "left": 10
+                },
+                "text_color": "#000000",
+                "background_color": "#ffffff",
+                "opacity": 1.0
+            },
+            "steps": [
+                {
+                    "task": "Execute Provide information about the ClouTea shop and the role of ADAM robot in beverage making",
+                    "step_id": "step_1",
+                    "description": "Step description",
+                    "required_fields": []
+                }
+            ],
+            "dependencies": [],
+            "required_resources": [],
+            "estimated_duration": "1 hour",
+            "priority": 3
+        },
+        {
+            "id": "task_4",
+            "name": "Provide details on delivery timelines for different types of robots",
+            "description": "User seeks clarification on delivery timelines",
+            "type": "task",
+            "data": {
+                "task_id": "",
+                "name": "Provide details on delivery timelines for different types of robots",
+                "description": "User seeks clarification on delivery timelines",
+                "steps": [
+                    {
+                        "task": "Execute Provide details on delivery timelines for different types of robots",
+                        "step_id": "step_1",
+                        "description": "Step description",
+                        "required_fields": []
+                    }
+                ],
+                "dependencies": [],
+                "required_resources": [],
+                "estimated_duration": "1 hour",
+                "priority": 3,
+                "created_at": "2025-06-13T08:35:00.222635",
+                "modified_at": "2025-06-13T08:35:00.222637",
+                "version": "1.0"
+            },
+            "style": {
+                "color": "#808080",
+                "border": {
+                    "color": "#000000",
+                    "width": 2,
+                    "style": "solid",
+                    "radius": 4
+                },
+                "padding": {
+                    "top": 10,
+                    "right": 10,
+                    "bottom": 10,
+                    "left": 10
+                },
+                "text_color": "#000000",
+                "background_color": "#ffffff",
+                "opacity": 1.0
+            },
+            "steps": [
+                {
+                    "task": "Execute Provide details on delivery timelines for different types of robots",
+                    "step_id": "step_1",
+                    "description": "Step description",
+                    "required_fields": []
+                }
+            ],
+            "dependencies": [],
+            "required_resources": [],
+            "estimated_duration": "1 hour",
+            "priority": 3
+        },
+        {
+            "id": "task_5",
+            "name": "Offer troubleshooting assistance and schedule maintenance services",
+            "description": "User needs after-sales support for robots",
+            "type": "task",
+            "data": {
+                "task_id": "",
+                "name": "Offer troubleshooting assistance and schedule maintenance services",
+                "description": "User needs after-sales support for robots",
+                "steps": [
+                    {
+                        "task": "Execute Offer troubleshooting assistance and schedule maintenance services",
+                        "step_id": "step_1",
+                        "description": "Step description",
+                        "required_fields": []
+                    }
+                ],
+                "dependencies": [],
+                "required_resources": [],
+                "estimated_duration": "1 hour",
+                "priority": 3,
+                "created_at": "2025-06-13T08:35:00.222644",
+                "modified_at": "2025-06-13T08:35:00.222645",
+                "version": "1.0"
+            },
+            "style": {
+                "color": "#808080",
+                "border": {
+                    "color": "#000000",
+                    "width": 2,
+                    "style": "solid",
+                    "radius": 4
+                },
+                "padding": {
+                    "top": 10,
+                    "right": 10,
+                    "bottom": 10,
+                    "left": 10
+                },
+                "text_color": "#000000",
+                "background_color": "#ffffff",
+                "opacity": 1.0
+            },
+            "steps": [
+                {
+                    "task": "Execute Offer troubleshooting assistance and schedule maintenance services",
+                    "step_id": "step_1",
+                    "description": "Step description",
+                    "required_fields": []
+                }
+            ],
+            "dependencies": [],
+            "required_resources": [],
+            "estimated_duration": "1 hour",
+            "priority": 3
+        },
+        {
+            "id": "task_6",
+            "name": "Schedule and provide information for product demonstrations",
+            "description": "User requests product demo or demonstration",
+            "type": "task",
+            "data": {
+                "task_id": "",
+                "name": "Schedule and provide information for product demonstrations",
+                "description": "User requests product demo or demonstration",
+                "steps": [
+                    {
+                        "task": "Execute Schedule and provide information for product demonstrations",
+                        "step_id": "step_1",
+                        "description": "Step description",
+                        "required_fields": []
+                    }
+                ],
+                "dependencies": [],
+                "required_resources": [],
+                "estimated_duration": "1 hour",
+                "priority": 3,
+                "created_at": "2025-06-13T08:35:00.222649",
+                "modified_at": "2025-06-13T08:35:00.222650",
+                "version": "1.0"
+            },
+            "style": {
+                "color": "#808080",
+                "border": {
+                    "color": "#000000",
+                    "width": 2,
+                    "style": "solid",
+                    "radius": 4
+                },
+                "padding": {
+                    "top": 10,
+                    "right": 10,
+                    "bottom": 10,
+                    "left": 10
+                },
+                "text_color": "#000000",
+                "background_color": "#ffffff",
+                "opacity": 1.0
+            },
+            "steps": [
+                {
+                    "task": "Execute Schedule and provide information for product demonstrations",
+                    "step_id": "step_1",
+                    "description": "Step description",
+                    "required_fields": []
+                }
+            ],
+            "dependencies": [],
+            "required_resources": [],
+            "estimated_duration": "1 hour",
+            "priority": 3
+        }
+    ],
+    "edges": [],
+    "metadata": {
+        "created_at": "2025-06-13T08:35:00.222655",
+        "modified_at": "2025-06-13T08:35:00.222656",
+        "version": "1.0",
+        "num_nodes": 6,
+        "num_edges": 0,
+        "max_depth": 1
+    }
+}
