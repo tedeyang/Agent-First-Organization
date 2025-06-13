@@ -83,6 +83,7 @@ class Generator:
         role (str): The role or context for task generation
         user_objective (str): User's objective for the task graph
         builder_objective (str): Builder's objective for the task graph
+        domain (str): The domain for the task graph
         intro (str): Introduction text for the task graph
         instruction_docs (List[str]): Documentation for instructions
         task_docs (List[str]): Documentation for tasks
@@ -101,6 +102,8 @@ class Generator:
         reusable_tasks (Dict[str, Any]): Generated reusable tasks
         tasks (List[Dict[str, Any]]): Generated tasks
         resource_initializer: The resource initializer for the generator
+        nluapi (str): The nluapi for the task graph
+        slotfillapi (str): The slotfillapi for the task graph
 
     Methods:
         generate(): Main method to generate the task graph
@@ -140,20 +143,35 @@ class Generator:
         self.role = config.get("role", "")
         self.user_objective = config.get("user_objective", "")
         self.builder_objective = config.get("builder_objective", "")
+        self.domain = config.get("domain", "")
         self.intro = config.get("intro", "")
         self.instruction_docs = config.get("instruction_docs", [])
         self.task_docs = config.get("task_docs", [])
         self.rag_docs = config.get("rag_docs", [])
         self.user_tasks = config.get("user_tasks", [])
         self.example_conversations = config.get("example_conversations", [])
+        self.nluapi = config.get("nluapi", "")
+        self.slotfillapi = config.get("slotfillapi", "")
 
         # Initialize resource initializer
         if resource_initializer is None:
             resource_initializer = DefaultResourceInitializer()
         self.resource_initializer = resource_initializer
-        self.workers = resource_initializer.init_workers(
-            self.product_kwargs.get("workers", [])
-        )
+
+        # Convert workers to old format
+        raw_workers = self.product_kwargs.get("workers", [])
+        self.workers = []
+        for worker in raw_workers:
+            if isinstance(worker, dict):
+                worker_id = worker.get("id", "")
+                worker_name = worker.get("name", "")
+                worker_path = worker.get("path", "")
+                if worker_id and worker_name and worker_path:
+                    self.workers.append(
+                        {"id": worker_id, "name": worker_name, "path": worker_path}
+                    )
+
+        # Initialize tools
         self.tools = resource_initializer.init_tools(
             self.product_kwargs.get("tools", [])
         )
@@ -239,7 +257,19 @@ class Generator:
             TaskGraphFormatter: Initialized task graph formatter instance
         """
         if self._task_graph_formatter is None:
-            self._task_graph_formatter = TaskGraphFormatter()
+            self._task_graph_formatter = TaskGraphFormatter(
+                role=self.role,
+                user_objective=self.user_objective,
+                builder_objective=self.builder_objective,
+                domain=self.domain,
+                intro=self.intro,
+                task_docs=self.task_docs,
+                rag_docs=self.rag_docs,
+                workers=self.workers,
+                tools=self.tools,
+                nluapi=self.nluapi,
+                slotfillapi=self.slotfillapi,
+            )
         return self._task_graph_formatter
 
     def _load_multiple_task_documents(
@@ -379,7 +409,37 @@ class Generator:
         Returns:
             str: Path to the saved task graph file
         """
+        import functools
+        import types
+        import collections.abc
+        import json
+
+        def sanitize(obj):
+            if isinstance(obj, (str, int, float, bool)) or obj is None:
+                return obj
+            elif isinstance(obj, dict):
+                return {k: sanitize(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [sanitize(v) for v in obj]
+            elif isinstance(obj, tuple):
+                return tuple(sanitize(v) for v in obj)
+            elif isinstance(obj, functools.partial):
+                print(f"Found partial: {obj}")
+                return str(obj)
+            elif isinstance(obj, collections.abc.Callable):
+                print(f"Found callable: {obj}")
+                return str(obj)
+            else:
+                print(f"Found non-serializable: {obj} (type: {type(obj)})")
+                return str(obj)
+
+        # Debug print for non-serializable fields
+        for k, v in task_graph.items():
+            if not isinstance(v, (str, int, float, bool, list, dict, type(None))):
+                print(f"Field {k} is non-serializable: {v} (type: {type(v)})")
+
+        sanitized_task_graph = sanitize(task_graph)
         taskgraph_filepath = os.path.join(self.output_dir, f"taskgraph.json")
         with open(taskgraph_filepath, "w") as f:
-            json.dump(task_graph, f, indent=4)
+            json.dump(sanitized_task_graph, f, indent=4)
         return taskgraph_filepath
