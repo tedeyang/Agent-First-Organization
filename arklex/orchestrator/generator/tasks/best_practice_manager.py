@@ -312,8 +312,11 @@ class BestPracticeManager:
             # Ensure step has required fields
             if "step_id" not in step:
                 step["step_id"] = f"step_{len(optimized_steps) + 1}"
-            if "description" not in step:
-                step["description"] = "Step description"
+            if "description" not in step or not step["description"].strip():
+                logger.warning(f"Step is missing a meaningful description: {step}")
+                raise ValueError(
+                    "Each step must have a meaningful, non-empty description."
+                )
             if "required_fields" not in step:
                 step["required_fields"] = []
             optimized_steps.append(step)
