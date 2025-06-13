@@ -5,11 +5,11 @@
             {
                 "resource": {
                     "id": "task_1",
-                    "name": "Provide information about robot availability and rental"
+                    "name": "Provide Information on Robot Specifications and Features"
                 },
                 "attribute": {
-                    "value": "User requests information about robot availability and rental options",
-                    "task": "Provide information about robot availability and rental",
+                    "value": "Provide information on robot specifications and features",
+                    "task": "Provide Information on Robot Specifications and Features",
                     "directed": true
                 }
             }
@@ -19,11 +19,11 @@
             {
                 "resource": {
                     "id": "task_2",
-                    "name": "Provide delivery time estimates for Richtech Robotics products"
+                    "name": "Assist in Robot Purchase or Rental Process"
                 },
                 "attribute": {
-                    "value": "User inquires about delivery times for purchased products",
-                    "task": "Provide delivery time estimates for Richtech Robotics products",
+                    "value": "Assist in robot purchase or rental process",
+                    "task": "Assist in Robot Purchase or Rental Process",
                     "directed": true
                 }
             }
@@ -33,11 +33,11 @@
             {
                 "resource": {
                     "id": "task_3",
-                    "name": "Provide details about ClouTea's offerings"
+                    "name": "Provide Information About ClouTea Robot Milk Tea Shop"
                 },
                 "attribute": {
-                    "value": "User asks for information on ClouTea and its offerings",
-                    "task": "Provide details about ClouTea's offerings",
+                    "value": "Provide information about ClouTea robot milk tea shop",
+                    "task": "Provide Information About ClouTea Robot Milk Tea Shop",
                     "directed": true
                 }
             }
@@ -47,11 +47,11 @@
             {
                 "resource": {
                     "id": "task_4",
-                    "name": "Explain business applications for Richtech Robotics products"
+                    "name": "Provide Customer Service or Technical Support for Products"
                 },
                 "attribute": {
-                    "value": "User asks about business applications of robots",
-                    "task": "Explain business applications for Richtech Robotics products",
+                    "value": "Provide customer service or technical support for products",
+                    "task": "Provide Customer Service or Technical Support for Products",
                     "directed": true
                 }
             }
@@ -82,8 +82,24 @@
         }
     ],
     "tasks": [],
-    "workers": {
-        "FaissRAGWorker": {
+    "workers": [
+        {
+            "id": "FaissRAGWorker",
             "name": "FaissRAGWorker",
-            "description": "Answer the user's questions based on the company's internal documentations (unstructured text data), such as the policies, FAQs, and product information",
-            "execute": 
+            "path": "faiss_rag_worker.py"
+        },
+        {
+            "id": "26bb6634-3bee-417d-ad75-23269ac17bc3",
+            "name": "MessageWorker",
+            "path": "message_worker.py"
+        },
+        {
+            "id": "9c15af81-04b3-443e-be04-a3522124b905",
+            "name": "SearchWorker",
+            "path": "search_worker.py"
+        }
+    ],
+    "tools": [],
+    "nluapi": "",
+    "slotfillapi": ""
+}
