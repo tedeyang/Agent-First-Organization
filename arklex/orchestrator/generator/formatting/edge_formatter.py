@@ -1,10 +1,17 @@
 """Edge formatting component for the Arklex framework.
 
-This module provides the EdgeFormatter class that handles formatting of task
-graph edges.
+This module provides the EdgeFormatter class that handles formatting and
+structuring of edges in task graphs. It ensures consistent edge representation
+and proper visualization of task relationships.
+
+Key Features:
+- Edge structure formatting
+- Edge validation
+- Support for different edge types
+- Error handling
 """
 
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any, List, Optional, Union
 from datetime import datetime
 import logging
 
@@ -14,65 +21,40 @@ logger = logging.getLogger(__name__)
 class EdgeFormatter:
     """Formats task graph edges.
 
-    This class handles the formatting of task graph edges, including data
-    and style attributes.
-
-    Attributes:
-        _required_attributes (List[str]): Required edge attributes
-        _optional_attributes (List[str]): Optional edge attributes
-        _valid_types (List[str]): Valid edge types
+    This class handles the formatting of edges in the task graph,
+    including intent and attribute fields.
     """
 
-    def __init__(self) -> None:
-        """Initialize the EdgeFormatter."""
-        self._required_attributes = ["source", "target", "type"]
-        self._optional_attributes = ["weight", "label", "metadata"]
-        self._valid_types = ["depends_on", "blocks", "related_to", "part_of"]
+    def __init__(
+        self,
+        default_intent: str = "depends_on",
+        default_weight: int = 1,
+    ) -> None:
+        self._default_intent = default_intent
+        self._default_weight = default_weight
 
     def format_edge(
         self,
-        source: Dict[str, Any],
-        target: Dict[str, Any],
-        type: str = "depends_on",
-        weight: float = 1.0,
-        label: str = "",
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
-        """Format a task graph edge.
-
-        Args:
-            source (Dict[str, Any]): Source node dict
-            target (Dict[str, Any]): Target node dict
-            type (str): Edge type
-            weight (float): Edge weight
-            label (str): Edge label
-            metadata (Optional[Dict[str, Any]]): Additional metadata
-
-        Returns:
-            Dict[str, Any]: Formatted edge
-        """
-        source_id = source.get("task_id") or source.get("id")
-        target_id = target.get("task_id") or target.get("id")
-        edge_id = f"{source_id}_{target_id}"
-        edge = {
-            "id": edge_id,
-            "source": source_id,
-            "target": target_id,
-            "type": type,
-            "data": self.format_edge_data(
-                source, target, type=type, weight=weight, label=label, metadata=metadata
-            ),
-            "style": self.format_edge_style(
-                source, target, type=type, weight=weight, label=label, metadata=metadata
-            ),
+        source_idx: str,
+        target_idx: str,
+        source_task: Dict[str, Any],
+        target_task: Dict[str, Any],
+    ) -> List[Any]:
+        source_name = source_task.get("name", "")
+        target_name = target_task.get("name", "")
+        edge_data = {
+            "intent": self._default_intent,
+            "attribute": {
+                "weight": self._default_weight,
+                "pred": self._default_intent,
+                "definition": f"{target_name} depends on {source_name}",
+                "sample_utterances": [
+                    f"I need to complete {source_name} before {target_name}",
+                    f"{target_name} requires {source_name} to be done first",
+                ],
+            },
         }
-        if weight is not None:
-            edge["weight"] = weight
-        if label:
-            edge["label"] = label
-        if metadata:
-            edge["metadata"] = metadata
-        return edge
+        return [source_idx, target_idx, edge_data]
 
     def format_edge_data(
         self,
@@ -83,7 +65,7 @@ class EdgeFormatter:
         label: str = "",
         metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        """Format edge data.
+        """Format edge data in the old format.
 
         Args:
             source (Dict[str, Any]): Source node dict
@@ -96,19 +78,14 @@ class EdgeFormatter:
         Returns:
             Dict[str, Any]: Formatted edge data
         """
-        source_id = source.get("task_id") or source.get("id")
-        target_id = target.get("task_id") or target.get("id")
         return {
-            "source": source_id,
-            "target": target_id,
-            "type": type,
-            "weight": weight,
-            "label": label,
-            "description": f"{source.get('name', source_id)} {type.replace('_', ' ')} {target.get('name', target_id)}",
-            "created_at": datetime.now().isoformat(),
-            "modified_at": datetime.now().isoformat(),
-            "version": "1.0",
-            **(metadata or {}),
+            "intent": label or type,
+            "attribute": {
+                "weight": weight,
+                "pred": True,
+                "definition": "",
+                "sample_utterances": [],
+            },
         }
 
     def format_edge_style(
