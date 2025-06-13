@@ -35,7 +35,13 @@ SAMPLE_TASKS = [
         "task_id": "task1",
         "name": "Gather product details",
         "description": "Collect all required product information",
-        "steps": [{"task": "Get product name"}, {"task": "Get product description"}],
+        "steps": [
+            {"task": "Get product name", "description": "Get the name of the product."},
+            {
+                "task": "Get product description",
+                "description": "Get the description of the product.",
+            },
+        ],
         "dependencies": [],
         "required_resources": ["Product form"],
         "estimated_duration": "30 minutes",
@@ -45,7 +51,16 @@ SAMPLE_TASKS = [
         "task_id": "task2",
         "name": "Set product pricing",
         "description": "Determine product pricing strategy",
-        "steps": [{"task": "Research market prices"}, {"task": "Set final price"}],
+        "steps": [
+            {
+                "task": "Research market prices",
+                "description": "Research market prices to determine the best pricing strategy.",
+            },
+            {
+                "task": "Set final price",
+                "description": "Set the final price based on the research.",
+            },
+        ],
         "dependencies": ["task1"],
         "required_resources": ["Pricing guide"],
         "estimated_duration": "45 minutes",
@@ -58,7 +73,16 @@ SAMPLE_PRACTICES = [
         "practice_id": "practice1",
         "name": "Product validation",
         "description": "Validate product information before submission",
-        "steps": [{"task": "Check required fields"}, {"task": "Verify data format"}],
+        "steps": [
+            {
+                "task": "Check required fields",
+                "description": "Check all required fields are filled out.",
+            },
+            {
+                "task": "Verify data format",
+                "description": "Verify the data format is correct.",
+            },
+        ],
         "rationale": "Ensure data quality",
         "examples": ["Product name validation", "Price format check"],
         "priority": 1,
@@ -67,12 +91,23 @@ SAMPLE_PRACTICES = [
 ]
 
 
+# Patch for test_generate_tasks and test_integration_generation_pipeline
+class FakeResponse:
+    content = '[{"task": "Test", "intent": "Test intent", "steps": [{"task": "Step 1", "description": "desc"}]}]'
+    text = content
+
+
+def get_mock_model():
+    mock_model = Mock()
+    mock_model.generate.return_value = FakeResponse()
+    mock_model.invoke.return_value = FakeResponse()
+    return mock_model
+
+
 @pytest.fixture
 def mock_model():
     """Create a mock language model for testing."""
-    model = Mock()
-    model.generate.return_value = {"tasks": SAMPLE_TASKS, "practices": SAMPLE_PRACTICES}
-    return model
+    return get_mock_model()
 
 
 @pytest.fixture
@@ -122,7 +157,9 @@ class TestTaskGenerator:
             {
                 "name": "Custom task",
                 "description": "User-defined task",
-                "steps": [{"task": "Custom step"}],
+                "steps": [
+                    {"task": "Custom step", "description": "Custom step description"}
+                ],
             }
         ]
         tasks = task_generator.add_provided_tasks(
@@ -139,7 +176,7 @@ class TestTaskGenerator:
                 task_id="test1",
                 name="Test task",
                 description="Test description",
-                steps=[{"task": "Test step"}],
+                steps=[{"task": "Test step", "description": "Test step description"}],
                 dependencies=[],
                 required_resources=[],
                 estimated_duration="1 hour",
@@ -181,13 +218,18 @@ class TestBestPracticeManager:
             "practice_id": "test1",
             "name": "Test Practice",
             "description": "Test Description",
-            "steps": [{"task": "Original step"}],
+            "steps": [
+                {"task": "Original step", "description": "Original step description"}
+            ],
             "rationale": "Test Rationale",
             "examples": [],
             "priority": 3,
             "category": "test",
         }
-        task = {"name": "Test Task", "steps": [{"task": "New step"}]}
+        task = {
+            "name": "Test Task",
+            "steps": [{"task": "New step", "description": "New step description"}],
+        }
         refined_practice = best_practice_manager.finetune_best_practice(practice, task)
         assert isinstance(refined_practice, dict)
         assert "steps" in refined_practice
@@ -200,7 +242,7 @@ class TestBestPracticeManager:
                 practice_id="test1",
                 name="Test practice",
                 description="Test description",
-                steps=[{"task": "Test step"}],
+                steps=[{"task": "Test step", "description": "Test step description"}],
                 rationale="Test rationale",
                 examples=[],
                 priority=1,
@@ -244,7 +286,7 @@ class TestReusableTaskManager:
             template_id="test1",
             name="Test template",
             description="Test description",
-            steps=[{"task": "Test step"}],
+            steps=[{"task": "Test step", "description": "Test step description"}],
             parameters={"param1": "string"},
             examples=[],
             version="1.0",
@@ -264,7 +306,7 @@ class TestReusableTaskManager:
                 template_id="test1",
                 name="Test template",
                 description="Test description",
-                steps=[{"task": "Test step"}],
+                steps=[{"task": "Test step", "description": "Test step description"}],
                 parameters={},
                 examples=[],
                 version="1.0",
@@ -282,7 +324,7 @@ class TestReusableTaskManager:
             template_id="test1",
             name="Test template",
             description="Test description",
-            steps=[{"task": "Test step"}],
+            steps=[{"task": "Test step", "description": "Test step description"}],
             parameters={"param1": "string"},
             examples=[],
             version="1.0",

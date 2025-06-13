@@ -12,7 +12,7 @@ Key Features:
 """
 
 import logging
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
@@ -20,17 +20,17 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class BestPractice:
-    """Represents a best practice with its properties.
+    """Represents a best practice for task execution.
 
     Attributes:
-        practice_id (str): Unique identifier for the practice
-        name (str): Name of the practice
-        description (str): Detailed description of the practice
-        steps (List[Dict[str, Any]]): List of steps to follow
-        rationale (str): Explanation of why this practice is important
-        examples (List[str]): Example applications of the practice
-        priority (int): Practice priority (1-5, where 5 is highest)
-        category (str): Category of the practice (e.g., 'efficiency', 'quality')
+        practice_id (str): Unique identifier for the practice.
+        name (str): Name of the practice.
+        description (str): Detailed description of the practice.
+        steps (List[Dict[str, Any]]): List of steps to follow.
+        rationale (str): Explanation of why this practice is important.
+        examples (List[str]): Example applications of the practice.
+        priority (int): Practice priority (1-5, where 5 is highest).
+        category (str): Category of the practice (e.g., 'efficiency', 'quality').
     """
 
     practice_id: str
@@ -44,7 +44,7 @@ class BestPractice:
 
 
 class BestPracticeManager:
-    """Manages the generation and refinement of best practices.
+    """Manages the generation and refinement of best practices for task execution.
 
     This class handles the creation and management of best practices for task
     execution, ensuring high-quality and consistent task performance. It
@@ -106,22 +106,14 @@ class BestPracticeManager:
         Returns:
             List[Dict[str, Any]]: List of generated best practices
         """
-        # Generate practice definitions
         practice_definitions = self._generate_practice_definitions(tasks)
         logger.info(f"Generated {len(practice_definitions)} practice definitions")
-
-        # Validate practices
         validated_practices = self._validate_practices(practice_definitions)
         logger.info(f"Validated {len(validated_practices)} practices")
-
-        # Categorize practices
         self._categorize_practices(validated_practices)
         logger.info("Categorized practices")
-
-        # Optimize practices
         optimized_practices = self._optimize_practices(validated_practices)
         logger.info("Optimized practices")
-
         return optimized_practices
 
     def finetune_best_practice(
@@ -140,7 +132,6 @@ class BestPracticeManager:
             Dict[str, Any]: Refined practice
         """
         try:
-            # Create practice definition
             practice_def = BestPractice(
                 practice_id=practice.get("practice_id", ""),
                 name=practice.get("name", "Refined Practice"),
@@ -151,20 +142,13 @@ class BestPracticeManager:
                 priority=practice.get("priority", 3),
                 category=practice.get("category", "refined"),
             )
-
-            # Validate practice
             if not self._validate_practice_definition(practice_def):
                 logger.warning("Invalid practice definition")
                 return practice
-
-            # Optimize steps
             optimized_steps = self._optimize_steps(practice_def.steps)
             logger.info("Optimized practice steps")
-
-            # Update practice with optimized steps
             practice["steps"] = optimized_steps
             return practice
-
         except Exception as e:
             logger.error(f"Error refining practice: {str(e)}")
             return practice
@@ -183,7 +167,7 @@ class BestPracticeManager:
         Returns:
             List[BestPractice]: List of generated practice definitions
         """
-        practice_definitions = []
+        practice_definitions: List[BestPractice] = []
         for i, task in enumerate(tasks):
             practice_def = BestPractice(
                 practice_id=f"practice_{i + 1}",
@@ -222,7 +206,7 @@ class BestPracticeManager:
                     "category": str
                 }
         """
-        validated_practices = []
+        validated_practices: List[Dict[str, Any]] = []
         for practice_def in practice_definitions:
             if self._validate_practice_definition(practice_def):
                 validated_practices.append(self._convert_to_dict(practice_def))
@@ -237,7 +221,6 @@ class BestPracticeManager:
         Returns:
             bool: True if practice definition is valid
         """
-        # Check required fields
         if not practice_def.practice_id:
             return False
         if not practice_def.name:
@@ -256,7 +239,6 @@ class BestPracticeManager:
             return False
         if not practice_def.category:
             return False
-
         return True
 
     def _categorize_practices(self, practices: List[Dict[str, Any]]) -> None:
@@ -287,9 +269,8 @@ class BestPracticeManager:
             List[Dict[str, Any]]: List of optimized practices with the same structure
                 as the input practices
         """
-        optimized_practices = []
+        optimized_practices: List[Dict[str, Any]] = []
         for practice in practices:
-            # Optimize steps
             practice["steps"] = self._optimize_steps(practice["steps"])
             optimized_practices.append(practice)
         return optimized_practices
@@ -307,9 +288,8 @@ class BestPracticeManager:
             List[Dict[str, Any]]: List of optimized steps with the same structure
                 as the input steps
         """
-        optimized_steps = []
+        optimized_steps: List[Dict[str, Any]] = []
         for step in steps:
-            # Ensure step has required fields
             if "step_id" not in step:
                 step["step_id"] = f"step_{len(optimized_steps) + 1}"
             if "description" not in step or not step["description"].strip():

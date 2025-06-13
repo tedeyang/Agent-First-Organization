@@ -20,17 +20,17 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class ReusableTask:
-    """Represents a reusable task template with its properties.
+    """Represents a reusable task template for the Arklex framework.
 
     Attributes:
-        template_id (str): Unique identifier for the template
-        name (str): Name of the template
-        description (str): Detailed description of the template
-        steps (List[Dict[str, Any]]): List of template steps
-        parameters (Dict[str, Any]): Template parameters and their types
-        examples (List[Dict[str, Any]]): Example instantiations
-        version (str): Template version
-        category (str): Template category (e.g., 'utility', 'workflow')
+        template_id (str): Unique identifier for the template.
+        name (str): Name of the template.
+        description (str): Detailed description of the template.
+        steps (List[Dict[str, Any]]): List of template steps.
+        parameters (Dict[str, Any]): Template parameters and their types.
+        examples (List[Dict[str, Any]]): Example instantiations.
+        version (str): Template version.
+        category (str): Template category (e.g., 'utility', 'workflow').
     """
 
     template_id: str
@@ -79,9 +79,9 @@ class ReusableTaskManager:
         """Initialize the ReusableTaskManager with required components.
 
         Args:
-            model: The language model to use for template generation
-            role (str): The role or context for template generation
-            user_objective (str): User's objective for the task graph
+            model (Any): The language model to use for template generation.
+            role (str): The role or context for template generation.
+            user_objective (str): User's objective for the task graph.
         """
         self.model = model
         self.role = role
@@ -102,15 +102,13 @@ class ReusableTaskManager:
         5. Categorizing templates
 
         Args:
-            tasks (List[Dict[str, Any]]): List of tasks to analyze
+            tasks (List[Dict[str, Any]]): List of tasks to analyze.
 
         Returns:
-            Dict[str, Dict[str, Any]]: Dictionary of generated templates
+            Dict[str, Dict[str, Any]]: Dictionary of generated templates.
         """
-        # Identify patterns
         patterns = self._identify_patterns(tasks)
         if not patterns and tasks:
-            # Always generate at least one pattern for integration test
             patterns = [
                 {
                     "name": tasks[0]["name"],
@@ -120,23 +118,14 @@ class ReusableTaskManager:
                 }
             ]
         logger.info(f"Identified {len(patterns)} reusable patterns")
-
-        # Extract components
         components = self._extract_components(patterns)
         logger.info(f"Extracted {len(components)} common components")
-
-        # Create templates
         templates = self._create_templates(components)
         logger.info(f"Created {len(templates)} templates")
-
-        # Validate templates
         validated_templates = self._validate_templates(templates)
         logger.info(f"Validated {len(validated_templates)} templates")
-
-        # Categorize templates
         self._categorize_templates(validated_templates)
         logger.info("Categorized templates")
-
         return validated_templates
 
     def instantiate_template(
@@ -148,31 +137,24 @@ class ReusableTaskManager:
         task instance that can be used in a task graph.
 
         Args:
-            template_id (str): ID of the template to instantiate
-            parameters (Dict[str, Any]): Parameters for instantiation
+            template_id (str): ID of the template to instantiate.
+            parameters (Dict[str, Any]): Parameters for instantiation.
 
         Returns:
-            Dict[str, Any]: Instantiated task
+            Dict[str, Any]: Instantiated task.
 
         Raises:
-            ValueError: If template_id is not found or parameters are invalid
+            ValueError: If template_id is not found or parameters are invalid.
         """
         try:
-            # Get template
             template = self._templates.get(template_id)
             if not template:
                 raise ValueError(f"Template not found: {template_id}")
-
-            # Validate parameters
             if not self._validate_parameters(template, parameters):
                 raise ValueError(f"Invalid parameters for template: {template_id}")
-
-            # Create instance
             instance = self._create_instance(template, parameters)
             logger.info(f"Created instance from template: {template_id}")
-
             return instance
-
         except Exception as e:
             logger.error(f"Error instantiating template: {str(e)}")
             raise
@@ -184,21 +166,19 @@ class ReusableTaskManager:
         be extracted into reusable templates.
 
         Args:
-            tasks (List[Dict[str, Any]]): List of tasks to analyze
+            tasks (List[Dict[str, Any]]): List of tasks to analyze.
 
         Returns:
-            List[Dict[str, Any]]: List of identified patterns
+            List[Dict[str, Any]]: List of identified patterns.
         """
-        patterns = []
+        patterns: List[Dict[str, Any]] = []
         for task in tasks:
-            if (
-                len(task.get("steps", [])) > 1
-            ):  # Only consider tasks with multiple steps
+            if len(task.get("steps", [])) > 1:
                 pattern = {
                     "name": task["name"],
                     "description": task["description"],
                     "steps": task["steps"],
-                    "parameters": {},  # Will be extracted in _extract_components
+                    "parameters": {},
                 }
                 patterns.append(pattern)
         return patterns
@@ -212,20 +192,18 @@ class ReusableTaskManager:
         components that can be used in templates.
 
         Args:
-            patterns (List[Dict[str, Any]]): List of identified patterns
+            patterns (List[Dict[str, Any]]): List of identified patterns.
 
         Returns:
-            List[Dict[str, Any]]: List of extracted components
+            List[Dict[str, Any]]: List of extracted components.
         """
-        components = []
+        components: List[Dict[str, Any]] = []
         for pattern in patterns:
-            # Extract parameters from steps
-            parameters = {}
+            parameters: Dict[str, Any] = {}
             for step in pattern["steps"]:
                 for field in step.get("required_fields", []):
                     if field not in parameters:
-                        parameters[field] = "string"  # Default type
-
+                        parameters[field] = "string"
             component = {
                 "name": pattern["name"],
                 "description": pattern["description"],
@@ -244,23 +222,12 @@ class ReusableTaskManager:
         that can be instantiated with different parameters.
 
         Args:
-            components (List[Dict[str, Any]]): List of components to process
+            components (List[Dict[str, Any]]): List of components to process.
 
         Returns:
-            Dict[str, ReusableTask]: Dictionary mapping template IDs to ReusableTask objects
-                with the following structure:
-                {
-                    "template_id": str,
-                    "name": str,
-                    "description": str,
-                    "steps": List[Dict[str, Any]],
-                    "parameters": Dict[str, Any],
-                    "examples": List[Dict[str, Any]],
-                    "version": str,
-                    "category": str
-                }
+            Dict[str, ReusableTask]: Dictionary mapping template IDs to ReusableTask objects.
         """
-        templates = {}
+        templates: Dict[str, ReusableTask] = {}
         for i, component in enumerate(components):
             template = ReusableTask(
                 template_id=f"template_{i + 1}",
