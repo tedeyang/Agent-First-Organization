@@ -15,52 +15,49 @@ class NodeFormatter:
     """Formats task nodes.
 
     This class handles the formatting of task nodes in the task graph,
-    including data and style attributes.
-
-    Attributes:
-        _required_attributes (List[str]): Required node attributes
-        _optional_attributes (List[str]): Optional node attributes
+    including resource, attribute, limit, and type fields.
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        default_directed: bool = True,
+    ) -> None:
         """Initialize the NodeFormatter."""
-        self._required_attributes = ["id", "name", "description"]
-        self._optional_attributes = [
-            "steps",
-            "dependencies",
-            "required_resources",
-            "estimated_duration",
-            "priority",
-        ]
+        self._default_resource = {
+            "id": "26bb6634-3bee-417d-ad75-23269ac17bc3",
+            "name": "MessageWorker",
+        }
+        self._default_directed = default_directed
 
-    def format_node(self, task: Dict[str, Any]) -> Dict[str, Any]:
-        """Format a task node.
+    def format_node(self, task: Dict[str, Any], node_id: str) -> List[Any]:
+        """Format a task node in the old format.
 
         Args:
             task (Dict[str, Any]): Task to format
+            node_id (str): ID of the node to format
 
         Returns:
-            Dict[str, Any]: Formatted node
+            List[Any]: Formatted node as [id, data] pair
         """
-        # Create base node
-        node = {
-            "id": task.get("id", task.get("task_id", "")),
-            "name": task.get("name", ""),
-            "description": task.get("description", ""),
-            "type": "task",
-            "data": self.format_node_data(task),
-            "style": self.format_node_style(task),
+        node_data = {
+            "resource": {
+                "id": task.get("task_id", node_id),
+                "name": task.get("name", ""),
+            },
+            "attribute": {
+                "value": task.get("description", ""),
+                "task": task.get("name", ""),
+                "directed": self._default_directed,
+            },
         }
-
-        # Add optional attributes
-        for attr in self._optional_attributes:
-            if attr in task:
-                node[attr] = task[attr]
-
-        return node
+        if "limit" in task:
+            node_data["limit"] = task["limit"]
+        if "type" in task:
+            node_data["type"] = task["type"]
+        return [node_id, node_data]
 
     def format_node_data(self, task: Dict[str, Any]) -> Dict[str, Any]:
-        """Format node data.
+        """Format node data in the old format.
 
         Args:
             task (Dict[str, Any]): Task to format
@@ -69,17 +66,12 @@ class NodeFormatter:
             Dict[str, Any]: Formatted node data
         """
         return {
-            "task_id": task.get("task_id", ""),
-            "name": task.get("name", ""),
-            "description": task.get("description", ""),
-            "steps": task.get("steps", []),
-            "dependencies": task.get("dependencies", []),
-            "required_resources": task.get("required_resources", []),
-            "estimated_duration": task.get("estimated_duration", ""),
-            "priority": task.get("priority", "medium"),
-            "created_at": datetime.now().isoformat(),
-            "modified_at": datetime.now().isoformat(),
-            "version": "1.0",
+            "resource": self._default_resource,
+            "attribute": {
+                "value": task.get("description", ""),
+                "task": task.get("name", ""),
+                "directed": False,
+            },
         }
 
     def format_node_style(self, task: Dict[str, Any]) -> Dict[str, Any]:
