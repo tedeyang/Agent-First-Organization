@@ -110,31 +110,32 @@ class TaskGenerator:
         self.prompt_manager = PromptManager()  # Initialize prompt manager
 
     def generate_tasks(
-        self, intro: str, existing_tasks: List[Dict[str, Any]] = None
+        self, intro: str, existing_tasks: Optional[List[Dict[str, Any]]] = None
     ) -> List[Dict[str, Any]]:
-        """Generate tasks from the introduction and existing tasks."""
+        """Generate tasks from the introduction and existing tasks.
+
+        Args:
+            intro (str): Introduction or documentation string.
+            existing_tasks (Optional[List[Dict[str, Any]]]): List of existing tasks, if any.
+
+        Returns:
+            List[Dict[str, Any]]: List of validated and structured tasks.
+        """
         if existing_tasks is None:
             existing_tasks = []
-
-        # Extract objective, intro, and docs from the intro string or config
-        # For now, treat intro as both intro and docs, and use self.objective if available
         objective = getattr(self, "objective", intro)
         docs = intro
-
         processed_objective = self._process_objective(
             objective, intro, docs, existing_tasks
         )
         task_definitions = self._generate_task_definitions(
             processed_objective, existing_tasks
         )
-
-        # Convert to dict and add 'id' field
         tasks = []
         for i, task_def in enumerate(task_definitions):
             task_dict = self._convert_to_dict(task_def)
             task_dict["id"] = f"task_{i + 1}"
             tasks.append(task_dict)
-
         validated_tasks = self._validate_tasks(tasks)
         self._build_hierarchy(validated_tasks)
         return validated_tasks
@@ -154,10 +155,9 @@ class TaskGenerator:
         Returns:
             List[Dict[str, Any]]: List of processed and validated tasks
         """
-        processed_tasks = []
+        processed_tasks: List[Dict[str, Any]] = []
         for task in user_tasks:
             try:
-                # Create task definition
                 task_def = TaskDefinition(
                     task_id=task.get("id", ""),
                     name=task.get("name", ""),
@@ -168,18 +168,14 @@ class TaskGenerator:
                     estimated_duration=task.get("estimated_duration"),
                     priority=task.get("priority", 3),
                 )
-
-                # Validate task
                 if self._validate_task_definition(task_def):
                     processed_tasks.append(task)
                     logger.info(f"Added user-provided task: {task_def.name}")
                 else:
                     logger.warning(f"Invalid user-provided task: {task_def.name}")
-
             except Exception as e:
                 logger.error(f"Error processing user task: {str(e)}")
                 continue
-
         return processed_tasks
 
     def _process_objective(
@@ -218,10 +214,8 @@ class TaskGenerator:
         except ImportError:
             messages = [{"role": "user", "content": prompt}]
         response = self.model.generate([messages])
-        # Handle both real LLMResult and mock dict responses
-        response_text = None
+        response_text: Optional[str] = None
         if hasattr(response, "generations"):
-            # Real LLMResult
             if hasattr(response.generations[0][0], "text"):
                 response_text = response.generations[0][0].text
             elif hasattr(response.generations[0][0], "message") and hasattr(
@@ -234,7 +228,6 @@ class TaskGenerator:
             response_text = response["content"]
         else:
             response_text = str(response)
-        # Postprocess and parse JSON
         try:
             json_start = response_text.find("[")
             json_end = response_text.rfind("]") + 1
@@ -265,7 +258,6 @@ class TaskGenerator:
             List[TaskDefinition]: List of TaskDefinition objects.
         """
         tasks_data = processed_objective.get("tasks", [])
-        # If no tasks found in processed_objective, generate from documentation
         if not tasks_data:
             existing_tasks_json = "[]"
             if existing_tasks:
@@ -286,12 +278,10 @@ class TaskGenerator:
             )
             response = self.model.invoke(prompt)
             try:
-                # Extract content from AIMessage if needed
                 if hasattr(response, "content"):
                     response_text = response.content
                 else:
                     response_text = str(response)
-                # Ensure response_text is a string
                 if not isinstance(response_text, str):
                     response_text = str(response_text)
                 json_start = response_text.find("[")
@@ -339,9 +329,8 @@ class TaskGenerator:
         Returns:
             List[Dict[str, Any]]: List of validated tasks.
         """
-        validated_tasks = []
+        validated_tasks: List[Dict[str, Any]] = []
         for task in tasks:
-            # Convert TaskDefinition to dict if needed
             if hasattr(task, "__dataclass_fields__"):
                 task = self._convert_to_dict(task)
             if not all(field in task for field in ["name", "description", "steps"]):
@@ -391,19 +380,13 @@ class TaskGenerator:
         Returns:
             bool: True if task definition is valid, False otherwise
         """
-        # Check required fields
         if not all([task_def.name, task_def.description, task_def.steps]):
             return False
-
-        # Check step format
         for step in task_def.steps:
             if not isinstance(step, dict) or "task" not in step:
                 return False
-
-        # Check priority range
         if not 1 <= task_def.priority <= 5:
             return False
-
         return True
 
     def _establish_relationships(self, tasks: List[Dict[str, Any]]) -> None:
@@ -423,7 +406,7 @@ class TaskGenerator:
         Args:
             tasks (List[Dict[str, Any]]): List of tasks to organize.
         """
-        graph = {}
+        graph: Dict[str, Any] = {}
         for task in tasks:
             task_id = task.get("id") or task.get("task_id")
             if not task_id:
@@ -476,7 +459,7 @@ class TaskGenerator:
         self, task_definitions: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
         """Convert task definitions to task dictionary format."""
-        tasks = {}
+        tasks: Dict[str, Any] = {}
         for task_def in task_definitions:
             task_id = f"task_{len(tasks) + 1}"
             tasks[task_id] = {

@@ -12,11 +12,11 @@ from .edge_formatter import EdgeFormatter
 class GraphValidator:
     """Validator for task graph structure and connectivity."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the graph validator."""
         self._node_formatter = NodeFormatter()
         self._edge_formatter = EdgeFormatter()
-        self._errors = []
+        self._errors: List[str] = []
 
     def validate_graph(self, graph: Dict[str, Any]) -> bool:
         """Validate a task graph.

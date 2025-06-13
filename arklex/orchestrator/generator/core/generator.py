@@ -242,8 +242,20 @@ class Generator:
             self._task_graph_formatter = TaskGraphFormatter()
         return self._task_graph_formatter
 
-    def _load_multiple_task_documents(self, doc_loader, doc_paths):
-        """Helper to load multiple task documents and aggregate them as a list."""
+    def _load_multiple_task_documents(
+        self,
+        doc_loader: DocumentLoader,
+        doc_paths: Union[List[Union[str, Dict[str, Any]]], str, Dict[str, Any]],
+    ) -> List[Any]:
+        """Helper to load multiple task documents and aggregate them as a list.
+
+        Args:
+            doc_loader (DocumentLoader): The document loader instance.
+            doc_paths (Union[List[Union[str, Dict[str, Any]]], str, Dict[str, Any]]): Paths or sources for task documents.
+
+        Returns:
+            List[Any]: List of loaded task documents.
+        """
         if isinstance(doc_paths, list):
             sources = [
                 doc["source"] if isinstance(doc, dict) and "source" in doc else doc
@@ -258,8 +270,20 @@ class Generator:
             )
             return [doc_loader.load_task_document(src)]
 
-    def _load_multiple_instruction_documents(self, doc_loader, doc_paths):
-        """Helper to load multiple instruction documents and aggregate them as a list."""
+    def _load_multiple_instruction_documents(
+        self,
+        doc_loader: DocumentLoader,
+        doc_paths: Union[List[Union[str, Dict[str, Any]]], str, Dict[str, Any]],
+    ) -> List[Any]:
+        """Helper to load multiple instruction documents and aggregate them as a list.
+
+        Args:
+            doc_loader (DocumentLoader): The document loader instance.
+            doc_paths (Union[List[Union[str, Dict[str, Any]]], str, Dict[str, Any]]): Paths or sources for instruction documents.
+
+        Returns:
+            List[Any]: List of loaded instruction documents.
+        """
         if isinstance(doc_paths, list):
             sources = [
                 doc["source"] if isinstance(doc, dict) and "source" in doc else doc

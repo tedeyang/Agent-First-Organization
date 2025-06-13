@@ -12,7 +12,7 @@ Key Features:
 """
 
 import logging
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
@@ -267,7 +267,7 @@ class ReusableTaskManager:
                     "category": str
                 }
         """
-        validated_templates = {}
+        validated_templates: Dict[str, Dict[str, Any]] = {}
         for template_id, template in templates.items():
             if self._validate_template(template):
                 validated_templates[template_id] = self._convert_to_dict(template)
@@ -282,7 +282,6 @@ class ReusableTaskManager:
         Returns:
             bool: True if template is valid
         """
-        # Check required fields
         if not template.template_id:
             return False
         if not template.name:
@@ -301,7 +300,6 @@ class ReusableTaskManager:
             return False
         if not template.category:
             return False
-
         return True
 
     def _validate_parameters(
@@ -316,11 +314,9 @@ class ReusableTaskManager:
         Returns:
             bool: True if parameters are valid
         """
-        # Check if all required parameters are provided
         for param_name, param_type in template.parameters.items():
             if param_name not in parameters:
                 return False
-            # Basic type checking
             if param_type == "string" and not isinstance(parameters[param_name], str):
                 return False
             if param_type == "number" and not isinstance(
@@ -355,8 +351,7 @@ class ReusableTaskManager:
                     "version": str
                 }
         """
-        # Create instance
-        instance = {
+        instance: Dict[str, Any] = {
             "task_id": f"task_{template.template_id}",
             "name": template.name,
             "description": template.description,

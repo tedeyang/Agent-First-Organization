@@ -24,7 +24,14 @@ class DocumentProcessor:
         self._processed_documents: Dict[str, Any] = {}
 
     def process_document(self, document: Dict[str, Any]) -> Dict[str, Any]:
-        """Process a document and output 'processed_sections' for test compatibility."""
+        """Process a document and output 'processed_sections' for test compatibility.
+
+        Args:
+            document (Dict[str, Any]): The document to process
+
+        Returns:
+            Dict[str, Any]: The processed document with 'processed_sections'
+        """
         processed_doc = {
             "title": document.get("title", ""),
             "processed_sections": [],

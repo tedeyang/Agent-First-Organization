@@ -1,4 +1,4 @@
-"""Document loading and processing components for the Arklex framework.
+"""Public API for document loading and processing components in the Arklex framework.
 
 This module provides specialized components for loading and processing various
 types of documentation used in task graph generation. The components handle

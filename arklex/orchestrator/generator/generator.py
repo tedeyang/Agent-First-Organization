@@ -1,19 +1,19 @@
-"""Task graph generator implementation for the Arklex framework.
+"""Task graph generator compatibility layer for the Arklex framework.
 
-This module has been refactored into modular components for better maintainability.
-This file now serves as a compatibility layer, importing from the new modular structure.
+This module serves as a compatibility layer, re-exporting the main Generator class and optional UI components
+from the new modular structure for backward compatibility. All core logic has been refactored into modular
+subcomponents for maintainability and clarity.
 
-The new modular structure includes:
+Modular structure includes:
 - core/generator.py: Main Generator class with orchestration logic
 - ui/: Interactive components (TaskEditorApp, InputModal)
 - tasks/: Task generation, best practices, and reusable tasks
 - docs/: Document loading and processing
 - formatting/: Task graph structure formatting
 
-For the main Generator class, import from this module as before:
+Usage:
     from arklex.orchestrator.generator import Generator
-
-For direct access to specific components:
+    # or for direct access to components:
     from arklex.orchestrator.generator.core import Generator
     from arklex.orchestrator.generator.ui import TaskEditorApp, InputModal
     from arklex.orchestrator.generator.tasks import TaskGenerator, BestPracticeManager

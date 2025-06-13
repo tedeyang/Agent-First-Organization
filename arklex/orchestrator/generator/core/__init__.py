@@ -1,6 +1,6 @@
-"""Core generator module for the Arklex framework.
+"""Public API for the core generator module in the Arklex framework.
 
-This module contains the main Generator class that orchestrates the task graph generation process.
+This module exposes the main Generator class, which orchestrates the task graph generation process.
 """
 
 from .generator import Generator

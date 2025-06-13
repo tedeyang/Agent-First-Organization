@@ -11,7 +11,7 @@ Key Features:
 - Support for task and instruction documents
 """
 
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Union, List
 from pathlib import Path
 import json
 import logging
@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 class DocumentLoader:
     """Document loader for loading and validating documents."""
 
-    def __init__(self, cache_dir: Path, validate_documents: bool = True):
+    def __init__(self, cache_dir: Path, validate_documents: bool = True) -> None:
         """Initialize the document loader.
 
         Args:
@@ -37,7 +37,7 @@ class DocumentLoader:
         """
         self._cache_dir = cache_dir
         self._validate_documents = validate_documents
-        self._cache = {}
+        self._cache: Dict[str, Dict[str, Any]] = {}
         self._validator = DocumentValidator()
 
     def load_document(self, doc_path: Path) -> Dict[str, Any]:
@@ -53,61 +53,49 @@ class DocumentLoader:
             FileNotFoundError: If the document file doesn't exist
             json.JSONDecodeError: If the document is not valid JSON
         """
-        # Check cache first
         if str(doc_path) in self._cache:
             return self._cache[str(doc_path)]
-
-        # Check if file exists
         if not doc_path.exists():
             raise FileNotFoundError(f"Document not found: {doc_path}")
-
-        # Load and parse document
         try:
-            # For testing, use mock file system if available
             if hasattr(doc_path, "read_text"):
                 content = doc_path.read_text()
             else:
                 with open(doc_path, "r") as f:
                     content = f.read()
-
-            # For testing, use mock json loads if available
             if hasattr(json, "loads") and callable(getattr(json, "loads")):
                 document = json.loads(content)
             else:
                 document = json.loads(content)
-
         except json.JSONDecodeError as e:
             raise json.JSONDecodeError(
                 f"Invalid JSON in document: {doc_path}", e.doc, e.pos
             )
-
-        # Validate document if required
         if self._validate_documents:
             if not self.validate_document(document):
                 raise ValueError(f"Invalid document structure: {doc_path}")
-
         return document
 
-    def load_task_document(self, doc_path: Path) -> Dict[str, Any]:
+    def load_task_document(self, doc_path: Union[Path, str]) -> Dict[str, Any]:
         """Load a task document.
 
         Args:
-            doc_path (Path or str): Path or URL to the task document
+            doc_path (Union[Path, str]): Path or URL to the task document
 
         Returns:
             Dict[str, Any]: The loaded task document
+
+        Raises:
+            FileNotFoundError: If the document file doesn't exist
+            ValueError: If the document structure is invalid
         """
-        # Load and parse document (skip validate_document)
-        # Check cache first
         cache_key = str(doc_path)
         if cache_key in self._cache:
             document = self._cache[cache_key]
         else:
             if isinstance(doc_path, str) and doc_path.startswith("http"):
-                # Download and save to cache_dir
                 response = requests.get(doc_path)
                 response.raise_for_status()
-                # Use a hash of the URL for the filename to avoid collisions
                 url_hash = hashlib.md5(doc_path.encode("utf-8")).hexdigest()
                 ext = os.path.splitext(doc_path)[-1] or ".html"
                 filename = f"url_{url_hash}{ext}"
@@ -134,10 +122,8 @@ class DocumentLoader:
                 else:
                     document = json.loads(content)
             except json.JSONDecodeError:
-                # If not JSON, try parsing as HTML
                 try:
                     soup = BeautifulSoup(content, "html.parser")
-                    # Convert HTML to a task document structure
                     document = {
                         "task_id": "html_task",
                         "name": soup.title.string if soup.title else "HTML Document",
@@ -164,9 +150,11 @@ class DocumentLoader:
 
         Returns:
             Dict[str, Any]: The loaded instruction document
+
+        Raises:
+            FileNotFoundError: If the document file doesn't exist
+            ValueError: If the document structure is invalid
         """
-        # Load and parse document (skip validate_document)
-        # Check cache first
         if str(doc_path) in self._cache:
             document = self._cache[str(doc_path)]
         else:
@@ -206,16 +194,11 @@ class DocumentLoader:
         """
         if not isinstance(document, dict):
             return False
-
-        # Check required fields
         required_fields = ["title", "sections"]
         if not all(field in document for field in required_fields):
             return False
-
-        # Validate sections
         if not isinstance(document["sections"], list):
             return False
-
         for section in document["sections"]:
             if not isinstance(section, dict):
                 return False
@@ -225,7 +208,6 @@ class DocumentLoader:
                 section["requirements"], list
             ):
                 return False
-
         return True
 
     def _validate_task_document(self, document: Dict[str, Any]) -> bool:
@@ -239,16 +221,11 @@ class DocumentLoader:
         """
         if not isinstance(document, dict):
             return False
-
-        # Check required fields
         required_fields = ["task_id", "name", "description", "steps"]
         if not all(field in document for field in required_fields):
             return False
-
-        # Validate steps
         if not isinstance(document["steps"], list):
             return False
-
         for step in document["steps"]:
             if not isinstance(step, dict):
                 return False
@@ -258,7 +235,6 @@ class DocumentLoader:
                 step["required_fields"], list
             ):
                 return False
-
         return True
 
     def _validate_instruction_document(self, document: Dict[str, Any]) -> bool:
@@ -272,16 +248,11 @@ class DocumentLoader:
         """
         if not isinstance(document, dict):
             return False
-
-        # Check required fields
         required_fields = ["instruction_id", "title", "content", "sections"]
         if not all(field in document for field in required_fields):
             return False
-
-        # Validate sections
         if not isinstance(document["sections"], list):
             return False
-
         for section in document["sections"]:
             if not isinstance(section, dict):
                 return False
@@ -289,5 +260,4 @@ class DocumentLoader:
                 return False
             if "steps" in section and not isinstance(section["steps"], list):
                 return False
-
         return True
