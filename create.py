@@ -12,7 +12,7 @@ import logging
 import os
 import tempfile
 import zipfile
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from dotenv import load_dotenv
 
@@ -214,6 +214,10 @@ def main():
     # Generate task graph
     task_graph = generator.generate()
     logger.info("Task graph generated successfully")
+
+    # Save the generated task graph
+    taskgraph_filepath = generator.save_task_graph(task_graph)
+    logger.info(f"Task graph saved to {taskgraph_filepath}")
 
     # Build RAG if specified
     if "rag_docs" in config:
