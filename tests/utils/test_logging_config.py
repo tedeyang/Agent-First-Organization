@@ -6,14 +6,10 @@ import pytest
 from pathlib import Path
 from typing import Generator
 
-from arklex.utils.logging_config import (
-    get_logger,
-    setup_logging,
-    log_with_context,
-    RequestIdFilter,
-    ContextFilter,
-    MAX_BYTES,
-)
+from arklex.utils.logging_utils import LogContext, RequestIdFilter, ContextFilter
+from arklex.utils.logging_config import setup_logging, MAX_BYTES
+
+log_context = LogContext(__name__)
 
 
 @pytest.fixture
@@ -33,24 +29,24 @@ def temp_log_dir(tmp_path: Path) -> Generator[str, None, None]:
 
 def test_get_logger() -> None:
     """Test getting a logger instance."""
-    logger = get_logger("test_logger")
-    assert isinstance(logger, logging.Logger)
-    assert logger.name == "test_logger"
-    assert not logger.propagate
-    assert len(logger.handlers) == 1
+    log_context = LogContext("test_logger")
+    assert isinstance(log_context, LogContext)
+    assert log_context.name == "test_logger"
+    assert log_context.propagate
+    assert len(log_context.handlers) == 1
 
 
 def test_get_logger_with_level() -> None:
     """Test getting a logger with a specific level."""
-    logger = get_logger("test_level", level="DEBUG")
-    assert logger.level == logging.DEBUG
+    log_context = LogContext("test_level", level="DEBUG")
+    assert log_context.level == logging.DEBUG
 
 
 def test_get_logger_with_format() -> None:
     """Test getting a logger with a custom format."""
     custom_format = "%(levelname)s - %(message)s"
-    logger = get_logger("test_format", log_format=custom_format)
-    assert logger.handlers[0].formatter._fmt == custom_format
+    log_context = LogContext("test_format", log_format=custom_format)
+    assert log_context.handlers[0].formatter._fmt == custom_format
 
 
 def test_setup_logging(temp_log_dir: str) -> None:
@@ -98,37 +94,39 @@ def test_context_filter_no_context() -> None:
 
 def test_logger_with_filters() -> None:
     """Test logger with filters."""
-    logger = get_logger("test_filters")
-    assert any(isinstance(f, RequestIdFilter) for f in logger.handlers[0].filters)
-    assert any(isinstance(f, ContextFilter) for f in logger.handlers[0].filters)
+    log_context = LogContext("test_filters")
+    assert any(isinstance(f, RequestIdFilter) for f in log_context.handlers[0].filters)
+    assert any(isinstance(f, ContextFilter) for f in log_context.handlers[0].filters)
 
 
 def test_logger_handlers() -> None:
     """Test logger handlers."""
-    logger = get_logger("test_handlers")
-    assert len(logger.handlers) == 1
-    assert isinstance(logger.handlers[0], logging.StreamHandler)
+    log_context = LogContext("test_handlers")
+    assert len(log_context.handlers) == 1
+    assert isinstance(log_context.handlers[0], logging.StreamHandler)
 
 
 def test_logger_propagation() -> None:
     """Test logger propagation."""
-    logger = get_logger("test_propagation")
-    assert not logger.propagate
+    log_context = LogContext("test_propagation")
+    assert log_context.propagate
 
 
 def test_logger_level_inheritance() -> None:
     """Test logger level inheritance."""
-    parent = get_logger("parent", level="DEBUG")
-    child = get_logger("parent.child")
+    parent = LogContext("parent", level="DEBUG")
+    child = LogContext("parent.child")
     assert child.level == logging.NOTSET
-    assert child.parent == parent
+    assert child.parent is not None
+    assert child.parent.name == parent.name
+    assert child.parent.level == parent.level
 
 
 def test_logger_format_inheritance() -> None:
     """Test logger format inheritance."""
     custom_format = "%(levelname)s - %(message)s"
-    parent = get_logger("parent", log_format=custom_format)
-    child = get_logger("parent.child")
+    parent = LogContext("parent", log_format=custom_format)
+    child = LogContext("parent.child")
     assert child.handlers[0].formatter._fmt == custom_format
 
 
@@ -138,15 +136,17 @@ def test_log_with_context(caplog: pytest.LogCaptureFixture) -> None:
     Args:
         caplog: Pytest fixture for capturing log output.
     """
-    logger = get_logger("test_context")
-    logger.propagate = True  # Ensure logs propagate to root for caplog
+    log_context = LogContext("test_context")
+    log_context.propagate = True  # Ensure logs propagate to root for caplog
     context = {"user_id": "123", "action": "test"}
 
     with caplog.at_level(logging.INFO):
-        log_with_context(logger, "INFO", "Test message", context)
+        log_context.info("Test message", context)
         assert "Test message" in caplog.text
-        assert any(isinstance(f, ContextFilter) for f in logger.handlers[0].filters)
-    logger.propagate = False
+        assert any(
+            isinstance(f, ContextFilter) for f in log_context.handlers[0].filters
+        )
+    log_context.propagate = False
 
 
 def test_log_without_context(caplog: pytest.LogCaptureFixture) -> None:
@@ -155,13 +155,13 @@ def test_log_without_context(caplog: pytest.LogCaptureFixture) -> None:
     Args:
         caplog: Pytest fixture for capturing log output.
     """
-    logger = get_logger("test_no_context")
-    logger.propagate = True  # Ensure logs propagate to root for caplog
+    log_context = LogContext("test_no_context")
+    log_context.propagate = True  # Ensure logs propagate to root for caplog
 
     with caplog.at_level(logging.INFO):
-        log_with_context(logger, "INFO", "Test message")
+        log_context.info("Test message")
         assert "Test message" in caplog.text
-    logger.propagate = False
+    log_context.propagate = False
 
 
 def test_log_rotation(temp_log_dir: str) -> None:
@@ -211,7 +211,7 @@ def test_log_rotation(temp_log_dir: str) -> None:
 
 def test_log_levels() -> None:
     """Test different log levels."""
-    logger = get_logger("test_levels", level="INFO")
+    logger = LogContext("test_levels", level="INFO")
 
     # Test each log level
     logger.debug("Debug message")
@@ -227,7 +227,7 @@ def test_log_levels() -> None:
 def test_log_format() -> None:
     """Test custom log format."""
     custom_format = "%(levelname)s - %(message)s"
-    logger = get_logger("test_format", log_format=custom_format)
+    logger = LogContext("test_format", log_format=custom_format)
     logger.info("Test message")
 
     # Verify that the format was applied

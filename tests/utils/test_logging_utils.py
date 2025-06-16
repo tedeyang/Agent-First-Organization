@@ -16,10 +16,10 @@ import tenacity
 
 # Helper to ensure logger propagates and is at correct level for caplog
 def get_test_context(name="test", base_context=None):
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
-    logger.propagate = True
-    return LogContext(name, base_context)
+    log_context = LogContext(name, level="INFO", base_context=base_context)
+    log_context.setLevel(logging.DEBUG)
+    log_context.propagate = True
+    return log_context
 
 
 def test_log_context_basic(caplog):

@@ -2,9 +2,9 @@ import pytest
 from fastapi import FastAPI, Request
 from starlette.testclient import TestClient
 from arklex.middleware.logging_middleware import RequestLoggingMiddleware
-from arklex.utils.logging_config import get_logger
+from arklex.utils.logging_utils import LogContext
 
-logger = get_logger(__name__)
+log_context = LogContext(__name__)
 
 
 @pytest.fixture

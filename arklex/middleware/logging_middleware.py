@@ -13,7 +13,6 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from arklex.utils.logging_config import get_logger
 from arklex.utils.logging_utils import LogContext, LOG_MESSAGES
 from arklex.utils.exceptions import (
     RetryableError,
@@ -21,8 +20,6 @@ from arklex.utils.exceptions import (
     TimeoutError,
     ServiceUnavailableError,
 )
-
-logger = get_logger(__name__)
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
@@ -83,10 +80,11 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
         # Log request start with standardized message
         log_context.info(
-            LOG_MESSAGES["INFO"]["REQUEST_START"].format(request_id=request_id),
+            f"Request started: {request_id} | method={request.method} | url={request.url} | client_host={request.client.host if request.client else None} | client_port={request.client.port if request.client else None}",
             method=request.method,
             url=str(request.url),
             client_host=request.client.host if request.client else None,
+            client_port=request.client.port if request.client else None,
         )
 
         start_time = time.time()
@@ -98,7 +96,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
             # Log request completion with standardized message
             log_context.info(
-                LOG_MESSAGES["INFO"]["REQUEST_END"].format(request_id=request_id),
+                f"Request completed: {request_id} | status_code={response.status_code} | process_time={process_time:.4f}s | content_type={response.headers.get('content-type')} | response_size={len(response.body) if hasattr(response, 'body') else 0}",
                 status_code=response.status_code,
                 process_time=process_time,
                 response_headers=dict(response.headers),
@@ -113,7 +111,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         except RetryableError as e:
             # Log retryable error with standardized message
             log_context.error(
-                LOG_MESSAGES["ERROR"]["OPERATION_FAILED"].format(error=str(e)),
+                f"Request failed: {str(e)} | error_type={type(e).__name__} | process_time={time.time() - start_time:.4f}s",
                 error_type=type(e).__name__,
                 error_details=getattr(e, "details", None),
                 max_retries=e.max_retries,
@@ -126,9 +124,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         except Exception as e:
             # Log unexpected error with standardized message
             log_context.error(
-                LOG_MESSAGES["ERROR"]["UNEXPECTED_ERROR"].format(
-                    function="dispatch", error=str(e)
-                ),
+                f"Request failed: {str(e)} | error_type={type(e).__name__} | process_time={time.time() - start_time:.4f}s",
                 error_type=type(e).__name__,
                 error_details=getattr(e, "details", None),
                 stack_trace=traceback.format_exc(),

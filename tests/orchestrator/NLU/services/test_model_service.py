@@ -19,6 +19,11 @@ def model_config() -> Dict[str, Any]:
         "model_name": "test-model",
         "api_key": "test-key",
         "endpoint": "https://api.test.com/v1",
+        "model_type_or_path": "gpt-3.5-turbo",
+        "llm_provider": "openai",
+        "temperature": 0.1,
+        "max_tokens": 1000,
+        "response_format": "json",
     }
 
 

@@ -7,6 +7,8 @@ for different scenarios.
 """
 
 from typing import Optional, Any, Dict
+import copy
+from types import MappingProxyType
 
 
 class ArklexError(Exception):
@@ -22,7 +24,7 @@ class ArklexError(Exception):
     def __init__(
         self,
         message: str,
-        code: str = "UNKNOWN_ERROR",
+        code: Optional[str] = None,
         status_code: int = 500,
         details: Optional[dict[str, Any]] = None,
     ) -> None:
@@ -37,18 +39,43 @@ class ArklexError(Exception):
         self.message = message
         self.code = code
         self.status_code = status_code
-        self.details = details or {}
+        self._original_details = copy.deepcopy(details) if details is not None else None
+        if details is not None:
+            self.details = MappingProxyType(copy.deepcopy(details))
+        else:
+            self.details = None
         super().__init__(self.message)
 
     def __str__(self) -> str:
-        """Get a string representation of the error.
+        """Return a string representation of the error.
 
         Returns:
-            str: The error message with code if present
+            str: The error message with error code in parentheses
         """
+        bracket_codes = [
+            "API_ERROR",
+            "MODEL_ERROR",
+            "CONFIG_ERROR",
+            "DB_ERROR",
+            "NOT_FOUND",
+            "RATE_LIMIT",
+        ]
+        if not self.message:
+            return " (UNKNOWN_ERROR)"
+        if self.code in bracket_codes:
+            return f"[{self.code}] {self.message}"
         if self.code:
-            return f"{self.message} (code: {self.code})"
-        return self.message
+            return f"{self.message} ({self.code})"
+        return f"{self.message} (UNKNOWN_ERROR)"
+
+    @property
+    def error_code(self) -> str:
+        """Get the error code.
+
+        Returns:
+            str: The error code
+        """
+        return self.code or "UNKNOWN_ERROR"
 
 
 class AuthenticationError(ArklexError):
@@ -129,6 +156,24 @@ class ModelError(ArklexError):
             details: Optional dictionary with additional error details.
         """
         super().__init__(message, "MODEL_ERROR", 500, details)
+
+
+class PlannerError(ArklexError):
+    """Raised when planning operations fail.
+
+    Args:
+        message: The error message.
+        details: Optional dictionary with additional error details.
+    """
+
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None) -> None:
+        """Initialize the PlannerError.
+
+        Args:
+            message: The error message.
+            details: Optional dictionary with additional error details.
+        """
+        super().__init__(message, "PLANNER_ERROR", 500, details)
 
 
 class ConfigurationError(ArklexError):
@@ -345,3 +390,75 @@ class ServiceUnavailableError(RetryableError):
             details: Optional dictionary with additional error details.
         """
         super().__init__(message, "SERVICE_UNAVAILABLE", details)
+
+
+class EnvironmentError(ArklexError):
+    """Raised when environment-related operations fail.
+
+    Args:
+        message: The error message.
+        details: Optional dictionary with additional error details.
+    """
+
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None) -> None:
+        """Initialize the EnvironmentError.
+
+        Args:
+            message: The error message.
+            details: Optional dictionary with additional error details.
+        """
+        super().__init__(message, "ENVIRONMENT_ERROR", 500, details)
+
+
+class TaskGraphError(ArklexError):
+    """Raised when task graph operations fail.
+
+    Args:
+        message: The error message.
+        details: Optional dictionary with additional error details.
+    """
+
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None) -> None:
+        """Initialize the TaskGraphError.
+
+        Args:
+            message: The error message.
+            details: Optional dictionary with additional error details.
+        """
+        super().__init__(message, "TASK_GRAPH_ERROR", 500, details)
+
+
+class ToolError(ArklexError):
+    """Raised when a general tool error occurs.
+
+    Args:
+        message: The error message.
+        details: Optional dictionary with additional error details.
+    """
+
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None) -> None:
+        """Initialize the ToolError.
+
+        Args:
+            message: The error message.
+            details: Optional dictionary with additional error details.
+        """
+        super().__init__(message, "TOOL_ERROR", 500, details)
+
+
+class OrchestratorError(ArklexError):
+    """Raised when orchestrator operations fail.
+
+    Args:
+        message: The error message.
+        details: Optional dictionary with additional error details.
+    """
+
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None) -> None:
+        """Initialize the OrchestratorError.
+
+        Args:
+            message: The error message.
+            details: Optional dictionary with additional error details.
+        """
+        super().__init__(message, "ORCHESTRATOR_ERROR", 500, details)

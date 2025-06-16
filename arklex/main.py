@@ -11,7 +11,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from arklex.utils.logging_config import setup_logging, get_logger, log_with_context
+from arklex.utils.logging_utils import LogContext
 from arklex.utils.exceptions import (
     ArklexError,
     ValidationError,
@@ -26,8 +26,7 @@ from arklex.utils.exceptions import (
 from arklex.middleware.logging_middleware import RequestLoggingMiddleware
 
 # Initialize logging with JSON formatting
-setup_logging(use_json=True)
-logger = get_logger(__name__)
+log_context = LogContext(__name__)
 
 # Create FastAPI app
 app = FastAPI(title="Arklex API", description="Arklex API Service", version="1.0.0")
@@ -65,12 +64,8 @@ async def arklex_exception_handler(request: Request, exc: ArklexError) -> JSONRe
     }
 
     # Log the error with context
-    log_with_context(
-        logger,
-        "ERROR",
-        f"Arklex error occurred: {str(exc)}",
-        context=error_context,
-        exc_info=exc,
+    log_context.error(
+        f"Arklex error occurred: {str(exc)}", context=error_context, exc_info=exc
     )
 
     # Prepare error response
@@ -119,12 +114,8 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
     }
 
     # Log the unexpected error with context
-    log_with_context(
-        logger,
-        "ERROR",
-        f"Unexpected error occurred: {str(exc)}",
-        context=error_context,
-        exc_info=exc,
+    log_context.error(
+        f"Unexpected error occurred: {str(exc)}", context=error_context, exc_info=exc
     )
 
     return JSONResponse(
@@ -147,7 +138,7 @@ async def health_check() -> dict[str, str]:
     Returns:
         dict: A dictionary with the health status
     """
-    logger.info("Health check requested")
+    log_context.info("Health check requested")
     return {"status": "healthy"}
 
 
@@ -161,11 +152,11 @@ app.include_router(nlu_router, prefix="/api/nlu", tags=["NLU"])
 @app.on_event("startup")
 async def startup_event() -> None:
     """Handle application startup."""
-    logger.info("Application startup")
+    log_context.info("Application startup")
 
 
 # Shutdown event
 @app.on_event("shutdown")
 async def shutdown_event() -> None:
     """Handle application shutdown."""
-    logger.info("Application shutdown")
+    log_context.info("Application shutdown")

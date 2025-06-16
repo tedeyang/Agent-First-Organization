@@ -5,7 +5,7 @@ This module provides helper functions for authenticating HubSpot API requests wi
 """
 
 from typing import Dict, Any
-from arklex.exceptions import AuthenticationError
+from arklex.utils.exceptions import AuthenticationError
 
 # Error message for missing HubSpot authentication parameters
 HUBSPOT_AUTH_ERROR: str = "Missing some or all required hubspot authentication parameters: access_token. Please set up 'fixed_args' in the config file. For example, {'name': <unique name of the tool>, 'fixed_args': {'access_token': <hubspot_access_token>}"

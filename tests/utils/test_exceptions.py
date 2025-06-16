@@ -18,7 +18,7 @@ from arklex.utils.exceptions import (
 def test_arklex_error_creation() -> None:
     """Test creation of ArklexError."""
     error = ArklexError("Test error")
-    assert str(error) == "Test error"
+    assert str(error) == "Test error (UNKNOWN_ERROR)"
     assert error.code is None
     assert error.status_code == 500
     assert error.details is None
@@ -37,7 +37,7 @@ def test_arklex_error_with_details() -> None:
     """Test creation of ArklexError with details."""
     details: Dict[str, Any] = {"field": "value"}
     error = ArklexError("Test error", details=details)
-    assert str(error) == "Test error"
+    assert str(error) == "Test error (UNKNOWN_ERROR)"
     assert error.code is None
     assert error.status_code == 500
     assert error.details == details
@@ -127,8 +127,9 @@ def test_error_details_immutability() -> None:
     details = {"field": "test"}
     error = ArklexError("Test error", details=details)
 
-    # Attempt to modify details
-    error.details["field"] = "modified"
+    # Attempt to modify details should raise TypeError
+    with pytest.raises(TypeError):
+        error.details["field"] = "modified"
 
     # Original details should remain unchanged
     assert error.details["field"] == "test"

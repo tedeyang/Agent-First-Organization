@@ -5,7 +5,6 @@ initialization, execution, and slot filling integration.
 """
 
 import os
-import logging
 import uuid
 import inspect
 import traceback
@@ -16,9 +15,10 @@ from arklex.utils.graph_state import MessageState, StatusEnum
 from arklex.utils.slot import Slot
 from arklex.orchestrator.NLU.core.slot import SlotFiller
 from arklex.utils.utils import format_chat_history
-from arklex.exceptions import ToolExecutionError, AuthenticationError
+from arklex.utils.exceptions import ToolExecutionError, AuthenticationError
+from arklex.utils.logging_utils import LogContext
 
-logger = logging.getLogger(__name__)
+log_context = LogContext(__name__)
 
 
 def register_tool(
@@ -164,7 +164,7 @@ class Tool:
             state (MessageState): The current message state.
         """
         default_slots: List[Slot] = state.slots.get("default_slots", [])
-        logger.info(f"Default slots are: {default_slots}")
+        log_context.info(f"Default slots are: {default_slots}")
         if not default_slots:
             return
         response: Dict[str, Any] = {}
@@ -183,7 +183,7 @@ class Tool:
             }
         )
 
-        logger.info(f"Slots after initialization are: {self.slots}")
+        log_context.info(f"Slots after initialization are: {self.slots}")
 
     def _execute(self, state: MessageState, **fixed_args: Any) -> MessageState:
         """Execute the tool with the current state and fixed arguments.
@@ -212,7 +212,7 @@ class Tool:
         slots: List[Slot] = self.slotfiller.fill_slots(
             self.slots, chat_history_str, self.llm_config
         )
-        logger.info(f"{slots=}")
+        log_context.info(f"{slots=}")
 
         # Check if any required slots are missing or unverified
         missing_required = any(
@@ -245,7 +245,7 @@ class Tool:
         # if all required slots are filled and verified, then execute the function
         tool_success: bool = False
         if not missing_required:
-            logger.info("all required slots filled")
+            log_context.info("all required slots filled")
             # Get all slot values, including optional ones that have values
             kwargs: Dict[str, Any] = {}
             for slot in slots:
@@ -274,15 +274,15 @@ class Tool:
                 response = self.func(**combined_kwargs)
                 tool_success = True
             except ToolExecutionError as tee:
-                logger.error(traceback.format_exc())
+                log_context.error(traceback.format_exc())
                 response = tee.extra_message
             except AuthenticationError as ae:
-                logger.error(traceback.format_exc())
+                log_context.error(traceback.format_exc())
                 response = str(ae)
             except Exception as e:
-                logger.error(traceback.format_exc())
+                log_context.error(traceback.format_exc())
                 response = str(e)
-            logger.info(f"Tool {self.name} response: {response}")
+            log_context.info(f"Tool {self.name} response: {response}")
             call_id: str = str(uuid.uuid4())
             state.function_calling_trajectory.append(
                 {
@@ -319,12 +319,12 @@ class Tool:
         if tool_success:
             # Tool execution success
             if self.isResponse:
-                logger.info(
+                log_context.info(
                     "Tool exeuction COMPLETE, and the output is stored in response"
                 )
                 state.response = response
             else:
-                logger.info(
+                log_context.info(
                     "Tool execution COMPLETE, and the output is stored in message flow"
                 )
                 state.message_flow = (
@@ -334,10 +334,12 @@ class Tool:
         else:
             # Tool execution failed
             if slot_verification:
-                logger.info("Tool execution INCOMPLETE due to slot verification")
+                log_context.info("Tool execution INCOMPLETE due to slot verification")
                 state.message_flow = f"Context from {self.name} tool execution: {response}\n Focus on the '{reason}' to generate the verification request in response please and make sure the request appear in the response."
             else:
-                logger.info("Tool execution INCOMPLETE due to tool execution failure")
+                log_context.info(
+                    "Tool execution INCOMPLETE due to tool execution failure"
+                )
                 state.message_flow = (
                     state.message_flow
                     + f"Context from {self.name} tool execution: {response}\n"

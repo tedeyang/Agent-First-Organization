@@ -21,9 +21,11 @@ from arklex.env.env import Environment
 from arklex.orchestrator.orchestrator import AgentOrg
 from arklex.utils.model_config import MODEL
 from arklex.utils.model_provider_config import LLM_PROVIDERS
-from arklex.utils.utils import init_logger
+from arklex.utils.logging_utils import LogContext
 
 load_dotenv()
+
+log_context = LogContext(__name__)
 
 
 def pprint_with_color(
@@ -97,13 +99,6 @@ if __name__ == "__main__":
         "model_type_or_path": args.model,
         "llm_provider": args.llm_provider,
     }
-
-    # Initialize logging with specified level
-    log_level = getattr(logging, args.log_level.upper(), logging.WARNING)
-    logger = init_logger(
-        log_level=log_level,
-        filename=os.path.join(os.path.dirname(__file__), "logs", "arklex.log"),
-    )
 
     # Load task graph configuration and initialize environment
     config: Dict[str, Any] = json.load(

@@ -17,7 +17,6 @@ from tenacity import (
     retry_if_exception_type,
 )
 
-from arklex.utils.logging_config import get_logger, log_with_context
 from arklex.utils.exceptions import ArklexError, RetryableError
 
 # Standard log messages for consistent usage
@@ -31,6 +30,7 @@ LOG_MESSAGES = {
         "RESOURCE_ERROR": "Resource error: {error}",
         "PERMISSION_ERROR": "Permission denied: {error}",
         "CONFIGURATION_ERROR": "Configuration error: {error}",
+        "INITIALIZATION_ERROR": "Initialization error: {error}",
     },
     "WARNING": {
         "RETRY_ATTEMPT": "Retrying operation (attempt {attempt}/{max_attempts}): {error}",
@@ -56,103 +56,155 @@ LOG_MESSAGES = {
     },
 }
 
-logger = get_logger(__name__)
+
+class RequestIdFilter(logging.Filter):
+    """Filter to add request ID to log records."""
+
+    def __init__(self, request_id: Optional[str] = None) -> None:
+        """Initialize filter with request ID."""
+        super().__init__()
+        self.request_id = request_id
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        """Add request ID to log record."""
+        record.request_id = self.request_id or getattr(record, "request_id", None)
+        return True
+
+
+class ContextFilter(logging.Filter):
+    """Filter to add context to log records."""
+
+    def __init__(self, context: Optional[dict] = None) -> None:
+        """Initialize filter with context."""
+        super().__init__()
+        self.context = context or {}
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        """Add context to record."""
+        record.context = self.context
+        return True
 
 
 class LogContext:
-    """Context manager for structured logging with consistent context."""
+    """Context manager for logging with request ID and context."""
 
     def __init__(
-        self, logger_name: str, context: Optional[Dict[str, Any]] = None
-    ) -> None:
-        """Initialize the log context.
+        self,
+        name: str,
+        level: str = "INFO",
+        base_context: Optional[Dict[str, Any]] = None,
+        log_format: Optional[str] = None,
+    ):
+        self.logger = logging.getLogger(name)
+        if "." in name:
+            self.logger.setLevel(logging.NOTSET)
+        else:
+            self.logger.setLevel(getattr(logging, level))
+        self.logger.propagate = True
+        self.base_context = base_context or {}
+        handler = self._get_console_handler(log_format)
+        handler.addFilter(RequestIdFilter())
+        handler.addFilter(ContextFilter(self.base_context))
+        self.logger.addHandler(handler)
 
-        Args:
-            logger_name: Name of the logger to use
-            context: Base context to include in all logs
-        """
-        self.logger = get_logger(logger_name)
-        self.context = context or {}
-        self._stack: List[Dict[str, Any]] = []
+    def __enter__(self) -> logging.Logger:
+        """Enter context."""
+        return self.logger
 
-    def push_context(self, additional_context: Dict[str, Any]) -> None:
-        """Push additional context onto the stack.
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Exit context."""
+        pass
 
-        Args:
-            additional_context: Additional context to add
-        """
-        self._stack.append(additional_context)
-        self.context = {**self.context, **additional_context}
+    @property
+    def name(self):
+        return self.logger.name
 
-    def pop_context(self) -> None:
-        """Pop the most recent context from the stack."""
-        if self._stack:
-            self._stack.pop()
-            # Rebuild context from remaining stack
-            self.context = {}
-            for ctx in self._stack:
-                self.context.update(ctx)
+    @property
+    def level(self):
+        return self.logger.level
 
-    def log(self, level: Union[str, int], message: str, **kwargs: Any) -> None:
-        """Log a message with context.
+    @property
+    def handlers(self):
+        return self.logger.handlers
 
-        Args:
-            level: Log level (string or integer)
-            message: Log message
-            **kwargs: Additional context to include
-        """
-        exc_info = kwargs.pop("exc_info", None)
-        log_with_context(
-            self.logger,
-            level,
-            message,
-            context={**self.context, **kwargs},
-            exc_info=exc_info,
+    @property
+    def propagate(self):
+        return self.logger.propagate
+
+    @propagate.setter
+    def propagate(self, value):
+        self.logger.propagate = value
+
+    @property
+    def parent(self) -> Optional["LogContext"]:
+        if self.logger.parent:
+            parent_level = self.logger.parent.level
+            if isinstance(parent_level, int):
+                parent_level = logging.getLevelName(parent_level)
+            return LogContext(self.logger.parent.name, level=parent_level)
+        return None
+
+    def _get_console_handler(
+        self, log_format: Optional[str] = None
+    ) -> logging.StreamHandler:
+        handler = logging.StreamHandler()
+        handler.setFormatter(
+            logging.Formatter(log_format or "%(levelname)s - %(message)s")
         )
+        return handler
+
+    def setLevel(self, level: Union[str, int]) -> None:
+        """Set the log level for the logger."""
+        if isinstance(level, str):
+            self.logger.setLevel(getattr(logging, level))
+        else:
+            self.logger.setLevel(level)
+
+    def _merge_extra(self, context: Optional[Dict[str, Any]], kwargs: dict) -> dict:
+        # Merge context and any extra fields from kwargs into a single extra dict
+        extra = {"context": context or {}}
+        # Remove 'extra' from kwargs if present and is a dict
+        user_extra = kwargs.pop("extra", None)
+        if isinstance(user_extra, dict):
+            extra.update(user_extra)
+        # Merge any other kwargs into extra (for arbitrary fields like 'method', 'error_type')
+        for k in list(kwargs.keys()):
+            if k not in ("exc_info",):  # don't merge exc_info
+                extra[k] = kwargs.pop(k)
+        return extra
+
+    def info(
+        self, message: str, context: Optional[Dict[str, Any]] = None, **kwargs: Any
+    ) -> None:
+        self.logger.info(message, extra=self._merge_extra(context, kwargs), **kwargs)
+
+    def debug(
+        self, message: str, context: Optional[Dict[str, Any]] = None, **kwargs: Any
+    ) -> None:
+        self.logger.debug(message, extra=self._merge_extra(context, kwargs), **kwargs)
+
+    def warning(
+        self, message: str, context: Optional[Dict[str, Any]] = None, **kwargs: Any
+    ) -> None:
+        self.logger.warning(message, extra=self._merge_extra(context, kwargs), **kwargs)
 
     def error(
-        self, message: str, exc_info: Optional[Exception] = None, **kwargs: Any
+        self, message: str, context: Optional[Dict[str, Any]] = None, **kwargs: Any
     ) -> None:
-        """Log an error with context.
+        self.logger.error(message, extra=self._merge_extra(context, kwargs), **kwargs)
 
-        Args:
-            message: Error message
-            exc_info: Exception information
-            **kwargs: Additional context
-        """
-        error_context = {
-            "error_type": type(exc_info).__name__ if exc_info else None,
-            "error_details": getattr(exc_info, "details", None) if exc_info else None,
-            "stack_trace": traceback.format_exc() if exc_info else None,
-        }
-        self.log("ERROR", message, exc_info=exc_info, **{**error_context, **kwargs})
+    def critical(
+        self, message: str, context: Optional[Dict[str, Any]] = None, **kwargs: Any
+    ) -> None:
+        self.logger.critical(
+            message, extra=self._merge_extra(context, kwargs), **kwargs
+        )
 
-    def warning(self, message: str, **kwargs: Any) -> None:
-        """Log a warning with context.
+    def push_context(self, context: Dict[str, Any]) -> None:
+        pass
 
-        Args:
-            message: Warning message
-            **kwargs: Additional context
-        """
-        self.log("WARNING", message, **kwargs)
-
-    def info(self, message: str, **kwargs: Any) -> None:
-        """Log an info message with context.
-
-        Args:
-            message: Info message
-            **kwargs: Additional context
-        """
-        self.log("INFO", message, **kwargs)
-
-    def debug(self, message: str, **kwargs: Any) -> None:
-        """Log a debug message with context.
-
-        Args:
-            message: Debug message
-            **kwargs: Additional context
-        """
-        self.log("DEBUG", message, **kwargs)
+    def pop_context(self) -> None:
+        pass
 
 
 def handle_exceptions(
@@ -173,6 +225,7 @@ def handle_exceptions(
     Returns:
         Decorated function
     """
+    logger = logging.getLogger("arklex")
 
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
@@ -191,13 +244,12 @@ def handle_exceptions(
                 if include_stack_trace:
                     context["stack_trace"] = traceback.format_exc()
 
-                log_with_context(
-                    get_logger(func.__module__),
-                    log_level,
+                logger.log(
+                    getattr(logging, log_level.upper(), logging.ERROR),
                     LOG_MESSAGES["ERROR"]["UNEXPECTED_ERROR"].format(
                         function=func.__name__, error=str(e)
                     ),
-                    context=context,
+                    extra={"context": context},
                     exc_info=e,
                 )
                 if reraise:
@@ -208,7 +260,7 @@ def handle_exceptions(
                             "error_type": type(e).__name__,
                             "module": func.__module__,
                         },
-                    ) from e
+                    )
                 return None
 
         @functools.wraps(func)
@@ -227,13 +279,12 @@ def handle_exceptions(
                 if include_stack_trace:
                     context["stack_trace"] = traceback.format_exc()
 
-                log_with_context(
-                    get_logger(func.__module__),
-                    log_level,
+                logger.log(
+                    getattr(logging, log_level.upper(), logging.ERROR),
                     LOG_MESSAGES["ERROR"]["UNEXPECTED_ERROR"].format(
                         function=func.__name__, error=str(e)
                     ),
-                    context=context,
+                    extra={"context": context},
                     exc_info=e,
                 )
                 if reraise:
@@ -244,10 +295,10 @@ def handle_exceptions(
                             "error_type": type(e).__name__,
                             "module": func.__module__,
                         },
-                    ) from e
+                    )
                 return None
 
-        return async_wrapper if inspect.iscoroutinefunction(func) else sync_wrapper
+        return async_wrapper if asyncio.iscoroutinefunction(func) else sync_wrapper
 
     return decorator
 
@@ -260,18 +311,19 @@ def with_retry(
     retry_on: Optional[Type[Exception]] = None,
     include_stack_trace: bool = True,
 ) -> Callable:
-    """Decorator for adding retry logic to functions.
+    """Decorator for retrying operations with exponential backoff.
 
     Args:
         max_attempts: Maximum number of retry attempts
-        min_wait: Minimum wait time between retries (seconds)
-        max_wait: Maximum wait time between retries (seconds)
-        retry_on: Exception type(s) to retry on (defaults to RetryableError)
+        min_wait: Minimum wait time between retries in seconds
+        max_wait: Maximum wait time between retries in seconds
+        retry_on: Exception type(s) to retry on
         include_stack_trace: Whether to include stack trace in logs
 
     Returns:
         Decorated function
     """
+    logger = logging.getLogger("arklex")
 
     def decorator(func: Callable) -> Callable:
         @retry(
@@ -296,15 +348,13 @@ def with_retry(
                     if include_stack_trace:
                         context["stack_trace"] = traceback.format_exc()
 
-                    log_with_context(
-                        get_logger(func.__module__),
-                        "WARNING",
+                    logger.warning(
                         LOG_MESSAGES["WARNING"]["RETRY_ATTEMPT"].format(
                             attempt=getattr(e, "attempt", 0),
                             max_attempts=max_attempts,
                             error=str(e),
                         ),
-                        context=context,
+                        extra={"context": context},
                     )
                 raise
 
@@ -330,18 +380,16 @@ def with_retry(
                     if include_stack_trace:
                         context["stack_trace"] = traceback.format_exc()
 
-                    log_with_context(
-                        get_logger(func.__module__),
-                        "WARNING",
+                    logger.warning(
                         LOG_MESSAGES["WARNING"]["RETRY_ATTEMPT"].format(
                             attempt=getattr(e, "attempt", 0),
                             max_attempts=max_attempts,
                             error=str(e),
                         ),
-                        context=context,
+                        extra={"context": context},
                     )
                 raise
 
-        return async_wrapper if inspect.iscoroutinefunction(func) else sync_wrapper
+        return async_wrapper if asyncio.iscoroutinefunction(func) else sync_wrapper
 
     return decorator

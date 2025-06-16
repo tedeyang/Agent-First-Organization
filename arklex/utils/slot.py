@@ -38,13 +38,13 @@ Usage:
     updated_slots = format_slotfilling_output(slots, response)
 """
 
-import logging
 from typing import Any, Dict, List, Optional, Tuple, Type, Union
+from arklex.utils.logging_utils import LogContext
+from arklex.utils.exceptions import ValidationError
 
 from pydantic import BaseModel, Field, create_model
 
-# Configure logging
-logger = logging.getLogger(__name__)
+log_context = LogContext(__name__)
 
 
 class TypeMapping:
@@ -254,7 +254,7 @@ def format_slotfiller_output(slots: List[Slot], response: Any) -> List[Slot]:
     Returns:
         List[Slot]: Formatted slots
     """
-    logger.info(f"filled_slots: {response}")
+    log_context.info(f"filled_slots: {response}")
     filled_slots = response.model_dump()
     for slot in slots:
         slot.value = filled_slots[slot.name]

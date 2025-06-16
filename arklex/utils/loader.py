@@ -7,10 +7,9 @@ file formats and provides utilities for handling different types of content sour
 ensuring consistent processing and storage of loaded content.
 """
 
-import logging
 import time
 from pathlib import Path
-from typing import List
+from typing import List, Dict, Any, Optional
 import requests
 import pickle
 import uuid
@@ -34,15 +33,10 @@ from langchain_community.document_loaders import (
     UnstructuredPowerPointLoader,
 )
 import base64
+from arklex.utils.logging_utils import LogContext
+from arklex.utils.exceptions import LoaderError
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler()],
-)
-logger = logging.getLogger(__name__)
-
+log_context = LogContext(__name__)
 CHROME_DRIVER_VERSION = "125.0.6422.7"
 MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
 
@@ -53,10 +47,10 @@ def encode_image(image_path: str) -> str:
         with open(image_path, "rb") as image_file:
             return base64.b64encode(image_file.read()).decode("utf-8")
     except FileNotFoundError:
-        logger.error(f"Error: The file {image_path} was not found.")
+        log_context.error(f"Error: The file {image_path} was not found.")
         return None
     except Exception as e:  # Added general exception handling
-        logger.error(f"Error: {e}")
+        log_context.error(f"Error: {e}")
         return None
 
 
@@ -151,7 +145,7 @@ class Loader:
         Returns:
             List[CrawledObject]: List of CrawledObject instances containing crawled content.
         """
-        logger.info(f"Start crawling {len(url_objects)} urls")
+        log_context.info(f"Start crawling {len(url_objects)} urls")
         options = webdriver.ChromeOptions()
         options.add_argument("--no-sandbox")
         options.add_argument("--headless")
@@ -164,13 +158,13 @@ class Loader:
             ChromeDriverManager(driver_version=CHROME_DRIVER_VERSION).install()
         )
         options.binary_location = str(chrome_driver_path.parent.absolute())
-        logger.info(f"chrome binary location: {options.binary_location}")
+        log_context.info(f"chrome binary location: {options.binary_location}")
         driver = webdriver.Chrome(options=options)
 
         docs: List[CrawledObject] = []
         for url_obj in url_objects:
             try:
-                logger.info(f"loading url: {url_obj.source}")
+                log_context.info(f"loading url: {url_obj.source}")
                 driver.get(url_obj.source)
                 time.sleep(2)
                 html = driver.page_source
@@ -205,8 +199,8 @@ class Loader:
                 )
 
             except Exception as err:
-                logger.info(f"error crawling {url_obj}")
-                logger.error(err)
+                log_context.info(f"error crawling {url_obj}")
+                log_context.error(err)
                 docs.append(
                     CrawledObject(
                         id=url_obj.id,
@@ -234,7 +228,7 @@ class Loader:
         Returns:
             List[str]: List of collected URLs, sorted alphabetically.
         """
-        logger.info(
+        log_context.info(
             f"Getting all pages for base url: {base_url}, maximum number is: {max_num}"
         )
         urls_visited = []
@@ -250,7 +244,7 @@ class Loader:
                 new_urls = self.get_outsource_urls(current_url, base_url)
                 urls_to_visit.extend(new_urls)
                 urls_to_visit = list(set(urls_to_visit))
-        logger.info(f"URLs visited: {urls_visited}")
+        log_context.info(f"URLs visited: {urls_visited}")
         return sorted(urls_visited[:max_num])
 
     def get_outsource_urls(self, curr_url: str, base_url: str) -> List[str]:
@@ -282,15 +276,15 @@ class Loader:
                         if self._check_url(full_url, base_url):
                             new_urls.append(full_url)
                     except Exception as err:
-                        logger.error(
+                        log_context.error(
                             f"Fail to process sub-url {link.get('href')}: {err}"
                         )
             else:
-                logger.error(
+                log_context.error(
                     f"Failed to retrieve page {curr_url}, status code: {response.status_code}"
                 )
         except Exception as err:
-            logger.error(f"Fail to get the page from {curr_url}: {err}")
+            log_context.error(f"Fail to get the page from {curr_url}: {err}")
         return list(set(new_urls))
 
     def _check_url(self, full_url: str, base_url: str) -> bool:
@@ -355,7 +349,7 @@ class Loader:
         pr = nx.pagerank(self.graph, alpha=0.9)
         # sort the pagerank values in descending order
         sorted_pr = sorted(pr.items(), key=lambda x: x[1], reverse=True)
-        logger.info(f"pagerank results: {sorted_pr}")
+        log_context.info(f"pagerank results: {sorted_pr}")
         # get the top websites
         top_k_websites = sorted_pr[:top_k]
         urls_candidates = [self.graph.nodes[url_id] for url_id, _ in top_k_websites]
@@ -460,7 +454,7 @@ class Loader:
                 for page in ocr_response.pages:
                     doc_text += page.markdown
 
-                logger.info("Mistral PDF extractor worked as expected.")
+                log_context.info("Mistral PDF extractor worked as expected.")
                 return CrawledObject(
                     id=local_obj.id,
                     source=local_obj.source,
@@ -498,7 +492,7 @@ class Loader:
                 )
             elif file_type == "pdf":
                 # Since Mistral API key is absent, we default to basic pdf parser
-                logger.info(
+                log_context.info(
                     "MISTRAL_API_KEY env variable not set, hence defaulting to static parsing."
                 )
                 loader = PyPDFLoader(file_path)
@@ -531,7 +525,7 @@ class Loader:
             )
 
         except Exception as err_msg:
-            logger.info(f"error processing file: {err_msg}")
+            log_context.info(f"error processing file: {err_msg}")
             return CrawledObject(
                 id=local_obj.id,
                 source=local_obj.source,
@@ -576,12 +570,12 @@ class Loader:
         langchain_docs = []
         for doc_obj in doc_objs:
             if doc_obj.is_error or doc_obj.content is None:
-                logger.error(
+                log_context.error(
                     f"Skip source: {doc_obj.source} because of error or no content"
                 )
                 continue
             elif doc_obj.is_chunk:
-                logger.error(
+                log_context.error(
                     f"Skip source: {doc_obj.source} because it has been chunked"
                 )
                 docs.append(doc_obj)
