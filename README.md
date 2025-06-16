@@ -158,3 +158,106 @@ python run.py --input-dir ./examples/customer_service
   
     📄 For more details, check out the [Evaluation README](https://github.com/arklexai/Agent-First-Organization/blob/main/arklex/evaluation/README.md).
 
+# Arklex API Service
+
+A robust API service with comprehensive logging and error handling.
+
+## Logging and Error Handling
+
+### Logging Configuration
+
+The application uses a centralized logging configuration that provides:
+
+* Structured logging with consistent formatting
+* Log rotation with size limits
+* Request ID tracking for request tracing
+* Different log levels (INFO, WARNING, ERROR) for appropriate verbosity
+* Console and file output
+
+### Error Handling
+
+The application implements a robust error handling system with:
+
+* Custom exception hierarchy
+* Consistent error response format
+* Detailed error messages and context
+* Proper error propagation
+* Request tracking for debugging
+
+### Key Features
+
+1. **Centralized Logging**
+   * Log files are stored in the `logs` directory
+   * Log rotation with 10MB size limit and 5 backup files
+   * Structured logging format with timestamps, log levels, and context
+
+2. **Request Tracking**
+   * Unique request ID for each request
+   * Request ID included in response headers
+   * Request context preserved in logs
+
+3. **Error Handling**
+   * Custom exception classes for different error types
+   * Consistent error response format
+   * Detailed error messages with context
+   * Proper error propagation
+
+4. **Middleware**
+   * Request logging middleware
+   * Error handling middleware
+   * CORS middleware
+
+## Setup
+
+1. Install dependencies:
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. Set up environment variables:
+
+   ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
+
+3. Run the application:
+
+   ```bash
+   uvicorn arklex.main:app --reload
+   ```
+
+## API Documentation
+
+Once the application is running, you can access:
+
+* API documentation at `/docs`
+* Alternative API documentation at `/redoc`
+
+## Logging Best Practices
+
+1. **Use Appropriate Log Levels**
+   * ERROR: For errors that need immediate attention
+   * WARNING: For potentially harmful situations
+   * INFO: For general operational information
+   * DEBUG: For detailed debugging information
+
+2. **Include Context**
+   * Always include relevant context in log messages
+   * Use structured logging with extra fields
+   * Include request IDs in log messages
+
+3. **Error Handling**
+   * Use custom exceptions for different error types
+   * Include detailed error messages
+   * Preserve error context
+   * Log errors with appropriate context
+
+## Contributing
+
+1. Follow the logging and error handling patterns
+2. Use appropriate log levels
+3. Include context in log messages
+4. Use custom exceptions for errors
+5. Add tests for error handling
