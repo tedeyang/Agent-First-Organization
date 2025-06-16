@@ -10,7 +10,7 @@ from arklex.env.tools.tools import register_tool
 logger = logging.getLogger(__name__)
 
 # Scopes required for accessing Google Calendar
-SCOPES = ['https://www.googleapis.com/auth/calendar']
+SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
 description = "Get the busy times of the the company from the Google Calendar"
 
@@ -18,16 +18,20 @@ slots = [
     {
         "name": "time_min",
         "type": "string",
-        "description": "The start of the time range to check for. It includes the hour, as the date alone is not sufficient. The format should be 'YYYY-MM-DDTHH:MM:SS'. Today is {today}.".format(today=datetime.now().isoformat()),
+        "description": "The start of the time range to check for. It includes the hour, as the date alone is not sufficient. The format should be 'YYYY-MM-DDTHH:MM:SS'. Today is {today}.".format(
+            today=datetime.now().isoformat()
+        ),
         "prompt": "Please provide the minimum time to query the busy times",
-        "required": True
+        "required": True,
     },
     {
         "name": "time_max",
         "type": "string",
-        "description": "The end of the time range to check for. It includes the hour, as the date alone is not sufficient. The format should be 'YYYY-MM-DDTHH:MM:SS'. Today is {today}.".format(today=datetime.now().isoformat()),
+        "description": "The end of the time range to check for. It includes the hour, as the date alone is not sufficient. The format should be 'YYYY-MM-DDTHH:MM:SS'. Today is {today}.".format(
+            today=datetime.now().isoformat()
+        ),
         "prompt": "Please provide the maximum time to query the busy times",
-        "required": True
+        "required": True,
     },
     {
         "name": "timezone",
@@ -35,40 +39,40 @@ slots = [
         "enum": pytz.common_timezones,
         "description": "The timezone of the user. For example, 'America/New_York'.",
         "prompt": "Could you please provide your timezone or where are you now?",
-        "required": True
-    }
+        "required": True,
+    },
 ]
 
 outputs = []
 
-errors = [
-    AUTH_ERROR
-]
+errors = [AUTH_ERROR]
+
 
 @register_tool(description, slots, outputs, lambda x: x not in errors)
-def free_busy(time_min: str, time_max: str, timezone: str, **kwargs):
+def free_busy(time_min: str, time_max: str, timezone: str, **kwargs: Any) -> str:
     # Authenticate using the service account
     try:
         tz = pytz.timezone(timezone)
         service_account_info = kwargs.get("service_account_info")
         delegated_user = kwargs.get("delegated_user")
         credentials = service_account.Credentials.from_service_account_info(
-            service_account_info, scopes=SCOPES).with_subject(delegated_user)
+            service_account_info, scopes=SCOPES
+        ).with_subject(delegated_user)
 
         # Build the Google Calendar API service
-        service = build('calendar', 'v3', credentials=credentials)
+        service = build("calendar", "v3", credentials=credentials)
     except Exception as e:
         return AUTH_ERROR
 
     # Build the Google Calendar API service
-    service = build('calendar', 'v3', credentials=credentials)
+    service = build("calendar", "v3", credentials=credentials)
     time_min = tz.localize(datetime.fromisoformat(time_min)).isoformat()
     time_max = tz.localize(datetime.fromisoformat(time_max)).isoformat()
     body = {
         "timeMin": time_min,
         "timeMax": time_max,
         "timeZone": timezone,
-        "items": [{"id": delegated_user}]
+        "items": [{"id": delegated_user}],
     }
     logger.info(f"free_busy request: {body}")
     res = service.freebusy().query(body=body).execute()
@@ -78,6 +82,3 @@ def free_busy(time_min: str, time_max: str, timezone: str, **kwargs):
     # busy_times = res["calendars"][delegated_user]["busy"]
 
     return str(res)
-
-
-    

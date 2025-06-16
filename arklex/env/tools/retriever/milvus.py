@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 from arklex.env.tools.tools import register_tool
 from arklex.env.tools.RAG.retrievers.milvus_retriever import MilvusRetriever
 
@@ -13,7 +14,7 @@ slots = [
         "type": "str",
         "description": "The query to search for in the knowledge base",
         "prompt": "Please provide the minimum time to query the busy times",
-        "required": True
+        "required": True,
     }
 ]
 
@@ -21,12 +22,15 @@ outputs = []
 
 errors = []
 
+
 @register_tool(description, slots, outputs, lambda x: x not in errors)
-def retriever(query: str, **kwargs):
+def retriever(query: str, **kwargs: Any) -> str:
     collection_name = kwargs.get("collection_name")
     bot_id = kwargs.get("bot_id")
     version = kwargs.get("version")
-    logger.info(f"Retrieving from collection {collection_name} for bot {bot_id} version {version} with query {query}")
+    logger.info(
+        f"Retrieving from collection {collection_name} for bot {bot_id} version {version} with query {query}"
+    )
     with MilvusRetriever() as retriever:
         retriever_results = retriever.search(collection_name, bot_id, version, query)
 

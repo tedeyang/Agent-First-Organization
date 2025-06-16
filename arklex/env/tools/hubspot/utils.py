@@ -43,41 +43,53 @@ def authenticate_hubspot(kwargs: Dict[str, Any]) -> str:
 
 
 class HubspotNotIntegratedError(Exception):
-    def __init__(self, hubspot_account_id: str, bot_id: str, bot_version: str):
+    def __init__(self, hubspot_account_id: str, bot_id: str, bot_version: str) -> None:
         self.hubspot_account_id = hubspot_account_id
         self.bot_id = bot_id
         self.bot_version = bot_version
-        super().__init__(f"HubSpot not integrated for bot {bot_id} version {bot_version}")
+        super().__init__(
+            f"HubSpot not integrated for bot {bot_id} version {bot_version}"
+        )
+
 
 class HubspotAuthTokens(BaseModel):
     access_token: str
     refresh_token: str
     expiry_time_str: str
 
-def refresh_token_if_needed(bot_id: str, bot_version: str, hubspot_auth_tokens: HubspotAuthTokens) -> HubspotAuthTokens:
+
+def refresh_token_if_needed(
+    bot_id: str, bot_version: str, hubspot_auth_tokens: HubspotAuthTokens
+) -> HubspotAuthTokens:
     """Get the valid access token for HubSpot from the database.
-    
+
     Args:
         bot_id: The ID of the bot
         bot_version: The version of the bot
         hubspot_auth_tokens: The current HubSpot auth tokens
-        
+
     Returns:
         The valid access token string
-        
+
     Raises:
         HubspotNotIntegratedError: If HubSpot is not integrated for the bot
     """
-    logger.info(f"Refreshing HubSpot auth tokens for bot {bot_id} version {bot_version}")
+    logger.info(
+        f"Refreshing HubSpot auth tokens for bot {bot_id} version {bot_version}"
+    )
     hubspot_client_id = os.getenv("HUBSPOT_CLIENT_ID")
     hubspot_client_secret = os.getenv("HUBSPOT_CLIENT_SECRET")
     if not hubspot_client_id or not hubspot_client_secret:
-        raise Exception("HubSpot client ID and secret not found in environment variables")
+        raise Exception(
+            "HubSpot client ID and secret not found in environment variables"
+        )
 
     try:
         # Check if token is expired
         try:
-            expiry = datetime.fromisoformat(hubspot_auth_tokens.expiry_time_str.replace('Z', '+00:00'))
+            expiry = datetime.fromisoformat(
+                hubspot_auth_tokens.expiry_time_str.replace("Z", "+00:00")
+            )
             if datetime.now(expiry.tzinfo) < expiry - timedelta(minutes=15):
                 return hubspot_auth_tokens
         except ValueError:
@@ -90,7 +102,7 @@ def refresh_token_if_needed(bot_id: str, bot_version: str, hubspot_auth_tokens: 
             "grant_type": "refresh_token",
             "client_id": hubspot_client_id,
             "client_secret": hubspot_client_secret,
-            "refresh_token": hubspot_auth_tokens.refresh_token
+            "refresh_token": hubspot_auth_tokens.refresh_token,
         }
 
         resp = requests.post(token_refresh_url, data=req_body)
@@ -101,7 +113,7 @@ def refresh_token_if_needed(bot_id: str, bot_version: str, hubspot_auth_tokens: 
         new_token = HubspotAuthTokens(
             access_token=token_response["access_token"],
             refresh_token=token_response["refresh_token"],
-            expiry_time_str=datetime.now().replace(microsecond=0).isoformat() + "Z"
+            expiry_time_str=datetime.now().replace(microsecond=0).isoformat() + "Z",
         )
 
         # Update tokens in database
@@ -113,7 +125,12 @@ def refresh_token_if_needed(bot_id: str, bot_version: str, hubspot_auth_tokens: 
             AND qa_bot_version = %s 
             AND qa_bot_resource_auth_group_id = %s
             """,
-            (new_token.model_dump_json(), bot_id, bot_version, ResourceAuthGroup.HUBSPOT.value)
+            (
+                new_token.model_dump_json(),
+                bot_id,
+                bot_version,
+                ResourceAuthGroup.HUBSPOT.value,
+            ),
         )
 
         return new_token

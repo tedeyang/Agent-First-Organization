@@ -22,10 +22,11 @@ logger = logging.getLogger(__name__)
 
 PYTHON_TO_JSON_SCHEMA = {
     "str": "string",
-    "int": "integer", 
+    "int": "integer",
     "float": "number",
     "bool": "boolean",
 }
+
 
 def register_tool(
     desc: str,
@@ -95,7 +96,7 @@ class Tool:
         slots: List[Dict[str, Any]],
         outputs: List[str],
         isResponse: bool,
-    ):
+    ) -> None:
         """Initialize a new Tool instance.
 
         Args:
@@ -379,26 +380,26 @@ class Tool:
         parameters = {
             "type": "object",
             "properties": {},
-            "required": [slot.name for slot in self.slots if slot.required]
+            "required": [slot.name for slot in self.slots if slot.required],
         }
         for slot in self.slots:
             if slot.items:
                 parameters["properties"][slot.name] = {
                     "type": "array",
-                    "items": slot.items
+                    "items": slot.items,
                 }
             else:
                 parameters["properties"][slot.name] = {
                     "type": PYTHON_TO_JSON_SCHEMA[slot.type],
-                    "description": slot.description
+                    "description": slot.description,
                 }
         return {
             "type": "function",
             "name": self.name,
             "description": self.description,
-            "parameters": parameters
+            "parameters": parameters,
         }
-    
+
     def __str__(self) -> str:
         """Get a string representation of the tool.
 

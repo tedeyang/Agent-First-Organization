@@ -2,7 +2,7 @@ from datetime import datetime
 import pytz
 from hubspot import HubSpot
 import logging
-
+from typing import Any
 from arklex.env.tools.tools import register_tool
 
 logger = logging.getLogger(__name__)
@@ -14,25 +14,27 @@ slots = [
         "name": "first_name",
         "type": "str",
         "required": True,
-        "description": "First name of the customer."
+        "description": "First name of the customer.",
     },
     {
         "name": "last_name",
         "type": "str",
         "required": True,
-        "description": "Last name of the customer."
+        "description": "Last name of the customer.",
     },
     {
         "name": "email",
         "type": "str",
         "required": True,
-        "description": "Email of the customer."
+        "description": "Email of the customer.",
     },
     {
         "name": "start_time",
         "type": "str",
         "required": True,
-        "description": "The start time that the meeting will take place. The meeting's start time includes the hour, as the date alone is not sufficient. Datetime in ISO8601 format without timezone like 'YYYY-MM-DDTHH:MM:SS'. Eg. {today}.".format(today=datetime.now().isoformat()),
+        "description": "The start time that the meeting will take place. The meeting's start time includes the hour, as the date alone is not sufficient. Datetime in ISO8601 format without timezone like 'YYYY-MM-DDTHH:MM:SS'. Eg. {today}.".format(
+            today=datetime.now().isoformat()
+        ),
     },
     {
         "name": "duration",
@@ -47,7 +49,7 @@ slots = [
         "enum": pytz.common_timezones,
         "description": "The timezone of the user. For example, 'America/New_York'.",
         "prompt": "Could you please provide your timezone or where are you now?",
-        "required": True
+        "required": True,
     },
 ]
 
@@ -55,12 +57,23 @@ outputs = []
 
 errors = []
 
+
 @register_tool(description, slots, outputs, lambda x: x not in errors)
-def book(first_name: str, last_name: str, email: str, start_time: str, duration: int, timezone: str, **kwargs):
+def book(
+    first_name: str,
+    last_name: str,
+    email: str,
+    start_time: str,
+    duration: int,
+    timezone: str,
+    **kwargs: Any,
+) -> str:
     slug = kwargs.get("slug")
     api_client = HubSpot(access_token=kwargs.get("access_token"))
 
-    logger.info(f"Booking a meeting for {first_name} {last_name} with {slug} at {start_time} for {duration} minutes in {timezone} timezone.")
+    logger.info(
+        f"Booking a meeting for {first_name} {last_name} with {slug} at {start_time} for {duration} minutes in {timezone} timezone."
+    )
 
     duration_ms = duration * 60 * 1000
     try:
@@ -69,7 +82,9 @@ def book(first_name: str, last_name: str, email: str, start_time: str, duration:
         start_time_obj = datetime.fromisoformat(start_time)
         start_time_obj = tz.localize(start_time_obj)
         start_timestamp_ms = int(start_time_obj.timestamp() * 1000)
-        logger.info(f"Start time: {start_time_obj}, start timestamp: {start_timestamp_ms}")
+        logger.info(
+            f"Start time: {start_time_obj}, start timestamp: {start_timestamp_ms}"
+        )
     except ValueError:
         return "error: the start time is not in the correct format"
 
@@ -86,14 +101,12 @@ def book(first_name: str, last_name: str, email: str, start_time: str, duration:
                 "lastName": last_name,
                 "timezone": timezone,
                 "locale": "en-us",
-            }
+            },
         }
     )
 
     res = res.json()
     logger.info(f"Meeting book response: {res}")
-    if res.get('status') == 'error':
-        return "error: " + res.get('message')
+    if res.get("status") == "error":
+        return "error: " + res.get("message")
     return "The meeting has been booked successfully"
-
-
