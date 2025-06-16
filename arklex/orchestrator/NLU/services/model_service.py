@@ -13,7 +13,21 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 from .model_config import ModelConfig
 
-logger = logging.getLogger(__name__)
+from arklex.utils.logging_config import get_logger
+from arklex.utils.exceptions import ModelError, ValidationError, APIError
+from arklex.orchestrator.NLU.core.base import (
+    IntentResponse,
+    SlotResponse,
+    VerificationResponse,
+)
+from arklex.orchestrator.NLU.services.api_service import APIService
+from arklex.orchestrator.NLU.utils.validators import (
+    validate_intent_response,
+    validate_slot_response,
+    validate_verification_response,
+)
+
+logger = get_logger(__name__)
 
 
 class ModelService:
@@ -33,22 +47,178 @@ class ModelService:
         model: Initialized model instance
     """
 
-    def __init__(self, model_config: Dict[str, Any]) -> None:
-        """Initialize the model service.
+    def __init__(self):
+        """Initialize the model service."""
+        try:
+            self.api_service = APIService()
+            logger.info("ModelService initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize ModelService: {str(e)}", exc_info=True)
+            raise ModelError(
+                "Failed to initialize model service", details={"error": str(e)}
+            )
 
-        Creates a new model service instance with the specified configuration
-        and initializes the language model.
+    async def predict_intent(self, text: str) -> IntentResponse:
+        """
+        Predict intent from input text.
 
         Args:
-            model_config: Model configuration dictionary containing:
-                - model_type_or_path: Model identifier
-                - llm_provider: Provider name
+            text: Input text to predict intent from
+
+        Returns:
+            IntentResponse: Predicted intent and confidence
 
         Raises:
-            ValueError: If model initialization fails
+            ValidationError: If input validation fails
+            ModelError: If model prediction fails
         """
-        self.model_config = model_config
-        self.model = self._initialize_model()
+        try:
+            # Validate input
+            if not text or not isinstance(text, str):
+                raise ValidationError("Input text must be a non-empty string")
+
+            # Get model response
+            response = await self.api_service.get_model_response(
+                prompt=text, response_format="intent"
+            )
+
+            # Validate response
+            if not response or not response.content:
+                raise ModelError("Empty response from model")
+
+            # Parse and validate intent response
+            try:
+                intent_data = json.loads(response.content)
+                validated_response = validate_intent_response(intent_data)
+                return IntentResponse(**validated_response)
+            except json.JSONDecodeError as e:
+                raise ModelError(
+                    "Failed to parse model response", details={"error": str(e)}
+                )
+            except ValidationError as e:
+                raise ValidationError(
+                    "Invalid intent response format", details={"error": str(e)}
+                )
+
+        except ValidationError:
+            raise
+        except ModelError:
+            raise
+        except Exception as e:
+            logger.error(
+                f"Unexpected error in intent prediction: {str(e)}", exc_info=True
+            )
+            raise ModelError("Failed to predict intent", details={"error": str(e)})
+
+    async def fill_slots(self, text: str, intent: str) -> SlotResponse:
+        """
+        Fill slots based on input text and intent.
+
+        Args:
+            text: Input text to extract slots from
+            intent: Intent to use for slot filling
+
+        Returns:
+            SlotResponse: Extracted slots and their values
+
+        Raises:
+            ValidationError: If input validation fails
+            ModelError: If slot filling fails
+        """
+        try:
+            # Validate inputs
+            if not text or not isinstance(text, str):
+                raise ValidationError("Input text must be a non-empty string")
+            if not intent or not isinstance(intent, str):
+                raise ValidationError("Intent must be a non-empty string")
+
+            # Get model response
+            response = await self.api_service.get_model_response(
+                prompt=text, response_format="slots", intent=intent
+            )
+
+            # Validate response
+            if not response or not response.content:
+                raise ModelError("Empty response from model")
+
+            # Parse and validate slot response
+            try:
+                slot_data = json.loads(response.content)
+                validated_response = validate_slot_response(slot_data)
+                return SlotResponse(**validated_response)
+            except json.JSONDecodeError as e:
+                raise ModelError(
+                    "Failed to parse slot response", details={"error": str(e)}
+                )
+            except ValidationError as e:
+                raise ValidationError(
+                    "Invalid slot response format", details={"error": str(e)}
+                )
+
+        except ValidationError:
+            raise
+        except ModelError:
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error in slot filling: {str(e)}", exc_info=True)
+            raise ModelError("Failed to fill slots", details={"error": str(e)})
+
+    async def verify_slots(
+        self, text: str, slots: Dict[str, Any]
+    ) -> VerificationResponse:
+        """
+        Verify slots against input text.
+
+        Args:
+            text: Input text to verify slots against
+            slots: Dictionary of slots to verify
+
+        Returns:
+            VerificationResponse: Verification results for each slot
+
+        Raises:
+            ValidationError: If input validation fails
+            ModelError: If slot verification fails
+        """
+        try:
+            # Validate inputs
+            if not text or not isinstance(text, str):
+                raise ValidationError("Input text must be a non-empty string")
+            if not slots or not isinstance(slots, dict):
+                raise ValidationError("Slots must be a non-empty dictionary")
+
+            # Get model response
+            response = await self.api_service.get_model_response(
+                prompt=text, response_format="verification", slots=slots
+            )
+
+            # Validate response
+            if not response or not response.content:
+                raise ModelError("Empty response from model")
+
+            # Parse and validate verification response
+            try:
+                verification_data = json.loads(response.content)
+                validated_response = validate_verification_response(verification_data)
+                return VerificationResponse(**validated_response)
+            except json.JSONDecodeError as e:
+                raise ModelError(
+                    "Failed to parse verification response", details={"error": str(e)}
+                )
+            except ValidationError as e:
+                raise ValidationError(
+                    "Invalid verification response format", details={"error": str(e)}
+                )
+
+        except ValidationError:
+            raise
+        except ModelError:
+            raise
+        except Exception as e:
+            logger.error(
+                f"Unexpected error in slot verification: {str(e)}", exc_info=True
+            )
+            raise ModelError("Failed to verify slots", details={"error": str(e)})
 
     def _initialize_model(self) -> BaseChatModel:
         """Initialize the language model.

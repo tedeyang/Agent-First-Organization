@@ -14,13 +14,102 @@ The module includes:
 
 import logging
 from typing import Dict, List, Any
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Response, APIRouter, Depends, HTTPException
 from arklex.utils.slot import Slot, Verification
 from arklex.orchestrator.NLU.services.model_service import ModelService
+from arklex.utils.logging_config import get_logger
+from arklex.utils.exceptions import ModelError, ValidationError, APIError
+from arklex.orchestrator.NLU.core.base import (
+    IntentResponse,
+    SlotResponse,
+    VerificationResponse,
+)
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 app = FastAPI()
 model_service = ModelService()
+router = APIRouter()
+
+
+async def get_model_service() -> ModelService:
+    try:
+        return ModelService()
+    except Exception as e:
+        logger.error(f"Failed to initialize ModelService: {str(e)}", exc_info=True)
+        raise ModelError(
+            "Failed to initialize model service", details={"error": str(e)}
+        )
+
+
+@router.post("/predict_intent", response_model=IntentResponse)
+async def predict_intent(
+    text: str, model_service: ModelService = Depends(get_model_service)
+) -> IntentResponse:
+    """
+    Predict intent from input text.
+    """
+    try:
+        logger.info(f"Predicting intent for text: {text}")
+        response = await model_service.predict_intent(text)
+        logger.info(f"Intent prediction successful: {response}")
+        return response
+    except ValidationError as e:
+        logger.warning(f"Validation error in intent prediction: {str(e)}")
+        raise
+    except ModelError as e:
+        logger.error(f"Model error in intent prediction: {str(e)}")
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in intent prediction: {str(e)}", exc_info=True)
+        raise ModelError("Failed to predict intent", details={"error": str(e)})
+
+
+@router.post("/fill_slots", response_model=SlotResponse)
+async def fill_slots(
+    text: str, intent: str, model_service: ModelService = Depends(get_model_service)
+) -> SlotResponse:
+    """
+    Fill slots based on input text and intent.
+    """
+    try:
+        logger.info(f"Filling slots for text: {text}, intent: {intent}")
+        response = await model_service.fill_slots(text, intent)
+        logger.info(f"Slot filling successful: {response}")
+        return response
+    except ValidationError as e:
+        logger.warning(f"Validation error in slot filling: {str(e)}")
+        raise
+    except ModelError as e:
+        logger.error(f"Model error in slot filling: {str(e)}")
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in slot filling: {str(e)}", exc_info=True)
+        raise ModelError("Failed to fill slots", details={"error": str(e)})
+
+
+@router.post("/verify_slots", response_model=VerificationResponse)
+async def verify_slots(
+    text: str,
+    slots: Dict[str, Any],
+    model_service: ModelService = Depends(get_model_service),
+) -> VerificationResponse:
+    """
+    Verify slots against input text.
+    """
+    try:
+        logger.info(f"Verifying slots for text: {text}, slots: {slots}")
+        response = await model_service.verify_slots(text, slots)
+        logger.info(f"Slot verification successful: {response}")
+        return response
+    except ValidationError as e:
+        logger.warning(f"Validation error in slot verification: {str(e)}")
+        raise
+    except ModelError as e:
+        logger.error(f"Model error in slot verification: {str(e)}")
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in slot verification: {str(e)}", exc_info=True)
+        raise ModelError("Failed to verify slots", details={"error": str(e)})
 
 
 @app.post("/nlu/predict")
