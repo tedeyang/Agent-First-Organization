@@ -27,13 +27,20 @@ from arklex.orchestrator.NLU.core.base import (
 
 logger = get_logger(__name__)
 app = FastAPI()
-model_service = ModelService()
+# Placeholder/default model configuration for ModelService
+DEFAULT_MODEL_CONFIG = {
+    "model_name": "default-nlu-model",
+    "api_key": "dummy-key",
+    "endpoint": "https://dummy-endpoint.com/api",
+}
+
+model_service = ModelService(model_config=DEFAULT_MODEL_CONFIG)
 router = APIRouter()
 
 
 async def get_model_service() -> ModelService:
     try:
-        return ModelService()
+        return ModelService(model_config=DEFAULT_MODEL_CONFIG)
     except Exception as e:
         logger.error(f"Failed to initialize ModelService: {str(e)}", exc_info=True)
         raise ModelError(

@@ -20,7 +20,7 @@ from arklex.orchestrator.NLU.core.base import (
     SlotResponse,
     VerificationResponse,
 )
-from arklex.orchestrator.NLU.services.api_service import APIService
+from arklex.orchestrator.NLU.services.api_service import APIClientService
 from arklex.orchestrator.NLU.utils.validators import (
     validate_intent_response,
     validate_slot_response,
@@ -47,16 +47,35 @@ class ModelService:
         model: Initialized model instance
     """
 
-    def __init__(self):
-        """Initialize the model service."""
+    def __init__(self, model_config: Dict[str, Any]) -> None:
+        """Initialize the model service.
+
+        Args:
+            model_config: Configuration for the language model
+        """
+        self.model_config = model_config
+        self._validate_config()
         try:
-            self.api_service = APIService()
+            self.api_service = APIClientService(
+                base_url="https://dummy-api-endpoint.com"
+            )
             logger.info("ModelService initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize ModelService: {str(e)}", exc_info=True)
             raise ModelError(
                 "Failed to initialize model service", details={"error": str(e)}
             )
+
+    def _validate_config(self) -> None:
+        """Validate the model configuration.
+
+        Raises:
+            ValidationError: If the configuration is invalid
+        """
+        required_fields = ["model_name", "api_key", "endpoint"]
+        for field in required_fields:
+            if field not in self.model_config:
+                raise ValidationError(f"Missing required field: {field}")
 
     async def predict_intent(self, text: str) -> IntentResponse:
         """

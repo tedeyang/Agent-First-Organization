@@ -6,10 +6,10 @@ including request tracking, timing, and error handling with retry mechanisms.
 
 import time
 import uuid
-from typing import Callable, Any, Optional, Dict
+from typing import Callable, Any, Optional, Dict, Tuple
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.types import ASGIApp
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from arklex.utils.logging_config import get_logger, log_with_context
@@ -80,10 +80,9 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         start_time = time.time()
         try:
             # Process the request with retry mechanism for retryable errors
-            response = await self._process_request_with_retry(request, call_next)
-
-            # Calculate processing time
-            process_time = time.time() - start_time
+            response, process_time = await self._process_request_with_retry(
+                request, call_next
+            )
 
             # Prepare response context
             response_context = {
@@ -149,7 +148,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
     )
     async def _process_request_with_retry(
         self, request: Request, call_next: Callable
-    ) -> Response:
+    ) -> Tuple[Response, float]:
         """Process the request with retry mechanism for retryable errors.
 
         Args:
@@ -157,14 +156,16 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             call_next: The next middleware in the chain.
 
         Returns:
-            The response from the application.
+            Tuple[Response, float]: The response and process time.
 
         Raises:
             RetryableError: If the request fails with a retryable error.
             Exception: For other types of errors.
         """
         try:
-            return await call_next(request)
+            response = await call_next(request)
+            process_time = time.time() - time.time()
+            return response, process_time
         except Exception as e:
             # Convert certain exceptions to retryable errors
             if isinstance(e, (ConnectionError, TimeoutError)):

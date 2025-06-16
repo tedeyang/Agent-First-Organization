@@ -12,79 +12,87 @@ from typing import Optional, Any, Dict
 class ArklexError(Exception):
     """Base exception class for all Arklex errors.
 
-    Args:
-        message: The error message.
-        error_code: Optional error code for categorization.
-        details: Optional dictionary with additional error details.
-        extra_message: Optional additional message for user guidance.
+    Attributes:
+        message: A human-readable error message
+        code: An error code for programmatic handling
+        status_code: HTTP status code for API responses
+        details: Additional error details
     """
 
     def __init__(
         self,
         message: str,
-        error_code: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
-        extra_message: Optional[str] = None,
+        code: str = "UNKNOWN_ERROR",
+        status_code: int = 500,
+        details: Optional[dict[str, Any]] = None,
     ) -> None:
-        """Initialize the ArklexError.
+        """Initialize the exception.
 
         Args:
-            message: The error message.
-            error_code: Optional error code for categorization.
-            details: Optional dictionary with additional error details.
-            extra_message: Optional additional message for user guidance.
+            message: A human-readable error message
+            code: An error code for programmatic handling
+            status_code: HTTP status code for API responses
+            details: Additional error details
         """
         self.message = message
-        self.error_code = error_code
+        self.code = code
+        self.status_code = status_code
         self.details = details or {}
-        self.extra_message = extra_message
         super().__init__(self.message)
 
     def __str__(self) -> str:
-        """Get string representation of the error.
+        """Get a string representation of the error.
 
         Returns:
-            Formatted error message with error code if present.
+            str: The error message with code if present
         """
-        if self.error_code:
-            return f"[{self.error_code}] {self.message}"
+        if self.code:
+            return f"{self.message} (code: {self.code})"
         return self.message
 
 
 class AuthenticationError(ArklexError):
-    """Raised when authentication fails.
+    """Exception raised for authentication errors."""
 
-    Args:
-        message: The error message.
-        details: Optional dictionary with additional error details.
-    """
-
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None) -> None:
-        """Initialize the AuthenticationError.
+    def __init__(
+        self,
+        message: str = "Authentication failed",
+        details: Optional[dict[str, Any]] = None,
+    ) -> None:
+        """Initialize the exception.
 
         Args:
-            message: The error message.
-            details: Optional dictionary with additional error details.
+            message: A human-readable error message
+            details: Additional error details
         """
-        super().__init__(message, "AUTH_ERROR", details)
+        super().__init__(
+            message=message,
+            code="AUTHENTICATION_ERROR",
+            status_code=401,
+            details=details,
+        )
 
 
 class ValidationError(ArklexError):
-    """Raised when input validation fails.
+    """Exception raised for validation errors."""
 
-    Args:
-        message: The error message.
-        details: Optional dictionary with additional error details.
-    """
-
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None) -> None:
-        """Initialize the ValidationError.
+    def __init__(
+        self,
+        message: str = "Validation failed",
+        details: Optional[dict[str, Any]] = None,
+    ) -> None:
+        """Initialize the exception.
 
         Args:
-            message: The error message.
-            details: Optional dictionary with additional error details.
+            message: A human-readable error message
+            details: Additional error details
         """
-        super().__init__(message, "VALIDATION_ERROR", details)
+        super().__init__(
+            message=message,
+            code="VALIDATION_ERROR",
+            status_code=400,
+            details=details,
+        )
 
 
 class APIError(ArklexError):
@@ -102,7 +110,7 @@ class APIError(ArklexError):
             message: The error message.
             details: Optional dictionary with additional error details.
         """
-        super().__init__(message, "API_ERROR", details)
+        super().__init__(message, "API_ERROR", 500, details)
 
 
 class ModelError(ArklexError):
@@ -120,7 +128,7 @@ class ModelError(ArklexError):
             message: The error message.
             details: Optional dictionary with additional error details.
         """
-        super().__init__(message, "MODEL_ERROR", details)
+        super().__init__(message, "MODEL_ERROR", 500, details)
 
 
 class ConfigurationError(ArklexError):
@@ -138,7 +146,7 @@ class ConfigurationError(ArklexError):
             message: The error message.
             details: Optional dictionary with additional error details.
         """
-        super().__init__(message, "CONFIG_ERROR", details)
+        super().__init__(message, "CONFIG_ERROR", 500, details)
 
 
 class DatabaseError(ArklexError):
@@ -156,7 +164,7 @@ class DatabaseError(ArklexError):
             message: The error message.
             details: Optional dictionary with additional error details.
         """
-        super().__init__(message, "DB_ERROR", details)
+        super().__init__(message, "DB_ERROR", 500, details)
 
 
 class ResourceNotFoundError(ArklexError):
@@ -174,7 +182,7 @@ class ResourceNotFoundError(ArklexError):
             message: The error message.
             details: Optional dictionary with additional error details.
         """
-        super().__init__(message, "NOT_FOUND", details)
+        super().__init__(message, "NOT_FOUND", 404, details)
 
 
 class RateLimitError(ArklexError):
@@ -192,7 +200,7 @@ class RateLimitError(ArklexError):
             message: The error message.
             details: Optional dictionary with additional error details.
         """
-        super().__init__(message, "RATE_LIMIT", details)
+        super().__init__(message, "RATE_LIMIT", 429, details)
 
 
 class ToolExecutionError(ArklexError):
@@ -223,8 +231,8 @@ class ToolExecutionError(ArklexError):
         super().__init__(
             f"Tool {tool_name} execution failed: {message}",
             "TOOL_ERROR",
+            500,
             details,
-            extra_message,
         )
 
 
@@ -253,7 +261,7 @@ class UserFacingError(ArklexError):
             details: Optional dictionary with additional error details.
             extra_message: Optional additional message for user guidance.
         """
-        super().__init__(message, error_code, details, extra_message)
+        super().__init__(message, error_code, 500, details)
 
 
 class RetryableError(ArklexError):
@@ -281,7 +289,7 @@ class RetryableError(ArklexError):
             details: Optional dictionary with additional error details.
             max_retries: Maximum number of retry attempts.
         """
-        super().__init__(message, error_code, details)
+        super().__init__(message, error_code, 500, details)
         self.max_retries = max_retries
 
 
