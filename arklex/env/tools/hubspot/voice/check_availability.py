@@ -30,7 +30,7 @@ slots = [
     },
     {
         "name": "start_time",
-        "type": "int",
+        "type": "str",
         "required": True,
         "description": "The start time that the meeting will take place. The meeting's start time includes the hour, as the date alone is not sufficient. The format should be 'YYYY-MM-DDTHH:MM:SS'. Today is {today}.".format(
             today=datetime.now().isoformat()
