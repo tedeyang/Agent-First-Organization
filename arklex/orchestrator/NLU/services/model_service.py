@@ -974,18 +974,84 @@ Please choose the most appropriate intent by providing the corresponding intent 
 
 
 class DummyModelService(ModelService):
-    def format_slot_input(self, slots, context, type):
-        return "dummy_prompt", "dummy_system_prompt"
+    """A dummy model service for testing purposes.
 
-    def get_response(self, *args, **kwargs):
-        # Return a valid intent detection response for tests
+    This class provides mock implementations of model service methods
+    for use in testing scenarios.
+    """
+
+    def format_slot_input(
+        self, slots: List[Dict[str, Any]], context: str, type: str = "chat"
+    ) -> Tuple[str, str]:
+        """Format slot input for testing.
+
+        Args:
+            slots: List of slot definitions
+            context: Context string
+            type: Type of input format (default: "chat")
+
+        Returns:
+            Tuple[str, str]: Formatted input and context
+        """
+        return super().format_slot_input(slots, context, type)
+
+    def get_response(
+        self,
+        prompt: str,
+        model_config: Optional[Dict[str, Any]] = None,
+        system_prompt: Optional[str] = None,
+        response_format: Optional[str] = None,
+        note: Optional[str] = None,
+    ) -> str:
+        """Get a mock response for testing.
+
+        Args:
+            prompt: Input prompt
+            model_config: Optional model configuration
+            system_prompt: Optional system prompt
+            response_format: Optional response format
+            note: Optional note
+
+        Returns:
+            str: Mock response for testing
+        """
         return "1) others"
 
-    def process_slot_response(self, response, slots):
-        return slots
+    def process_slot_response(
+        self, response: str, slots: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """Process mock slot response for testing.
 
-    def format_verification_input(self, slot, chat_history_str):
-        return "dummy_verification_prompt"
+        Args:
+            response: Mock response string
+            slots: List of slot definitions
 
-    def process_verification_response(self, response):
-        return True, "dummy_reason"
+        Returns:
+            List[Dict[str, Any]]: Processed slot values
+        """
+        return super().process_slot_response(response, slots)
+
+    def format_verification_input(
+        self, slot: Dict[str, Any], chat_history_str: str
+    ) -> Tuple[str, str]:
+        """Format verification input for testing.
+
+        Args:
+            slot: Slot definition
+            chat_history_str: Chat history string
+
+        Returns:
+            Tuple[str, str]: Formatted input and context
+        """
+        return super().format_verification_input(slot, chat_history_str)
+
+    def process_verification_response(self, response: str) -> Tuple[bool, str]:
+        """Process mock verification response for testing.
+
+        Args:
+            response: Mock response string
+
+        Returns:
+            Tuple[bool, str]: Verification result and explanation
+        """
+        return super().process_verification_response(response)
