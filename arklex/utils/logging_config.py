@@ -13,6 +13,8 @@ import logging
 import logging.handlers
 import os
 import json
+import socket
+import platform
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, Any, Union
@@ -34,8 +36,9 @@ LOG_LEVELS = {
     "DEBUG": logging.DEBUG,  # Detailed information for debugging
 }
 
-# Module-specific log levels
+# Module-specific log levels with more granular control
 MODULE_LOG_LEVELS = {
+    # Third-party modules
     "urllib3": logging.WARNING,
     "requests": logging.WARNING,
     "fastapi": logging.INFO,
@@ -43,6 +46,21 @@ MODULE_LOG_LEVELS = {
     "sqlalchemy": logging.WARNING,
     "httpx": logging.WARNING,
     "websockets": logging.WARNING,
+    # Application modules
+    "arklex.api": logging.INFO,
+    "arklex.api.routes": logging.INFO,
+    "arklex.api.middleware": logging.INFO,
+    "arklex.db": logging.WARNING,
+    "arklex.db.models": logging.INFO,
+    "arklex.db.migrations": logging.INFO,
+    "arklex.cache": logging.DEBUG,
+    "arklex.cache.redis": logging.DEBUG,
+    "arklex.utils": logging.INFO,
+    "arklex.utils.logging": logging.INFO,
+    "arklex.utils.exceptions": logging.INFO,
+    "arklex.services": logging.INFO,
+    "arklex.services.agents": logging.INFO,
+    "arklex.services.tasks": logging.INFO,
 }
 
 
@@ -99,6 +117,16 @@ class ContextFilter(logging.Filter):
 class JSONFormatter(logging.Formatter):
     """Formatter that outputs JSON strings after parsing the LogRecord."""
 
+    def __init__(self, include_hostname: bool = True) -> None:
+        """Initialize the JSON formatter.
+
+        Args:
+            include_hostname: Whether to include hostname in log records
+        """
+        super().__init__()
+        self.include_hostname = include_hostname
+        self.hostname = socket.gethostname() if include_hostname else None
+
     def format(self, record: logging.LogRecord) -> str:
         """Format the log record as JSON.
 
@@ -116,16 +144,36 @@ class JSONFormatter(logging.Formatter):
             "module": record.module,
             "function": record.funcName,
             "line": record.lineno,
+            "process_id": record.process,
+            "thread_id": record.thread,
+            "thread_name": record.threadName,
         }
 
+        # Add system information
+        if self.include_hostname:
+            log_data.update(
+                {
+                    "hostname": self.hostname,
+                    "platform": platform.platform(),
+                    "python_version": platform.python_version(),
+                }
+            )
+
+        # Add request tracking information
         if hasattr(record, "request_id"):
             log_data["request_id"] = record.request_id
 
+        # Add context information
         if hasattr(record, "context"):
             log_data["context"] = record.context
 
+        # Add exception information
         if record.exc_info:
-            log_data["exception"] = self.formatException(record.exc_info)
+            log_data["exception"] = {
+                "type": record.exc_info[0].__name__,
+                "message": str(record.exc_info[1]),
+                "traceback": self.formatException(record.exc_info),
+            }
 
         return json.dumps(log_data)
 
@@ -147,16 +195,22 @@ def get_logger(
     """
     logger = logging.getLogger(name)
 
-    # Set log level if provided
+    # Set log level if provided, otherwise use module-specific level
     if level is not None:
         if isinstance(level, str):
             level = LOG_LEVELS.get(level.upper(), logging.INFO)
         logger.setLevel(level)
+    else:
+        # Check for module-specific log level
+        for module_prefix, module_level in MODULE_LOG_LEVELS.items():
+            if name.startswith(module_prefix):
+                logger.setLevel(module_level)
+                break
 
     # Add handlers if none exist
     if not logger.handlers:
         # Inherit formatter from parent if exists and no log_format is provided
-        parent = logger.parent if logger.parent and logger.parent != logger else None
+        parent = logger.parent if logger.parent != logger else None
         if log_format is not None:
             formatter = logging.Formatter(log_format)
         elif parent and parent.handlers:
@@ -171,8 +225,8 @@ def get_logger(
         console_handler.addFilter(ContextFilter())
         logger.addHandler(console_handler)
 
-        # Set propagation to False to prevent duplicate logs
-        logger.propagate = False
+        # Set propagation to True to propagate to the root logger
+        logger.propagate = True
     else:
         # If log_format is provided, update formatter
         if log_format is not None:
@@ -192,31 +246,16 @@ def log_with_context(
     level: Union[str, int],
     message: str,
     context: Optional[Dict[str, Any]] = None,
-    exc_info: Optional[Exception] = None,
+    exc_info: Optional[Any] = None,
 ) -> None:
-    """Log a message with context information.
-
-    Args:
-        logger: Logger instance.
-        level: Log level (string or integer).
-        message: Log message.
-        context: Additional context information.
-        exc_info: Exception information.
-    """
-    if isinstance(level, str):
-        level = LOG_LEVELS.get(level.upper(), logging.INFO)
-
-    # Temporarily add ContextFilter to all handlers
-    filters = []
-    for handler in logger.handlers:
-        context_filter = ContextFilter(context or {})
-        handler.addFilter(context_filter)
-        filters.append((handler, context_filter))
-    try:
-        logger.log(level, message, exc_info=exc_info)
-    finally:
-        for handler, context_filter in filters:
-            handler.removeFilter(context_filter)
+    """Log a message with context and optional exception info."""
+    extra = {"context": context or {}}
+    logger.log(
+        LOG_LEVELS.get(str(level).upper(), level),
+        message,
+        extra=extra,
+        exc_info=exc_info,
+    )
 
 
 def setup_logging(
@@ -226,6 +265,7 @@ def setup_logging(
     app_name: str = "arklex",
     use_json: bool = False,
     max_bytes: int = MAX_BYTES,
+    include_hostname: bool = True,
 ) -> None:
     """Set up logging configuration for the application.
 
@@ -236,6 +276,7 @@ def setup_logging(
         app_name: Name of the application for log file naming.
         use_json: Whether to use JSON formatting for logs.
         max_bytes: Maximum bytes for log rotation.
+        include_hostname: Whether to include hostname in log records.
     """
     root_logger = logging.getLogger()
     # Remove all existing handlers
@@ -249,14 +290,9 @@ def setup_logging(
     # Set root logger level
     root_logger.setLevel(log_level)
 
-    # Create logs directory if it doesn't exist
-    if log_dir is None:
-        log_dir = os.path.join(os.getcwd(), "logs")
-    os.makedirs(log_dir, exist_ok=True)
-
     # Create formatter
     if use_json:
-        formatter = JSONFormatter()
+        formatter = JSONFormatter(include_hostname=include_hostname)
     else:
         formatter = logging.Formatter(log_format)
 
@@ -264,25 +300,24 @@ def setup_logging(
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
     console_handler.addFilter(RequestIdFilter())
-    console_handler.addFilter(ContextFilter())
     root_logger.addHandler(console_handler)
 
-    # Create file handler with rotation
-    log_file = os.path.join(log_dir, f"{app_name}.log")
-    file_handler = logging.handlers.RotatingFileHandler(
-        log_file,
-        maxBytes=max_bytes,
-        backupCount=BACKUP_COUNT,
-        encoding="utf-8",
-    )
-    file_handler.setFormatter(formatter)
-    file_handler.addFilter(RequestIdFilter())
-    file_handler.addFilter(ContextFilter())
-    root_logger.addHandler(file_handler)
+    # Create file handler if log directory is provided
+    if log_dir:
+        log_path = Path(log_dir)
+        log_path.mkdir(parents=True, exist_ok=True)
 
-    # Configure module-specific log levels
-    for module, level in MODULE_LOG_LEVELS.items():
-        logging.getLogger(module).setLevel(level)
+        # Create rotating file handler
+        file_handler = logging.handlers.RotatingFileHandler(
+            log_path / f"{app_name}.log",
+            maxBytes=max_bytes,
+            backupCount=BACKUP_COUNT,
+        )
+        file_handler.setFormatter(formatter)
+        file_handler.addFilter(RequestIdFilter())
+        root_logger.addHandler(file_handler)
 
-    # Disable propagation for root logger to prevent duplicate logs
-    root_logger.propagate = False
+    # Set module-specific log levels
+    for module_name, module_level in MODULE_LOG_LEVELS.items():
+        module_logger = logging.getLogger(module_name)
+        module_logger.setLevel(module_level)

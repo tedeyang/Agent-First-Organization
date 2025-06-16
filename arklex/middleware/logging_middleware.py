@@ -6,13 +6,15 @@ including request tracking, timing, and error handling with retry mechanisms.
 
 import time
 import uuid
+import traceback
 from typing import Callable, Any, Optional, Dict, Tuple
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from arklex.utils.logging_config import get_logger, log_with_context
+from arklex.utils.logging_config import get_logger
+from arklex.utils.logging_utils import LogContext, LOG_MESSAGES
 from arklex.utils.exceptions import (
     RetryableError,
     NetworkError,
@@ -59,45 +61,49 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         request_id = str(uuid.uuid4())
         request.state.request_id = request_id
 
-        # Prepare request context
-        request_context = {
-            "request_id": request_id,
-            "method": request.method,
-            "url": str(request.url),
-            "client_host": request.client.host if request.client else None,
-            "headers": dict(request.headers),
-            "query_params": dict(request.query_params),
-        }
+        # Create log context with enhanced request information
+        log_context = LogContext(
+            __name__,
+            {
+                "request_id": request_id,
+                "method": request.method,
+                "url": str(request.url),
+                "client_host": request.client.host if request.client else None,
+                "client_port": request.client.port if request.client else None,
+                "headers": dict(request.headers),
+                "query_params": dict(request.query_params),
+                "path_params": dict(request.path_params)
+                if hasattr(request, "path_params")
+                else {},
+                "cookies": dict(request.cookies),
+                "content_type": request.headers.get("content-type"),
+                "user_agent": request.headers.get("user-agent"),
+            },
+        )
 
-        # Log request start
-        log_with_context(
-            logger,
-            "INFO",
-            "Request started",
-            context=request_context,
+        # Log request start with standardized message
+        log_context.info(
+            LOG_MESSAGES["INFO"]["REQUEST_START"].format(request_id=request_id),
+            method=request.method,
+            url=str(request.url),
+            client_host=request.client.host if request.client else None,
         )
 
         start_time = time.time()
         try:
             # Process the request with retry mechanism for retryable errors
             response, process_time = await self._process_request_with_retry(
-                request, call_next
+                request, call_next, start_time
             )
 
-            # Prepare response context
-            response_context = {
-                **request_context,
-                "status_code": response.status_code,
-                "process_time": process_time,
-                "response_headers": dict(response.headers),
-            }
-
-            # Log request completion
-            log_with_context(
-                logger,
-                "INFO",
-                "Request completed",
-                context=response_context,
+            # Log request completion with standardized message
+            log_context.info(
+                LOG_MESSAGES["INFO"]["REQUEST_END"].format(request_id=request_id),
+                status_code=response.status_code,
+                process_time=process_time,
+                response_headers=dict(response.headers),
+                response_size=len(response.body) if hasattr(response, "body") else 0,
+                content_type=response.headers.get("content-type"),
             )
 
             # Add request ID to response headers
@@ -105,34 +111,28 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             return response
 
         except RetryableError as e:
-            # Log retryable error
-            error_context = {
-                **request_context,
-                "error": str(e),
-                "error_type": type(e).__name__,
-                "max_retries": e.max_retries,
-            }
-            log_with_context(
-                logger,
-                "ERROR",
-                f"Retryable error occurred: {str(e)}",
-                context=error_context,
+            # Log retryable error with standardized message
+            log_context.error(
+                LOG_MESSAGES["ERROR"]["OPERATION_FAILED"].format(error=str(e)),
+                error_type=type(e).__name__,
+                error_details=getattr(e, "details", None),
+                max_retries=e.max_retries,
+                stack_trace=traceback.format_exc(),
+                process_time=time.time() - start_time,
                 exc_info=e,
             )
             raise
 
         except Exception as e:
-            # Log unexpected error
-            error_context = {
-                **request_context,
-                "error": str(e),
-                "error_type": type(e).__name__,
-            }
-            log_with_context(
-                logger,
-                "ERROR",
-                f"Unexpected error occurred: {str(e)}",
-                context=error_context,
+            # Log unexpected error with standardized message
+            log_context.error(
+                LOG_MESSAGES["ERROR"]["UNEXPECTED_ERROR"].format(
+                    function="dispatch", error=str(e)
+                ),
+                error_type=type(e).__name__,
+                error_details=getattr(e, "details", None),
+                stack_trace=traceback.format_exc(),
+                process_time=time.time() - start_time,
                 exc_info=e,
             )
             raise
@@ -147,13 +147,14 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         ),
     )
     async def _process_request_with_retry(
-        self, request: Request, call_next: Callable
+        self, request: Request, call_next: Callable, start_time: float
     ) -> Tuple[Response, float]:
         """Process the request with retry mechanism for retryable errors.
 
         Args:
             request: The incoming request.
             call_next: The next middleware in the chain.
+            start_time: The time when the request started.
 
         Returns:
             Tuple[Response, float]: The response and process time.
@@ -164,14 +165,47 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         """
         try:
             response = await call_next(request)
-            process_time = time.time() - time.time()
+            process_time = time.time() - start_time
             return response, process_time
         except Exception as e:
-            # Convert certain exceptions to retryable errors
-            if isinstance(e, (ConnectionError, TimeoutError)):
-                raise NetworkError(str(e))
+            # Convert certain exceptions to retryable errors with enhanced context
+            if isinstance(e, ConnectionError):
+                raise NetworkError(
+                    str(e),
+                    details={
+                        "error_type": "connection_error",
+                        "original_error": str(e),
+                        "request_info": {
+                            "method": request.method,
+                            "url": str(request.url),
+                            "headers": dict(request.headers),
+                        },
+                    },
+                )
             elif isinstance(e, TimeoutError):
-                raise TimeoutError(str(e))
+                raise TimeoutError(
+                    str(e),
+                    details={
+                        "error_type": "timeout_error",
+                        "original_error": str(e),
+                        "request_info": {
+                            "method": request.method,
+                            "url": str(request.url),
+                            "headers": dict(request.headers),
+                        },
+                    },
+                )
             elif isinstance(e, ServiceUnavailableError):
-                raise ServiceUnavailableError(str(e))
+                raise ServiceUnavailableError(
+                    str(e),
+                    details={
+                        "error_type": "service_unavailable",
+                        "original_error": str(e),
+                        "request_info": {
+                            "method": request.method,
+                            "url": str(request.url),
+                            "headers": dict(request.headers),
+                        },
+                    },
+                )
             raise
