@@ -47,8 +47,6 @@ class StreamType(str, Enum):
     TEXT = "text"
     # SPEECH is used to denote speech streams
     SPEECH = "speech"
-    # REALTIME_SPEECH is used to denote openai realtime speech streams
-    REALTIME_SPEECH = "realtime_speech"
     # Non-stream types
     NON_STREAM = ""
 
