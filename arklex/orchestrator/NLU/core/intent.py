@@ -125,7 +125,8 @@ class IntentDetector(BaseNLU):
         log_context.info(
             "Model response received",
             extra={
-                "response": response,
+                "prompt": prompt,
+                "raw_response": response,
                 "operation": "intent_detection_local",
             },
         )
@@ -137,7 +138,8 @@ class IntentDetector(BaseNLU):
             log_context.error(
                 "Invalid response format",
                 extra={
-                    "response": response,
+                    "prompt": prompt,
+                    "raw_response": response,
                     "error": str(e),
                     "operation": "intent_detection_local",
                 },
@@ -145,7 +147,8 @@ class IntentDetector(BaseNLU):
             raise ValidationError(
                 "Invalid response format",
                 details={
-                    "response": response,
+                    "prompt": prompt,
+                    "raw_response": response,
                     "error": str(e),
                     "operation": "intent_detection_local",
                 },
@@ -156,6 +159,8 @@ class IntentDetector(BaseNLU):
             log_context.warning(
                 "Predicted intent not in mapping",
                 extra={
+                    "prompt": prompt,
+                    "raw_response": response,
                     "predicted_intent": pred_intent,
                     "available_intents": list(idx2intents_mapping.values()),
                     "operation": "intent_detection_local",
@@ -166,7 +171,9 @@ class IntentDetector(BaseNLU):
         log_context.info(
             "Intent detection completed",
             extra={
-                "predicted_intent": pred_intent,
+                "prompt": prompt,
+                "raw_response": response,
+                "final_predicted_intent": pred_intent,
                 "operation": "intent_detection_local",
             },
         )
