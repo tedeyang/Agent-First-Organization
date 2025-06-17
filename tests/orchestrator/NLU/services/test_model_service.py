@@ -174,3 +174,21 @@ def test_model_service_get_response_model_error(dummy_config) -> None:
             ValueError, match="Failed to get model response: Model error"
         ):
             service.get_response("User: hello")
+
+
+def test_model_service_missing_model_name() -> None:
+    config = {"api_key": "key", "endpoint": "url"}
+    with pytest.raises(ValidationError, match="Missing required field"):
+        ModelService(config)
+
+
+def test_model_service_missing_api_key() -> None:
+    config = {"model_name": "name", "endpoint": "url"}
+    with pytest.raises(ValidationError, match="Missing required field"):
+        ModelService(config)
+
+
+def test_model_service_missing_endpoint() -> None:
+    config = {"model_name": "name", "api_key": "key"}
+    with pytest.raises(ValidationError, match="Missing required field"):
+        ModelService(config)
