@@ -4,7 +4,7 @@ import pytest
 from typing import Dict, Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from arklex.utils.exceptions import ValidationError
+from arklex.utils.exceptions import ValidationError, ModelError
 from arklex.orchestrator.NLU.services.model_service import ModelService
 
 
@@ -131,3 +131,46 @@ async def test_make_model_request(model_service: ModelService) -> None:
     response = await model_service._make_model_request(request_data)
     assert isinstance(response, dict)
     assert "result" in response
+
+
+@pytest.fixture
+def dummy_config():
+    return {
+        "model_name": "dummy",
+        "api_key": "dummy",
+        "endpoint": "http://dummy",
+        "model_type_or_path": "dummy-path",
+        "llm_provider": "dummy",
+    }
+
+
+def test_model_service_initialization(dummy_config) -> None:
+    service = ModelService(dummy_config)
+    assert service.model_config["model_name"] == "dummy"
+
+
+def test_model_service_get_response_success(dummy_config) -> None:
+    service = ModelService(dummy_config)
+    mock_response = MagicMock()
+    mock_response.content = "0) greeting"
+    with patch.object(service.model, "invoke", return_value=mock_response):
+        result = service.get_response("User: hello")
+        assert result == "0) greeting"
+
+
+def test_model_service_get_response_empty(dummy_config) -> None:
+    service = ModelService(dummy_config)
+    mock_response = MagicMock()
+    mock_response.content = ""
+    with patch.object(service.model, "invoke", return_value=mock_response):
+        with pytest.raises(ValueError, match="Empty response from model"):
+            service.get_response("User: hello")
+
+
+def test_model_service_get_response_model_error(dummy_config) -> None:
+    service = ModelService(dummy_config)
+    with patch.object(service.model, "invoke", side_effect=Exception("Model error")):
+        with pytest.raises(
+            ValueError, match="Failed to get model response: Model error"
+        ):
+            service.get_response("User: hello")
