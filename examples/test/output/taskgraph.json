@@ -4,27 +4,29 @@
             "0",
             {
                 "resource": {
-                    "id": "task_1",
-                    "name": "Provide Information on Robot Specifications and Features"
+                    "id": "start_message_worker",
+                    "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "Provide information on robot specifications and features",
-                    "task": "Provide Information on Robot Specifications and Features",
-                    "directed": true
-                }
+                    "value": "Hello! I'm here to assist you with any customer service inquiries you may have. Whether you need information about our products, services, or policies, or if you need help resolving an issue or completing a transaction, feel free to ask. How can I assist you today?",
+                    "task": "start message",
+                    "directed": false
+                },
+                "limit": 1,
+                "type": "start"
             }
         ],
         [
             "1",
             {
                 "resource": {
-                    "id": "task_2",
-                    "name": "Assist in Robot Purchase or Rental Process"
+                    "id": "task_1",
+                    "name": "Provide information on product availability and expected delivery times"
                 },
                 "attribute": {
-                    "value": "Assist in robot purchase or rental process",
-                    "task": "Assist in Robot Purchase or Rental Process",
-                    "directed": true
+                    "value": "User wants to know product availability and delivery times",
+                    "task": "Provide information on product availability and expected delivery times",
+                    "directed": false
                 }
             }
         ],
@@ -32,13 +34,13 @@
             "2",
             {
                 "resource": {
-                    "id": "task_3",
-                    "name": "Provide Information About ClouTea Robot Milk Tea Shop"
+                    "id": "task_2",
+                    "name": "Provide information on the rental process and options for robots"
                 },
                 "attribute": {
-                    "value": "Provide information about ClouTea robot milk tea shop",
-                    "task": "Provide Information About ClouTea Robot Milk Tea Shop",
-                    "directed": true
+                    "value": "User seeks information about rental options",
+                    "task": "Provide information on the rental process and options for robots",
+                    "directed": false
                 }
             }
         ],
@@ -46,18 +48,409 @@
             "3",
             {
                 "resource": {
-                    "id": "task_4",
-                    "name": "Provide Customer Service or Technical Support for Products"
+                    "id": "task_3",
+                    "name": "Offer guidance on technical support and maintenance services"
                 },
                 "attribute": {
-                    "value": "Provide customer service or technical support for products",
-                    "task": "Provide Customer Service or Technical Support for Products",
-                    "directed": true
+                    "value": "User inquires about technical support and maintenance",
+                    "task": "Offer guidance on technical support and maintenance services",
+                    "directed": false
+                }
+            }
+        ],
+        [
+            "4",
+            {
+                "resource": {
+                    "id": "task_4",
+                    "name": "Provide information on ClouTea's menu and offerings"
+                },
+                "attribute": {
+                    "value": "User wants to learn about ClouTea's offerings",
+                    "task": "Provide information on ClouTea's menu and offerings",
+                    "directed": false
+                }
+            }
+        ],
+        [
+            "5",
+            {
+                "resource": {
+                    "id": "step_message_worker",
+                    "name": "MessageWorker"
+                },
+                "attribute": {
+                    "value": "Prompt the user to specify the robot model they are inquiring about.",
+                    "task": "Ask the user which product they are interested in.",
+                    "directed": false
+                }
+            }
+        ],
+        [
+            "6",
+            {
+                "resource": {
+                    "id": "step_message_worker",
+                    "name": "MessageWorker"
+                },
+                "attribute": {
+                    "value": "Verify if the specified robot model is in stock and provide the standard delivery time based on the type of robot.",
+                    "task": "Check product availability and delivery schedules.",
+                    "directed": false
+                }
+            }
+        ],
+        [
+            "7",
+            {
+                "resource": {
+                    "id": "step_message_worker",
+                    "name": "MessageWorker"
+                },
+                "attribute": {
+                    "value": "Share the current availability status and expected delivery timeframe for the specified robot.",
+                    "task": "Inform the user about availability and delivery details.",
+                    "directed": false
+                }
+            }
+        ],
+        [
+            "8",
+            {
+                "resource": {
+                    "id": "step_message_worker",
+                    "name": "MessageWorker"
+                },
+                "attribute": {
+                    "value": "Inquire which specific robot model the user is interested in renting.",
+                    "task": "Identify the robot of interest for rental.",
+                    "directed": false
+                }
+            }
+        ],
+        [
+            "9",
+            {
+                "resource": {
+                    "id": "step_message_worker",
+                    "name": "MessageWorker"
+                },
+                "attribute": {
+                    "value": "Display available rental plans, durations, and terms specific to the chosen robot model.",
+                    "task": "Present rental options and terms.",
+                    "directed": false
+                }
+            }
+        ],
+        [
+            "10",
+            {
+                "resource": {
+                    "id": "step_message_worker",
+                    "name": "MessageWorker"
+                },
+                "attribute": {
+                    "value": "Provide step-by-step assistance for initiating the rental process, including necessary paperwork and prerequisites.",
+                    "task": "Guide the user through the rental process.",
+                    "directed": false
+                }
+            }
+        ],
+        [
+            "11",
+            {
+                "resource": {
+                    "id": "step_message_worker",
+                    "name": "MessageWorker"
+                },
+                "attribute": {
+                    "value": "Ask the user to describe any technical issues they are experiencing or what maintenance service they require.",
+                    "task": "Determine the user's technical issue or maintenance inquiry.",
+                    "directed": false
+                }
+            }
+        ],
+        [
+            "12",
+            {
+                "resource": {
+                    "id": "step_message_worker",
+                    "name": "MessageWorker"
+                },
+                "attribute": {
+                    "value": "Offer details on how to reach the technical support team or access maintenance resources, such as manuals or service centers.",
+                    "task": "Provide contact information or resources for support.",
+                    "directed": false
+                }
+            }
+        ],
+        [
+            "13",
+            {
+                "resource": {
+                    "id": "step_message_worker",
+                    "name": "MessageWorker"
+                },
+                "attribute": {
+                    "value": "Assist the user in setting up an appointment with a technician for on-site service or maintenance.",
+                    "task": "Schedule a maintenance appointment if needed.",
+                    "directed": false
+                }
+            }
+        ],
+        [
+            "14",
+            {
+                "resource": {
+                    "id": "step_message_worker",
+                    "name": "MessageWorker"
+                },
+                "attribute": {
+                    "value": "Provide a detailed list of milk tea beverages and any unique offerings available at ClouTea.",
+                    "task": "Share the current ClouTea menu with the user.",
+                    "directed": false
+                }
+            }
+        ],
+        [
+            "15",
+            {
+                "resource": {
+                    "id": "step_message_worker",
+                    "name": "MessageWorker"
+                },
+                "attribute": {
+                    "value": "Inform the user about any seasonal or promotional beverages offered exclusively at ClouTea.",
+                    "task": "Highlight any special or limited-time drinks.",
+                    "directed": false
+                }
+            }
+        ],
+        [
+            "16",
+            {
+                "resource": {
+                    "id": "step_message_worker",
+                    "name": "MessageWorker"
+                },
+                "attribute": {
+                    "value": "Answer any questions the user might have about the ingredients, preparation, or recommendations for ClouTea's beverages.",
+                    "task": "Address any specific beverage inquiries.",
+                    "directed": false
                 }
             }
         ]
     ],
-    "edges": [],
+    "edges": [
+        [
+            "0",
+            "1",
+            {
+                "intent": "User inquires about provide information on product availability and expected delivery times",
+                "attribute": {
+                    "weight": 1,
+                    "pred": true,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "0",
+            "2",
+            {
+                "intent": "User inquires about provide information on the rental process and options for robots",
+                "attribute": {
+                    "weight": 1,
+                    "pred": true,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "0",
+            "3",
+            {
+                "intent": "User inquires about offer guidance on technical support and maintenance services",
+                "attribute": {
+                    "weight": 1,
+                    "pred": true,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "0",
+            "4",
+            {
+                "intent": "User inquires about provide information on cloutea's menu and offerings",
+                "attribute": {
+                    "weight": 1,
+                    "pred": true,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "1",
+            "5",
+            {
+                "intent": "step",
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "1",
+            "6",
+            {
+                "intent": "step",
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "1",
+            "7",
+            {
+                "intent": "step",
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "2",
+            "8",
+            {
+                "intent": "step",
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "2",
+            "9",
+            {
+                "intent": "step",
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "2",
+            "10",
+            {
+                "intent": "step",
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "3",
+            "11",
+            {
+                "intent": "step",
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "3",
+            "12",
+            {
+                "intent": "step",
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "3",
+            "13",
+            {
+                "intent": "step",
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "4",
+            "14",
+            {
+                "intent": "step",
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "4",
+            "15",
+            {
+                "intent": "step",
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "4",
+            "16",
+            {
+                "intent": "step",
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ]
+    ],
     "role": "customer service assistant",
     "user_objective": "The customer service assistant helps users with customer service inquiries. It can provide information about products, services, and policies, as well as help users resolve issues and complete transactions.",
     "builder_objective": "The customer service assistant helps to request customer's contact information.",
@@ -81,7 +474,136 @@
             "type": "text"
         }
     ],
-    "tasks": [],
+    "tasks": [
+        {
+            "id": "task_1",
+            "task_id": "task_1",
+            "name": "Provide information on product availability and expected delivery times",
+            "description": "User wants to know product availability and delivery times",
+            "steps": [
+                {
+                    "task": "Ask the user which product they are interested in.",
+                    "description": "Prompt the user to specify the robot model they are inquiring about.",
+                    "step_id": "step_1",
+                    "required_fields": []
+                },
+                {
+                    "task": "Check product availability and delivery schedules.",
+                    "description": "Verify if the specified robot model is in stock and provide the standard delivery time based on the type of robot.",
+                    "step_id": "step_2",
+                    "required_fields": []
+                },
+                {
+                    "task": "Inform the user about availability and delivery details.",
+                    "description": "Share the current availability status and expected delivery timeframe for the specified robot.",
+                    "step_id": "step_3",
+                    "required_fields": []
+                }
+            ],
+            "dependencies": [],
+            "required_resources": [],
+            "estimated_duration": "1 hour",
+            "priority": 3,
+            "level": 0,
+            "_node_id": "1"
+        },
+        {
+            "id": "task_2",
+            "task_id": "task_2",
+            "name": "Provide information on the rental process and options for robots",
+            "description": "User seeks information about rental options",
+            "steps": [
+                {
+                    "task": "Identify the robot of interest for rental.",
+                    "description": "Inquire which specific robot model the user is interested in renting.",
+                    "step_id": "step_1",
+                    "required_fields": []
+                },
+                {
+                    "task": "Present rental options and terms.",
+                    "description": "Display available rental plans, durations, and terms specific to the chosen robot model.",
+                    "step_id": "step_2",
+                    "required_fields": []
+                },
+                {
+                    "task": "Guide the user through the rental process.",
+                    "description": "Provide step-by-step assistance for initiating the rental process, including necessary paperwork and prerequisites.",
+                    "step_id": "step_3",
+                    "required_fields": []
+                }
+            ],
+            "dependencies": [],
+            "required_resources": [],
+            "estimated_duration": "1 hour",
+            "priority": 3,
+            "level": 0,
+            "_node_id": "2"
+        },
+        {
+            "id": "task_3",
+            "task_id": "task_3",
+            "name": "Offer guidance on technical support and maintenance services",
+            "description": "User inquires about technical support and maintenance",
+            "steps": [
+                {
+                    "task": "Determine the user's technical issue or maintenance inquiry.",
+                    "description": "Ask the user to describe any technical issues they are experiencing or what maintenance service they require.",
+                    "step_id": "step_1",
+                    "required_fields": []
+                },
+                {
+                    "task": "Provide contact information or resources for support.",
+                    "description": "Offer details on how to reach the technical support team or access maintenance resources, such as manuals or service centers.",
+                    "step_id": "step_2",
+                    "required_fields": []
+                },
+                {
+                    "task": "Schedule a maintenance appointment if needed.",
+                    "description": "Assist the user in setting up an appointment with a technician for on-site service or maintenance.",
+                    "step_id": "step_3",
+                    "required_fields": []
+                }
+            ],
+            "dependencies": [],
+            "required_resources": [],
+            "estimated_duration": "1 hour",
+            "priority": 3,
+            "level": 0,
+            "_node_id": "3"
+        },
+        {
+            "id": "task_4",
+            "task_id": "task_4",
+            "name": "Provide information on ClouTea's menu and offerings",
+            "description": "User wants to learn about ClouTea's offerings",
+            "steps": [
+                {
+                    "task": "Share the current ClouTea menu with the user.",
+                    "description": "Provide a detailed list of milk tea beverages and any unique offerings available at ClouTea.",
+                    "step_id": "step_1",
+                    "required_fields": []
+                },
+                {
+                    "task": "Highlight any special or limited-time drinks.",
+                    "description": "Inform the user about any seasonal or promotional beverages offered exclusively at ClouTea.",
+                    "step_id": "step_2",
+                    "required_fields": []
+                },
+                {
+                    "task": "Address any specific beverage inquiries.",
+                    "description": "Answer any questions the user might have about the ingredients, preparation, or recommendations for ClouTea's beverages.",
+                    "step_id": "step_3",
+                    "required_fields": []
+                }
+            ],
+            "dependencies": [],
+            "required_resources": [],
+            "estimated_duration": "1 hour",
+            "priority": 3,
+            "level": 0,
+            "_node_id": "4"
+        }
+    ],
     "workers": [
         {
             "id": "FaissRAGWorker",
