@@ -152,7 +152,9 @@ class SlotFiller(BaseSlotFilling):
         log_context.info(
             "Model response received",
             extra={
-                "response": response,
+                "prompt": prompt,
+                "system_prompt": system_prompt,
+                "raw_response": response,
                 "operation": "slot_filling_local",
             },
         )
@@ -163,6 +165,9 @@ class SlotFiller(BaseSlotFilling):
             log_context.info(
                 "Slot filling completed",
                 extra={
+                    "prompt": prompt,
+                    "system_prompt": system_prompt,
+                    "raw_response": response,
                     "filled_slots": [slot.name for slot in filled_slots],
                     "operation": "slot_filling_local",
                 },
@@ -172,16 +177,20 @@ class SlotFiller(BaseSlotFilling):
             log_context.error(
                 "Failed to process slot filling response",
                 extra={
+                    "prompt": prompt,
+                    "system_prompt": system_prompt,
+                    "raw_response": response,
                     "error": str(e),
-                    "response": response,
                     "operation": "slot_filling_local",
                 },
             )
             raise ModelError(
                 "Failed to process slot filling response",
                 details={
+                    "prompt": prompt,
+                    "system_prompt": system_prompt,
+                    "raw_response": response,
                     "error": str(e),
-                    "response": response,
                     "operation": "slot_filling_local",
                 },
             ) from e
