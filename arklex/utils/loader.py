@@ -9,7 +9,7 @@ ensuring consistent processing and storage of loaded content.
 
 import time
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List
 import requests
 import pickle
 import uuid
@@ -34,7 +34,6 @@ from langchain_community.document_loaders import (
 )
 import base64
 from arklex.utils.logging_utils import LogContext
-from arklex.utils.exceptions import LoaderError
 
 log_context = LogContext(__name__)
 CHROME_DRIVER_VERSION = "125.0.6422.7"
