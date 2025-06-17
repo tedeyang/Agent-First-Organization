@@ -94,7 +94,7 @@ class ModelService:
         Raises:
             ValidationError: If the configuration is invalid
         """
-        required_fields = ["model_name", "api_key", "endpoint"]
+        required_fields = ["model_name"]
         missing_fields = [
             field for field in required_fields if field not in self.model_config
         ]
@@ -113,6 +113,11 @@ class ModelService:
                     "operation": "config_validation",
                 },
             )
+        # Use default values for api_key and endpoint if not provided
+        if "api_key" not in self.model_config:
+            self.model_config["api_key"] = MODEL["api_key"]
+        if "endpoint" not in self.model_config:
+            self.model_config["endpoint"] = MODEL["endpoint"]
 
     @handle_exceptions()
     async def process_text(
