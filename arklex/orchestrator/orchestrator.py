@@ -509,12 +509,14 @@ Answer with only 'yes' or 'no'"""
         # asyncio.run(stm.personalize())
         message_state.trajectory = params.memory.trajectory
 
-        # Log personalized intents from trajectory
-        # for turn in params.memory.trajectory:
-        #     for record in turn:
-        #         if record.personalized_intent:
-        #             logger.info(f"Personalized Intent: {record.personalized_intent}")
-        #             logger.info(f"Original Intent: {record.personalized_intent}")
+        # Detect intent
+        # found_intent = self.intent_detector.predict_intent(
+        #     text=text,
+        #     intents=self.intents,
+        #     chat_history_str=chat_history_str,
+        #     model_config=self.llm_config,
+        # )
+        # log_context.info(f"Found Intent: {found_intent}")
 
         # found_records, relevant_records = stm.retrieve_records(text)
 
@@ -524,9 +526,6 @@ Answer with only 'yes' or 'no'"""
         #         f"Relevant Records: {[r.personalized_intent for r in relevant_records]}"
         #     )
 
-        log_context.info(f"Found Intent: {found_intent}")
-        if found_intent:
-            log_context.info(f"Relevant Intent: {relevant_intent}")
         # found_intent, relevant_intent = stm.retrieve_intent(text)
 
         # logger.info(f"Found Intent: {found_intent}")
