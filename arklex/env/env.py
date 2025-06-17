@@ -11,6 +11,7 @@ import uuid
 from functools import partial
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
 
+from arklex.env.agents.agent import BaseAgent
 from arklex.env.planner.react_planner import DefaultPlanner, ReactPlanner
 from arklex.env.tools.tools import Tool
 from arklex.env.workers.worker import BaseWorker
@@ -127,6 +128,36 @@ class DefaultResourceInitializer(BaseResourceInitializer):
                 continue
         return worker_registry
 
+    @staticmethod
+    def init_agents(agents: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+        """Initialize agents from configuration.
+
+        Args:
+            agents: List of agent configurations
+
+        Returns:
+            Dictionary mapping agent IDs to their configurations
+        """
+        agent_registry: Dict[str, Dict[str, Any]] = {}
+        for agent in agents:
+            agent_id: str = agent["id"]
+            name: str = agent["name"]
+            path: str = agent["path"]
+            try:
+                filepath: str = os.path.join("arklex.env.agents", path)
+                module_name: str = filepath.replace(os.sep, ".").rstrip(".py")
+                module = importlib.import_module(module_name)
+                func: Callable = getattr(module, name)
+                agent_registry[agent_id] = {
+                    "name": name,
+                    "description": func.description,
+                    "execute": partial(func, **agent.get("fixed_args", {})),
+                }
+            except Exception as e:
+                logger.error(f"Agent {name} is not registered, error: {e}")
+                continue
+        return agent_registry
+
 
 class Environment:
     """Environment management for workers and tools.
@@ -139,6 +170,7 @@ class Environment:
         self,
         tools: List[Dict[str, Any]],
         workers: List[Dict[str, Any]],
+        agents: List[Dict[str, Any]],
         slotsfillapi: str = "",
         resource_initializer: Optional[BaseResourceInitializer] = None,
         planner_enabled: bool = False,
@@ -161,6 +193,9 @@ class Environment:
         self.tools: Dict[str, Dict[str, Any]] = resource_initializer.init_tools(tools)
         self.workers: Dict[str, Dict[str, Any]] = resource_initializer.init_workers(
             workers
+        )
+        self.agents: Dict[str, Dict[str, Any]] = resource_initializer.init_agents(
+            agents
         )
         self.name2id: Dict[str, str] = {
             resource["name"]: id
@@ -262,6 +297,11 @@ class Environment:
             params.taskgraph.node_status[params.taskgraph.curr_node] = (
                 response_state.status
             )
+
+        elif id in self.agents:
+            logger.info(f"{self.agents[id]['name']} agent selected")
+            agent: BaseAgent = self.agents[id]["execute"]()
+            # TODO: send successors and predecessors
         else:
             logger.info("planner selected")
             action: str
