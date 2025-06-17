@@ -1,0 +1,627 @@
+{
+    "nodes": [
+        [
+            "0",
+            {
+                "resource": {
+                    "id": "start_message_worker",
+                    "name": "MessageWorker"
+                },
+                "attribute": {
+                    "value": "Hello! I'm here to assist you with any customer service inquiries you may have. Whether you need information about our products, services, or policies, or if you need help resolving an issue or completing a transaction, feel free to ask. How can I assist you today?",
+                    "task": "start message",
+                    "directed": false
+                },
+                "limit": 1,
+                "type": "start"
+            }
+        ],
+        [
+            "1",
+            {
+                "resource": {
+                    "id": "task_1",
+                    "name": "Provide information on types of robots"
+                },
+                "attribute": {
+                    "value": "User wants to know about different types of robots and their purposes",
+                    "task": "Provide information on types of robots",
+                    "directed": false
+                }
+            }
+        ],
+        [
+            "2",
+            {
+                "resource": {
+                    "id": "task_2",
+                    "name": "Provide rental and purchase details for ADAM robot"
+                },
+                "attribute": {
+                    "value": "User wants to inquire about ADAM robot's rental and purchase options",
+                    "task": "Provide rental and purchase details for ADAM robot",
+                    "directed": false
+                }
+            }
+        ],
+        [
+            "3",
+            {
+                "resource": {
+                    "id": "task_3",
+                    "name": "Provide delivery timelines for robots"
+                },
+                "attribute": {
+                    "value": "User wants to know delivery timelines for products",
+                    "task": "Provide delivery timelines for robots",
+                    "directed": false
+                }
+            }
+        ],
+        [
+            "4",
+            {
+                "resource": {
+                    "id": "task_4",
+                    "name": "Provide information about ClouTea"
+                },
+                "attribute": {
+                    "value": "User wants to learn about ClouTea robot milk tea shop",
+                    "task": "Provide information about ClouTea",
+                    "directed": false
+                }
+            }
+        ],
+        [
+            "5",
+            {
+                "resource": {
+                    "id": "step_message_worker",
+                    "name": "MessageWorker"
+                },
+                "attribute": {
+                    "value": "Prompt the user to specify if they are interested in worker, delivery, cleaning, or multipurpose robots.",
+                    "task": "Ask the user what type of information they seek about the robots.",
+                    "directed": false
+                }
+            }
+        ],
+        [
+            "6",
+            {
+                "resource": {
+                    "id": "step_message_worker",
+                    "name": "MessageWorker"
+                },
+                "attribute": {
+                    "value": "Provide a list of robots under each category with explanations of their intended business uses.",
+                    "task": "Display the robot options and their purposes.",
+                    "directed": false
+                }
+            }
+        ],
+        [
+            "7",
+            {
+                "resource": {
+                    "id": "step_message_worker",
+                    "name": "MessageWorker"
+                },
+                "attribute": {
+                    "value": "Guide the user on how to access detailed specifications or brochures for each robot type.",
+                    "task": "Offer additional resources if needed.",
+                    "directed": false
+                }
+            }
+        ],
+        [
+            "8",
+            {
+                "resource": {
+                    "id": "step_message_worker",
+                    "name": "MessageWorker"
+                },
+                "attribute": {
+                    "value": "Clarify if the user is interested in renting or purchasing the ADAM robot for their business needs.",
+                    "task": "Ask the user for their interest in rental or purchase.",
+                    "directed": false
+                }
+            }
+        ],
+        [
+            "9",
+            {
+                "resource": {
+                    "id": "step_message_worker",
+                    "name": "MessageWorker"
+                },
+                "attribute": {
+                    "value": "List the cost details for renting and purchasing the ADAM robot, including any rental duration options.",
+                    "task": "Provide the pricing and options available for ADAM.",
+                    "directed": false
+                }
+            }
+        ],
+        [
+            "10",
+            {
+                "resource": {
+                    "id": "step_message_worker",
+                    "name": "MessageWorker"
+                },
+                "attribute": {
+                    "value": "Offer guidance on how to proceed with rental agreements or purchasing and relevant contact information.",
+                    "task": "Explain the process for acquisition.",
+                    "directed": false
+                }
+            }
+        ],
+        [
+            "11",
+            {
+                "resource": {
+                    "id": "step_message_worker",
+                    "name": "MessageWorker"
+                },
+                "attribute": {
+                    "value": "Determine if the user inquires about worker, delivery, or cleaning robots to provide specific timelines.",
+                    "task": "Ask which product's delivery timeline the user is interested in.",
+                    "directed": false
+                }
+            }
+        ],
+        [
+            "12",
+            {
+                "resource": {
+                    "id": "step_message_worker",
+                    "name": "MessageWorker"
+                },
+                "attribute": {
+                    "value": "Communicate expected delivery times: 1 month for delivery robots, 2 weeks for ADAM, 2 months for cleaning robots.",
+                    "task": "Display the delivery timelines for selected robots.",
+                    "directed": false
+                }
+            }
+        ],
+        [
+            "13",
+            {
+                "resource": {
+                    "id": "step_message_worker",
+                    "name": "MessageWorker"
+                },
+                "attribute": {
+                    "value": "Provide support contacts or departments should the user require more personalized delivery information.",
+                    "task": "Offer assistance or contacts for further queries.",
+                    "directed": false
+                }
+            }
+        ],
+        [
+            "14",
+            {
+                "resource": {
+                    "id": "step_message_worker",
+                    "name": "MessageWorker"
+                },
+                "attribute": {
+                    "value": "Introduce ClouTea as the world's first robot-operated milk tea shop in Las Vegas.",
+                    "task": "Explain what ClouTea offers.",
+                    "directed": false
+                }
+            }
+        ],
+        [
+            "15",
+            {
+                "resource": {
+                    "id": "step_message_worker",
+                    "name": "MessageWorker"
+                },
+                "attribute": {
+                    "value": "Detail how the ADAM robot prepares all milk tea beverages, enhancing customer experience with automation.",
+                    "task": "Describe the unique aspects of the shop.",
+                    "directed": false
+                }
+            }
+        ],
+        [
+            "16",
+            {
+                "resource": {
+                    "id": "step_message_worker",
+                    "name": "MessageWorker"
+                },
+                "attribute": {
+                    "value": "Provide directions, visiting hours, and contact options for further inquiries or reservations if applicable.",
+                    "task": "Guide the user on visiting or contacting ClouTea.",
+                    "directed": false
+                }
+            }
+        ]
+    ],
+    "edges": [
+        [
+            "0",
+            "1",
+            {
+                "intent": "User inquires about provide information on types of robots",
+                "attribute": {
+                    "weight": 1,
+                    "pred": true,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "0",
+            "2",
+            {
+                "intent": "User inquires about provide rental and purchase details for adam robot",
+                "attribute": {
+                    "weight": 1,
+                    "pred": true,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "0",
+            "3",
+            {
+                "intent": "User inquires about provide delivery timelines for robots",
+                "attribute": {
+                    "weight": 1,
+                    "pred": true,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "0",
+            "4",
+            {
+                "intent": "User inquires about provide information about cloutea",
+                "attribute": {
+                    "weight": 1,
+                    "pred": true,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "1",
+            "5",
+            {
+                "intent": "step",
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "5",
+            "6",
+            {
+                "intent": "next_step",
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "6",
+            "7",
+            {
+                "intent": "next_step",
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "2",
+            "8",
+            {
+                "intent": "step",
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "8",
+            "9",
+            {
+                "intent": "next_step",
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "9",
+            "10",
+            {
+                "intent": "next_step",
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "3",
+            "11",
+            {
+                "intent": "step",
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "11",
+            "12",
+            {
+                "intent": "next_step",
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "12",
+            "13",
+            {
+                "intent": "next_step",
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "4",
+            "14",
+            {
+                "intent": "step",
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "14",
+            "15",
+            {
+                "intent": "next_step",
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "15",
+            "16",
+            {
+                "intent": "next_step",
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ]
+    ],
+    "role": "customer service assistant",
+    "user_objective": "The customer service assistant helps users with customer service inquiries. It can provide information about products, services, and policies, as well as help users resolve issues and complete transactions.",
+    "builder_objective": "The customer service assistant helps to request customer's contact information.",
+    "domain": "robotics and automation",
+    "intro": "Richtech Robotics's headquarter is in Las Vegas; the other office is in Austin. Richtech Robotics provide worker robots (ADAM, ARM, ACE), delivery robots (Matradee, Matradee X, Matradee L, Richie), cleaning robots (DUST-E SX, DUST-E MX) and multipurpose robots (skylark). Their products are intended for business purposes, but not for home purpose; the ADAM robot is available for purchase and rental for multiple purposes. This robot bartender makes tea, coffee and cocktails. Richtech Robotics also operate the world's first robot milk tea shop, ClouTea, in Las Vegas (www.cloutea.com), where all milk tea beverages are prepared by the ADAM robot. The delivery time will be one month for the delivery robot, 2 weeks for standard ADAM, and two months for commercial cleaning robot. ",
+    "task_docs": [
+        {
+            "source": "https://www.richtechrobotics.com/",
+            "type": "url",
+            "num": 20
+        }
+    ],
+    "rag_docs": [
+        {
+            "source": "https://www.richtechrobotics.com/",
+            "type": "url",
+            "num": 20
+        },
+        {
+            "source": "this is some text",
+            "type": "text"
+        }
+    ],
+    "tasks": [
+        {
+            "id": "task_1",
+            "task_id": "task_1",
+            "name": "Provide information on types of robots",
+            "description": "User wants to know about different types of robots and their purposes",
+            "steps": [
+                {
+                    "task": "Ask the user what type of information they seek about the robots.",
+                    "description": "Prompt the user to specify if they are interested in worker, delivery, cleaning, or multipurpose robots.",
+                    "step_id": "step_1",
+                    "required_fields": []
+                },
+                {
+                    "task": "Display the robot options and their purposes.",
+                    "description": "Provide a list of robots under each category with explanations of their intended business uses.",
+                    "step_id": "step_2",
+                    "required_fields": []
+                },
+                {
+                    "task": "Offer additional resources if needed.",
+                    "description": "Guide the user on how to access detailed specifications or brochures for each robot type.",
+                    "step_id": "step_3",
+                    "required_fields": []
+                }
+            ],
+            "dependencies": [],
+            "required_resources": [],
+            "estimated_duration": "1 hour",
+            "priority": 3,
+            "level": 0,
+            "_node_id": "1"
+        },
+        {
+            "id": "task_2",
+            "task_id": "task_2",
+            "name": "Provide rental and purchase details for ADAM robot",
+            "description": "User wants to inquire about ADAM robot's rental and purchase options",
+            "steps": [
+                {
+                    "task": "Ask the user for their interest in rental or purchase.",
+                    "description": "Clarify if the user is interested in renting or purchasing the ADAM robot for their business needs.",
+                    "step_id": "step_1",
+                    "required_fields": []
+                },
+                {
+                    "task": "Provide the pricing and options available for ADAM.",
+                    "description": "List the cost details for renting and purchasing the ADAM robot, including any rental duration options.",
+                    "step_id": "step_2",
+                    "required_fields": []
+                },
+                {
+                    "task": "Explain the process for acquisition.",
+                    "description": "Offer guidance on how to proceed with rental agreements or purchasing and relevant contact information.",
+                    "step_id": "step_3",
+                    "required_fields": []
+                }
+            ],
+            "dependencies": [],
+            "required_resources": [],
+            "estimated_duration": "1 hour",
+            "priority": 3,
+            "level": 0,
+            "_node_id": "2"
+        },
+        {
+            "id": "task_3",
+            "task_id": "task_3",
+            "name": "Provide delivery timelines for robots",
+            "description": "User wants to know delivery timelines for products",
+            "steps": [
+                {
+                    "task": "Ask which product's delivery timeline the user is interested in.",
+                    "description": "Determine if the user inquires about worker, delivery, or cleaning robots to provide specific timelines.",
+                    "step_id": "step_1",
+                    "required_fields": []
+                },
+                {
+                    "task": "Display the delivery timelines for selected robots.",
+                    "description": "Communicate expected delivery times: 1 month for delivery robots, 2 weeks for ADAM, 2 months for cleaning robots.",
+                    "step_id": "step_2",
+                    "required_fields": []
+                },
+                {
+                    "task": "Offer assistance or contacts for further queries.",
+                    "description": "Provide support contacts or departments should the user require more personalized delivery information.",
+                    "step_id": "step_3",
+                    "required_fields": []
+                }
+            ],
+            "dependencies": [],
+            "required_resources": [],
+            "estimated_duration": "1 hour",
+            "priority": 3,
+            "level": 0,
+            "_node_id": "3"
+        },
+        {
+            "id": "task_4",
+            "task_id": "task_4",
+            "name": "Provide information about ClouTea",
+            "description": "User wants to learn about ClouTea robot milk tea shop",
+            "steps": [
+                {
+                    "task": "Explain what ClouTea offers.",
+                    "description": "Introduce ClouTea as the world's first robot-operated milk tea shop in Las Vegas.",
+                    "step_id": "step_1",
+                    "required_fields": []
+                },
+                {
+                    "task": "Describe the unique aspects of the shop.",
+                    "description": "Detail how the ADAM robot prepares all milk tea beverages, enhancing customer experience with automation.",
+                    "step_id": "step_2",
+                    "required_fields": []
+                },
+                {
+                    "task": "Guide the user on visiting or contacting ClouTea.",
+                    "description": "Provide directions, visiting hours, and contact options for further inquiries or reservations if applicable.",
+                    "step_id": "step_3",
+                    "required_fields": []
+                }
+            ],
+            "dependencies": [],
+            "required_resources": [],
+            "estimated_duration": "1 hour",
+            "priority": 3,
+            "level": 0,
+            "_node_id": "4"
+        }
+    ],
+    "workers": [
+        {
+            "id": "FaissRAGWorker",
+            "name": "FaissRAGWorker",
+            "path": "faiss_rag_worker.py"
+        },
+        {
+            "id": "26bb6634-3bee-417d-ad75-23269ac17bc3",
+            "name": "MessageWorker",
+            "path": "message_worker.py"
+        },
+        {
+            "id": "9c15af81-04b3-443e-be04-a3522124b905",
+            "name": "SearchWorker",
+            "path": "search_worker.py"
+        }
+    ],
+    "tools": [],
+    "nluapi": "",
+    "slotfillapi": ""
+}
