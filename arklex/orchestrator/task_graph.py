@@ -144,7 +144,7 @@ class TaskGraph(TaskGraphBase):
         product_kwargs: Dict[str, Any],
         llm_config: LLMConfig,
         slotfillapi: str = "",
-        model_service: Optional[Any] = None,
+        model_service: Any = None,
     ) -> None:
         """Initialize the task graph.
 
@@ -153,7 +153,7 @@ class TaskGraph(TaskGraphBase):
             product_kwargs: Configuration settings for the graph
             llm_config: Configuration for language model
             slotfillapi: API endpoint for slot filling
-            model_service: Optional model service for intent detection (for tests)
+            model_service: Model service for intent detection (required)
         """
         super().__init__(name, product_kwargs)
         self.unsure_intent: Dict[str, Any] = {
@@ -169,12 +169,11 @@ class TaskGraph(TaskGraphBase):
         }
         self.initial_node: Optional[str] = self.get_initial_flow()
         self.llm_config: LLMConfig = llm_config
-        if model_service is not None:
-            self.intent_detector: IntentDetector = IntentDetector(model_service)
-        else:
-            self.intent_detector: IntentDetector = IntentDetector(
-                self.product_kwargs.get("intent_api")
+        if model_service is None:
+            raise ValueError(
+                "model_service is required for TaskGraph and cannot be None."
             )
+        self.intent_detector: IntentDetector = IntentDetector(model_service)
         # Ensure slotfillapi is a valid model service for SlotFiller
         if isinstance(slotfillapi, str) or not slotfillapi:
             dummy_config = {
