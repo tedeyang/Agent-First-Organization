@@ -11,6 +11,7 @@ from typing import Dict, Any, Optional, List, Union, Tuple
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 from .model_config import ModelConfig
+from arklex.utils.model_config import MODEL
 
 from arklex.utils.exceptions import ModelError, ValidationError, APIError
 from arklex.utils.logging_utils import LogContext, LOG_MESSAGES, handle_exceptions
@@ -94,7 +95,7 @@ class ModelService:
         Raises:
             ValidationError: If the configuration is invalid
         """
-        required_fields = ["model_name"]
+        required_fields = ["model_name", "model_type_or_path"]
         missing_fields = [
             field for field in required_fields if field not in self.model_config
         ]
