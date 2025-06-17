@@ -49,6 +49,8 @@ class TaskGraphFormatter:
         slotfillapi: str = "",
         default_intent: str = "depends_on",
         default_weight: int = 1,
+        nodes: Optional[List[Any]] = None,
+        edges: Optional[List[Any]] = None,
     ) -> None:
         """Initialize the TaskGraphFormatter.
 
@@ -66,6 +68,8 @@ class TaskGraphFormatter:
             slotfillapi (str): Slotfill API
             default_intent (str): Default intent for edges
             default_weight (int): Default weight for edges
+            nodes (Optional[List[Any]]): List of nodes
+            edges (Optional[List[Any]]): List of edges
         """
         self._role = role
         self._user_objective = user_objective
@@ -80,55 +84,150 @@ class TaskGraphFormatter:
         self._slotfillapi = slotfillapi
         self._default_intent = default_intent
         self._default_weight = default_weight
+        self._nodes = nodes
+        self._edges = edges
 
     def format_task_graph(self, tasks: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Format a task graph (alias for format_graph for backward compatibility).
-
-        Args:
-            tasks (List[Dict[str, Any]]): List of tasks to format
-
-        Returns:
-            Dict[str, Any]: Formatted task graph
-        """
+        """Format a task graph using config nodes/edges if present, otherwise generate from tasks."""
+        if self._nodes is not None and self._edges is not None:
+            # Use nodes and edges from config directly
+            graph = {
+                "nodes": self._nodes,
+                "edges": self._edges,
+                "role": self._role,
+                "user_objective": self._user_objective,
+                "builder_objective": self._builder_objective,
+                "domain": self._domain,
+                "intro": self._intro,
+                "task_docs": self._task_docs,
+                "rag_docs": self._rag_docs,
+                "tasks": tasks,
+                "workers": self._workers,
+                "tools": self._tools,
+                "nluapi": self._nluapi,
+                "slotfillapi": self._slotfillapi,
+            }
+            return graph
+        # Otherwise, fall back to generating from tasks
         nodes = []
         edges = []
-        for i, task in enumerate(tasks):
-            node_data = {
+        node_id_counter = 0
+        node_lookup = {}  # task_id/step_id -> node_id (str)
+        step_parent_lookup = {}  # step node_id -> parent task node_id
+        step_nodes = []
+
+        # Add start node if there are tasks
+        if tasks:
+            start_node = {
                 "resource": {
-                    "id": task.get("task_id", str(i)),
-                    "name": task.get("name", ""),
+                    "id": "start_message_worker",
+                    "name": "MessageWorker",
+                },
+                "attribute": {
+                    "value": "Hello! I'm here to assist you with any customer service inquiries you may have. Whether you need information about our products, services, or policies, or if you need help resolving an issue or completing a transaction, feel free to ask. How can I assist you today?",
+                    "task": "start message",
+                    "directed": False,
+                },
+                "limit": 1,
+                "type": "start",
+            }
+            nodes.append([str(node_id_counter), start_node])
+            start_node_id = str(node_id_counter)
+            node_id_counter += 1
+        else:
+            start_node_id = None
+
+        # First pass: create nodes for tasks
+        for task in tasks:
+            resource = task.get("resource", {})
+            node = {
+                "resource": {
+                    "id": task.get("task_id", str(node_id_counter)),
+                    "name": resource.get("name", task.get("name", "")),
                 },
                 "attribute": {
                     "value": task.get("description", ""),
                     "task": task.get("name", ""),
-                    "directed": True,
+                    "directed": False,
                 },
             }
             if "limit" in task:
-                node_data["limit"] = task["limit"]
+                node["limit"] = task["limit"]
             if "type" in task:
-                node_data["type"] = task["type"]
-            nodes.append([str(i), node_data])
-            for dep in task.get("dependencies", []):
-                dep_idx = next(
-                    (j for j, t in enumerate(tasks) if t.get("task_id") == dep), None
-                )
-                if dep_idx is not None:
-                    source_name = tasks[dep_idx].get("name", "")
-                    target_name = task.get("name", "")
-                    edge_data = {
-                        "intent": self._default_intent,
-                        "attribute": {
-                            "weight": self._default_weight,
-                            "pred": self._default_intent,
-                            "definition": f"{target_name} depends on {source_name}",
-                            "sample_utterances": [
-                                f"I need to complete {source_name} before {target_name}",
-                                f"{target_name} requires {source_name} to be done first",
-                            ],
-                        },
-                    }
-                    edges.append([str(dep_idx), str(i), edge_data])
+                node["type"] = task["type"]
+            nodes.append([str(node_id_counter), node])
+            node_lookup[task.get("task_id", str(node_id_counter))] = str(
+                node_id_counter
+            )
+            task["_node_id"] = str(node_id_counter)  # for step parent lookup
+            node_id_counter += 1
+
+        # Second pass: create nodes for steps
+        for task in tasks:
+            steps = task.get("steps", [])
+            for idx, step in enumerate(steps):
+                step_id = f"{task.get('task_id', 'task')}_step{idx}"
+                resource = step.get("resource", {})
+                step_node = {
+                    "resource": {
+                        "id": resource.get("id", "step_message_worker"),
+                        "name": resource.get("name", "MessageWorker"),
+                    },
+                    "attribute": {
+                        "value": step.get("description", step.get("value", "")),
+                        "task": step.get("name", step.get("task", "")),
+                        "directed": False,
+                    },
+                }
+                nodes.append([str(node_id_counter), step_node])
+                node_lookup[step_id] = str(node_id_counter)
+                step_parent_lookup[str(node_id_counter)] = task["_node_id"]
+                step_nodes.append((str(node_id_counter), step_id, task["_node_id"]))
+                node_id_counter += 1
+
+        # Edges: dependencies (task-to-task)
+        for task in tasks:
+            this_node_id = task["_node_id"]
+            dependencies = task.get("dependencies", [])
+            if dependencies:
+                for dep in dependencies:
+                    if dep in node_lookup:
+                        edge_data = {
+                            "intent": "depends_on",
+                            "attribute": {
+                                "weight": 1,
+                                "pred": True,
+                                "definition": f"{task.get('name', '')} depends on {dep}",
+                                "sample_utterances": [],
+                            },
+                        }
+                        edges.append([node_lookup[dep], this_node_id, edge_data])
+            elif start_node_id is not None:
+                # No dependencies: connect from start node
+                edge_data = {
+                    "intent": f"User inquires about {task.get('name', '').lower()}",
+                    "attribute": {
+                        "weight": 1,
+                        "pred": True,
+                        "definition": "",
+                        "sample_utterances": [],
+                    },
+                }
+                edges.append([start_node_id, this_node_id, edge_data])
+
+        # Edges: task-to-step
+        for step_node_id, step_id, parent_task_node_id in step_nodes:
+            edge_data = {
+                "intent": "step",
+                "attribute": {
+                    "weight": 1,
+                    "pred": False,
+                    "definition": "",
+                    "sample_utterances": [],
+                },
+            }
+            edges.append([parent_task_node_id, step_node_id, edge_data])
+
         graph = {
             "nodes": nodes,
             "edges": edges,
@@ -139,7 +238,7 @@ class TaskGraphFormatter:
             "intro": self._intro,
             "task_docs": self._task_docs,
             "rag_docs": self._rag_docs,
-            "tasks": [],
+            "tasks": tasks,
             "workers": self._workers,
             "tools": self._tools,
             "nluapi": self._nluapi,
