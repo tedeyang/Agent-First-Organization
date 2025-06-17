@@ -205,7 +205,7 @@ def main():
     )
 
     # Determine output directory
-    output_dir = args.output_dir or os.path.join(os.path.dirname(args.config), "output")
+    output_dir = args.output_dir or os.path.dirname(args.config)
     os.makedirs(output_dir, exist_ok=True)
 
     # Initialize generator with model and output_dir
