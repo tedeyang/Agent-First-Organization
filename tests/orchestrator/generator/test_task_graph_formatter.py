@@ -168,16 +168,18 @@ class TestTaskGraphFormatter:
         assert isinstance(formatted_graph, dict)
         assert "nodes" in formatted_graph
         assert "edges" in formatted_graph
-        assert len(formatted_graph["nodes"]) == len(SAMPLE_TASKS)
-        assert len(formatted_graph["edges"]) > 0
+        # 1 start node + 2 task nodes + 4 step nodes = 7
+        assert len(formatted_graph["nodes"]) == 7
+        # 2 edges from start to tasks + 4 edges from tasks to steps = 6
+        assert len(formatted_graph["edges"]) == 6
 
     def test_format_task_graph_with_complex_tasks(self, task_graph_formatter):
         """Test task graph formatting with complex task dependencies."""
         formatted_graph = task_graph_formatter.format_task_graph(COMPLEX_TASKS)
-        assert len(formatted_graph["nodes"]) == len(COMPLEX_TASKS)
-        assert (
-            len(formatted_graph["edges"]) == 3
-        )  # task1->task2, task1->task3, task2->task3
+        # 1 start node + 3 task nodes = 4
+        assert len(formatted_graph["nodes"]) == 4
+        # 1 edge from start to task1 + 1 edge from task1 to task2 + 1 edge from task1 to task3 + 1 edge from task2 to task3 = 4
+        assert len(formatted_graph["edges"]) == 4
 
     def test_format_task_graph_with_empty_tasks(self, task_graph_formatter):
         """Test task graph formatting with empty task list."""
@@ -188,10 +190,10 @@ class TestTaskGraphFormatter:
     def test_format_task_graph_with_invalid_tasks(self, task_graph_formatter):
         """Test task graph formatting with invalid task dependencies."""
         formatted_graph = task_graph_formatter.format_task_graph(INVALID_TASKS)
-        assert len(formatted_graph["nodes"]) == len(INVALID_TASKS)
-        assert (
-            len(formatted_graph["edges"]) == 2
-        )  # Both dependencies should be included
+        # 1 start node + 2 task nodes = 3
+        assert len(formatted_graph["nodes"]) == 3
+        # 2 edges from start to each task
+        assert len(formatted_graph["edges"]) == 2
 
 
 class TestNodeFormatter:
