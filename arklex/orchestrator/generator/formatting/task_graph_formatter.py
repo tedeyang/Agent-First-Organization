@@ -216,7 +216,13 @@ class TaskGraphFormatter:
                 edges.append([start_node_id, this_node_id, edge_data])
 
         # Edges: task-to-step
-        for step_node_id, step_id, parent_task_node_id in step_nodes:
+        for task in tasks:
+            steps = task.get("steps", [])
+            if not steps:
+                continue
+
+            # Connect first step to parent task
+            first_step_node_id = node_lookup[f"{task.get('task_id', 'task')}_step0"]
             edge_data = {
                 "intent": "step",
                 "attribute": {
@@ -226,7 +232,25 @@ class TaskGraphFormatter:
                     "sample_utterances": [],
                 },
             }
-            edges.append([parent_task_node_id, step_node_id, edge_data])
+            edges.append([task["_node_id"], first_step_node_id, edge_data])
+
+            # Connect subsequent steps sequentially
+            for i in range(len(steps) - 1):
+                current_step_id = f"{task.get('task_id', 'task')}_step{i}"
+                next_step_id = f"{task.get('task_id', 'task')}_step{i + 1}"
+                current_step_node_id = node_lookup[current_step_id]
+                next_step_node_id = node_lookup[next_step_id]
+
+                edge_data = {
+                    "intent": "next_step",
+                    "attribute": {
+                        "weight": 1,
+                        "pred": False,
+                        "definition": "",
+                        "sample_utterances": [],
+                    },
+                }
+                edges.append([current_step_node_id, next_step_node_id, edge_data])
 
         graph = {
             "nodes": nodes,
