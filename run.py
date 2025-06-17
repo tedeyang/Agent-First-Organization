@@ -12,10 +12,10 @@ import json
 import logging
 import os
 import time
+from pprint import pprint
 from typing import Any, Dict, List, Tuple
 
 from dotenv import load_dotenv
-from pprint import pprint
 
 from arklex.env.env import Environment
 from arklex.orchestrator.orchestrator import AgentOrg
@@ -113,6 +113,7 @@ if __name__ == "__main__":
     env = Environment(
         tools=config.get("tools", []),
         workers=config.get("workers", []),
+        agents=config.get("agents", []),
         slot_fill_api=config["slotfillapi"],
         planner_enabled=True,
     )
