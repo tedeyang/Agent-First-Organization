@@ -191,7 +191,6 @@ class Tool:
                 "content": json.dumps(response),
             }
         )
-
         logger.info(f"Slots after initialization are: {self.slots}")
 
     def _execute(self, state: MessageState, **fixed_args: Any) -> MessageState:
@@ -218,6 +217,7 @@ class Tool:
         self._init_slots(state)
         # do slotfilling
         chat_history_str: str = format_chat_history(state.function_calling_trajectory)
+
         slots: List[Slot] = self.slotfiller.fill_slots(
             self.slots, chat_history_str, self.llm_config
         )
@@ -253,21 +253,10 @@ class Tool:
 
         # if all required slots are filled and verified, then execute the function
         tool_success: bool = False
+        all_responses: List = []
         if not missing_required:
             logger.info("all required slots filled")
-            # Get all slot values, including optional ones that have values
-            kwargs: Dict[str, Any] = {}
-            for slot in slots:
-                # Always include the slot value, even if None
-                kwargs[slot.name] = slot.value if slot.value is not None else ""
-
-            combined_kwargs: Dict[str, Any] = {
-                **kwargs,
-                **fixed_args,
-                **self.llm_config,
-            }
             try:
-                # Get the function signature to check required arguments
                 sig = inspect.signature(self.func)
                 required_args = [
                     name
@@ -275,52 +264,24 @@ class Tool:
                     if param.default == inspect.Parameter.empty
                 ]
 
-                # Ensure all required arguments are present
-                for arg in required_args:
-                    if arg not in kwargs:
-                        kwargs[arg] = ""
+                # Call tool for each slot
+                for slot in slots:
+                    result = self._call_tool_for_slot(
+                        state, slot, fixed_args, required_args
+                    )
+                    all_responses.append(result)
 
-                response = self.func(**combined_kwargs)
-                tool_success = True
-            except ToolExecutionError as tee:
-                logger.error(traceback.format_exc())
-                response = tee.extra_message
-            except AuthenticationError as ae:
-                logger.error(traceback.format_exc())
-                response = str(ae)
+                # Combine individual slot responses
+                tool_success = all(r.get("success") for r in all_responses)
+                response = "\n".join(f"{r.get('response')}" for r in all_responses)
+                state.status = (
+                    StatusEnum.COMPLETE if tool_success else StatusEnum.INCOMPLETE
+                )
+
             except Exception as e:
                 logger.error(traceback.format_exc())
                 response = str(e)
-            logger.info(f"Tool {self.name} response: {response}")
-            call_id: str = str(uuid.uuid4())
-            state.function_calling_trajectory.append(
-                {
-                    "content": None,
-                    "role": "assistant",
-                    "tool_calls": [
-                        {
-                            "function": {
-                                "arguments": json.dumps(kwargs),
-                                "name": self.name,
-                            },
-                            "id": call_id,
-                            "type": "function",
-                        }
-                    ],
-                    "function_call": None,
-                }
-            )
-            state.function_calling_trajectory.append(
-                {
-                    "role": "tool",
-                    "tool_call_id": call_id,
-                    "name": self.name,
-                    "content": response,
-                }
-            )
-            state.status = (
-                StatusEnum.COMPLETE if tool_success else StatusEnum.INCOMPLETE
-            )
+                state.status = StatusEnum.INCOMPLETE
 
         state.trajectory[-1][-1].input = slots
         state.trajectory[-1][-1].output = response
@@ -353,6 +314,91 @@ class Tool:
                 )
         state.slots[self.name] = slots
         return state
+
+    def _call_tool_for_slot(
+        self, state: MessageState, slot: Slot, fixed_args: Any, required_args: Any
+    ) -> Dict[str, Any]:
+        """Call the tool function for a single slot and return the response."""
+        # Always include the slot value, even if None
+        kwargs: Dict[str, Any] = {
+            slot.name: slot.value if slot.value is not None else ""
+        }
+        combined_kwargs: Dict[str, Any] = {
+            **kwargs,
+            **fixed_args,
+            **self.llm_config,
+        }
+
+        # Ensure all required args are present
+        for arg in required_args:
+            if arg not in combined_kwargs:
+                combined_kwargs[arg] = ""
+
+        try:
+            response = self.func(**combined_kwargs)
+            call_id = str(uuid.uuid4())
+            logger.info(f"Tool {self.name} response: {response}")
+            self._log_tool_call(state, kwargs, response, call_id)
+
+            return {
+                "slot": slot.name,
+                "value": slot.value,
+                "response": response,
+                "success": True,
+            }
+        except ToolExecutionError as tee:
+            logger.error(traceback.format_exc())
+            return {
+                "slot": slot.name,
+                "value": slot.value,
+                "response": tee.extra_message,
+                "success": False,
+            }
+        except AuthenticationError as ae:
+            logger.error(traceback.format_exc())
+            return {
+                "slot": slot.name,
+                "value": slot.value,
+                "response": str(ae),
+                "success": False,
+            }
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            return {
+                "slot": slot.name,
+                "value": slot.value,
+                "response": str(e),
+                "success": False,
+            }
+
+    def _log_tool_call(
+        self, state: MessageState, kwargs: Any, response: Any, call_id: str
+    ) -> None:
+        state.function_calling_trajectory.append(
+            {
+                "content": None,
+                "role": "assistant",
+                "tool_calls": [
+                    {
+                        "function": {
+                            "arguments": json.dumps(kwargs),
+                            "name": self.name,
+                        },
+                        "id": call_id,
+                        "type": "function",
+                    }
+                ],
+                "function_call": None,
+            }
+        )
+        state.function_calling_trajectory.append(
+            {
+                "role": "tool",
+                "tool_call_id": call_id,
+                "name": self.name,
+                "content": response,
+            }
+        )
 
     def execute(self, state: MessageState, **fixed_args: Any) -> MessageState:
         """Execute the tool with the current state and fixed arguments.

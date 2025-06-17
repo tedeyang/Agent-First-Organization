@@ -8,6 +8,7 @@ message formatting, and response processing.
 
 import json
 import logging
+from copy import deepcopy
 from typing import Dict, Any, Optional, List, Union, Tuple
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -376,9 +377,10 @@ Please choose the most appropriate intent by providing the corresponding intent 
 
         # Create the prompts
         system_prompt = (
-            "You are a slot filling assistant. Your task is to extract specific "
-            "information from the given context based on the slot definitions. "
-            "Return the extracted values in JSON format."
+            "You are a slot-filling assistant. "
+            "Your task is to extract specific information from the given context based on the slot definitions. "
+            " If the user lists multiple items, return them as a list under the appropriate slot. "
+            " Return a JSON object"
         )
 
         user_prompt = (
@@ -412,24 +414,42 @@ Please choose the most appropriate intent by providing the corresponding intent 
         try:
             # Parse the JSON response
             extracted_values = json.loads(response)
+            new_slots = []
 
             # Update slot values
             for slot in slots:
                 # Handle both dict and Pydantic model inputs
-                if isinstance(slot, dict):
-                    slot_name = slot.get("name", "")
-                    if slot_name in extracted_values:
-                        slot["value"] = extracted_values[slot_name]
-                    else:
-                        slot["value"] = None
-                else:
-                    slot_name = getattr(slot, "name", "")
-                    if slot_name in extracted_values:
-                        setattr(slot, "value", extracted_values[slot_name])
-                    else:
-                        setattr(slot, "value", None)
+                is_dict = isinstance(slot, dict)
+                slot_name = slot.get("name") if is_dict else getattr(slot, "name")
+                base_slot = deepcopy(slot)
 
-            return slots
+                if slot_name in extracted_values:
+                    value = extracted_values[slot_name]
+
+                    # Handle multiple values
+                    if isinstance(value, list):
+                        # dynamically create new slots
+                        for item in value:
+                            new_slot = deepcopy(base_slot)
+                            if is_dict:
+                                new_slot["value"] = item
+                            else:
+                                setattr(new_slot, "value", item)
+                            new_slots.append(new_slot)
+                    else:
+                        if is_dict:
+                            base_slot["value"] = value
+                        else:
+                            setattr(base_slot, "value", value)
+                        new_slots.append(base_slot)
+                else:
+                    if is_dict:
+                        base_slot["value"] = None
+                    else:
+                        setattr(base_slot, "value", None)
+                    new_slots.append(base_slot)
+
+            return new_slots
         except json.JSONDecodeError as e:
             logger.error(f"Error parsing slot filling response: {str(e)}")
             raise ValueError(f"Failed to parse slot filling response: {str(e)}")
