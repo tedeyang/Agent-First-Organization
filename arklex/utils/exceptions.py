@@ -462,3 +462,16 @@ class OrchestratorError(ArklexError):
             details: Optional dictionary with additional error details.
         """
         super().__init__(message, "ORCHESTRATOR_ERROR", 500, details)
+
+
+class SearchError(ArklexError):
+    """Raised when there is an error with search operations."""
+
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None) -> None:
+        """Initialize the SearchError.
+
+        Args:
+            message: The error message.
+            details: Optional dictionary with additional error details.
+        """
+        super().__init__(message, "SEARCH_ERROR", 500, details)

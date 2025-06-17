@@ -18,7 +18,10 @@ from arklex.orchestrator.NLU.core.slot import SlotFiller
 from arklex.utils.graph_state import MessageState, NodeInfo, Params
 from arklex.utils.logging_utils import LogContext
 from arklex.utils.exceptions import EnvironmentError
-from arklex.orchestrator.NLU.services.model_service import DummyModelService
+from arklex.orchestrator.NLU.services.model_service import (
+    DummyModelService,
+    ModelService,
+)
 
 log_context = LogContext(__name__)
 
@@ -143,6 +146,7 @@ class Environment:
         slotsfillapi: str = "",
         resource_initializer: Optional[BaseResourceInitializer] = None,
         planner_enabled: bool = False,
+        model_service: Optional[ModelService] = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the environment.
@@ -153,6 +157,7 @@ class Environment:
             slotsfillapi: API endpoint for slot filling
             resource_initializer: Resource initializer instance
             planner_enabled: Whether planning is enabled
+            model_service: Model service for intent detection and slot filling
         """
         # Accept slot_fill_api as an alias for slotsfillapi for compatibility with tests
         if "slot_fill_api" in kwargs and not slotsfillapi:
@@ -171,6 +176,15 @@ class Environment:
             id: resource["name"]
             for id, resource in {**self.tools, **self.workers}.items()
         }
+        self.model_service = model_service or DummyModelService(
+            {
+                "model_name": "dummy",
+                "api_key": "dummy",
+                "endpoint": "http://dummy",
+                "model_type_or_path": "dummy-path",
+                "llm_provider": "dummy",
+            }
+        )
         self.slotfillapi: SlotFiller = self.initialize_slotfillapi(slotsfillapi)
         if planner_enabled:
             self.planner: Union[ReactPlanner, DefaultPlanner] = ReactPlanner(
@@ -191,18 +205,10 @@ class Environment:
         Returns:
             SlotFiller: Initialized slot filler instance, either API-based or local model-based.
         """
-        dummy_config = {
-            "model_name": "dummy",
-            "api_key": "dummy",
-            "endpoint": "http://dummy",
-            "model_type_or_path": "dummy-path",
-            "llm_provider": "dummy",
-        }
-        if not isinstance(slotsfillapi, str) or not slotsfillapi:
-            log_context.warning("Using local model-based slot filling")
-            return SlotFiller(DummyModelService(dummy_config))
-        log_context.info(f"Initializing SlotFiller with API URL: {slotsfillapi}")
-        return SlotFiller(slotsfillapi)
+        if isinstance(slotsfillapi, str) and slotsfillapi:
+            return SlotFiller(slotsfillapi)
+        else:
+            return SlotFiller(self.model_service)
 
     def step(
         self, id: str, message_state: MessageState, params: Params, node_info: NodeInfo

@@ -147,14 +147,17 @@ class AgentOrg:
         self.llm_config: LLMConfig = LLMConfig(
             **self.product_kwargs.get("model", MODEL)
         )
-        self.task_graph: TaskGraph = TaskGraph(
-            "taskgraph", self.product_kwargs, self.llm_config
-        )
         self.env: Environment = env or Environment(
             tools=self.product_kwargs.get("tools", []),
             workers=self.product_kwargs.get("workers", []),
             slot_fill_api=self.product_kwargs.get("slot_fill_api", ""),
             planner_enabled=True,
+        )
+        self.task_graph: TaskGraph = TaskGraph(
+            "taskgraph",
+            self.product_kwargs,
+            self.llm_config,
+            model_service=self.env.model_service,
         )
 
         # Initialize LLM directly
