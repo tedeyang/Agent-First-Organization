@@ -1,7 +1,7 @@
-"""Task graph implementation for the Arklex framework.
+"""Task graph management and execution for the Arklex framework.
 
-This module provides the core task graph functionality for orchestrating conversations and workflows.
-It includes classes for managing task graphs, handling intents, and processing nodes in the conversation flow.
+This module provides functionality for managing and executing task graphs, including
+node management, state tracking, and integration with intent detection and slot filling systems.
 
 Key Components:
 - TaskGraphBase: Base class for task graph functionality
@@ -18,7 +18,7 @@ Features:
 - Path tracking and history
 - Resource management
 - Slot filling integration
-- NLU integration
+- Intent detection integration
 
 Usage:
     from arklex.orchestrator.task_graph import TaskGraph
@@ -28,7 +28,7 @@ Usage:
     config = {
         "nodes": [...],
         "edges": [...],
-        "nluapi": {...},
+        "intent_api": {...},
         "slotfillapi": {...}
     }
 
@@ -49,7 +49,8 @@ import networkx as nx
 import numpy as np
 
 from arklex.env.nested_graph.nested_graph import NestedGraph
-from arklex.orchestrator.NLU.nlu import NLU, SlotFilling
+from arklex.orchestrator.NLU.core.intent import IntentDetector
+from arklex.orchestrator.NLU.core.slot import SlotFiller
 from arklex.utils.graph_state import LLMConfig, NodeInfo, Params, PathNode, StatusEnum
 from arklex.utils.utils import normalize, str_similarity
 
@@ -104,17 +105,17 @@ class TaskGraphBase:
 
 
 class TaskGraph(TaskGraphBase):
-    """Main class for managing conversation flow and intent handling.
+    """Task graph management and execution.
 
-    This class extends TaskGraphBase to provide conversation-specific functionality.
-    It handles intent prediction, node navigation, and state management.
+    This class manages the execution of task graphs, including node management,
+    state tracking, and integration with intent detection and slot filling systems.
 
     Attributes:
         unsure_intent (Dict[str, Any]): Default intent for unknown inputs
         initial_node (Optional[str]): Initial node for conversation flow
         llm_config (LLMConfig): Configuration for language model
-        nluapi (NLU): Natural Language Understanding API
-        slotfillapi (SlotFilling): Slot filling API
+        intent_detector (IntentDetector): Intent detection API
+        slotfillapi (SlotFiller): Slot filling API
 
     Methods:
         create_graph(): Creates the conversation graph
@@ -135,8 +136,20 @@ class TaskGraph(TaskGraphBase):
     """
 
     def __init__(
-        self, name: str, product_kwargs: Dict[str, Any], llm_config: LLMConfig
+        self,
+        name: str,
+        product_kwargs: Dict[str, Any],
+        llm_config: LLMConfig,
+        slotfillapi: str = "",
     ) -> None:
+        """Initialize the task graph.
+
+        Args:
+            name: Name of the task graph
+            product_kwargs: Configuration settings for the graph
+            llm_config: Configuration for language model
+            slotfillapi: API endpoint for slot filling
+        """
         super().__init__(name, product_kwargs)
         self.unsure_intent: Dict[str, Any] = {
             "intent": "others",
@@ -151,10 +164,10 @@ class TaskGraph(TaskGraphBase):
         }
         self.initial_node: Optional[str] = self.get_initial_flow()
         self.llm_config: LLMConfig = llm_config
-        self.nluapi: NLU = NLU(self.product_kwargs.get("nluapi"))
-        self.slotfillapi: SlotFilling = SlotFilling(
-            self.product_kwargs.get("slotfillapi")
+        self.intent_detector: IntentDetector = IntentDetector(
+            self.product_kwargs.get("intent_api")
         )
+        self.slotfillapi: SlotFiller = SlotFiller(slotfillapi)
 
     def create_graph(self) -> None:
         nodes: List[Dict[str, Any]] = self.product_kwargs["nodes"]
@@ -267,7 +280,7 @@ class TaskGraph(TaskGraphBase):
             type=node_info.get("type", ""),
             resource_id=resource_id,
             resource_name=resource_name,
-            can_skipped=True,
+            can_skipped=node_info.get("attribute", {}).get("can_skipped", False),
             is_leaf=len(list(self.graph.successors(sample_node))) == 0,
             attributes=node_info["attribute"],
             add_flow_stack=False,
@@ -411,7 +424,7 @@ class TaskGraph(TaskGraphBase):
                 node_id=curr_node,
                 resource_id=resource_id,
                 resource_name=resource_name,
-                can_skipped=False,
+                can_skipped=node_info.get("attribute", {}).get("can_skipped", False),
                 is_leaf=len(list(self.graph.successors(curr_node))) == 0,
                 attributes=node_info["attribute"],
                 additional_args={
@@ -486,7 +499,7 @@ class TaskGraph(TaskGraphBase):
                 f"Available global intents with unsure intent: {candidate_intents}"
             )
 
-            pred_intent = self.nluapi.execute(
+            pred_intent = self.intent_detector.execute(
                 self.text,
                 candidate_intents,
                 self.chat_history_str,
@@ -592,7 +605,7 @@ class TaskGraph(TaskGraphBase):
             )
         )
         logger.info(f"Check intent under current node: {curr_local_intents_w_unsure}")
-        pred_intent: str = self.nluapi.execute(
+        pred_intent: str = self.intent_detector.execute(
             self.text,
             curr_local_intents_w_unsure,
             self.chat_history_str,

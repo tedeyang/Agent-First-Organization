@@ -234,7 +234,7 @@ assistant:
 Conversation:
 {formatted_chat}
 ----------------
-Only answer yes or no.
+The answer has to be in English and should only be yes or no.
 ----------------
 Answer:
 """,
@@ -269,6 +269,16 @@ Agent's Task:
 User Message History:
 {formatted_chat}
 The response must be the name of one of the actions ({actions_name}).
+""",
+            # ===== regenerate answer prompt ===== #
+            "regenerate_response": """
+Original Answer:
+{original_answer}
+----------------
+Task:
+Rephrase the Original Answer only to fix fluency or coherence issues caused by removed or broken links (e.g. empty markdown links like [text]()). Do not modify any valid or working links that are still present in the text. Do not add or infer new information, and keep the original tone and meaning unchanged.
+----------------
+Revised Answer:
 """,
         }
     elif bot_config.language == "CN":
@@ -342,7 +352,7 @@ The response must be the name of one of the actions ({actions_name}).
 Conversation:
 {formatted_chat}
 ----------------
-Only answer yes or no.
+The answer has to be in English and should only be yes or no.
 ----------------
 Answer:
 """,

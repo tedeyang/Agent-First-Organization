@@ -28,10 +28,11 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
+from arklex.types import StreamType
 from arklex.utils.slot import Slot
 
 
-### Bot-related classes
+# Bot-related classes
 class LLMConfig(BaseModel):
     """Configuration for language model settings.
 
@@ -278,7 +279,7 @@ class MessageState(BaseModel):
     # stream
     is_stream: bool = Field(default=False)
     message_queue: Any = Field(exclude=True, default=None)
-    stream_type: Optional[str] = Field(default=None)
+    stream_type: Optional[StreamType] = Field(default=StreamType.NON_STREAM)
     # memory records
     relevant_records: Optional[List[ResourceRecord]] = Field(default=None)
 

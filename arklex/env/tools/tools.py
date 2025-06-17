@@ -1,9 +1,7 @@
-"""Tool management and execution for the Arklex framework.
+"""Tool management for the Arklex framework.
 
-This module provides functionality for registering, managing, and executing tools in the Arklex framework.
-It includes a decorator for tool registration, a base Tool class for tool implementation, and utilities
-for slot filling and tool execution. The module supports dynamic tool registration, parameter validation,
-and error handling during tool execution.
+This module provides functionality for managing tools, including
+initialization, execution, and slot filling integration.
 """
 
 import inspect
@@ -15,12 +13,19 @@ import uuid
 from typing import Any, Callable, Dict, List, Optional
 
 from arklex.exceptions import AuthenticationError, ToolExecutionError
-from arklex.orchestrator.NLU.nlu import SlotFilling
+from arklex.orchestrator.NLU.core.slot import SlotFiller
 from arklex.utils.graph_state import MessageState, StatusEnum
 from arklex.utils.slot import Slot
 from arklex.utils.utils import format_chat_history
 
 logger = logging.getLogger(__name__)
+
+PYTHON_TO_JSON_SCHEMA = {
+    "str": "string",
+    "int": "integer",
+    "float": "number",
+    "bool": "boolean",
+}
 
 
 def register_tool(
@@ -75,7 +80,7 @@ class Tool:
         name (str): The name of the tool.
         description (str): Description of the tool's functionality.
         output (List[str]): List of output field names.
-        slotfillapi (Optional[SlotFilling]): Slot filling API instance.
+        slotfillapi (Optional[SlotFiller]): Slot filling API instance.
         info (Dict[str, Any]): Tool information including parameters and requirements.
         slots (List[Slot]): List of slot instances.
         isResponse (bool): Whether the tool is a response tool.
@@ -91,7 +96,7 @@ class Tool:
         slots: List[Dict[str, Any]],
         outputs: List[str],
         isResponse: bool,
-    ):
+    ) -> None:
         """Initialize a new Tool instance.
 
         Args:
@@ -106,13 +111,15 @@ class Tool:
         self.name: str = name
         self.description: str = description
         self.output: List[str] = outputs
-        self.slotfillapi: Optional[SlotFilling] = None
+        self.slotfiller: Optional[SlotFiller] = None
         self.info: Dict[str, Any] = self.get_info(slots)
         self.slots: List[Slot] = [Slot.model_validate(slot) for slot in slots]
         self.openai_slots: List[Dict[str, Any]] = self._format_slots(slots)
         self.isResponse: bool = isResponse
         self.properties: Dict[str, Dict[str, Any]] = {}
         self.llm_config: Dict[str, Any] = {}
+        self.fixed_args = {}
+        self.auth = {}
 
     def get_info(self, slots: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Get tool information including parameters and requirements.
@@ -149,13 +156,13 @@ class Tool:
             },
         }
 
-    def init_slotfilling(self, slotfillapi: SlotFilling) -> None:
-        """Initialize the slot filling API.
+    def init_slotfiller(self, slotfiller_api: str) -> None:
+        """Initialize the slot filler for this tool.
 
         Args:
-            slotfillapi (SlotFilling): The slot filling API instance to use.
+            slotfiller_api: API endpoint for slot filling
         """
-        self.slotfillapi = slotfillapi
+        self.slotfiller = SlotFiller(slotfiller_api)
 
     def _init_slots(self, state: MessageState) -> None:
         """Initialize slots with default values from the message state.
@@ -212,18 +219,23 @@ class Tool:
         self._init_slots(state)
         # do slotfilling
         chat_history_str: str = format_chat_history(state.function_calling_trajectory)
-        slots: List[Slot] = self.slotfillapi.execute(
+        slots: List[Slot] = self.slotfiller.fill_slots(
             self.slots, chat_history_str, self.llm_config
         )
         logger.info(f"{slots=}")
-        if not all([slot.value and slot.verified for slot in slots if slot.required]):
+
+        # Check if any required slots are missing or unverified
+        missing_required = any(
+            not (slot.value and slot.verified) for slot in slots if slot.required
+        )
+        if missing_required:
             for slot in slots:
                 # if there is extracted slots values but haven't been verified
                 if slot.value and not slot.verified:
                     # check whether it verified or not
                     verification_needed: bool
                     thought: str
-                    verification_needed, thought = self.slotfillapi.verify_needed(
+                    verification_needed, thought = self.slotfiller.verify_needed(
                         slot, chat_history_str, self.llm_config
                     )
                     if verification_needed:
@@ -234,23 +246,41 @@ class Tool:
                     else:
                         slot.verified = True
                 # if there is no extracted slots values, then should prompt the user to fill the slot
-                if not slot.value:
+                if not slot.value and slot.required:
                     response = slot.prompt
                     break
 
             state.status = StatusEnum.INCOMPLETE
 
-        # if slot.value is not empty for all slots, and all the slots has been verified, then execute the function
+        # if all required slots are filled and verified, then execute the function
         tool_success: bool = False
-        if all([slot.value and slot.verified for slot in slots if slot.required]):
-            logger.info("all slots filled")
-            kwargs: Dict[str, Any] = {slot.name: slot.value for slot in slots}
+        if not missing_required:
+            logger.info("all required slots filled")
+            # Get all slot values, including optional ones that have values
+            kwargs: Dict[str, Any] = {}
+            for slot in slots:
+                # Always include the slot value, even if None
+                kwargs[slot.name] = slot.value if slot.value is not None else ""
+
             combined_kwargs: Dict[str, Any] = {
                 **kwargs,
                 **fixed_args,
                 **self.llm_config,
             }
             try:
+                # Get the function signature to check required arguments
+                sig = inspect.signature(self.func)
+                required_args = [
+                    name
+                    for name, param in sig.parameters.items()
+                    if param.default == inspect.Parameter.empty
+                ]
+
+                # Ensure all required arguments are present
+                for arg in required_args:
+                    if arg not in kwargs:
+                        kwargs[arg] = ""
+
                 response = self.func(**combined_kwargs)
                 tool_success = True
             except ToolExecutionError as tee:
@@ -342,6 +372,35 @@ class Tool:
         state = self._execute(state, **fixed_args)
         return state
 
+    def to_openai_tool_def(self) -> dict:
+        """Convert the tool to an OpenAI tool definition.
+
+        Returns:
+            dict: The OpenAI tool definition.
+        """
+        parameters = {
+            "type": "object",
+            "properties": {},
+            "required": [slot.name for slot in self.slots if slot.required],
+        }
+        for slot in self.slots:
+            if slot.items:
+                parameters["properties"][slot.name] = {
+                    "type": "array",
+                    "items": slot.items,
+                }
+            else:
+                parameters["properties"][slot.name] = {
+                    "type": PYTHON_TO_JSON_SCHEMA[slot.type],
+                    "description": slot.description,
+                }
+        return {
+            "type": "function",
+            "name": self.name,
+            "description": self.description,
+            "parameters": parameters,
+        }
+
     def __str__(self) -> str:
         """Get a string representation of the tool.
 
@@ -391,31 +450,5 @@ class Tool:
                     "properties": self.properties,
                     "required": required,
                 },
-            },
-        }
-
-    def to_openai_tool_def(self) -> dict:
-        parameters = {
-            "type": "object",
-            "properties": {},
-            "required": [slot.name for slot in self.openai_slots if slot.required],
-        }
-        for slot in self.openai_slots:
-            if hasattr(slot, "items") and slot.items:
-                parameters["properties"][slot.name] = {
-                    "type": "array",
-                    "items": slot.items,
-                }
-            else:
-                parameters["properties"][slot.name] = {
-                    "type": slot.type,
-                    "description": slot.description,
-                }
-        return {
-            "type": "function",
-            "function": {
-                "name": self.name,
-                "description": self.description,
-                "parameters": parameters,
             },
         }
