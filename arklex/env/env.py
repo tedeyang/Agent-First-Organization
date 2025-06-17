@@ -230,15 +230,7 @@ class Environment:
 
         elif id in self.workers:
             logger.info(f"{self.workers[id]['name']} worker selected")
-            if id == "agent_worker":
-                worker: BaseWorker = self.workers[id]["execute"](
-                    successors=node_info.additional_args["successors"],
-                    predecessors=node_info.additional_args["predecessors"],
-                    tools=self.tools,
-                )
-            else:
-                worker: BaseWorker = self.workers[id]["execute"]()
-
+            worker: BaseWorker = self.workers[id]["execute"]()
             if hasattr(worker, "init_slotfilling"):
                 worker.init_slotfilling(self.slotfillapi)
             response_state = worker.execute(message_state, **node_info.additional_args)
