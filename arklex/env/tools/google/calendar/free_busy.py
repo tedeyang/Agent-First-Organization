@@ -1,8 +1,7 @@
 from datetime import datetime
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
-import logging
-from typing import Any, Dict, Optional
+from typing import Any
 import pytz
 
 from arklex.env.tools.google.calendar.utils import AUTH_ERROR

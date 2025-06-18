@@ -4,12 +4,8 @@ This module provides the EdgeFormatter class that handles formatting of
 task graph edges.
 """
 
-import json
-import logging
 from typing import Any, Dict, List, Optional, Union
-from datetime import datetime
 
-from arklex.orchestrator.generator.formatting.node_formatter import NodeFormatter
 from arklex.utils.logging_utils import LogContext
 
 log_context = LogContext(__name__)

@@ -7,9 +7,8 @@ and error handling utilities to ensure consistent logging across the application
 import asyncio
 import functools
 import logging
-import inspect
 import traceback
-from typing import Any, Callable, Dict, Optional, Type, Union, List
+from typing import Any, Callable, Dict, Optional, Type, Union
 from tenacity import (
     retry,
     stop_after_attempt,
@@ -113,7 +112,6 @@ class LogContext:
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         """Exit context."""
-        pass
 
     @property
     def name(self):

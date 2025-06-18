@@ -11,7 +11,6 @@ This module provides centralized logging configuration, including:
 
 import logging
 import logging.handlers
-import os
 import json
 import socket
 import platform

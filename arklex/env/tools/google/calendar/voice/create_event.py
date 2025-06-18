@@ -1,13 +1,12 @@
 from datetime import datetime, timedelta
 import json
-from typing import Any, Dict, Optional
+from typing import Any
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
 
 from arklex.env.tools.tools import register_tool
 import pytz
 from arklex.env.tools.google.calendar.utils import AUTH_ERROR
-import logging
 from arklex.utils.logging_utils import LogContext
 
 log_context = LogContext(__name__)

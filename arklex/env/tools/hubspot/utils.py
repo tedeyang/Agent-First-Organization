@@ -6,16 +6,12 @@ This module provides helper functions for authenticating HubSpot API requests wi
 
 from typing import Dict, Any
 from arklex.utils.exceptions import AuthenticationError
-import json
 import os
-import time
 from datetime import datetime, timedelta
-from typing import Optional
 import requests
 from arklex.utils.mysql import mysql_pool
 from qa_bot_resource.types import ResourceAuthGroup
 from pydantic import BaseModel
-import logging
 from arklex.utils.logging_utils import LogContext
 
 log_context = LogContext(__name__)

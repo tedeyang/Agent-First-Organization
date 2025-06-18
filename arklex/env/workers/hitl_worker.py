@@ -12,7 +12,6 @@ from arklex.env.workers.worker import BaseWorker, register_worker
 from arklex.orchestrator.NLU.core.slot import SlotFiller
 from arklex.utils.graph_state import MessageState, StatusEnum
 from arklex.env.workers.utils.chat_client import ChatClient
-from arklex.utils.slot import Slot
 from arklex.utils.logging_utils import LogContext
 
 log_context = LogContext(__name__)

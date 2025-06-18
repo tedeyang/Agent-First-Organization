@@ -14,11 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from arklex.utils.logging_utils import LogContext
 from arklex.utils.exceptions import (
     ArklexError,
-    ValidationError,
     AuthenticationError,
-    APIError,
-    ModelError,
-    DatabaseError,
     ResourceNotFoundError,
     RateLimitError,
     RetryableError,

@@ -23,7 +23,7 @@ from arklex.orchestrator.generator.generator import Generator
 from arklex.env.tools.RAG.build_rag import build_rag
 from arklex.env.tools.database.build_database import build_database
 from arklex.utils.model_config import MODEL
-from arklex.utils.model_provider_config import LLM_PROVIDERS, PROVIDER_MAP
+from arklex.utils.model_provider_config import PROVIDER_MAP
 from arklex.utils.loader import Loader
 
 log_context = LogContext(__name__)

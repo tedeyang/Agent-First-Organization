@@ -1,4 +1,3 @@
-import logging
 import json
 from typing import Any, Dict, List, Optional, Literal, Tuple
 from pydantic import BaseModel
@@ -27,7 +26,6 @@ from arklex.orchestrator.prompts import (
     PLANNER_SUMMARIZE_TRAJECTORY_PROMPT,
 )
 from arklex.utils.logging_utils import LogContext
-from arklex.utils.exceptions import PlannerError
 
 
 log_context = LogContext(__name__)

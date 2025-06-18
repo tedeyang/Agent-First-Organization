@@ -7,13 +7,13 @@ including request tracking, timing, and error handling with retry mechanisms.
 import time
 import uuid
 import traceback
-from typing import Callable, Any, Optional, Dict, Tuple
+from typing import Callable, Tuple
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.types import ASGIApp, Message, Receive, Scope, Send
+from starlette.types import ASGIApp
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from arklex.utils.logging_utils import LogContext, LOG_MESSAGES
+from arklex.utils.logging_utils import LogContext
 from arklex.utils.exceptions import (
     RetryableError,
     NetworkError,

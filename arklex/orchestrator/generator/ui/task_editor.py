@@ -4,9 +4,6 @@ This module provides the TaskEditor class that handles the UI for editing
 task definitions.
 """
 
-import json
-import logging
-from typing import Any, Dict, List, Optional, Union
 
 from arklex.utils.logging_utils import LogContext
 

@@ -16,7 +16,6 @@ This file contains the code for retrieving product information using the Shopify
 
 import json
 from typing import Any, Dict, List
-import logging
 import inspect
 
 import shopify

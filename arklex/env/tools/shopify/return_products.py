@@ -9,12 +9,10 @@ This file contains the code for processing product returns in Shopify.
 
 import json
 import shopify
-import logging
 import inspect
 from typing import Any
 
 # general GraphQL navigation utilities
-from arklex.env.tools.shopify.utils_nav import *
 from arklex.env.tools.shopify.utils import authorify_admin
 from arklex.env.tools.shopify.utils_slots import (
     ShopifyReturnProductsSlots,

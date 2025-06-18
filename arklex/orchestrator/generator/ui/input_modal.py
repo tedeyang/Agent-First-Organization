@@ -4,8 +4,6 @@ This module provides a modal dialog interface for editing task and step descript
 It includes input validation and callback handling for user interactions.
 """
 
-import json
-import logging
 from textual.app import ComposeResult
 from textual.widgets import Input, Button, Static
 from textual.containers import Vertical, Horizontal

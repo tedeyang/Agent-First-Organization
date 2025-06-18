@@ -35,8 +35,6 @@ user objectives, documentation, and configuration settings.
 """
 
 import os
-import json
-import logging
 from datetime import datetime
 from typing import Optional, Dict, List, Any, Union
 
@@ -413,7 +411,6 @@ class Generator:
             str: Path to the saved task graph file
         """
         import functools
-        import types
         import collections.abc
         import json
 

@@ -11,10 +11,9 @@ Key Features:
 - Support for task and instruction documents
 """
 
-from typing import Dict, Any, Optional, Union, List
+from typing import Dict, Any, Union
 from pathlib import Path
 import json
-import logging
 import requests
 import os
 import hashlib

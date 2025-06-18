@@ -13,7 +13,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from .model_config import ModelConfig
 from arklex.utils.model_config import MODEL
 
-from arklex.utils.exceptions import ModelError, ValidationError, APIError
+from arklex.utils.exceptions import ModelError, ValidationError
 from arklex.utils.logging_utils import LogContext, LOG_MESSAGES, handle_exceptions
 from arklex.orchestrator.NLU.core.base import (
     IntentResponse,

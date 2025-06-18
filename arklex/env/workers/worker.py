@@ -76,7 +76,6 @@ class BaseWorker(ABC):
         Returns:
             Dict[str, Any]: The execution results as a dictionary.
         """
-        pass
 
     def execute(self, msg_state: MessageState, **kwargs: Any) -> MessageState:
         """Execute the worker with error handling and state management.

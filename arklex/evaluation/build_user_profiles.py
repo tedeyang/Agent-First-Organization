@@ -11,14 +11,12 @@ and profile-to-goal matching.
 import random
 import requests
 import copy
-from typing import List, Dict, Any, Tuple, Optional, Union
+from typing import List, Dict, Any, Tuple
 from arklex.evaluation.get_documents import load_docs
 from arklex.evaluation.chatgpt_utils import chatgpt_chatbot
 from arklex.env.env import Env
-from arklex.orchestrator.NLU.nlu import SlotFilling
 from arklex.env.tools.tools import Tool
 from arklex.orchestrator.NLU.core.slot import SlotFiller
-from arklex.utils.slot import Slot
 from arklex.utils.logging_utils import LogContext
 
 ATTR_TO_PROFILE: str = "Convert the following list user attributes in to a text description of a customer profile for the following company:\n{company_summary}\nThe user attributes are here:\n{user_attr}"

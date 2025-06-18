@@ -4,8 +4,7 @@ This module provides the NodeFormatter class that handles formatting of task
 nodes in the task graph.
 """
 
-from typing import Dict, Any, List, Optional
-from datetime import datetime
+from typing import Dict, Any, List
 from arklex.utils.logging_utils import LogContext
 
 log_context = LogContext(__name__)

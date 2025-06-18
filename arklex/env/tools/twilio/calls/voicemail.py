@@ -1,9 +1,8 @@
 """Voicemail tool for Twilio integration."""
 
-import logging
 import threading
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 from arklex.env.tools.tools import register_tool
 from twilio.rest import Client as TwilioClient
 from arklex.utils.logging_utils import LogContext

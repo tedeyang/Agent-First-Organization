@@ -11,9 +11,7 @@ Key Features:
 - Template categorization and organization
 """
 
-import json
-import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from dataclasses import dataclass
 
 from arklex.utils.logging_utils import LogContext
