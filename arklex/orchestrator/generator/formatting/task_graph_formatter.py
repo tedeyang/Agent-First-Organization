@@ -97,7 +97,6 @@ class TaskGraphFormatter:
         Returns:
             str: The worker ID if found, otherwise the worker name as fallback
         """
-        # Special handling for NestedGraph
         if worker_name == "NestedGraph":
             return "nested_graph"
 
@@ -110,7 +109,6 @@ class TaskGraphFormatter:
     def format_task_graph(self, tasks: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Format a task graph using config nodes/edges if present, otherwise generate from tasks."""
         if self._nodes is not None and self._edges is not None:
-            # Use nodes and edges from config directly
             graph = {
                 "nodes": self._nodes,
                 "edges": self._edges,
@@ -128,18 +126,15 @@ class TaskGraphFormatter:
                 "slotfillapi": self._slotfillapi,
             }
             return graph
-        # Otherwise, fall back to generating from tasks
+
         nodes = []
         edges = []
         node_id_counter = 0
         node_lookup = {}  # task_id/step_id -> node_id (str)
         step_parent_lookup = {}  # step node_id -> parent task node_id
         step_nodes = []
-
-        # Create a local mapping to avoid modifying input tasks in-place
         task_node_mapping = {}  # task index -> node_id
 
-        # Add start node if there are tasks
         if tasks:
             message_worker_id = self._find_worker_id_by_name("MessageWorker")
             start_node = {
@@ -154,38 +149,33 @@ class TaskGraphFormatter:
                 },
             }
             nodes.append([str(node_id_counter), start_node])
-            start_node_id = str(node_id_counter)  # Set the start node ID dynamically
-            node_id_counter += 1  # Increment counter for next node
+            start_node_id = str(node_id_counter)
+            node_id_counter += 1
 
-            # Add nested_graph node
             nested_graph_node = {
                 "resource": {
                     "id": "nested_graph",
                     "name": "NestedGraph",
                 },
                 "attribute": {
-                    "value": start_node_id,  # Points to the start node dynamically
+                    "value": start_node_id,
                     "task": "Authenticate user",
                     "directed": False,
                 },
                 "limit": 1,
             }
-            nested_graph_node_id = str(node_id_counter)  # Use current counter value
+            nested_graph_node_id = str(node_id_counter)
             nodes.append([nested_graph_node_id, nested_graph_node])
-            node_id_counter += (
-                1  # Start task/step node IDs after start and nested_graph
-            )
+            node_id_counter += 1
         else:
             start_node_id = None
             nested_graph_node_id = None
             node_id_counter = 0
 
-        # First pass: create nodes for tasks
+        # Create nodes for tasks
         for task_idx, task in enumerate(tasks):
             resource = task.get("resource", {})
-            # Ensure we use a valid worker name, defaulting to MessageWorker if not specified
             resource_name = resource.get("name", "MessageWorker")
-            # Find the actual worker ID from config
             resource_id = self._find_worker_id_by_name(resource_name)
             node = {
                 "resource": {
@@ -204,13 +194,12 @@ class TaskGraphFormatter:
                 node["type"] = task["type"]
             nodes.append([str(node_id_counter), node])
 
-            # Use task_id if available, otherwise use a unique identifier based on task index
             task_identifier = task.get("task_id", f"task_{task_idx}")
             node_lookup[task_identifier] = str(node_id_counter)
-            task_node_mapping[task_idx] = str(node_id_counter)  # Store mapping locally
+            task_node_mapping[task_idx] = str(node_id_counter)
             node_id_counter += 1
 
-        # Second pass: create nodes for steps
+        # Create nodes for steps
         for task_idx, task in enumerate(tasks):
             steps = task.get("steps", [])
             task_identifier = task.get("task_id", f"task_{task_idx}")
@@ -219,13 +208,10 @@ class TaskGraphFormatter:
                 step_id = f"{task_identifier}_step{idx}"
                 resource = step.get("resource", {})
 
-                # Handle both string and dictionary resource formats
                 if isinstance(resource, str):
-                    # If resource is a string, create a dictionary with id and name
                     resource_id = self._find_worker_id_by_name(resource)
                     resource_name = resource
                 else:
-                    # If resource is a dictionary, extract id and name
                     resource_name = resource.get("name", "MessageWorker")
                     resource_id = self._find_worker_id_by_name(resource_name)
 
@@ -248,7 +234,7 @@ class TaskGraphFormatter:
                 )
                 node_id_counter += 1
 
-        # Edges: dependencies (task-to-task)
+        # Create edges for dependencies (task-to-task)
         for task_idx, task in enumerate(tasks):
             this_node_id = task_node_mapping[task_idx]
             task_identifier = task.get("task_id", f"task_{task_idx}")
@@ -267,7 +253,6 @@ class TaskGraphFormatter:
                         }
                         edges.append([node_lookup[dep], this_node_id, edge_data])
             elif start_node_id is not None:
-                # No dependencies: connect from start node
                 edge_data = {
                     "intent": f"User inquires about {task.get('name', '').lower()}",
                     "attribute": {
@@ -279,7 +264,7 @@ class TaskGraphFormatter:
                 }
                 edges.append([start_node_id, this_node_id, edge_data])
 
-        # Edges: task-to-step
+        # Create edges for task-to-step
         for task_idx, task in enumerate(tasks):
             steps = task.get("steps", [])
             if not steps:
@@ -287,10 +272,9 @@ class TaskGraphFormatter:
 
             task_identifier = task.get("task_id", f"task_{task_idx}")
 
-            # Connect first step to parent task
             first_step_node_id = node_lookup[f"{task_identifier}_step0"]
             edge_data = {
-                "intent": None,  # Use None for sequential operations instead of "step"
+                "intent": None,
                 "attribute": {
                     "weight": 1,
                     "pred": False,
@@ -300,7 +284,6 @@ class TaskGraphFormatter:
             }
             edges.append([task_node_mapping[task_idx], first_step_node_id, edge_data])
 
-            # Connect subsequent steps sequentially
             for i in range(len(steps) - 1):
                 current_step_id = f"{task_identifier}_step{i}"
                 next_step_id = f"{task_identifier}_step{i + 1}"
@@ -308,7 +291,7 @@ class TaskGraphFormatter:
                 next_step_node_id = node_lookup[next_step_id]
 
                 edge_data = {
-                    "intent": None,  # Use None for sequential operations instead of "next_step"
+                    "intent": None,
                     "attribute": {
                         "weight": 1,
                         "pred": False,
@@ -318,20 +301,17 @@ class TaskGraphFormatter:
                 }
                 edges.append([current_step_node_id, next_step_node_id, edge_data])
 
-        # After all nodes and edges are created, add edge(s) from nested_graph to leaf node(s)
+        # Add edges from nested_graph to leaf nodes
         if tasks:
             all_node_ids = set(str(n[0]) for n in nodes)
             source_node_ids = set(str(e[0]) for e in edges)
-            # Exclude the nested_graph node itself from leaf candidates
             leaf_node_ids = [
                 nid
                 for nid in all_node_ids
                 if nid not in source_node_ids and nid != nested_graph_node_id
             ]
 
-            # If no leaf nodes found, but there is exactly one task node (besides start and nested_graph), connect nested_graph to it
             if not leaf_node_ids:
-                # Task node IDs are all nodes except start and nested_graph
                 task_node_ids = [
                     nid
                     for nid in all_node_ids
@@ -342,8 +322,8 @@ class TaskGraphFormatter:
 
             for leaf_id in leaf_node_ids:
                 nested_graph_to_leaf_edge = [
-                    nested_graph_node_id,  # from nested_graph node
-                    leaf_id,  # to leaf node
+                    nested_graph_node_id,
+                    leaf_id,
                     {
                         "intent": None,
                         "attribute": {
