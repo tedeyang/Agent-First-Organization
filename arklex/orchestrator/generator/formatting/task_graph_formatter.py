@@ -141,10 +141,12 @@ class TaskGraphFormatter:
         # First pass: create nodes for tasks
         for task in tasks:
             resource = task.get("resource", {})
+            # Ensure we use a valid worker name, defaulting to MessageWorker if not specified
+            resource_name = resource.get("name", "MessageWorker")
             node = {
                 "resource": {
                     "id": task.get("task_id", str(node_id_counter)),
-                    "name": resource.get("name", task.get("name", "")),
+                    "name": resource_name,
                 },
                 "attribute": {
                     "value": task.get("description", ""),
@@ -236,7 +238,7 @@ class TaskGraphFormatter:
             # Connect first step to parent task
             first_step_node_id = node_lookup[f"{task.get('task_id', 'task')}_step0"]
             edge_data = {
-                "intent": "step",
+                "intent": None,  # Use None for sequential operations instead of "step"
                 "attribute": {
                     "weight": 1,
                     "pred": False,
@@ -254,7 +256,7 @@ class TaskGraphFormatter:
                 next_step_node_id = node_lookup[next_step_id]
 
                 edge_data = {
-                    "intent": "next_step",
+                    "intent": None,  # Use None for sequential operations instead of "next_step"
                     "attribute": {
                         "weight": 1,
                         "pred": False,
