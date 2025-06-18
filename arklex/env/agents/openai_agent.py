@@ -6,7 +6,7 @@ from typing import Any, Dict, Optional
 
 from langchain.prompts import PromptTemplate
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages.ai import AIMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_openai import ChatOpenAI
 from langgraph.graph import START, StateGraph
@@ -16,7 +16,7 @@ from arklex.env.prompts import load_prompts
 from arklex.env.tools.tools import register_tool
 from arklex.env.tools.utils import trace
 from arklex.types import EventType, StreamType
-from arklex.utils.graph_state import MessageState, StatusEnum
+from arklex.utils.graph_state import BotConfig, MessageState, StatusEnum
 from arklex.utils.model_config import MODEL
 from arklex.utils.model_provider_config import PROVIDER_MAP
 from arklex.utils.utils import chunk_string
@@ -35,7 +35,9 @@ def end_conversation(state: MessageState) -> MessageState:
 class OpenAIAgent(BaseAgent):
     description: str = "General-purpose Arklex agent for chat or voice."
 
-    def __init__(self, successors: list, predecessors: list, tools: list) -> None:
+    def __init__(
+        self, successors: list, predecessors: list, tools: list, state: MessageState
+    ) -> None:
         super().__init__()
         self.action_graph: StateGraph = self._create_action_graph()
         self.llm: Optional[BaseChatModel] = None
@@ -50,9 +52,10 @@ class OpenAIAgent(BaseAgent):
         self.tool_defs = []
 
         for tool_id, tool in self.available_tools.items():
-            tool_def = tool["execute"]().to_openai_tool_def()
+            tool = tool["execute"]()
+            tool_def = tool.to_openai_tool_def()
             self.tool_defs.append(tool_def)
-            self.tool_map[tool_def["function"]["name"]] = tool["execute"]()
+            self.tool_map[tool_def["function"]["name"]] = tool.func
 
         end_conversation_tool = end_conversation()
         end_conversation_tool_def = end_conversation_tool.to_openai_tool_def()
@@ -60,13 +63,35 @@ class OpenAIAgent(BaseAgent):
         self.tool_defs.append(end_conversation_tool_def)
         self.tool_map["end_conversation"] = end_conversation_tool.func
 
+        self.messages: list = []
+        prompts: Dict[str, str] = load_prompts(state.bot_config)
+        orchestrator_message = state.orchestrator_message
+        orch_msg_content: str = (
+            "None" if not orchestrator_message.message else orchestrator_message.message
+        )
+        prompt: PromptTemplate = PromptTemplate.from_template(
+            prompts["function_calling_agent_prompt"]
+        )
+        input_prompt = prompt.invoke(
+            {
+                "sys_instruct": state.sys_instruct,
+                "message": orch_msg_content,
+            }
+        )
+        self.messages.append(
+            SystemMessage(
+                content=input_prompt.text,
+            )
+        )
+
         logger.info(f"OpenAIAgent initialized with {len(self.tool_defs)} tools.")
 
     def generate(self, state: MessageState) -> MessageState:
         logger.info("\nGenerating response using the agent.")
-        user_message = state.user_message
-        orchestrator_message = state.orchestrator_message
 
+        logger.info(f"\n\n\nmessages: {self.messages}")
+
+        orchestrator_message = state.orchestrator_message
         orch_msg_content: str = (
             "None" if not orchestrator_message.message else orchestrator_message.message
         )
@@ -76,9 +101,7 @@ class OpenAIAgent(BaseAgent):
             state.message_flow = ""
             state.response = orch_msg_content
             return state
-
         prompts: Dict[str, str] = load_prompts(state.bot_config)
-
         prompt: PromptTemplate = PromptTemplate.from_template(
             prompts["function_calling_agent_prompt"]
         )
@@ -86,14 +109,23 @@ class OpenAIAgent(BaseAgent):
             {
                 "sys_instruct": state.sys_instruct,
                 "message": orch_msg_content,
-                "formatted_chat": user_message.history,
             }
         )
+        self.message.append(
+            SystemMessage(
+                content=input_prompt.text,
+            )
+        )
 
-        logger.info(f"Prompt: {input_prompt.text}")
+        user_message = state.user_message
+        self.message.append(
+            HumanMessage(
+                content=user_message.message,
+            )
+        )
 
         final_chain = self.llm
-        ai_message: AIMessage = final_chain.invoke(input_prompt.text)
+        ai_message: AIMessage = final_chain.invoke(self.messages)
 
         logger.info(f"Generated answer: {ai_message}")
 
@@ -105,10 +137,15 @@ class OpenAIAgent(BaseAgent):
                     tool_response = self.tool_map[tool_name](
                         state=state, **tool_call.get("args")
                     )
-                    if isinstance(tool_response, MessageState):
-                        state = tool_response
-                    else:
-                        state.response = tool_response
+                    self.messages.append(
+                        ToolMessage(
+                            name=tool_name,
+                            content=json.dumps(tool_response),
+                            additional_kwargs={"tool_call_id": tool_call.id},
+                        )
+                    )
+                    ai_message = final_chain.invoke(self.messages)
+                    state.response = ai_message.content
                 else:
                     logger.warning(f"Tool {tool_name} not found in tool map.")
         else:
