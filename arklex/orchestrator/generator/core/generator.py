@@ -514,19 +514,21 @@ class Generator:
             elif isinstance(obj, tuple):
                 return tuple(sanitize(v) for v in obj)
             elif isinstance(obj, functools.partial):
-                print(f"Found partial: {obj}")
+                log_context.debug(f"Found partial: {obj}")
                 return str(obj)
             elif isinstance(obj, collections.abc.Callable):
-                print(f"Found callable: {obj}")
+                log_context.debug(f"Found callable: {obj}")
                 return str(obj)
             else:
-                print(f"Found non-serializable: {obj} (type: {type(obj)})")
+                log_context.debug(f"Found non-serializable: {obj} (type: {type(obj)})")
                 return str(obj)
 
-        # Debug print for non-serializable fields
+        # Debug logging for non-serializable fields
         for k, v in task_graph.items():
             if not isinstance(v, (str, int, float, bool, list, dict, type(None))):
-                print(f"Field {k} is non-serializable: {v} (type: {type(v)})")
+                log_context.debug(
+                    f"Field {k} is non-serializable: {v} (type: {type(v)})"
+                )
 
         sanitized_task_graph = sanitize(task_graph)
         taskgraph_filepath = os.path.join(self.output_dir, f"taskgraph.json")
