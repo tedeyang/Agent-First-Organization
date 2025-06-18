@@ -169,10 +169,21 @@ class TaskGraphFormatter:
             for idx, step in enumerate(steps):
                 step_id = f"{task.get('task_id', 'task')}_step{idx}"
                 resource = step.get("resource", {})
+
+                # Handle both string and dictionary resource formats
+                if isinstance(resource, str):
+                    # If resource is a string, create a dictionary with id and name
+                    resource_id = resource
+                    resource_name = resource
+                else:
+                    # If resource is a dictionary, extract id and name
+                    resource_id = resource.get("id", "step_message_worker")
+                    resource_name = resource.get("name", "MessageWorker")
+
                 step_node = {
                     "resource": {
-                        "id": resource.get("id", "step_message_worker"),
-                        "name": resource.get("name", "MessageWorker"),
+                        "id": resource_id,
+                        "name": resource_name,
                     },
                     "attribute": {
                         "value": step.get("description", step.get("value", "")),

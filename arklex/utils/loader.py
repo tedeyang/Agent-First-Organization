@@ -162,18 +162,49 @@ class Loader:
         options.add_argument("--disable-extensions")
         options.add_argument("--disable-infobars")
         options.add_argument("--remote-debugging-pipe")
+        options.add_argument("--timeout=30000")  # 30 second timeout
+        options.add_argument("--page-load-timeout=30")  # 30 second page load timeout
+        options.add_argument("--disable-web-security")
+        options.add_argument("--allow-running-insecure-content")
+        options.add_argument("--disable-features=VizDisplayCompositor")
+        options.add_argument("--disable-background-timer-throttling")
+        options.add_argument("--disable-backgrounding-occluded-windows")
+        options.add_argument("--disable-renderer-backgrounding")
+        options.add_argument("--disable-features=TranslateUI")
+        options.add_argument("--disable-ipc-flooding-protection")
+
         chrome_driver_path = ChromeDriverManager(
             driver_version=CHROME_DRIVER_VERSION
         ).install()
         service = Service(executable_path=chrome_driver_path)
         log_context.info(f"Using chromedriver at: {chrome_driver_path}")
-        driver = webdriver.Chrome(service=service, options=options)
 
         docs: List[CrawledObject] = []
-        for url_obj in url_objects:
+        start_time = time.time()
+        max_time_per_url = 30  # Maximum 30 seconds per URL
+
+        for i, url_obj in enumerate(url_objects, 1):
+            url_start_time = time.time()
+            driver = None
             try:
-                log_context.info(f"loading url: {url_obj.source}")
+                log_context.info(
+                    f"Crawling URL {i}/{len(url_objects)}: {url_obj.source}"
+                )
+
+                # Create a new driver for each URL to avoid crashes
+                driver = webdriver.Chrome(service=service, options=options)
+                driver.set_page_load_timeout(30)
+                driver.set_script_timeout(30)
+
                 driver.get(url_obj.source)
+
+                # Check if we're taking too long on this URL
+                if time.time() - url_start_time > max_time_per_url:
+                    log_context.warning(
+                        f"URL {url_obj.source} taking too long, skipping"
+                    )
+                    raise Exception("URL load timeout")
+
                 time.sleep(2)
                 html = driver.page_source
                 soup = BeautifulSoup(html, "html.parser")
@@ -206,21 +237,36 @@ class Loader:
                     )
                 )
 
+                log_context.info(
+                    f"Successfully crawled URL {i}/{len(url_objects)}: {url_obj.source}"
+                )
+
             except Exception as err:
-                log_context.info(f"error crawling {url_obj}")
-                log_context.error(err)
+                log_context.error(
+                    f"Error crawling URL {i}/{len(url_objects)} {url_obj.source}: {err}"
+                )
                 docs.append(
                     CrawledObject(
                         id=url_obj.id,
                         source=url_obj.source,
-                        content=None,
+                        content="",
                         metadata={"title": url_obj.source, "source": url_obj.source},
                         is_error=True,
                         error_message=str(err),
                         source_type=SourceType.WEB,
                     )
                 )
-        driver.quit()
+            finally:
+                # Always quit the driver to prevent resource leaks
+                if driver:
+                    try:
+                        driver.quit()
+                    except Exception as e:
+                        log_context.warning(f"Error quitting driver: {e}")
+
+        log_context.info(
+            f"Finished crawling {len(url_objects)} URLs in {time.time() - start_time:.2f}s"
+        )
         return docs
 
     def get_all_urls(self, base_url: str, max_num: int) -> List[str]:
@@ -243,16 +289,47 @@ class Loader:
         base_url = base_url.split("#")[0].rstrip("/")
         urls_to_visit = [base_url]
 
-        while urls_to_visit:
+        # Add safety limits to prevent infinite loops
+        max_iterations = max_num * 3  # Allow some extra iterations for discovery
+        iteration_count = 0
+        start_time = time.time()
+        max_time_seconds = 60  # Maximum 60 seconds for URL discovery
+
+        while urls_to_visit and iteration_count < max_iterations:
+            # Check time limit
+            if time.time() - start_time > max_time_seconds:
+                log_context.warning(
+                    f"URL discovery timed out after {max_time_seconds} seconds"
+                )
+                break
+
             if len(urls_visited) >= max_num:
                 break
+
             current_url = urls_to_visit.pop(0)
+            iteration_count += 1
+
+            log_context.info(
+                f"Discovering URLs from {current_url} (iteration {iteration_count})"
+            )
+
             if current_url not in urls_visited:
                 urls_visited.append(current_url)
-                new_urls = self.get_outsource_urls(current_url, base_url)
-                urls_to_visit.extend(new_urls)
-                urls_to_visit = list(set(urls_to_visit))
+                try:
+                    new_urls = self.get_outsource_urls(current_url, base_url)
+                    urls_to_visit.extend(new_urls)
+                    urls_to_visit = list(set(urls_to_visit))
+                    log_context.info(
+                        f"Found {len(new_urls)} new URLs from {current_url}"
+                    )
+                except Exception as e:
+                    log_context.error(f"Error getting URLs from {current_url}: {e}")
+                    continue
+
         log_context.info(f"URLs visited: {urls_visited}")
+        log_context.info(
+            f"Total iterations: {iteration_count}, Time taken: {time.time() - start_time:.2f}s"
+        )
         return sorted(urls_visited[:max_num])
 
     def get_outsource_urls(self, curr_url: str, base_url: str) -> List[str]:

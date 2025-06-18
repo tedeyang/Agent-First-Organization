@@ -112,6 +112,7 @@ def load_documents(
     """
     loader = Loader()
     all_docs = []
+    total_docs_processed = 0
 
     # Process all document types consistently
     doc_types = ["instructions", "task_docs", "rag_docs"]
@@ -119,21 +120,34 @@ def load_documents(
         if doc_type in config:
             docs = config[doc_type]
             if isinstance(docs, list):
-                for doc in docs:
+                log_context.info(f"Processing {len(docs)} {doc_type} documents...")
+                for i, doc in enumerate(docs, 1):
                     source = doc.get("source")
                     doc_type = doc.get(
                         "type", "text"
                     )  # Default to text if type not specified
                     num_docs = doc.get("num", 1)
 
+                    log_context.info(
+                        f"Processing {doc_type} document {i}/{len(docs)}: {source}"
+                    )
+
                     try:
                         if doc_type == "url":
+                            log_context.info(
+                                f"  Crawling {num_docs} URLs from {source}"
+                            )
                             urls = loader.get_all_urls(source, num_docs)
                             crawled_docs = loader.to_crawled_url_objs(urls)
                             all_docs.extend(crawled_docs)
+                            total_docs_processed += len(crawled_docs)
+                            log_context.info(
+                                f"  Successfully crawled {len(crawled_docs)} URLs"
+                            )
                         elif doc_type == "file":
                             if os.path.isfile(source):
                                 if source.lower().endswith(".zip"):
+                                    log_context.info(f"  Extracting ZIP file: {source}")
                                     with tempfile.TemporaryDirectory() as temp_dir:
                                         with zipfile.ZipFile(source, "r") as zip_ref:
                                             zip_ref.extractall(temp_dir)
@@ -146,21 +160,38 @@ def load_documents(
                                         all_docs.extend(
                                             loader.to_crawled_local_objs(file_list)
                                         )
+                                        total_docs_processed += len(file_list)
+                                        log_context.info(
+                                            f"  Successfully processed {len(file_list)} files from ZIP"
+                                        )
                                 else:
+                                    log_context.info(
+                                        f"  Processing single file: {source}"
+                                    )
                                     all_docs.extend(
                                         loader.to_crawled_local_objs([source])
                                     )
+                                    total_docs_processed += 1
+                                    log_context.info(f"  Successfully processed file")
                             elif os.path.isdir(source):
+                                log_context.info(f"  Processing directory: {source}")
                                 file_list = [
                                     os.path.join(source, f) for f in os.listdir(source)
                                 ]
                                 all_docs.extend(loader.to_crawled_local_objs(file_list))
+                                total_docs_processed += len(file_list)
+                                log_context.info(
+                                    f"  Successfully processed {len(file_list)} files from directory"
+                                )
                             else:
                                 raise FileNotFoundError(
                                     f"Source path '{source}' does not exist"
                                 )
                         elif doc_type == "text":
+                            log_context.info(f"  Processing text document: {source}")
                             all_docs.extend(loader.to_crawled_text([source]))
+                            total_docs_processed += 1
+                            log_context.info(f"  Successfully processed text document")
                         else:
                             raise ValueError(f"Unsupported document type: {doc_type}")
                     except Exception as e:
@@ -169,6 +200,7 @@ def load_documents(
                         )
                         continue
 
+    log_context.info(f"Total documents processed: {total_docs_processed}")
     # Convert CrawledObjects to dictionaries
     return [doc.to_dict() for doc in all_docs]
 

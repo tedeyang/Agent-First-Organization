@@ -361,12 +361,24 @@ class TaskGenerator:
                 converted_steps = []
                 for step in steps_data:
                     if isinstance(step, dict) and "task" in step:
+                        # Ensure description exists, use task as fallback
+                        description = step.get(
+                            "description", step.get("task", "Execute step")
+                        )
                         converted_steps.append(
-                            {"task": step["task"], "description": step["description"]}
+                            {"task": step["task"], "description": description}
                         )
                     elif isinstance(step, dict) and "step" in step:
+                        # Handle alternative step format
+                        task = step.get("task", step.get("step", "Execute step"))
+                        description = step.get("description", task)
                         converted_steps.append(
-                            {"task": step["task"], "description": step["description"]}
+                            {"task": task, "description": description}
+                        )
+                    elif isinstance(step, str):
+                        # Handle string steps
+                        converted_steps.append(
+                            {"task": step, "description": f"Execute: {step}"}
                         )
                 return converted_steps
             else:
