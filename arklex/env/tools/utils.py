@@ -97,7 +97,7 @@ class ToolGenerator:
         log_context.info(
             f"Retrieved texts (from retriever/search engine to generator): {message_flow[:50]} ..."
         )
-
+        
         # generate answer based on the retrieved texts
         prompt: PromptTemplate = get_prompt_template(state, "context_generator_prompt")
         input_prompt: Any = prompt.invoke(
