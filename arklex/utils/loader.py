@@ -172,6 +172,28 @@ class Loader:
         options.add_argument("--disable-renderer-backgrounding")
         options.add_argument("--disable-features=TranslateUI")
         options.add_argument("--disable-ipc-flooding-protection")
+        options.add_argument("--disable-blink-features=AutomationControlled")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--no-first-run")
+        options.add_argument("--no-default-browser-check")
+        options.add_argument("--disable-default-apps")
+        options.add_argument("--disable-sync")
+        options.add_argument("--disable-translate")
+        options.add_argument("--disable-background-networking")
+        options.add_argument("--disable-background-timer-throttling")
+        options.add_argument("--disable-client-side-phishing-detection")
+        options.add_argument("--disable-component-extensions-with-background-pages")
+        options.add_argument("--disable-domain-reliability")
+        options.add_argument("--disable-features=AudioServiceOutOfProcess")
+        options.add_argument("--disable-hang-monitor")
+        options.add_argument("--disable-ipc-flooding-protection")
+        options.add_argument("--disable-prompt-on-repost")
+        options.add_argument("--disable-renderer-backgrounding")
+        options.add_argument("--disable-sync-preferences")
+        options.add_argument("--disable-web-resources")
+        options.add_argument("--metrics-recording-only")
+        options.add_argument("--no-report-upload")
+        options.add_argument("--safebrowsing-disable-auto-update")
 
         chrome_driver_path = ChromeDriverManager(
             driver_version=CHROME_DRIVER_VERSION
@@ -188,101 +210,123 @@ class Loader:
         for i, url_obj in enumerate(url_objects, 1):
             url_start_time = time.time()
             driver = None
-            try:
-                # Create a new driver for each URL to avoid crashes
-                driver = webdriver.Chrome(service=service, options=options)
-                driver.set_page_load_timeout(30)
-                driver.set_script_timeout(30)
+            max_retries = 2  # Try each URL up to 2 times
 
-                driver.get(url_obj.source)
+            for retry_attempt in range(max_retries):
+                try:
+                    # Create a new driver for each URL to avoid crashes
+                    driver = webdriver.Chrome(service=service, options=options)
+                    driver.set_page_load_timeout(30)
+                    driver.set_script_timeout(30)
 
-                # Check if we're taking too long on this URL
-                if time.time() - url_start_time > max_time_per_url:
-                    log_context.warning(
-                        f"URL {url_obj.source} taking too long, skipping"
-                    )
-                    raise Exception("URL load timeout")
+                    driver.get(url_obj.source)
 
-                time.sleep(2)
-                html = driver.page_source
-                soup = BeautifulSoup(html, "html.parser")
+                    # Wait for page to load
+                    time.sleep(3)
 
-                text_list = []
-                for string in soup.strings:
-                    if string.find_parent("a"):
-                        href = urljoin(
-                            url_obj.source, string.find_parent("a").get("href")
+                    # Check if we're taking too long
+                    if time.time() - url_start_time > max_time_per_url:
+                        log_context.warning(
+                            f"URL {url_obj.source} taking too long, skipping"
                         )
-                        if href.startswith(url_obj.source):
-                            text = f"{string} {href}"
-                            text_list.append(text)
-                    elif string.strip():
-                        text_list.append(string)
-                text_output = "\n".join(text_list)
+                        raise Exception("URL load timeout")
 
-                title = url_obj.source
-                for title in soup.find_all("title"):
-                    title = title.get_text()
-                    break
+                    # Get page content
+                    html = driver.page_source
+                    soup = BeautifulSoup(html, "html.parser")
 
-                docs.append(
-                    CrawledObject(
-                        id=url_obj.id,
-                        source=url_obj.source,
-                        content=text_output,
-                        metadata={"title": title, "source": url_obj.source},
-                        source_type=SourceType.WEB,
-                    )
-                )
+                    # Extract text content
+                    text_list = []
+                    for string in soup.strings:
+                        if string.find_parent("a"):
+                            href = urljoin(
+                                url_obj.source, string.find_parent("a").get("href")
+                            )
+                            if href.startswith(url_obj.source):
+                                text = f"{string} {href}"
+                                text_list.append(text)
+                        elif string.strip():
+                            text_list.append(string)
+                    text_output = "\n".join(text_list)
 
-                log_context.info(
-                    f"Successfully crawled URL {i}/{len(url_objects)}: {url_obj.source}"
-                )
-                successful_crawls += 1
+                    # Get title
+                    title = url_obj.source
+                    for title_elem in soup.find_all("title"):
+                        title = title_elem.get_text()
+                        break
 
-            except Exception as err:
-                # Filter out common expected errors to reduce noise
-                error_msg = str(err)
-                if any(
-                    expected_error in error_msg.lower()
-                    for expected_error in [
-                        "cannot determine loading status",
-                        "target window already closed",
-                        "no such window",
-                        "chrome not reachable",
-                        "session deleted",
-                        "timeout",
-                    ]
-                ):
-                    # These are expected errors in web crawling, log as debug
-                    log_context.debug(
-                        f"  ⚠️ Expected error crawling {url_obj.source}: {error_msg}"
-                    )
-                else:
-                    # Log unexpected errors
-                    log_context.error(
-                        f"  ❌ Error crawling {url_obj.source}: {error_msg}"
+                    # Create successful crawl object
+                    docs.append(
+                        CrawledObject(
+                            id=url_obj.id,
+                            source=url_obj.source,
+                            content=text_output,
+                            metadata={"title": title, "source": url_obj.source},
+                            source_type=SourceType.WEB,
+                        )
                     )
 
-                docs.append(
-                    CrawledObject(
-                        id=url_obj.id,
-                        source=url_obj.source,
-                        content="",
-                        metadata={"title": url_obj.source, "source": url_obj.source},
-                        is_error=True,
-                        error_message=str(err),
-                        source_type=SourceType.WEB,
+                    successful_crawls += 1
+                    log_context.info(
+                        f"✅ Successfully crawled URL {i}/{len(url_objects)}: {url_obj.source}"
                     )
-                )
-                failed_crawls += 1
-            finally:
-                # Always quit the driver to prevent resource leaks
-                if driver:
-                    try:
-                        driver.quit()
-                    except Exception as e:
-                        log_context.warning(f"Error quitting driver: {e}")
+                    break  # Success, exit retry loop
+
+                except Exception as err:
+                    # Close driver on error
+                    if driver:
+                        try:
+                            driver.quit()
+                        except:
+                            pass
+
+                    # If this is the last retry attempt, log as failed
+                    if retry_attempt == max_retries - 1:
+                        # Filter out common expected errors to reduce noise
+                        error_msg = str(err)
+                        if any(
+                            expected_error in error_msg.lower()
+                            for expected_error in [
+                                "cannot determine loading status",
+                                "target window already closed",
+                                "no such window",
+                                "chrome not reachable",
+                                "session deleted",
+                                "timeout",
+                            ]
+                        ):
+                            # These are expected errors in web crawling, log as debug
+                            log_context.debug(
+                                f"  ⚠️ Expected error crawling {url_obj.source}: {error_msg}"
+                            )
+                        else:
+                            # Log unexpected errors
+                            log_context.error(
+                                f"  ❌ Error crawling {url_obj.source}: {error_msg}"
+                            )
+
+                        # Create failed crawl object
+                        docs.append(
+                            CrawledObject(
+                                id=url_obj.id,
+                                source=url_obj.source,
+                                content="",
+                                metadata={
+                                    "title": url_obj.source,
+                                    "source": url_obj.source,
+                                },
+                                is_error=True,
+                                error_message=str(err),
+                                source_type=SourceType.WEB,
+                            )
+                        )
+                        failed_crawls += 1
+                    else:
+                        # Log retry attempt
+                        log_context.info(
+                            f"  🔄 Retry {retry_attempt + 1}/{max_retries} for {url_obj.source}"
+                        )
+                        time.sleep(2)  # Wait before retry
 
         elapsed_time = time.time() - start_time
         log_context.info(
