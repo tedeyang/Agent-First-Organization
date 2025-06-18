@@ -123,8 +123,7 @@ def check_availability(
             month_offset += 1
 
         except Exception as e:
-            log_context.error(f"Error getting availability: {e}")
-            log_context.error(f"Exception: {e}")
+            log_context.error(f"Error getting availability: {e}", exc_info=True)
             raise e
 
     if alternate_times_on_same_day:
