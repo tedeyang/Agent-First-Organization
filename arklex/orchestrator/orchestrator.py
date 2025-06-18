@@ -151,7 +151,7 @@ class AgentOrg:
             tools=self.product_kwargs.get("tools", []),
             workers=self.product_kwargs.get("workers", []),
             slot_fill_api=self.product_kwargs.get("slot_fill_api", ""),
-            planner_enabled=True,
+            planner_enabled=False,
         )
         self.task_graph: TaskGraph = TaskGraph(
             "taskgraph",

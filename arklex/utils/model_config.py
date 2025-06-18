@@ -32,8 +32,8 @@ from typing import Dict, Any
 
 # Default model configuration settings
 MODEL: Dict[str, Any] = {
-    "model_name": "gpt-4",
-    "model_type_or_path": "gpt-4",
+    "model_name": "gpt-4o",
+    "model_type_or_path": "gpt-4o",
     "llm_provider": "openai",
     "api_key": "your_default_api_key",  # Default API key
     "endpoint": "https://api.openai.com/v1",  # Default endpoint
