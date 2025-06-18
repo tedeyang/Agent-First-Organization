@@ -56,7 +56,7 @@ import janus
 import json
 import time
 from dotenv import load_dotenv
-from langchain.chat_models import ChatOpenAI
+from langchain_openai.chat_models import ChatOpenAI
 from typing import Any, Dict, Tuple, List, Optional, Union
 from arklex.env.nested_graph.nested_graph import NESTED_GRAPH_ID, NestedGraph
 from arklex.env.env import Environment

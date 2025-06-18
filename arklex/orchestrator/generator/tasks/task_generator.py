@@ -508,7 +508,7 @@ class TaskGenerator:
             task_def = TaskDefinition(
                 task_id=f"task_{i + 1}",
                 name=task_data.get("task", ""),
-                description=task_data.get("intent", ""),
+                description=task_data.get("description", task_data.get("intent", "")),
                 steps=steps,
                 dependencies=task_data.get("dependencies", []),
                 required_resources=task_data.get("required_resources", []),

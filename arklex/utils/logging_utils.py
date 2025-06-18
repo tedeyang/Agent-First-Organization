@@ -90,13 +90,14 @@ class LogContext:
     def __init__(
         self,
         name: str,
-        level: str = "INFO",
+        level: Optional[str] = None,
         base_context: Optional[Dict[str, Any]] = None,
         log_format: Optional[str] = None,
     ):
         self.log_context = logging.getLogger(name)
-        # Set the log level properly for all modules
-        self.log_context.setLevel(getattr(logging, level))
+        # Set the log level only if explicitly provided
+        if level is not None:
+            self.log_context.setLevel(getattr(logging, level))
         self.log_context.propagate = True
         self.base_context = base_context or {}
         handler = self._get_console_handler(log_format)

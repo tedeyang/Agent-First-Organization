@@ -61,7 +61,8 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         # Create log context with enhanced request information
         log_context = LogContext(
             __name__,
-            {
+            level="INFO",
+            base_context={
                 "request_id": request_id,
                 "method": request.method,
                 "url": str(request.url),

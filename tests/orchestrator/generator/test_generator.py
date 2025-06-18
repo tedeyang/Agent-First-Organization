@@ -92,7 +92,7 @@ SAMPLE_PRACTICES = [
 
 # Patch for test_generate_tasks and test_integration_generation_pipeline
 class FakeResponse:
-    content = '[{"task": "Test", "intent": "Test intent", "steps": [{"task": "Step 1", "description": "Test step description"}]}]'
+    content = '[{"task": "Test", "intent": "Test intent", "description": "Test description", "steps": [{"task": "Step 1", "description": "Test step description"}]}]'
     text = content
 
 
@@ -103,7 +103,7 @@ class FakeGenerationResponse:
 
 class FakeGeneration:
     def __init__(self):
-        self.text = '[{"task": "Test", "intent": "Test intent", "steps": [{"task": "Step 1", "description": "Test step description"}]}]'
+        self.text = '[{"task": "Test", "intent": "Test intent", "description": "Test description", "steps": [{"task": "Step 1", "description": "Test step description"}]}]'
 
 
 class FakeResourceResponse:

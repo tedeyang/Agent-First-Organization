@@ -174,14 +174,14 @@ class ReusableTaskManager:
         """
         patterns: List[Dict[str, Any]] = []
         for task in tasks:
-            if len(task.get("steps", [])) > 1:
-                pattern = {
-                    "name": task["name"],
-                    "description": task["description"],
-                    "steps": task["steps"],
-                    "parameters": {},
-                }
-                patterns.append(pattern)
+            # Include tasks with any number of steps, not just those with more than 1
+            pattern = {
+                "name": task["name"],
+                "description": task["description"],
+                "steps": task.get("steps", []),
+                "parameters": {},
+            }
+            patterns.append(pattern)
         return patterns
 
     def _extract_components(
@@ -284,23 +284,49 @@ class ReusableTaskManager:
             bool: True if template is valid
         """
         if not template.template_id:
+            log_context.debug(f"Template validation failed: missing template_id")
             return False
         if not template.name:
+            log_context.debug(
+                f"Template validation failed: missing name for {template.template_id}"
+            )
             return False
         if not template.description:
+            log_context.debug(
+                f"Template validation failed: missing description for {template.template_id}"
+            )
             return False
         if not template.steps:
+            log_context.debug(
+                f"Template validation failed: missing steps for {template.template_id}"
+            )
             return False
         if not isinstance(template.steps, list):
+            log_context.debug(
+                f"Template validation failed: steps not a list for {template.template_id}"
+            )
             return False
         if not isinstance(template.parameters, dict):
+            log_context.debug(
+                f"Template validation failed: parameters not a dict for {template.template_id}"
+            )
             return False
         if not isinstance(template.examples, list):
+            log_context.debug(
+                f"Template validation failed: examples not a list for {template.template_id}"
+            )
             return False
         if not template.version:
+            log_context.debug(
+                f"Template validation failed: missing version for {template.template_id}"
+            )
             return False
         if not template.category:
+            log_context.debug(
+                f"Template validation failed: missing category for {template.template_id}"
+            )
             return False
+        log_context.debug(f"Template validation passed for {template.template_id}")
         return True
 
     def _validate_parameters(
