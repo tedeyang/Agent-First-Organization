@@ -152,32 +152,33 @@ class TaskGraphFormatter:
                     "task": "start message",
                     "directed": False,
                 },
-                "limit": 1,
-                "type": "start",
             }
             nodes.append([str(node_id_counter), start_node])
-            start_node_id = str(node_id_counter)
-            node_id_counter += 1
+            start_node_id = str(node_id_counter)  # Set the start node ID dynamically
+            node_id_counter += 1  # Increment counter for next node
 
-            # Add nested_graph node explicitly when there are tasks
+            # Add nested_graph node
             nested_graph_node = {
                 "resource": {
                     "id": "nested_graph",
                     "name": "NestedGraph",
                 },
                 "attribute": {
-                    "value": "0",  # Default value for nested graph
-                    "task": "Authenticate user",  # Default task for nested graph
+                    "value": start_node_id,  # Points to the start node dynamically
+                    "task": "Authenticate user",
                     "directed": False,
                 },
                 "limit": 1,
             }
-            nodes.append([str(node_id_counter), nested_graph_node])
-            nested_graph_node_id = str(node_id_counter)
-            node_id_counter += 1
+            nested_graph_node_id = str(node_id_counter)  # Use current counter value
+            nodes.append([nested_graph_node_id, nested_graph_node])
+            node_id_counter += (
+                1  # Start task/step node IDs after start and nested_graph
+            )
         else:
             start_node_id = None
             nested_graph_node_id = None
+            node_id_counter = 0
 
         # First pass: create nodes for tasks
         for task_idx, task in enumerate(tasks):
@@ -316,6 +317,44 @@ class TaskGraphFormatter:
                     },
                 }
                 edges.append([current_step_node_id, next_step_node_id, edge_data])
+
+        # After all nodes and edges are created, add edge(s) from nested_graph to leaf node(s)
+        if tasks:
+            all_node_ids = set(str(n[0]) for n in nodes)
+            source_node_ids = set(str(e[0]) for e in edges)
+            # Exclude the nested_graph node itself from leaf candidates
+            leaf_node_ids = [
+                nid
+                for nid in all_node_ids
+                if nid not in source_node_ids and nid != nested_graph_node_id
+            ]
+
+            # If no leaf nodes found, but there is exactly one task node (besides start and nested_graph), connect nested_graph to it
+            if not leaf_node_ids:
+                # Task node IDs are all nodes except start and nested_graph
+                task_node_ids = [
+                    nid
+                    for nid in all_node_ids
+                    if nid not in (start_node_id, nested_graph_node_id)
+                ]
+                if len(task_node_ids) == 1:
+                    leaf_node_ids = task_node_ids
+
+            for leaf_id in leaf_node_ids:
+                nested_graph_to_leaf_edge = [
+                    nested_graph_node_id,  # from nested_graph node
+                    leaf_id,  # to leaf node
+                    {
+                        "intent": None,
+                        "attribute": {
+                            "weight": 1,
+                            "pred": False,
+                            "definition": "",
+                            "sample_utterances": [],
+                        },
+                    },
+                ]
+                edges.append(nested_graph_to_leaf_edge)
 
         graph = {
             "nodes": nodes,
