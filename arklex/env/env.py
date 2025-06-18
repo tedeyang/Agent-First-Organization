@@ -300,8 +300,13 @@ class Environment:
 
         elif id in self.agents:
             logger.info(f"{self.agents[id]['name']} agent selected")
-            agent: BaseAgent = self.agents[id]["execute"]()
-            # TODO: send successors and predecessors
+            agent: BaseAgent = self.agents[id]["execute"](
+                successors=node_info.additional_args.get("successors", []),
+                predecessors=node_info.additional_args.get("predecessors", []),
+                tools=self.tools,
+                state=message_state,
+            )
+            agent.execute(message_state, **node_info.additional_args)
         else:
             logger.info("planner selected")
             action: str
