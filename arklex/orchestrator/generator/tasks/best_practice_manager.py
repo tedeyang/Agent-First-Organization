@@ -63,8 +63,9 @@ class BestPracticeManager:
         user_objective (str): User's objective for the task graph
         _practices (Dict[str, BestPractice]): Cache of generated practices
         _practice_categories (Dict[str, List[str]]): Practice categorization
-        workers (List[Dict[str, Any]]): List of available workers from config
-        tools (List[Dict[str, Any]]): List of available tools from config
+        _workers (List[Dict[str, Any]]): List of available workers from config
+        _tools (List[Dict[str, Any]]): List of available tools from config
+        _all_resources (List[Dict[str, Any]]): List of all available resources including nested_graph
         prompt_manager: Instance of PromptManager for prompt generation
 
     Methods:
@@ -83,6 +84,7 @@ class BestPracticeManager:
         user_objective: str,
         workers: Optional[List[Dict[str, Any]]] = None,
         tools: Optional[List[Dict[str, Any]]] = None,
+        all_resources: Optional[List[Dict[str, Any]]] = None,
     ) -> None:
         """Initialize the BestPracticeManager with required components.
 
@@ -92,12 +94,14 @@ class BestPracticeManager:
             user_objective (str): User's objective for the task graph
             workers (Optional[List[Dict[str, Any]]]): List of available workers from config
             tools (Optional[List[Dict[str, Any]]]): List of available tools from config
+            all_resources (Optional[List[Dict[str, Any]]]): List of all available resources including nested_graph
         """
         self.model = model
         self.role = role
         self.user_objective = user_objective
-        self.workers = workers or []
-        self.tools = tools or []
+        self._workers = workers or []
+        self._tools = tools or []
+        self._all_resources = all_resources or []
         self._practices: Dict[str, BestPractice] = {}
         self._practice_categories: Dict[str, List[str]] = {}
         self.prompt_manager = PromptManager()
@@ -147,7 +151,7 @@ class BestPracticeManager:
         """Refine a best practice based on feedback and task information.
 
         This method takes a practice and a task, and refines the practice by
-        pairing the steps with available resources (workers, tools) from the config.
+        pairing the steps with available resources (workers, tools, nested_graph) from the config.
 
         Args:
             practice (Dict[str, Any]): The practice to refine
@@ -160,23 +164,31 @@ class BestPracticeManager:
             # Get the steps from the task
             steps = task.get("steps", [])
             if not steps:
-                log_context.warning("No steps found in task for refinement")
+                log_context.warning("No steps found in task for resource pairing")
                 return practice
 
-            # Create resources dictionary from actual config workers and tools
+            # Create resources dictionary from all_resources if available
             resources = {}
-
-            # Add workers to resources
-            for worker in self.workers:
-                if isinstance(worker, dict) and "name" in worker:
-                    resources[worker["name"]] = worker.get(
-                        "description", f"{worker['name']}"
-                    )
-
-            # Add tools to resources
-            for tool in self.tools:
-                if isinstance(tool, dict) and "name" in tool:
-                    resources[tool["name"]] = tool.get("description", f"{tool['name']}")
+            if self._all_resources:
+                for resource in self._all_resources:
+                    if isinstance(resource, dict) and "name" in resource:
+                        resources[resource["name"]] = resource.get(
+                            "description", f"{resource['name']} resource"
+                        )
+            else:
+                # Fallback to workers and tools if all_resources not available
+                if self._workers:
+                    for worker in self._workers:
+                        if isinstance(worker, dict) and "name" in worker:
+                            resources[worker["name"]] = worker.get(
+                                "description", f"{worker['name']} worker"
+                            )
+                if self._tools:
+                    for tool in self._tools:
+                        if isinstance(tool, dict) and "name" in tool:
+                            resources[tool["name"]] = tool.get(
+                                "description", f"{tool['name']} tool"
+                            )
 
             # If no resources from config, use default ones
             if not resources:

@@ -238,12 +238,52 @@ class Generator:
             BestPracticeManager: Initialized best practice manager instance
         """
         if self._best_practice_manager is None:
+            # Create a list of all available resources including nested_graph
+            all_resources = []
+
+            # Add workers
+            for worker in self.workers:
+                if isinstance(worker, dict) and "name" in worker:
+                    all_resources.append(
+                        {
+                            "name": worker["name"],
+                            "description": worker.get(
+                                "description", f"{worker['name']} worker"
+                            ),
+                            "type": "worker",
+                        }
+                    )
+
+            # Add tools
+            for tool in self.tools:
+                if isinstance(tool, dict) and "name" in tool:
+                    all_resources.append(
+                        {
+                            "name": tool["name"],
+                            "description": tool.get(
+                                "description", f"{tool['name']} tool"
+                            ),
+                            "type": "tool",
+                        }
+                    )
+
+            # Add nested_graph if enabled
+            if self.allow_nested_graph:
+                all_resources.append(
+                    {
+                        "name": "NestedGraph",
+                        "description": "A reusable task graph component that can be instantiated with different parameters",
+                        "type": "nested_graph",
+                    }
+                )
+
             self._best_practice_manager = BestPracticeManager(
                 model=self.model,
                 role=self.role,
                 user_objective=self.user_objective,
                 workers=self.workers,
                 tools=self.tools,
+                all_resources=all_resources,  # Pass all resources including nested_graph
             )
         return self._best_practice_manager
 
@@ -411,7 +451,7 @@ class Generator:
             )
             log_context.info(f"✅ Generated {len(self.reusable_tasks)} reusable tasks")
 
-        # Step 4: Generate best practices
+        # Step 4: Generate best practices (but don't apply resource pairing yet)
         log_context.info("📖 Generating best practices for task execution...")
         log_context.info("  🔧 Initializing best practice manager...")
         best_practice_manager = self._initialize_best_practice_manager()
@@ -419,54 +459,57 @@ class Generator:
         best_practices = best_practice_manager.generate_best_practices(self.tasks)
         log_context.info(f"✅ Generated {len(best_practices)} best practices")
 
-        # Step 5: Apply resource pairing to all tasks (finetune_best_practice)
-        # This is crucial to pair steps with resources from the config
-        log_context.info("🔧 Pairing tasks with available resources...")
-        finetuned_tasks = []
-        total_tasks = len(self.tasks)
-
-        for i, task in enumerate(self.tasks):
-            if i < len(best_practices):
-                log_context.info(
-                    f"  🔗 Pairing task {i + 1}/{total_tasks}: {task.get('name', 'Unknown')}"
-                )
-                finetuned_task = best_practice_manager.finetune_best_practice(
-                    best_practices[i], task
-                )
-                # Update the task with the finetuned steps that include resource mappings
-                task["steps"] = finetuned_task.get("steps", task.get("steps", []))
-            finetuned_tasks.append(task)
-        log_context.info(f"✅ Paired {len(finetuned_tasks)} tasks with resources")
-
-        # Step 6: Refine best practices through human-in-the-loop if enabled
+        # Step 5: Allow user editing through TaskEditor if enabled
+        finetuned_tasks = self.tasks.copy()  # Start with original tasks
         if self.interactable_with_user and UI_AVAILABLE:
             log_context.info("👤 Starting human-in-the-loop refinement...")
             try:
                 hitl_result = TaskEditorApp(finetuned_tasks).run()
-                log_context.info(
-                    "  🔄 Applying finetune_best_practice after task editor..."
-                )
-                # Always apply finetune_best_practice after task editor, regardless of user edits
-                tasks_to_process = (
-                    hitl_result if hitl_result is not None else finetuned_tasks
-                )
 
-                if tasks_to_process is not None and len(tasks_to_process) > 0:
-                    # Process each task in tasks_to_process individually
+                # Check if user made changes by comparing the result with original tasks
+                tasks_changed = False
+                if hitl_result is not None and len(hitl_result) > 0:
+                    # Simple change detection: compare task structures
+                    if len(hitl_result) != len(self.tasks):
+                        tasks_changed = True
+                    else:
+                        for i, (original_task, edited_task) in enumerate(
+                            zip(self.tasks, hitl_result)
+                        ):
+                            if original_task.get("name") != edited_task.get(
+                                "task_name"
+                            ) or len(original_task.get("steps", [])) != len(
+                                edited_task.get("steps", [])
+                            ):
+                                tasks_changed = True
+                                break
+
+                if tasks_changed:
+                    log_context.info(
+                        "  🔄 User made changes - applying finetune_best_practice..."
+                    )
+                    # Apply resource pairing only after user modifications
                     processed_tasks = []
-                    for idx_t, task in enumerate(tasks_to_process):
+                    for idx_t, task in enumerate(hitl_result):
                         # Find a matching best practice if available
-                        # Use the task's index if it's within bounds, otherwise use the first available
                         best_practice_idx = (
                             min(idx_t, len(best_practices) - 1) if best_practices else 0
                         )
 
                         if best_practices and best_practice_idx < len(best_practices):
                             log_context.info(
-                                f"  🔗 Refining task {idx_t + 1}/{len(tasks_to_process)}: {task.get('name', 'Unknown')}"
+                                f"  🔗 Pairing task {idx_t + 1}/{len(hitl_result)}: {task.get('task_name', 'Unknown')}"
                             )
+                            # Convert task format for finetune_best_practice
+                            task_for_finetune = {
+                                "name": task.get("task_name", ""),
+                                "steps": [
+                                    {"description": step}
+                                    for step in task.get("steps", [])
+                                ],
+                            }
                             refined_task = best_practice_manager.finetune_best_practice(
-                                best_practices[best_practice_idx], task
+                                best_practices[best_practice_idx], task_for_finetune
                             )
                             # Update the task with the refined steps that include resource mappings
                             task["steps"] = refined_task.get(
@@ -475,21 +518,51 @@ class Generator:
 
                         processed_tasks.append(task)
 
-                    # Replace finetuned_tasks with the processed tasks from UI
                     finetuned_tasks = processed_tasks
                     log_context.info(
-                        f"✅ Processed {len(processed_tasks)} tasks from UI"
+                        f"✅ Applied resource pairing to {len(processed_tasks)} modified tasks"
                     )
                 else:
                     log_context.info(
-                        "⚠️ No tasks returned from UI, using original finetuned tasks"
+                        "  ⏭️ No user changes detected - skipping finetune_best_practice"
                     )
+                    # Convert hitl_result back to the expected format
+                    finetuned_tasks = []
+                    for task in hitl_result:
+                        finetuned_tasks.append(
+                            {
+                                "name": task.get("task_name", ""),
+                                "steps": [
+                                    {"description": step}
+                                    for step in task.get("steps", [])
+                                ],
+                            }
+                        )
 
-                log_context.info("✅ Task editor and finetune_best_practice completed")
+                log_context.info("✅ Task editor completed")
             except Exception as e:
                 log_context.error(f"❌ Error in human-in-the-loop refinement: {str(e)}")
+                # Fallback to original tasks if UI fails
+                finetuned_tasks = self.tasks.copy()
+        else:
+            # If no UI interaction, apply resource pairing to all tasks
+            log_context.info("🔧 Applying resource pairing to all tasks...")
+            processed_tasks = []
+            for i, task in enumerate(self.tasks):
+                if i < len(best_practices):
+                    log_context.info(
+                        f"  🔗 Pairing task {i + 1}/{len(self.tasks)}: {task.get('name', 'Unknown')}"
+                    )
+                    finetuned_task = best_practice_manager.finetune_best_practice(
+                        best_practices[i], task
+                    )
+                    # Update the task with the finetuned steps that include resource mappings
+                    task["steps"] = finetuned_task.get("steps", task.get("steps", []))
+                processed_tasks.append(task)
+            finetuned_tasks = processed_tasks
+            log_context.info(f"✅ Paired {len(finetuned_tasks)} tasks with resources")
 
-        # Step 7: Format the final task graph
+        # Step 6: Format the final task graph
         log_context.info("📊 Formatting final task graph...")
         log_context.info("  🔧 Initializing task graph formatter...")
         task_graph_formatter = self._initialize_task_graph_formatter()

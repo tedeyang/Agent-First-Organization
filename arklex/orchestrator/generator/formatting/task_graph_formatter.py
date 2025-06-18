@@ -97,6 +97,10 @@ class TaskGraphFormatter:
         Returns:
             str: The worker ID if found, otherwise the worker name as fallback
         """
+        # Special handling for NestedGraph
+        if worker_name == "NestedGraph":
+            return "nested_graph"
+
         if self._workers:
             for worker in self._workers:
                 if isinstance(worker, dict) and worker.get("name") == worker_name:
@@ -154,8 +158,26 @@ class TaskGraphFormatter:
             nodes.append([str(node_id_counter), start_node])
             start_node_id = str(node_id_counter)
             node_id_counter += 1
+
+            # Add nested_graph node explicitly when there are tasks
+            nested_graph_node = {
+                "resource": {
+                    "id": "nested_graph",
+                    "name": "NestedGraph",
+                },
+                "attribute": {
+                    "value": "0",  # Default value for nested graph
+                    "task": "Authenticate user",  # Default task for nested graph
+                    "directed": False,
+                },
+                "limit": 1,
+            }
+            nodes.append([str(node_id_counter), nested_graph_node])
+            nested_graph_node_id = str(node_id_counter)
+            node_id_counter += 1
         else:
             start_node_id = None
+            nested_graph_node_id = None
 
         # First pass: create nodes for tasks
         for task_idx, task in enumerate(tasks):
