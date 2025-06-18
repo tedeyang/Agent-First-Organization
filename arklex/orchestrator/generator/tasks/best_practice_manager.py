@@ -358,16 +358,38 @@ class BestPracticeManager:
                 as the input steps
         """
         optimized_steps: List[Dict[str, Any]] = []
-        for step in steps:
+        for i, step in enumerate(steps):
+            # Ensure step_id exists
             if "step_id" not in step:
                 step["step_id"] = f"step_{len(optimized_steps) + 1}"
-            if "description" not in step or not step["description"].strip():
-                log_context.warning(f"Step is missing a meaningful description: {step}")
-                raise ValueError(
-                    "Each step must have a meaningful, non-empty description."
+
+            # Handle description validation and optimization
+            description = step.get("description")
+
+            # Check if description is missing, None, or not a string
+            if not description or not isinstance(description, str):
+                log_context.warning(
+                    f"Step {i + 1} has invalid or missing description: {description}"
                 )
+                # Provide a default description instead of raising an exception
+                step["description"] = f"Execute step {step['step_id']}"
+            else:
+                # Check if description is empty or only whitespace
+                stripped_description = description.strip()
+                if not stripped_description:
+                    log_context.warning(
+                        f"Step {i + 1} has empty or whitespace-only description"
+                    )
+                    # Provide a default description instead of raising an exception
+                    step["description"] = f"Execute step {step['step_id']}"
+                else:
+                    # Use the stripped description
+                    step["description"] = stripped_description
+
+            # Ensure required_fields exists
             if "required_fields" not in step:
                 step["required_fields"] = []
+
             optimized_steps.append(step)
         return optimized_steps
 

@@ -37,6 +37,7 @@ user objectives, documentation, and configuration settings.
 import os
 from datetime import datetime
 from typing import Optional, Dict, List, Any, Union
+from pathlib import Path
 
 from arklex.env.env import BaseResourceInitializer, DefaultResourceInitializer
 from arklex.orchestrator.generator.tasks import (
@@ -202,7 +203,16 @@ class Generator:
             DocumentLoader: Initialized document loader instance
         """
         if self._doc_loader is None:
-            self._doc_loader = DocumentLoader(self.output_dir)
+            # Convert output_dir to Path and handle None case
+            if self.output_dir is None:
+                # Create a default cache directory in the current working directory
+                cache_dir = Path.cwd() / "cache"
+                cache_dir.mkdir(exist_ok=True)
+            else:
+                cache_dir = Path(self.output_dir)
+                cache_dir.mkdir(exist_ok=True)
+
+            self._doc_loader = DocumentLoader(cache_dir)
         return self._doc_loader
 
     def _initialize_task_generator(self) -> TaskGenerator:
