@@ -63,10 +63,7 @@ class DocumentLoader:
             else:
                 with open(doc_path, "r") as f:
                     content = f.read()
-            if hasattr(json, "loads") and callable(getattr(json, "loads")):
-                document = json.loads(content)
-            else:
-                document = json.loads(content)
+            document = json.loads(content)
         except json.JSONDecodeError as e:
             raise json.JSONDecodeError(
                 f"Invalid JSON in document: {doc_path}", e.doc, e.pos
@@ -117,10 +114,7 @@ class DocumentLoader:
                 with open(doc_path, "r") as f:
                     content = f.read()
             try:
-                if hasattr(json, "loads") and callable(getattr(json, "loads")):
-                    document = json.loads(content)
-                else:
-                    document = json.loads(content)
+                document = json.loads(content)
             except json.JSONDecodeError:
                 try:
                     soup = BeautifulSoup(content, "html.parser")
@@ -165,10 +159,7 @@ class DocumentLoader:
             else:
                 with open(doc_path, "r") as f:
                     content = f.read()
-            if hasattr(json, "loads") and callable(getattr(json, "loads")):
-                document = json.loads(content)
-            else:
-                document = json.loads(content)
+            document = json.loads(content)
             self._cache[str(doc_path)] = document
         if not self._validate_instruction_document(document):
             raise ValueError(f"Invalid instruction document structure: {doc_path}")

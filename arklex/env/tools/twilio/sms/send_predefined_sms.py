@@ -21,10 +21,20 @@ def send_predefined_sms(**kwargs: Any) -> str:
     Args:
         **kwargs: Arguments including message, Twilio credentials and phone numbers
     """
-    twilio_client = TwilioClient(kwargs.get("sid"), kwargs.get("auth_token"))
+    # Allow reuse of existing TwilioClient instance or create new one
+    twilio_client = kwargs.get("twilio_client")
+    if twilio_client is None:
+        twilio_client = TwilioClient(kwargs.get("sid"), kwargs.get("auth_token"))
+
     phone_no_to = kwargs.get("phone_no_to")
     phone_no_from = kwargs.get("phone_no_from")
-    predefined_message = kwargs.get("predefined_message")
+
+    # Support both 'message' and 'predefined_message' parameter names for backward compatibility
+    predefined_message = kwargs.get("predefined_message") or kwargs.get("message")
+
+    if predefined_message is None:
+        return "Error sending predefined SMS: No message content provided"
+
     log_context.info(
         f"Sending predefined SMS to {phone_no_to} from {phone_no_from}: {predefined_message}"
     )

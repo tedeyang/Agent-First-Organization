@@ -29,8 +29,12 @@ def get_prompt_template(state: MessageState, prompt_key: str) -> PromptTemplate:
     prompts: Dict[str, str] = load_prompts(state.bot_config)
 
     if state.stream_type == StreamType.SPEECH:
-        # TODO(Vishruth): add speech prompts for Chinese
-        return PromptTemplate.from_template(prompts[prompt_key + "_speech"])
+        # Use speech prompts, but fall back to regular prompts for Chinese
+        # since Chinese speech prompts are not available yet
+        if state.bot_config.language == "CN":
+            return PromptTemplate.from_template(prompts[prompt_key])
+        else:
+            return PromptTemplate.from_template(prompts[prompt_key + "_speech"])
     else:
         return PromptTemplate.from_template(prompts[prompt_key])
 
