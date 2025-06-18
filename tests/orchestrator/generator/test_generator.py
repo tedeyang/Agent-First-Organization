@@ -7,8 +7,7 @@ pipeline.
 """
 
 import pytest
-from typing import List, Dict, Any
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from arklex.orchestrator.generator.tasks.task_generator import (
     TaskGenerator,

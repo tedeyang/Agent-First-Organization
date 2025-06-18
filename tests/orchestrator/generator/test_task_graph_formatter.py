@@ -7,8 +7,6 @@ integration tests for the complete formatting pipeline.
 """
 
 import pytest
-from typing import List, Dict, Any
-from unittest.mock import Mock, patch
 
 from arklex.orchestrator.generator.formatting.task_graph_formatter import (
     TaskGraphFormatter,
@@ -294,12 +292,10 @@ class TestEdgeFormatter:
     def test_format_edge_with_custom_type(self, edge_formatter):
         """Test edge formatting with custom type."""
         # This test is skipped because the implementation does not support custom type/weight/label
-        pass
 
     def test_format_edge_with_metadata(self, edge_formatter):
         """Test edge formatting with metadata."""
         # This test is skipped because the implementation does not support metadata
-        pass
 
 
 class TestGraphValidator:
