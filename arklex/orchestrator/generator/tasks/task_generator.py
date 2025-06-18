@@ -107,6 +107,11 @@ class TaskGenerator:
     ) -> List[Dict[str, Any]]:
         """Generate tasks from the introduction and existing tasks.
 
+        This method implements the three-step process:
+        1. Generate high-level tasks using generate_tasks_sys_prompt
+        2. Check if tasks need further breakdown using check_best_practice_sys_prompt
+        3. Generate steps for tasks that need breakdown using generate_best_practice_sys_prompt
+
         Args:
             intro (str): Introduction or documentation string.
             existing_tasks (Optional[List[Dict[str, Any]]]): List of existing tasks, if any.
@@ -116,19 +121,43 @@ class TaskGenerator:
         """
         if existing_tasks is None:
             existing_tasks = []
+
+        # Step 1: Generate high-level tasks
         objective = getattr(self, "objective", intro)
         docs = intro
         processed_objective = self._process_objective(
             objective, intro, docs, existing_tasks
         )
-        task_definitions = self._generate_task_definitions(
-            processed_objective, existing_tasks
-        )
+
+        # Step 2: Check which tasks need further breakdown
+        high_level_tasks = processed_objective.get("tasks", [])
+        tasks_with_steps = []
+
+        for task in high_level_tasks:
+            task_name = task.get("task", "")
+            task_intent = task.get("intent", "")
+
+            # Check if this task needs further breakdown
+            needs_breakdown = self._check_task_breakdown(task_name, task_intent)
+
+            if needs_breakdown:
+                # Step 3: Generate steps for tasks that need breakdown
+                steps = self._generate_task_steps(task_name, task_intent)
+                task["steps"] = steps
+            else:
+                # Task is already actionable, create a simple step
+                task["steps"] = [{"task": f"Execute {task_name}"}]
+
+            tasks_with_steps.append(task)
+
+        # Convert to task definitions and validate
+        task_definitions = self._convert_to_task_definitions(tasks_with_steps)
         tasks = []
         for i, task_def in enumerate(task_definitions):
             task_dict = self._convert_to_dict(task_def)
             task_dict["id"] = f"task_{i + 1}"
             tasks.append(task_dict)
+
         validated_tasks = self._validate_tasks(tasks)
         self._build_hierarchy(validated_tasks)
         return validated_tasks
@@ -238,72 +267,155 @@ class TaskGenerator:
             tasks_data = []
         return {"tasks": tasks_data}
 
-    def _generate_task_definitions(
-        self,
-        processed_objective: Dict[str, Any],
-        existing_tasks: Optional[List[Dict[str, Any]]] = None,
-    ) -> List[TaskDefinition]:
-        """Generate task definitions from documentation.
+    def _check_task_breakdown(self, task_name: str, task_intent: str) -> bool:
+        """Check if a task needs further breakdown into steps.
+
+        This method uses the check_best_practice_sys_prompt to determine
+        if a task is already actionable or needs to be broken down further.
 
         Args:
-            processed_objective (Dict[str, Any]): The processed objective containing task data.
-            existing_tasks (Optional[List[Dict[str, Any]]]): Optional list of existing tasks to avoid duplication.
+            task_name (str): Name of the task
+            task_intent (str): Intent of the task
 
         Returns:
-            List[TaskDefinition]: List of TaskDefinition objects.
+            bool: True if task needs breakdown, False if it's already actionable
         """
-        tasks_data = processed_objective.get("tasks", [])
-        if not tasks_data:
-            existing_tasks_json = "[]"
-            if existing_tasks:
-                existing_tasks_json = json.dumps(
-                    [
-                        {"intent": task.get("intent", ""), "task": task.get("name", "")}
-                        for task in existing_tasks
-                    ],
-                    indent=4,
-                )
-            prompt = self.prompt_manager.generate_tasks_sys_prompt.format(
-                role=processed_objective.get("role", ""),
-                u_objective=processed_objective.get("objective", ""),
-                intro=processed_objective.get("intro", ""),
-                docs=processed_objective.get("docs", ""),
-                instructions=processed_objective.get("instructions", ""),
-                existing_tasks=existing_tasks_json,
-            )
+        # Create a simple resource list for the check
+        resources = "MessageWorker: Interact with users, RAGWorker: Answer questions based on documentation"
+
+        prompt = self.prompt_manager.check_best_practice_sys_prompt.format(
+            task=task_name, level=1, resources=resources
+        )
+
+        try:
             response = self.model.invoke(prompt)
-            try:
-                if hasattr(response, "content"):
-                    response_text = response.content
-                else:
-                    response_text = str(response)
-                if not isinstance(response_text, str):
-                    response_text = str(response_text)
-                json_start = response_text.find("[")
-                json_end = response_text.rfind("]") + 1
-                if (
-                    json_start >= 0
-                    and isinstance(json_end, int)
-                    and json_end > json_start
-                ):
-                    json_str = response_text[json_start:json_end]
-                    tasks_data = json.loads(json_str)
-                    log_context.info(
-                        f"Generated {len(tasks_data)} tasks from documentation"
-                    )
-                else:
-                    log_context.error("No valid JSON array found in response")
-                    tasks_data = []
-            except Exception as e:
-                log_context.error(f"Failed to parse generated tasks: {e}")
-                tasks_data = []
+            if hasattr(response, "content"):
+                response_text = response.content
+            else:
+                response_text = str(response)
+
+            # Parse the JSON response
+            import json
+
+            json_start = response_text.find("{")
+            json_end = response_text.rfind("}") + 1
+            if json_start >= 0 and json_end > json_start:
+                json_str = response_text[json_start:json_end]
+                result = json.loads(json_str)
+                answer = result.get("answer", "No").lower()
+                return answer == "yes"
+            else:
+                log_context.warning(
+                    f"Could not parse breakdown check response for task: {task_name}"
+                )
+                return True  # Default to breakdown if we can't parse
+
+        except Exception as e:
+            log_context.error(f"Error checking task breakdown for {task_name}: {e}")
+            return True  # Default to breakdown on error
+
+    def _generate_task_steps(
+        self, task_name: str, task_intent: str
+    ) -> List[Dict[str, Any]]:
+        """Generate steps for a task that needs breakdown.
+
+        This method uses the generate_best_practice_sys_prompt to create
+        detailed steps for tasks that need further decomposition.
+
+        Args:
+            task_name (str): Name of the task
+            task_intent (str): Intent of the task
+
+        Returns:
+            List[Dict[str, Any]]: List of steps for the task
+        """
+        # Create background and resources for the prompt
+        f"The builder wants to create a chatbot - {self.role}. {self.user_objective}"
+        resources = "MessageWorker: Interact with users, RAGWorker: Answer questions based on documentation"
+
+        prompt = self.prompt_manager.generate_best_practice_sys_prompt.format(
+            role=self.role,
+            u_objective=self.user_objective,
+            task=task_name,
+            resources=resources,
+            instructions=self.instructions,
+            example_conversations="",
+        )
+
+        try:
+            response = self.model.invoke(prompt)
+            if hasattr(response, "content"):
+                response_text = response.content
+            else:
+                response_text = str(response)
+
+            # Parse the JSON response
+            import json
+
+            json_start = response_text.find("[")
+            json_end = response_text.rfind("]") + 1
+            if json_start >= 0 and json_end > json_start:
+                json_str = response_text[json_start:json_end]
+                steps_data = json.loads(json_str)
+                # Convert the step format to the expected format
+                converted_steps = []
+                for step in steps_data:
+                    if isinstance(step, dict) and "task" in step:
+                        converted_steps.append(
+                            {"task": step["task"], "description": step["description"]}
+                        )
+                    elif isinstance(step, dict) and "step" in step:
+                        converted_steps.append(
+                            {"task": step["task"], "description": step["description"]}
+                        )
+                return converted_steps
+            else:
+                log_context.warning(
+                    f"Could not parse steps response for task: {task_name}"
+                )
+                return [
+                    {
+                        "task": f"Execute {task_name}",
+                        "description": f"Execute the task: {task_name}",
+                    }
+                ]
+
+        except Exception as e:
+            log_context.error(f"Error generating steps for {task_name}: {e}")
+            return [
+                {
+                    "task": f"Execute {task_name}",
+                    "description": f"Execute the task: {task_name}",
+                }
+            ]
+
+    def _convert_to_task_definitions(
+        self, tasks_with_steps: List[Dict[str, Any]]
+    ) -> List[TaskDefinition]:
+        """Convert tasks with steps to TaskDefinition objects.
+
+        Args:
+            tasks_with_steps (List[Dict[str, Any]]): List of tasks with steps
+
+        Returns:
+            List[TaskDefinition]: List of TaskDefinition objects
+        """
         task_definitions: List[TaskDefinition] = []
-        for i, task_data in enumerate(tasks_data):
+        for i, task_data in enumerate(tasks_with_steps):
             steps = task_data.get("steps", [])
-            if not steps and "task" in task_data:
-                steps = [{"task": f"Execute {task_data['task']}"}]
+            if not steps:
+                steps = [
+                    {
+                        "task": f"Execute {task_data.get('task', '')}",
+                        "description": f"Execute the task: {task_data.get('task', '')}",
+                    }
+                ]
             elif isinstance(steps, list) and steps and isinstance(steps[0], str):
-                steps = [{"task": step} for step in steps]
+                steps = [
+                    {"task": step, "description": f"Execute step: {step}"}
+                    for step in steps
+                ]
+
             task_def = TaskDefinition(
                 task_id=f"task_{i + 1}",
                 name=task_data.get("task", ""),
@@ -337,7 +449,10 @@ class TaskGenerator:
                 log_context.warning(f"Task steps must be a list: {task}")
                 continue
             if task["steps"] and isinstance(task["steps"][0], str):
-                task["steps"] = [{"task": step} for step in task["steps"]]
+                task["steps"] = [
+                    {"task": step, "description": f"Execute step: {step}"}
+                    for step in task["steps"]
+                ]
             if not all(
                 isinstance(step, dict) and "task" in step for step in task["steps"]
             ):
@@ -345,6 +460,10 @@ class TaskGenerator:
                     f"Task steps must be dictionaries with 'task' key: {task}"
                 )
                 continue
+            # Ensure all steps have descriptions
+            for step in task["steps"]:
+                if "description" not in step or not step["description"].strip():
+                    step["description"] = f"Execute: {step.get('task', 'Unknown step')}"
             if "dependencies" not in task:
                 task["dependencies"] = []
             elif not isinstance(task["dependencies"], list):

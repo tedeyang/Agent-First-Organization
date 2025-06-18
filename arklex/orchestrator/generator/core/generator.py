@@ -232,6 +232,8 @@ class Generator:
                 model=self.model,
                 role=self.role,
                 user_objective=self.user_objective,
+                workers=self.workers,
+                tools=self.tools,
             )
         return self._best_practice_manager
 
@@ -372,32 +374,44 @@ class Generator:
         best_practice_manager = self._initialize_best_practice_manager()
         best_practices = best_practice_manager.generate_best_practices(self.tasks)
 
-        # Step 5: Refine best practices through human-in-the-loop if enabled
-        finetuned_best_practices = []
+        # Step 5: Apply resource pairing to all tasks (finetune_best_practice)
+        # This is crucial to pair steps with resources from the config
+        finetuned_tasks = []
+        for i, task in enumerate(self.tasks):
+            if i < len(best_practices):
+                finetuned_task = best_practice_manager.finetune_best_practice(
+                    best_practices[i], task
+                )
+                # Update the task with the finetuned steps that include resource mappings
+                task["steps"] = finetuned_task.get("steps", task.get("steps", []))
+            finetuned_tasks.append(task)
+
+        # Step 6: Refine best practices through human-in-the-loop if enabled
         if self.interactable_with_user and UI_AVAILABLE:
             try:
-                hitl_result = TaskEditorApp(self.tasks).run()
+                hitl_result = TaskEditorApp(finetuned_tasks).run()
                 if hitl_result is not None:
+                    # Apply additional refinement if human-in-the-loop is used
                     for idx_t, task in enumerate(hitl_result):
-                        finetuned_best_practices.append(
-                            best_practice_manager.finetune_best_practice(
+                        if idx_t < len(best_practices):
+                            refined_task = best_practice_manager.finetune_best_practice(
                                 best_practices[idx_t], task
                             )
-                        )
-                else:
-                    log_context.warning(
-                        "TaskEditorApp returned None, using original tasks"
-                    )
-                    finetuned_best_practices = best_practices
+                            finetuned_tasks[idx_t]["steps"] = refined_task.get(
+                                "steps", task.get("steps", [])
+                            )
             except Exception as e:
                 log_context.error(f"Error in human-in-the-loop refinement: {str(e)}")
-                finetuned_best_practices = best_practices
-        else:
-            finetuned_best_practices = best_practices
 
-        # Step 6: Format the final task graph
+        # Step 7: Format the final task graph
         task_graph_formatter = self._initialize_task_graph_formatter()
-        task_graph = task_graph_formatter.format_task_graph(self.tasks)
+
+        # Format the final task graph with finetuned tasks (including resource mappings)
+        task_graph = task_graph_formatter.format_task_graph(finetuned_tasks)
+
+        # Add reusable tasks to the task graph output
+        if self.reusable_tasks:
+            task_graph["reusable_tasks"] = self.reusable_tasks
 
         return task_graph
 

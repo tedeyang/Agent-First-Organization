@@ -92,14 +92,29 @@ SAMPLE_PRACTICES = [
 
 # Patch for test_generate_tasks and test_integration_generation_pipeline
 class FakeResponse:
-    content = '[{"task": "Test", "intent": "Test intent", "steps": [{"task": "Step 1", "description": "desc"}]}]'
+    content = '[{"task": "Test", "intent": "Test intent", "steps": [{"task": "Step 1", "description": "Test step description"}]}]'
+    text = content
+
+
+class FakeGenerationResponse:
+    def __init__(self):
+        self.generations = [[FakeGeneration()]]
+
+
+class FakeGeneration:
+    def __init__(self):
+        self.text = '[{"task": "Test", "intent": "Test intent", "steps": [{"task": "Step 1", "description": "Test step description"}]}]'
+
+
+class FakeResourceResponse:
+    content = '[{"step": 1, "task": "Step 1", "resource": "MessageWorker", "example_response": "Test response", "description": "Test step description"}]'
     text = content
 
 
 def get_mock_model():
     mock_model = Mock()
-    mock_model.generate.return_value = FakeResponse()
-    mock_model.invoke.return_value = FakeResponse()
+    mock_model.generate.return_value = FakeGenerationResponse()
+    mock_model.invoke.return_value = FakeResourceResponse()
     return mock_model
 
 

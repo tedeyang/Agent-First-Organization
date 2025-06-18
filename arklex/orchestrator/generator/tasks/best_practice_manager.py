@@ -11,10 +11,12 @@ Key Features:
 - Quality assurance and validation
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
+import json
 
 from arklex.utils.logging_utils import LogContext
+from arklex.orchestrator.generator.prompts import PromptManager
 
 log_context = LogContext(__name__)
 
@@ -61,6 +63,9 @@ class BestPracticeManager:
         user_objective (str): User's objective for the task graph
         _practices (Dict[str, BestPractice]): Cache of generated practices
         _practice_categories (Dict[str, List[str]]): Practice categorization
+        workers (List[Dict[str, Any]]): List of available workers from config
+        tools (List[Dict[str, Any]]): List of available tools from config
+        prompt_manager: Instance of PromptManager for prompt generation
 
     Methods:
         generate_best_practices(): Main method to generate practices
@@ -76,6 +81,8 @@ class BestPracticeManager:
         model: Any,
         role: str,
         user_objective: str,
+        workers: Optional[List[Dict[str, Any]]] = None,
+        tools: Optional[List[Dict[str, Any]]] = None,
     ) -> None:
         """Initialize the BestPracticeManager with required components.
 
@@ -83,12 +90,17 @@ class BestPracticeManager:
             model: The language model to use for practice generation
             role (str): The role or context for practice generation
             user_objective (str): User's objective for the task graph
+            workers (Optional[List[Dict[str, Any]]]): List of available workers from config
+            tools (Optional[List[Dict[str, Any]]]): List of available tools from config
         """
         self.model = model
         self.role = role
         self.user_objective = user_objective
+        self.workers = workers or []
+        self.tools = tools or []
         self._practices: Dict[str, BestPractice] = {}
         self._practice_categories: Dict[str, List[str]] = {}
+        self.prompt_manager = PromptManager()
 
     def generate_best_practices(
         self, tasks: List[Dict[str, Any]]
@@ -122,34 +134,80 @@ class BestPracticeManager:
     ) -> Dict[str, Any]:
         """Refine a best practice based on feedback and task information.
 
-        This method takes a practice and a task, and refines the practice based on
-        the task's requirements and feedback.
+        This method takes a practice and a task, and refines the practice by
+        pairing the steps with available resources (workers, tools) from the config.
 
         Args:
             practice (Dict[str, Any]): The practice to refine
             task (Dict[str, Any]): The task information to use for refinement
 
         Returns:
-            Dict[str, Any]: Refined practice
+            Dict[str, Any]: Refined practice with resource mappings
         """
         try:
-            practice_def = BestPractice(
-                practice_id=practice.get("practice_id", ""),
-                name=practice.get("name", "Refined Practice"),
-                description=practice.get("description", ""),
-                steps=task.get("steps", []),
-                rationale=practice.get("rationale", ""),
-                examples=practice.get("examples", []),
-                priority=practice.get("priority", 3),
-                category=practice.get("category", "refined"),
-            )
-            if not self._validate_practice_definition(practice_def):
-                log_context.warning("Invalid practice definition")
+            # Get the steps from the task
+            steps = task.get("steps", [])
+            if not steps:
+                log_context.warning("No steps found in task for refinement")
                 return practice
-            optimized_steps = self._optimize_steps(practice_def.steps)
-            log_context.info("Optimized practice steps")
-            practice["steps"] = optimized_steps
-            return practice
+
+            # Create resources dictionary from actual config workers and tools
+            resources = {}
+
+            # Add workers to resources
+            for worker in self.workers:
+                if isinstance(worker, dict) and "name" in worker:
+                    resources[worker["name"]] = worker.get(
+                        "description", f"Worker: {worker['name']}"
+                    )
+
+            # Add tools to resources
+            for tool in self.tools:
+                if isinstance(tool, dict) and "name" in tool:
+                    resources[tool["name"]] = tool.get(
+                        "description", f"Tool: {tool['name']}"
+                    )
+
+            # If no resources from config, use default ones
+            if not resources:
+                resources = {
+                    "MessageWorker": "The worker responsible for interacting with the user with predefined responses",
+                    "RAGWorker": "Answer the user's questions based on the company's internal documentations, such as the policies, FAQs, and product information",
+                    "ProductWorker": "Access the company's database to retrieve information about products, such as availability, pricing, and specifications",
+                    "UserProfileWorker": "Access the company's database to retrieve information about the user's preferences and history",
+                }
+
+            # Format the best practice for the prompt
+            best_practice_json = json.dumps(steps, indent=2)
+            resources_json = json.dumps(resources, indent=2)
+
+            # Use the embed_resources_sys_prompt to pair steps with resources
+            prompt = self.prompt_manager.embed_resources_sys_prompt.format(
+                best_practice=best_practice_json, resources=resources_json
+            )
+
+            # Generate the response
+            response = self.model.invoke(prompt)
+            if hasattr(response, "content"):
+                response_text = response.content
+            else:
+                response_text = str(response)
+
+            # Parse the JSON response
+            json_start = response_text.find("[")
+            json_end = response_text.rfind("]") + 1
+            if json_start >= 0 and json_end > json_start:
+                json_str = response_text[json_start:json_end]
+                refined_steps = json.loads(json_str)
+
+                # Update the practice with the refined steps
+                practice["steps"] = refined_steps
+                log_context.info("Successfully refined practice with resource mappings")
+                return practice
+            else:
+                log_context.warning("Could not parse resource mapping response")
+                return practice
+
         except Exception as e:
             log_context.error(f"Error refining practice: {str(e)}")
             return practice

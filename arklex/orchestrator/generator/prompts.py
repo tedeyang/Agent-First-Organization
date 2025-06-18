@@ -57,11 +57,10 @@ Usage:
 """
 
 # Task Generation Prompt Template
-generate_tasks_sys_prompt = """The builder plans to create a chatbot designed to fulfill user's objectives. Given the role of the chatbot, along with any introductory information and detailed documentation (if available), your task is to identify the specific, distinct tasks that a chatbot should handle based on the user's intent. You are also given a list of existing tasks with user's intent. You must not return tasks that deal the same existing user's intent. All tasks should not overlap or depend on each other and must address different aspects of the user's goals. Ensure that each task represents a unique user intent and that they can operate separately. Moreover, you are given the instructions that you must follow. 
+generate_tasks_sys_prompt = """The builder plans to create a chatbot designed to fulfill user's objectives. 
+Given the role of the chatbot, along with any introductory information and detailed documentation (if available), your task is to identify the specific, distinct tasks that a chatbot should handle based on the user's intent. You are also given a list of existing tasks with user's intent. You must not return tasks that deal the same existing user's intent. All tasks should not overlap or depend on each other and must address different aspects of the user's goals. Ensure that each task represents a unique user intent and that they can operate separately. Moreover, you are given the instructions that you must follow.
 
-For each task, break it down into clear, actionable steps. Each step should have a concise and meaningful description that explains exactly what should be done, using the context of the task and the documentation provided. Do not use generic placeholders like 'Step description'.
-
-Return the response in JSON format.
+Return the response in JSON format with only the high-level tasks. Do not break down tasks into steps at this stage.
 
 For Example:
 
@@ -140,22 +139,11 @@ Answer:
 [
     {{
         "intent": "User want to do product search and discovery",
-        "task": "Provide help in Product Search and Discovery",
-        "steps": [
-            {{"task": "Ask the user what type of product they are looking for and any specific preferences.", "description": "Prompt the user to specify the product category, brand, or features they are interested in."}},
-            {{"task": "Search the product database for matching items.", "description": "Use the internal product database to find items that match the user's criteria."}},
-            {{"task": "Present the search results to the user.", "description": "Display a list of matching products with key details such as price, rating, and availability."}},
-            {{"task": "Ask if the user wants to refine the search or see more options.", "description": "Offer the user the ability to filter or sort the results further, or to view additional products."}}
-        ]
+        "task": "Provide help in Product Search and Discovery"
     }},
     {{
         "intent": "User ask for billing and payment support",
-        "task": "Provide help in billing and payment support",
-        "steps": [
-            {{"task": "Ask the user to describe their billing or payment issue.", "description": "Prompt the user to provide details about the billing or payment problem they are experiencing."}},
-            {{"task": "Retrieve the user's recent transactions.", "description": "Access the user's transaction history to identify the relevant order or payment."}},
-            {{"task": "Provide guidance or solutions based on the issue.", "description": "Offer step-by-step instructions or connect the user to a support agent if the issue cannot be resolved automatically."}}
-        ]
+        "task": "Provide help in billing and payment support"
     }}
 ]
 ```
@@ -713,4 +701,7 @@ class PromptManager:
         self.generate_tasks_sys_prompt = generate_tasks_sys_prompt
         self.generate_reusable_tasks_sys_prompt = generate_reusable_tasks_sys_prompt
         self.check_best_practice_sys_prompt = check_best_practice_sys_prompt
+        self.generate_best_practice_sys_prompt = generate_best_practice_sys_prompt
+        self.embed_resources_sys_prompt = embed_resources_sys_prompt
+        self.embed_builder_obj_sys_prompt = embed_builder_obj_sys_prompt
         self.task_intents_prediction_prompt = task_intents_prediction_prompt
