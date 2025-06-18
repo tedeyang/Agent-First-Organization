@@ -86,12 +86,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--llm-provider", type=str, default=MODEL["llm_provider"], choices=LLM_PROVIDERS
     )
-    parser.add_argument(
-        "--log-level",
-        type=str,
-        default="WARNING",
-        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-    )
     args = parser.parse_args()
 
     # Set up environment variables and model configuration
