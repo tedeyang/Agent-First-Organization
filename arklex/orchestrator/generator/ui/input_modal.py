@@ -77,8 +77,8 @@ class InputModal(Screen):
         """
         if event.button.id == "submit":
             self.result = self.query_one("#input-field", Input).value
-            # logger.debug(f"InputModal result: {self.result}")
+            # log_context.debug(f"InputModal result: {self.result}")
         if self.callback:
             self.callback(self.result, self.node)
-        log_context.debug(f"InputModal result: {self.result}")
+        # log_context.debug(f"InputModal result: {self.result}")
         self.app.pop_screen()  # Close modal

@@ -516,17 +516,18 @@ Answer with only 'yes' or 'no'"""
 
         # found_records, relevant_records = stm.retrieve_records(text)
 
-        # logger.info(f"Found Records: {found_records}")
+        # log_context.info(f"Found Records: {found_records}")
         # if found_records:
-        #     logger.info(
-        #         f"Relevant Records: {[r.personalized_intent for r in relevant_records]}"
+        #     log_context.info(
+        #         f"Relevant Records: {[r.personalized_intent for r in relevant_records]}",
+        #         extra={"context": {"records": relevant_records}},
         #     )
 
         # found_intent, relevant_intent = stm.retrieve_intent(text)
 
-        # logger.info(f"Found Intent: {found_intent}")
+        # log_context.info(f"Found Intent: {found_intent}")
         # if found_intent:
-        #     logger.info(f"Relevant Intent: {relevant_intent}")
+        #     log_context.info(f"Relevant Intent: {relevant_intent}")
 
         # if found_records:
         #     message_state.relevant_records = relevant_records
