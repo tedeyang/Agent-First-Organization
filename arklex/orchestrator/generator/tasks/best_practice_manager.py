@@ -119,14 +119,26 @@ class BestPracticeManager:
         Returns:
             List[Dict[str, Any]]: List of generated best practices
         """
+        log_context.info(
+            f"    📋 Creating practice definitions for {len(tasks)} tasks..."
+        )
         practice_definitions = self._generate_practice_definitions(tasks)
-        log_context.info(f"Generated {len(practice_definitions)} practice definitions")
+        log_context.info(
+            f"    ✅ Generated {len(practice_definitions)} practice definitions"
+        )
+
+        log_context.info("    🔍 Validating practice definitions...")
         validated_practices = self._validate_practices(practice_definitions)
-        log_context.info(f"Validated {len(validated_practices)} practices")
+        log_context.info(f"    ✅ Validated {len(validated_practices)} practices")
+
+        log_context.info("    📂 Categorizing practices by type...")
         self._categorize_practices(validated_practices)
-        log_context.info("Categorized practices")
+        log_context.info("    ✅ Categorized practices")
+
+        log_context.info("    ⚡ Optimizing practices for efficiency...")
         optimized_practices = self._optimize_practices(validated_practices)
-        log_context.info("Optimized practices")
+        log_context.info("    ✅ Optimized practices")
+
         return optimized_practices
 
     def finetune_best_practice(

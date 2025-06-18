@@ -122,6 +122,9 @@ class TaskGenerator:
         if existing_tasks is None:
             existing_tasks = []
 
+        log_context.info(
+            "    📝 Step 1: Processing objective and generating high-level tasks..."
+        )
         # Step 1: Generate high-level tasks
         objective = getattr(self, "objective", intro)
         docs = intro
@@ -131,25 +134,40 @@ class TaskGenerator:
 
         # Step 2: Check which tasks need further breakdown
         high_level_tasks = processed_objective.get("tasks", [])
+        log_context.info(f"    📋 Generated {len(high_level_tasks)} high-level tasks")
+
+        log_context.info("    🔍 Step 2: Analyzing tasks for breakdown requirements...")
         tasks_with_steps = []
 
-        for task in high_level_tasks:
+        for i, task in enumerate(high_level_tasks, 1):
             task_name = task.get("task", "")
             task_intent = task.get("intent", "")
+
+            log_context.info(
+                f"      🔍 Analyzing task {i}/{len(high_level_tasks)}: {task_name}"
+            )
 
             # Check if this task needs further breakdown
             needs_breakdown = self._check_task_breakdown(task_name, task_intent)
 
             if needs_breakdown:
+                log_context.info(f"      📝 Generating detailed steps for: {task_name}")
                 # Step 3: Generate steps for tasks that need breakdown
                 steps = self._generate_task_steps(task_name, task_intent)
                 task["steps"] = steps
+                log_context.info(
+                    f"      ✅ Generated {len(steps)} steps for: {task_name}"
+                )
             else:
+                log_context.info(f"      ✅ Task is actionable: {task_name}")
                 # Task is already actionable, create a simple step
                 task["steps"] = [{"task": f"Execute {task_name}"}]
 
             tasks_with_steps.append(task)
 
+        log_context.info(
+            "    🏗️ Step 3: Converting to task definitions and validating..."
+        )
         # Convert to task definitions and validate
         task_definitions = self._convert_to_task_definitions(tasks_with_steps)
         tasks = []
@@ -158,8 +176,12 @@ class TaskGenerator:
             task_dict["id"] = f"task_{i + 1}"
             tasks.append(task_dict)
 
+        log_context.info("    ✅ Validating and building task hierarchy...")
         validated_tasks = self._validate_tasks(tasks)
         self._build_hierarchy(validated_tasks)
+        log_context.info(
+            f"    🎉 Successfully generated {len(validated_tasks)} validated tasks"
+        )
         return validated_tasks
 
     def add_provided_tasks(
