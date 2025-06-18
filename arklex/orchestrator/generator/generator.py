@@ -24,7 +24,7 @@ from .core import Generator
 
 # Make UI components optional to avoid dependency issues
 try:
-    pass
+    from .ui import TaskEditorApp, InputModal
 
     _UI_AVAILABLE = True
     _UI_EXPORTS = ["TaskEditorApp", "InputModal"]
