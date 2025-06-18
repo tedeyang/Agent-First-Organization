@@ -88,6 +88,21 @@ class TaskGraphFormatter:
         self._nodes = nodes
         self._edges = edges
 
+    def _find_worker_id_by_name(self, worker_name: str) -> str:
+        """Find the actual worker ID by name from the config.
+
+        Args:
+            worker_name (str): The name of the worker to find
+
+        Returns:
+            str: The worker ID if found, otherwise the worker name as fallback
+        """
+        if self._workers:
+            for worker in self._workers:
+                if isinstance(worker, dict) and worker.get("name") == worker_name:
+                    return worker.get("id", worker_name)
+        return worker_name
+
     def format_task_graph(self, tasks: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Format a task graph using config nodes/edges if present, otherwise generate from tasks."""
         if self._nodes is not None and self._edges is not None:
@@ -119,9 +134,10 @@ class TaskGraphFormatter:
 
         # Add start node if there are tasks
         if tasks:
+            message_worker_id = self._find_worker_id_by_name("MessageWorker")
             start_node = {
                 "resource": {
-                    "id": "start_message_worker",
+                    "id": message_worker_id,
                     "name": "MessageWorker",
                 },
                 "attribute": {
@@ -143,9 +159,11 @@ class TaskGraphFormatter:
             resource = task.get("resource", {})
             # Ensure we use a valid worker name, defaulting to MessageWorker if not specified
             resource_name = resource.get("name", "MessageWorker")
+            # Find the actual worker ID from config
+            resource_id = self._find_worker_id_by_name(resource_name)
             node = {
                 "resource": {
-                    "id": task.get("task_id", str(node_id_counter)),
+                    "id": resource_id,
                     "name": resource_name,
                 },
                 "attribute": {
@@ -175,12 +193,12 @@ class TaskGraphFormatter:
                 # Handle both string and dictionary resource formats
                 if isinstance(resource, str):
                     # If resource is a string, create a dictionary with id and name
-                    resource_id = resource
+                    resource_id = self._find_worker_id_by_name(resource)
                     resource_name = resource
                 else:
                     # If resource is a dictionary, extract id and name
-                    resource_id = resource.get("id", "step_message_worker")
                     resource_name = resource.get("name", "MessageWorker")
+                    resource_id = self._find_worker_id_by_name(resource_name)
 
                 step_node = {
                     "resource": {

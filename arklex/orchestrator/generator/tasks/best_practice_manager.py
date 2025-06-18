@@ -170,15 +170,13 @@ class BestPracticeManager:
             for worker in self.workers:
                 if isinstance(worker, dict) and "name" in worker:
                     resources[worker["name"]] = worker.get(
-                        "description", f"Worker: {worker['name']}"
+                        "description", f"{worker['name']}"
                     )
 
             # Add tools to resources
             for tool in self.tools:
                 if isinstance(tool, dict) and "name" in tool:
-                    resources[tool["name"]] = tool.get(
-                        "description", f"Tool: {tool['name']}"
-                    )
+                    resources[tool["name"]] = tool.get("description", f"{tool['name']}")
 
             # If no resources from config, use default ones
             if not resources:

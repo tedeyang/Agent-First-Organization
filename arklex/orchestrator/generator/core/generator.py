@@ -423,18 +423,22 @@ class Generator:
             log_context.info("👤 Starting human-in-the-loop refinement...")
             try:
                 hitl_result = TaskEditorApp(finetuned_tasks).run()
-                if hitl_result is not None:
-                    log_context.info("  🔄 Applying human refinements...")
-                    # Apply additional refinement if human-in-the-loop is used
-                    for idx_t, task in enumerate(hitl_result):
-                        if idx_t < len(best_practices):
-                            refined_task = best_practice_manager.finetune_best_practice(
-                                best_practices[idx_t], task
-                            )
-                            finetuned_tasks[idx_t]["steps"] = refined_task.get(
-                                "steps", task.get("steps", [])
-                            )
-                    log_context.info("✅ Human-in-the-loop refinement completed")
+                log_context.info(
+                    "  🔄 Applying finetune_best_practice after task editor..."
+                )
+                # Always apply finetune_best_practice after task editor, regardless of user edits
+                tasks_to_process = (
+                    hitl_result if hitl_result is not None else finetuned_tasks
+                )
+                for idx_t, task in enumerate(tasks_to_process):
+                    if idx_t < len(best_practices):
+                        refined_task = best_practice_manager.finetune_best_practice(
+                            best_practices[idx_t], task
+                        )
+                        finetuned_tasks[idx_t]["steps"] = refined_task.get(
+                            "steps", task.get("steps", [])
+                        )
+                log_context.info("✅ Task editor and finetune_best_practice completed")
             except Exception as e:
                 log_context.error(f"❌ Error in human-in-the-loop refinement: {str(e)}")
 
@@ -448,6 +452,15 @@ class Generator:
         task_graph = task_graph_formatter.format_task_graph(finetuned_tasks)
 
         # Add reusable tasks to the task graph output
+        # Always add the nested_graph reusable component
+        nested_graph_reusable = {
+            "resource": {"id": "nested_graph", "name": "NestedGraph"},
+            "limit": 1,
+        }
+        if not self.reusable_tasks:
+            self.reusable_tasks = {}
+        self.reusable_tasks["nested_graph"] = nested_graph_reusable
+
         if self.reusable_tasks:
             log_context.info("  📦 Adding reusable tasks to graph...")
             task_graph["reusable_tasks"] = self.reusable_tasks
