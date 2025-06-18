@@ -450,14 +450,41 @@ class Generator:
                 tasks_to_process = (
                     hitl_result if hitl_result is not None else finetuned_tasks
                 )
-                for idx_t, task in enumerate(tasks_to_process):
-                    if idx_t < len(best_practices):
-                        refined_task = best_practice_manager.finetune_best_practice(
-                            best_practices[idx_t], task
+
+                if tasks_to_process is not None and len(tasks_to_process) > 0:
+                    # Process each task in tasks_to_process individually
+                    processed_tasks = []
+                    for idx_t, task in enumerate(tasks_to_process):
+                        # Find a matching best practice if available
+                        # Use the task's index if it's within bounds, otherwise use the first available
+                        best_practice_idx = (
+                            min(idx_t, len(best_practices) - 1) if best_practices else 0
                         )
-                        finetuned_tasks[idx_t]["steps"] = refined_task.get(
-                            "steps", task.get("steps", [])
-                        )
+
+                        if best_practices and best_practice_idx < len(best_practices):
+                            log_context.info(
+                                f"  🔗 Refining task {idx_t + 1}/{len(tasks_to_process)}: {task.get('name', 'Unknown')}"
+                            )
+                            refined_task = best_practice_manager.finetune_best_practice(
+                                best_practices[best_practice_idx], task
+                            )
+                            # Update the task with the refined steps that include resource mappings
+                            task["steps"] = refined_task.get(
+                                "steps", task.get("steps", [])
+                            )
+
+                        processed_tasks.append(task)
+
+                    # Replace finetuned_tasks with the processed tasks from UI
+                    finetuned_tasks = processed_tasks
+                    log_context.info(
+                        f"✅ Processed {len(processed_tasks)} tasks from UI"
+                    )
+                else:
+                    log_context.info(
+                        "⚠️ No tasks returned from UI, using original finetuned tasks"
+                    )
+
                 log_context.info("✅ Task editor and finetune_best_practice completed")
             except Exception as e:
                 log_context.error(f"❌ Error in human-in-the-loop refinement: {str(e)}")
