@@ -1,9 +1,12 @@
+"""Send predefined SMS tool for Twilio integration."""
+
 import logging
-from typing import Any
+from typing import Any, Dict, Optional
+from arklex.utils.logging_utils import LogContext
 from arklex.env.tools.tools import register_tool
 from twilio.rest import Client as TwilioClient
 
-logger = logging.getLogger(__name__)
+log_context = LogContext(__name__)
 
 description = "Send a predefined SMS message"
 
@@ -19,23 +22,20 @@ def send_predefined_sms(**kwargs: Any) -> str:
     Args:
         **kwargs: Arguments including message, Twilio credentials and phone numbers
     """
-    logger.info(
-        f"checking for twilio client: {kwargs.get('twilio_client')}, phone_no_to: {kwargs.get('phone_no_to')}, phone_no_from: {kwargs.get('phone_no_from')}"
-    )
-
-    if kwargs.get("twilio_client"):
-        twilio_client = kwargs.get("twilio_client")
-    else:
-        twilio_client = TwilioClient(kwargs.get("sid"), kwargs.get("auth_token"))
-
+    twilio_client = TwilioClient(kwargs.get("sid"), kwargs.get("auth_token"))
     phone_no_to = kwargs.get("phone_no_to")
     phone_no_from = kwargs.get("phone_no_from")
-    message_text = kwargs.get("message")
-
-    # Send the message
-    message = twilio_client.messages.create(
-        body=message_text, from_=phone_no_from, to=phone_no_to
+    predefined_message = kwargs.get("predefined_message")
+    log_context.info(
+        f"Sending predefined SMS to {phone_no_to} from {phone_no_from}: {predefined_message}"
     )
-
-    logger.info(f"Predefined message sent: {message.sid}")
-    return f"SMS sent"
+    try:
+        message = twilio_client.messages.create(
+            body=predefined_message,
+            from_=phone_no_from,
+            to=phone_no_to,
+        )
+        log_context.info(f"Predefined message sent: {message.sid}")
+        return f"Predefined SMS sent successfully. SID: {message.sid}"
+    except Exception as e:
+        return f"Error sending predefined SMS: {str(e)}"

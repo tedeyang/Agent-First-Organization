@@ -11,11 +11,14 @@ Key Features:
 - Quality assurance and validation
 """
 
+import json
 import logging
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 
-logger = logging.getLogger(__name__)
+from arklex.utils.logging_utils import LogContext
+
+log_context = LogContext(__name__)
 
 
 @dataclass
@@ -107,13 +110,13 @@ class BestPracticeManager:
             List[Dict[str, Any]]: List of generated best practices
         """
         practice_definitions = self._generate_practice_definitions(tasks)
-        logger.info(f"Generated {len(practice_definitions)} practice definitions")
+        log_context.info(f"Generated {len(practice_definitions)} practice definitions")
         validated_practices = self._validate_practices(practice_definitions)
-        logger.info(f"Validated {len(validated_practices)} practices")
+        log_context.info(f"Validated {len(validated_practices)} practices")
         self._categorize_practices(validated_practices)
-        logger.info("Categorized practices")
+        log_context.info("Categorized practices")
         optimized_practices = self._optimize_practices(validated_practices)
-        logger.info("Optimized practices")
+        log_context.info("Optimized practices")
         return optimized_practices
 
     def finetune_best_practice(
@@ -143,14 +146,14 @@ class BestPracticeManager:
                 category=practice.get("category", "refined"),
             )
             if not self._validate_practice_definition(practice_def):
-                logger.warning("Invalid practice definition")
+                log_context.warning("Invalid practice definition")
                 return practice
             optimized_steps = self._optimize_steps(practice_def.steps)
-            logger.info("Optimized practice steps")
+            log_context.info("Optimized practice steps")
             practice["steps"] = optimized_steps
             return practice
         except Exception as e:
-            logger.error(f"Error refining practice: {str(e)}")
+            log_context.error(f"Error refining practice: {str(e)}")
             return practice
 
     def _generate_practice_definitions(
@@ -293,7 +296,7 @@ class BestPracticeManager:
             if "step_id" not in step:
                 step["step_id"] = f"step_{len(optimized_steps) + 1}"
             if "description" not in step or not step["description"].strip():
-                logger.warning(f"Step is missing a meaningful description: {step}")
+                log_context.warning(f"Step is missing a meaningful description: {step}")
                 raise ValueError(
                     "Each step must have a meaningful, non-empty description."
                 )

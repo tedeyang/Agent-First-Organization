@@ -1,21 +1,18 @@
 """Edge formatting component for the Arklex framework.
 
-This module provides the EdgeFormatter class that handles formatting and
-structuring of edges in task graphs. It ensures consistent edge representation
-and proper visualization of task relationships.
-
-Key Features:
-- Edge structure formatting
-- Edge validation
-- Support for different edge types
-- Error handling
+This module provides the EdgeFormatter class that handles formatting of
+task graph edges.
 """
 
-from typing import Dict, Any, List, Optional, Union
-from datetime import datetime
+import json
 import logging
+from typing import Any, Dict, List, Optional, Union
+from datetime import datetime
 
-logger = logging.getLogger(__name__)
+from arklex.orchestrator.generator.formatting.node_formatter import NodeFormatter
+from arklex.utils.logging_utils import LogContext
+
+log_context = LogContext(__name__)
 
 
 class EdgeFormatter:

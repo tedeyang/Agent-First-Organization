@@ -4,13 +4,15 @@ This module provides a modal dialog interface for editing task and step descript
 It includes input validation and callback handling for user interactions.
 """
 
+import json
 import logging
 from textual.app import ComposeResult
 from textual.widgets import Input, Button, Static
 from textual.containers import Vertical, Horizontal
 from textual.screen import Screen
+from arklex.utils.logging_utils import LogContext
 
-logger = logging.getLogger(__name__)
+log_context = LogContext(__name__)
 
 
 class InputModal(Screen):
@@ -80,5 +82,5 @@ class InputModal(Screen):
             # logger.debug(f"InputModal result: {self.result}")
         if self.callback:
             self.callback(self.result, self.node)
-        logger.debug(f"InputModal result: {self.result}")
+        log_context.debug(f"InputModal result: {self.result}")
         self.app.pop_screen()  # Close modal

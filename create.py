@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 
 from langchain_openai import ChatOpenAI
 
-from arklex.utils.utils import init_logger
+from arklex.utils.logging_utils import LogContext
 from arklex.orchestrator.generator.generator import Generator
 from arklex.env.tools.RAG.build_rag import build_rag
 from arklex.env.tools.database.build_database import build_database
@@ -26,10 +26,7 @@ from arklex.utils.model_config import MODEL
 from arklex.utils.model_provider_config import LLM_PROVIDERS, PROVIDER_MAP
 from arklex.utils.loader import Loader
 
-logger = init_logger(
-    log_level=logging.INFO,
-    filename=os.path.join(os.path.dirname(__file__), "logs", "arklex.log"),
-)
+log_context = LogContext(__name__)
 load_dotenv()
 
 
@@ -83,7 +80,7 @@ def init_worker(args: argparse.Namespace) -> None:
 
     # Initialize FaissRAGWorker if specified in configuration
     if "FaissRAGWorker" in worker_names:
-        logger.info("Initializing FaissRAGWorker...")
+        log_context.info("Initializing FaissRAGWorker...")
         build_rag(args.output_dir, config["rag_docs"])
 
     # Initialize DataBaseWorker and related workers if specified
@@ -97,7 +94,7 @@ def init_worker(args: argparse.Namespace) -> None:
             "cancel_booking",
         )
     ):
-        logger.info("Initializing DataBaseWorker...")
+        log_context.info("Initializing DataBaseWorker...")
         build_database(args.output_dir)
 
 
@@ -167,7 +164,9 @@ def load_documents(
                         else:
                             raise ValueError(f"Unsupported document type: {doc_type}")
                     except Exception as e:
-                        logger.error(f"Error processing document {source}: {str(e)}")
+                        log_context.error(
+                            f"Error processing document {source}: {str(e)}"
+                        )
                         continue
 
     # Convert CrawledObjects to dictionaries
@@ -189,7 +188,7 @@ def main():
     args = parser.parse_args()
 
     # Set up logging
-    logger.setLevel(getattr(logging, args.log_level.upper()))
+    log_context.setLevel(getattr(logging, args.log_level.upper()))
 
     # Load config
     with open(args.config, "r") as f:
@@ -197,7 +196,7 @@ def main():
 
     # Load documents
     documents = load_documents(config)
-    logger.info(f"Loaded {len(documents)} documents")
+    log_context.info(f"Loaded {len(documents)} documents")
 
     # Instantiate model
     model = PROVIDER_MAP.get(MODEL["llm_provider"], ChatOpenAI)(
@@ -213,21 +212,21 @@ def main():
 
     # Generate task graph
     task_graph = generator.generate()
-    logger.info("Task graph generated successfully")
+    log_context.info("Task graph generated successfully")
 
     # Save the generated task graph
     taskgraph_filepath = generator.save_task_graph(task_graph)
-    logger.info(f"Task graph saved to {taskgraph_filepath}")
+    log_context.info(f"Task graph saved to {taskgraph_filepath}")
 
     # Build RAG if specified
     if "rag_docs" in config:
         build_rag(os.path.dirname(args.config), config["rag_docs"])
-        logger.info("RAG system built successfully")
+        log_context.info("RAG system built successfully")
 
     # Build database if specified
     if "database" in config:
         build_database(config["database"])
-        logger.info("Database built successfully")
+        log_context.info("Database built successfully")
 
 
 if __name__ == "__main__":

@@ -1,17 +1,22 @@
-"""Task editor UI component for the Arklex task graph generator.
+"""Task editor UI component for the Arklex framework.
 
-This module provides a text-based user interface for editing tasks and their steps.
-It supports adding, editing, and deleting tasks and steps in a tree structure.
+This module provides the TaskEditor class that handles the UI for editing
+task definitions.
 """
 
+import json
 import logging
+from typing import Any, Dict, List, Optional, Union
+
+from arklex.utils.logging_utils import LogContext
+
 from textual.app import App, ComposeResult
 from textual.widgets import Tree, Label
 from textual.widgets.tree import TreeNode
 
 from .input_modal import InputModal
 
-logger = logging.getLogger(__name__)
+log_context = LogContext(__name__)
 
 
 class TaskEditorApp(App):
@@ -200,4 +205,4 @@ class TaskEditorApp(App):
             self.tasks.append({"task_name": task_name, "steps": steps})
 
         log_message = f"Updated Tasks: {self.tasks}"
-        logger.debug(log_message)
+        log_context.debug(log_message)

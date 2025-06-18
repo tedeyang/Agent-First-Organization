@@ -11,11 +11,14 @@ Key Features:
 - Template categorization and organization
 """
 
+import json
 import logging
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 
-logger = logging.getLogger(__name__)
+from arklex.utils.logging_utils import LogContext
+
+log_context = LogContext(__name__)
 
 
 @dataclass
@@ -117,15 +120,15 @@ class ReusableTaskManager:
                     "parameters": {},
                 }
             ]
-        logger.info(f"Identified {len(patterns)} reusable patterns")
+        log_context.info(f"Identified {len(patterns)} reusable patterns")
         components = self._extract_components(patterns)
-        logger.info(f"Extracted {len(components)} common components")
+        log_context.info(f"Extracted {len(components)} common components")
         templates = self._create_templates(components)
-        logger.info(f"Created {len(templates)} templates")
+        log_context.info(f"Created {len(templates)} templates")
         validated_templates = self._validate_templates(templates)
-        logger.info(f"Validated {len(validated_templates)} templates")
+        log_context.info(f"Validated {len(validated_templates)} templates")
         self._categorize_templates(validated_templates)
-        logger.info("Categorized templates")
+        log_context.info("Categorized templates")
         return validated_templates
 
     def instantiate_template(
@@ -153,10 +156,10 @@ class ReusableTaskManager:
             if not self._validate_parameters(template, parameters):
                 raise ValueError(f"Invalid parameters for template: {template_id}")
             instance = self._create_instance(template, parameters)
-            logger.info(f"Created instance from template: {template_id}")
+            log_context.info(f"Created instance from template: {template_id}")
             return instance
         except Exception as e:
-            logger.error(f"Error instantiating template: {str(e)}")
+            log_context.error(f"Error instantiating template: {str(e)}")
             raise
 
     def _identify_patterns(self, tasks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

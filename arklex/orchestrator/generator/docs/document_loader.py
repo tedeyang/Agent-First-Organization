@@ -21,8 +21,9 @@ import hashlib
 from bs4 import BeautifulSoup
 
 from arklex.orchestrator.generator.docs.document_validator import DocumentValidator
+from arklex.utils.logging_utils import LogContext
 
-logger = logging.getLogger(__name__)
+log_context = LogContext(__name__)
 
 
 class DocumentLoader:

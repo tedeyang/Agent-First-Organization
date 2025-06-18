@@ -48,6 +48,7 @@ from arklex.orchestrator.generator.tasks import (
 )
 from arklex.orchestrator.generator.docs import DocumentLoader
 from arklex.orchestrator.generator.formatting import TaskGraphFormatter
+from arklex.utils.logging_utils import LogContext
 
 # Make UI components optional to avoid dependency issues
 try:
@@ -64,7 +65,7 @@ except ImportError:
             raise ImportError("UI components require 'textual' package to be installed")
 
 
-logger = logging.getLogger(__name__)
+log_context = LogContext(__name__)
 
 
 class Generator:
@@ -386,10 +387,12 @@ class Generator:
                             )
                         )
                 else:
-                    logger.warning("TaskEditorApp returned None, using original tasks")
+                    log_context.warning(
+                        "TaskEditorApp returned None, using original tasks"
+                    )
                     finetuned_best_practices = best_practices
             except Exception as e:
-                logger.error(f"Error in human-in-the-loop refinement: {str(e)}")
+                log_context.error(f"Error in human-in-the-loop refinement: {str(e)}")
                 finetuned_best_practices = best_practices
         else:
             finetuned_best_practices = best_practices

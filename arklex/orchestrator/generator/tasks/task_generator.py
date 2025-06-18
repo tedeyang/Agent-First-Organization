@@ -24,8 +24,9 @@ from arklex.orchestrator.generator.prompts import (
     task_intents_prediction_prompt,
 )
 from arklex.orchestrator.generator.prompts import PromptManager
+from arklex.utils.logging_utils import LogContext
 
-logger = logging.getLogger(__name__)
+log_context = LogContext(__name__)
 
 
 @dataclass
@@ -170,11 +171,11 @@ class TaskGenerator:
                 )
                 if self._validate_task_definition(task_def):
                     processed_tasks.append(task)
-                    logger.info(f"Added user-provided task: {task_def.name}")
+                    log_context.info(f"Added user-provided task: {task_def.name}")
                 else:
-                    logger.warning(f"Invalid user-provided task: {task_def.name}")
+                    log_context.warning(f"Invalid user-provided task: {task_def.name}")
             except Exception as e:
-                logger.error(f"Error processing user task: {str(e)}")
+                log_context.error(f"Error processing user task: {str(e)}")
                 continue
         return processed_tasks
 
@@ -234,12 +235,14 @@ class TaskGenerator:
             if json_start >= 0 and json_end > json_start:
                 json_str = response_text[json_start:json_end]
                 tasks_data = json.loads(json_str)
-                logger.info(f"Generated {len(tasks_data)} tasks from documentation")
+                log_context.info(
+                    f"Generated {len(tasks_data)} tasks from documentation"
+                )
             else:
-                logger.error("No valid JSON array found in response")
+                log_context.error("No valid JSON array found in response")
                 tasks_data = []
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse generated tasks: {e}")
+            log_context.error(f"Failed to parse generated tasks: {e}")
             tasks_data = []
         return {"tasks": tasks_data}
 
@@ -293,12 +296,14 @@ class TaskGenerator:
                 ):
                     json_str = response_text[json_start:json_end]
                     tasks_data = json.loads(json_str)
-                    logger.info(f"Generated {len(tasks_data)} tasks from documentation")
+                    log_context.info(
+                        f"Generated {len(tasks_data)} tasks from documentation"
+                    )
                 else:
-                    logger.error("No valid JSON array found in response")
+                    log_context.error("No valid JSON array found in response")
                     tasks_data = []
             except Exception as e:
-                logger.error(f"Failed to parse generated tasks: {e}")
+                log_context.error(f"Failed to parse generated tasks: {e}")
                 tasks_data = []
         task_definitions: List[TaskDefinition] = []
         for i, task_data in enumerate(tasks_data):
@@ -334,17 +339,17 @@ class TaskGenerator:
             if hasattr(task, "__dataclass_fields__"):
                 task = self._convert_to_dict(task)
             if not all(field in task for field in ["name", "description", "steps"]):
-                logger.warning(f"Task missing required fields: {task}")
+                log_context.warning(f"Task missing required fields: {task}")
                 continue
             if not isinstance(task["steps"], list):
-                logger.warning(f"Task steps must be a list: {task}")
+                log_context.warning(f"Task steps must be a list: {task}")
                 continue
             if task["steps"] and isinstance(task["steps"][0], str):
                 task["steps"] = [{"task": step} for step in task["steps"]]
             if not all(
                 isinstance(step, dict) and "task" in step for step in task["steps"]
             ):
-                logger.warning(
+                log_context.warning(
                     f"Task steps must be dictionaries with 'task' key: {task}"
                 )
                 continue
@@ -410,7 +415,7 @@ class TaskGenerator:
         for task in tasks:
             task_id = task.get("id") or task.get("task_id")
             if not task_id:
-                logger.warning(f"Task missing 'id' or 'task_id': {task}")
+                log_context.warning(f"Task missing 'id' or 'task_id': {task}")
                 continue
             graph[task_id] = {
                 "task": task,

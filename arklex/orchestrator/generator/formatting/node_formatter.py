@@ -6,9 +6,9 @@ nodes in the task graph.
 
 from typing import Dict, Any, List, Optional
 from datetime import datetime
-import logging
+from arklex.utils.logging_utils import LogContext
 
-logger = logging.getLogger(__name__)
+log_context = LogContext(__name__)
 
 
 class NodeFormatter:
