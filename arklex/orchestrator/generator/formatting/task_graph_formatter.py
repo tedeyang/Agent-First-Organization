@@ -132,6 +132,9 @@ class TaskGraphFormatter:
         step_parent_lookup = {}  # step node_id -> parent task node_id
         step_nodes = []
 
+        # Create a local mapping to avoid modifying input tasks in-place
+        task_node_mapping = {}  # task index -> node_id
+
         # Add start node if there are tasks
         if tasks:
             message_worker_id = self._find_worker_id_by_name("MessageWorker")
@@ -155,7 +158,7 @@ class TaskGraphFormatter:
             start_node_id = None
 
         # First pass: create nodes for tasks
-        for task in tasks:
+        for task_idx, task in enumerate(tasks):
             resource = task.get("resource", {})
             # Ensure we use a valid worker name, defaulting to MessageWorker if not specified
             resource_name = resource.get("name", "MessageWorker")
@@ -177,17 +180,20 @@ class TaskGraphFormatter:
             if "type" in task:
                 node["type"] = task["type"]
             nodes.append([str(node_id_counter), node])
-            node_lookup[task.get("task_id", str(node_id_counter))] = str(
-                node_id_counter
-            )
-            task["_node_id"] = str(node_id_counter)  # for step parent lookup
+
+            # Use task_id if available, otherwise use a unique identifier based on task index
+            task_identifier = task.get("task_id", f"task_{task_idx}")
+            node_lookup[task_identifier] = str(node_id_counter)
+            task_node_mapping[task_idx] = str(node_id_counter)  # Store mapping locally
             node_id_counter += 1
 
         # Second pass: create nodes for steps
-        for task in tasks:
+        for task_idx, task in enumerate(tasks):
             steps = task.get("steps", [])
+            task_identifier = task.get("task_id", f"task_{task_idx}")
+
             for idx, step in enumerate(steps):
-                step_id = f"{task.get('task_id', 'task')}_step{idx}"
+                step_id = f"{task_identifier}_step{idx}"
                 resource = step.get("resource", {})
 
                 # Handle both string and dictionary resource formats
@@ -213,13 +219,16 @@ class TaskGraphFormatter:
                 }
                 nodes.append([str(node_id_counter), step_node])
                 node_lookup[step_id] = str(node_id_counter)
-                step_parent_lookup[str(node_id_counter)] = task["_node_id"]
-                step_nodes.append((str(node_id_counter), step_id, task["_node_id"]))
+                step_parent_lookup[str(node_id_counter)] = task_node_mapping[task_idx]
+                step_nodes.append(
+                    (str(node_id_counter), step_id, task_node_mapping[task_idx])
+                )
                 node_id_counter += 1
 
         # Edges: dependencies (task-to-task)
-        for task in tasks:
-            this_node_id = task["_node_id"]
+        for task_idx, task in enumerate(tasks):
+            this_node_id = task_node_mapping[task_idx]
+            task_identifier = task.get("task_id", f"task_{task_idx}")
             dependencies = task.get("dependencies", [])
             if dependencies:
                 for dep in dependencies:
@@ -248,13 +257,15 @@ class TaskGraphFormatter:
                 edges.append([start_node_id, this_node_id, edge_data])
 
         # Edges: task-to-step
-        for task in tasks:
+        for task_idx, task in enumerate(tasks):
             steps = task.get("steps", [])
             if not steps:
                 continue
 
+            task_identifier = task.get("task_id", f"task_{task_idx}")
+
             # Connect first step to parent task
-            first_step_node_id = node_lookup[f"{task.get('task_id', 'task')}_step0"]
+            first_step_node_id = node_lookup[f"{task_identifier}_step0"]
             edge_data = {
                 "intent": None,  # Use None for sequential operations instead of "step"
                 "attribute": {
@@ -264,12 +275,12 @@ class TaskGraphFormatter:
                     "sample_utterances": [],
                 },
             }
-            edges.append([task["_node_id"], first_step_node_id, edge_data])
+            edges.append([task_node_mapping[task_idx], first_step_node_id, edge_data])
 
             # Connect subsequent steps sequentially
             for i in range(len(steps) - 1):
-                current_step_id = f"{task.get('task_id', 'task')}_step{i}"
-                next_step_id = f"{task.get('task_id', 'task')}_step{i + 1}"
+                current_step_id = f"{task_identifier}_step{i}"
+                next_step_id = f"{task_identifier}_step{i + 1}"
                 current_step_node_id = node_lookup[current_step_id]
                 next_step_node_id = node_lookup[next_step_id]
 
