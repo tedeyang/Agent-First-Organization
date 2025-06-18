@@ -354,8 +354,18 @@ class Generator:
         self.instructions = self._load_multiple_instruction_documents(
             doc_loader, self.instruction_docs
         )
+
+        # Convert lists to strings for TaskGenerator compatibility
+        # TaskGenerator expects documents and instructions to be strings, not lists
+        if isinstance(self.documents, list):
+            self.documents = "\n\n".join([str(doc) for doc in self.documents])
+        if isinstance(self.instructions, list):
+            self.instructions = "\n\n".join(
+                [str(instruction) for instruction in self.instructions]
+            )
+
         log_context.info(
-            f"✅ Loaded {len(self.documents)} documents and {len(self.instructions)} instructions"
+            f"✅ Loaded {len(self.task_docs)} documents and {len(self.instruction_docs)} instructions"
         )
 
         # Step 2: Generate tasks

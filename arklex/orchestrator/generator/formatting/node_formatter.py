@@ -69,7 +69,7 @@ class NodeFormatter:
             "attribute": {
                 "value": task.get("description", ""),
                 "task": task.get("name", ""),
-                "directed": False,
+                "directed": self._default_directed,
             },
         }
 
