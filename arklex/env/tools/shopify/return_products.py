@@ -150,7 +150,7 @@ def return_products(return_order_id: str, **kwargs: Any) -> str:
                     func_name, ShopifyExceptionPrompt.PRODUCT_RETURN_ERROR_PROMPT
                 )
 
-    except Exception as e:
+    except Exception:
         raise ToolExecutionError(
             func_name, ShopifyExceptionPrompt.PRODUCT_RETURN_ERROR_PROMPT
         )

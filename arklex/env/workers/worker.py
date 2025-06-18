@@ -101,7 +101,7 @@ class BaseWorker(ABC):
             if response_state.status == StatusEnum.INCOMPLETE:
                 response_state.status = StatusEnum.COMPLETE
             return response_state
-        except Exception as e:
+        except Exception:
             log_context.error(traceback.format_exc())
             msg_state.status = StatusEnum.INCOMPLETE
             return msg_state

@@ -677,7 +677,7 @@ def get_label(attribute, config):
                 }
             ]
             break
-        except Exception as e:
+        except Exception:
             attempt += 1
 
     return label, valid

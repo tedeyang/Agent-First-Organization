@@ -62,7 +62,7 @@ def free_busy(time_min: str, time_max: str, timezone: str, **kwargs: Any) -> str
 
         # Build the Google Calendar API service
         service = build("calendar", "v3", credentials=credentials)
-    except Exception as e:
+    except Exception:
         return AUTH_ERROR
 
     # Build the Google Calendar API service

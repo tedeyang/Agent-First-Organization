@@ -92,7 +92,7 @@ def create_event(
 
         # Build the Google Calendar API service
         service = build("calendar", "v3", credentials=credentials)
-    except Exception as e:
+    except Exception:
         return AUTH_ERROR
 
     # Specify the calendar ID (use 'primary' or the specific calendar's ID)
@@ -111,7 +111,7 @@ def create_event(
         # Convert the end time back to ISO 8601 format
         end_time = end_time_obj.isoformat()
 
-    except Exception as e:
+    except Exception:
         return DATETIME_ERROR
 
     try:

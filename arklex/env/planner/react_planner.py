@@ -421,7 +421,7 @@ class ReactPlanner(DefaultPlanner):
             else:
                 n_retrievals: int = NUM_STEPS_TO_NUM_RETRIEVALS(n_steps)
 
-        except Exception as e:
+        except Exception:
             valid_summary = False
 
         if not valid_summary:
