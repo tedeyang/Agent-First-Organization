@@ -343,39 +343,53 @@ class Generator:
             Dict[str, Any]: The generated task graph
         """
         # Step 1: Load documentation and instructions
+        log_context.info("📚 Loading documentation and instructions...")
         doc_loader = self._initialize_document_loader()
         self.documents = self._load_multiple_task_documents(doc_loader, self.task_docs)
         self.instructions = self._load_multiple_instruction_documents(
             doc_loader, self.instruction_docs
         )
+        log_context.info(
+            f"✅ Loaded {len(self.documents)} documents and {len(self.instructions)} instructions"
+        )
 
         # Step 2: Generate tasks
+        log_context.info("🎯 Generating tasks from objectives and documentation...")
         task_generator = self._initialize_task_generator()
 
         # Add tasks provided by users
         if self.user_tasks:
+            log_context.info(f"📋 Adding {len(self.user_tasks)} user-provided tasks...")
             provided_tasks = task_generator.add_provided_tasks(
                 self.user_tasks, self.intro
             )
             self.tasks.extend(provided_tasks)
+            log_context.info(f"✅ Added {len(provided_tasks)} user tasks")
 
         # Generate additional tasks
+        log_context.info("🤖 Generating additional tasks using AI...")
         generated_tasks = task_generator.generate_tasks(self.intro, self.tasks)
         self.tasks.extend(generated_tasks)
+        log_context.info(f"✅ Generated {len(generated_tasks)} additional tasks")
 
         # Step 3: Generate reusable tasks if enabled
         if self.allow_nested_graph:
+            log_context.info("🔄 Generating reusable tasks...")
             reusable_task_manager = self._initialize_reusable_task_manager()
             self.reusable_tasks = reusable_task_manager.generate_reusable_tasks(
                 self.tasks
             )
+            log_context.info(f"✅ Generated {len(self.reusable_tasks)} reusable tasks")
 
         # Step 4: Generate best practices
+        log_context.info("📖 Generating best practices for task execution...")
         best_practice_manager = self._initialize_best_practice_manager()
         best_practices = best_practice_manager.generate_best_practices(self.tasks)
+        log_context.info(f"✅ Generated {len(best_practices)} best practices")
 
         # Step 5: Apply resource pairing to all tasks (finetune_best_practice)
         # This is crucial to pair steps with resources from the config
+        log_context.info("🔧 Pairing tasks with available resources...")
         finetuned_tasks = []
         for i, task in enumerate(self.tasks):
             if i < len(best_practices):
@@ -385,9 +399,11 @@ class Generator:
                 # Update the task with the finetuned steps that include resource mappings
                 task["steps"] = finetuned_task.get("steps", task.get("steps", []))
             finetuned_tasks.append(task)
+        log_context.info(f"✅ Paired {len(finetuned_tasks)} tasks with resources")
 
         # Step 6: Refine best practices through human-in-the-loop if enabled
         if self.interactable_with_user and UI_AVAILABLE:
+            log_context.info("👤 Starting human-in-the-loop refinement...")
             try:
                 hitl_result = TaskEditorApp(finetuned_tasks).run()
                 if hitl_result is not None:
@@ -400,10 +416,12 @@ class Generator:
                             finetuned_tasks[idx_t]["steps"] = refined_task.get(
                                 "steps", task.get("steps", [])
                             )
+                    log_context.info("✅ Human-in-the-loop refinement completed")
             except Exception as e:
-                log_context.error(f"Error in human-in-the-loop refinement: {str(e)}")
+                log_context.error(f"❌ Error in human-in-the-loop refinement: {str(e)}")
 
         # Step 7: Format the final task graph
+        log_context.info("📊 Formatting final task graph...")
         task_graph_formatter = self._initialize_task_graph_formatter()
 
         # Format the final task graph with finetuned tasks (including resource mappings)
@@ -412,7 +430,11 @@ class Generator:
         # Add reusable tasks to the task graph output
         if self.reusable_tasks:
             task_graph["reusable_tasks"] = self.reusable_tasks
+            log_context.info(
+                f"📦 Added {len(self.reusable_tasks)} reusable tasks to graph"
+            )
 
+        log_context.info("🎉 Task graph generation completed successfully")
         return task_graph
 
     def save_task_graph(self, task_graph: Dict[str, Any]) -> str:

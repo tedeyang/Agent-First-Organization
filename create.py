@@ -12,6 +12,7 @@ import logging
 import os
 import tempfile
 import zipfile
+import time
 from typing import Any, Dict, List, Optional, Set
 
 from dotenv import load_dotenv
@@ -113,6 +114,7 @@ def load_documents(
     loader = Loader()
     all_docs = []
     total_docs_processed = 0
+    start_time = time.time()
 
     # Process all document types consistently
     doc_types = ["instructions", "task_docs", "rag_docs"]
@@ -120,34 +122,40 @@ def load_documents(
         if doc_type in config:
             docs = config[doc_type]
             if isinstance(docs, list):
-                log_context.info(f"Processing {len(docs)} {doc_type} documents...")
+                log_context.info(
+                    f"📚 Processing {len(docs)} {doc_type.replace('_', ' ')}..."
+                )
                 for i, doc in enumerate(docs, 1):
                     source = doc.get("source")
-                    doc_type = doc.get(
-                        "type", "text"
-                    )  # Default to text if type not specified
+                    doc_type_name = doc.get("type", "text")
                     num_docs = doc.get("num", 1)
 
-                    log_context.info(
-                        f"Processing {doc_type} document {i}/{len(docs)}: {source}"
-                    )
+                    log_context.info(f"  📄 Document {i}/{len(docs)}: {source}")
 
                     try:
-                        if doc_type == "url":
+                        if doc_type_name == "url":
                             log_context.info(
-                                f"  Crawling {num_docs} URLs from {source}"
+                                f"    🌐 Discovering up to {num_docs} URLs..."
                             )
                             urls = loader.get_all_urls(source, num_docs)
+                            log_context.info(
+                                f"    📥 Crawling {len(urls)} discovered URLs..."
+                            )
                             crawled_docs = loader.to_crawled_url_objs(urls)
+                            successful_docs = [
+                                doc for doc in crawled_docs if not doc.is_error
+                            ]
                             all_docs.extend(crawled_docs)
                             total_docs_processed += len(crawled_docs)
                             log_context.info(
-                                f"  Successfully crawled {len(crawled_docs)} URLs"
+                                f"    ✅ Successfully processed {len(successful_docs)}/{len(crawled_docs)} URLs"
                             )
-                        elif doc_type == "file":
+                        elif doc_type_name == "file":
                             if os.path.isfile(source):
                                 if source.lower().endswith(".zip"):
-                                    log_context.info(f"  Extracting ZIP file: {source}")
+                                    log_context.info(
+                                        f"    📦 Extracting ZIP archive..."
+                                    )
                                     with tempfile.TemporaryDirectory() as temp_dir:
                                         with zipfile.ZipFile(source, "r") as zip_ref:
                                             zip_ref.extractall(temp_dir)
@@ -162,45 +170,55 @@ def load_documents(
                                         )
                                         total_docs_processed += len(file_list)
                                         log_context.info(
-                                            f"  Successfully processed {len(file_list)} files from ZIP"
+                                            f"    ✅ Extracted and processed {len(file_list)} files"
                                         )
                                 else:
                                     log_context.info(
-                                        f"  Processing single file: {source}"
+                                        f"    📄 Processing single file..."
                                     )
                                     all_docs.extend(
                                         loader.to_crawled_local_objs([source])
                                     )
                                     total_docs_processed += 1
-                                    log_context.info(f"  Successfully processed file")
+                                    log_context.info(
+                                        f"    ✅ File processed successfully"
+                                    )
                             elif os.path.isdir(source):
-                                log_context.info(f"  Processing directory: {source}")
+                                log_context.info(
+                                    f"    📁 Processing directory contents..."
+                                )
                                 file_list = [
                                     os.path.join(source, f) for f in os.listdir(source)
                                 ]
                                 all_docs.extend(loader.to_crawled_local_objs(file_list))
                                 total_docs_processed += len(file_list)
                                 log_context.info(
-                                    f"  Successfully processed {len(file_list)} files from directory"
+                                    f"    ✅ Processed {len(file_list)} files from directory"
                                 )
                             else:
                                 raise FileNotFoundError(
                                     f"Source path '{source}' does not exist"
                                 )
-                        elif doc_type == "text":
-                            log_context.info(f"  Processing text document: {source}")
+                        elif doc_type_name == "text":
+                            log_context.info(f"    📝 Processing text content...")
                             all_docs.extend(loader.to_crawled_text([source]))
                             total_docs_processed += 1
-                            log_context.info(f"  Successfully processed text document")
+                            log_context.info(f"    ✅ Text content processed")
                         else:
-                            raise ValueError(f"Unsupported document type: {doc_type}")
+                            raise ValueError(
+                                f"Unsupported document type: {doc_type_name}"
+                            )
                     except Exception as e:
                         log_context.error(
-                            f"Error processing document {source}: {str(e)}"
+                            f"❌ Error processing document {source}: {str(e)}"
                         )
                         continue
 
-    log_context.info(f"Total documents processed: {total_docs_processed}")
+    elapsed_time = time.time() - start_time
+    log_context.info(
+        f"📊 Document processing complete: {total_docs_processed} documents in {elapsed_time:.1f}s"
+    )
+
     # Convert CrawledObjects to dictionaries
     return [doc.to_dict() for doc in all_docs]
 
@@ -222,15 +240,21 @@ def main():
     # Set up logging
     log_context.setLevel(getattr(logging, args.log_level.upper()))
 
+    log_context.info("🚀 Starting task graph generation...")
+    start_time = time.time()
+
     # Load config
+    log_context.info(f"📋 Loading configuration from {args.config}")
     with open(args.config, "r") as f:
         config = json.load(f)
 
     # Load documents
+    log_context.info("📚 Loading and processing documents...")
     documents = load_documents(config)
-    log_context.info(f"Loaded {len(documents)} documents")
+    log_context.info(f"📄 Loaded {len(documents)} documents successfully")
 
     # Instantiate model
+    log_context.info("🤖 Initializing language model...")
     model = PROVIDER_MAP.get(MODEL["llm_provider"], ChatOpenAI)(
         model=MODEL["model_type_or_path"], timeout=30000
     )
@@ -238,27 +262,38 @@ def main():
     # Determine output directory
     output_dir = args.output_dir or os.path.dirname(args.config)
     os.makedirs(output_dir, exist_ok=True)
+    log_context.info(f"📁 Output directory: {output_dir}")
 
     # Initialize generator with model and output_dir
+    log_context.info("🔧 Initializing task graph generator...")
     generator = Generator(config, model, output_dir)
 
     # Generate task graph
+    log_context.info("🎯 Generating task graph...")
     task_graph = generator.generate()
-    log_context.info("Task graph generated successfully")
+    log_context.info("✅ Task graph generated successfully")
 
     # Save the generated task graph
+    log_context.info("💾 Saving task graph...")
     taskgraph_filepath = generator.save_task_graph(task_graph)
-    log_context.info(f"Task graph saved to {taskgraph_filepath}")
+    log_context.info(f"📄 Task graph saved to {taskgraph_filepath}")
 
     # Build RAG if specified
     if "rag_docs" in config:
+        log_context.info("🔍 Building RAG system...")
         build_rag(os.path.dirname(args.config), config["rag_docs"])
-        log_context.info("RAG system built successfully")
+        log_context.info("✅ RAG system built successfully")
 
     # Build database if specified
     if "database" in config:
+        log_context.info("🗄️ Building database...")
         build_database(config["database"])
-        log_context.info("Database built successfully")
+        log_context.info("✅ Database built successfully")
+
+    elapsed_time = time.time() - start_time
+    log_context.info(
+        f"🎉 Task graph generation completed in {elapsed_time:.1f} seconds"
+    )
 
 
 if __name__ == "__main__":

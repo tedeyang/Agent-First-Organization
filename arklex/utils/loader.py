@@ -153,7 +153,7 @@ class Loader:
         Returns:
             List[CrawledObject]: List of CrawledObject instances containing crawled content.
         """
-        log_context.info(f"Start crawling {len(url_objects)} urls")
+        log_context.info(f"🌐 Starting web crawling for {len(url_objects)} URLs...")
         options = webdriver.ChromeOptions()
         options.add_argument("--no-sandbox")
         options.add_argument("--headless")
@@ -177,20 +177,18 @@ class Loader:
             driver_version=CHROME_DRIVER_VERSION
         ).install()
         service = Service(executable_path=chrome_driver_path)
-        log_context.info(f"Using chromedriver at: {chrome_driver_path}")
+        log_context.info(f"🔧 Using ChromeDriver: {chrome_driver_path}")
 
         docs: List[CrawledObject] = []
         start_time = time.time()
         max_time_per_url = 30  # Maximum 30 seconds per URL
+        successful_crawls = 0
+        failed_crawls = 0
 
         for i, url_obj in enumerate(url_objects, 1):
             url_start_time = time.time()
             driver = None
             try:
-                log_context.info(
-                    f"Crawling URL {i}/{len(url_objects)}: {url_obj.source}"
-                )
-
                 # Create a new driver for each URL to avoid crashes
                 driver = webdriver.Chrome(service=service, options=options)
                 driver.set_page_load_timeout(30)
@@ -240,11 +238,32 @@ class Loader:
                 log_context.info(
                     f"Successfully crawled URL {i}/{len(url_objects)}: {url_obj.source}"
                 )
+                successful_crawls += 1
 
             except Exception as err:
-                log_context.error(
-                    f"Error crawling URL {i}/{len(url_objects)} {url_obj.source}: {err}"
-                )
+                # Filter out common expected errors to reduce noise
+                error_msg = str(err)
+                if any(
+                    expected_error in error_msg.lower()
+                    for expected_error in [
+                        "cannot determine loading status",
+                        "target window already closed",
+                        "no such window",
+                        "chrome not reachable",
+                        "session deleted",
+                        "timeout",
+                    ]
+                ):
+                    # These are expected errors in web crawling, log as debug
+                    log_context.debug(
+                        f"  ⚠️ Expected error crawling {url_obj.source}: {error_msg}"
+                    )
+                else:
+                    # Log unexpected errors
+                    log_context.error(
+                        f"  ❌ Error crawling {url_obj.source}: {error_msg}"
+                    )
+
                 docs.append(
                     CrawledObject(
                         id=url_obj.id,
@@ -256,6 +275,7 @@ class Loader:
                         source_type=SourceType.WEB,
                     )
                 )
+                failed_crawls += 1
             finally:
                 # Always quit the driver to prevent resource leaks
                 if driver:
@@ -264,8 +284,9 @@ class Loader:
                     except Exception as e:
                         log_context.warning(f"Error quitting driver: {e}")
 
+        elapsed_time = time.time() - start_time
         log_context.info(
-            f"Finished crawling {len(url_objects)} URLs in {time.time() - start_time:.2f}s"
+            f"✅ Web crawling complete: {successful_crawls}/{len(url_objects)} URLs in {elapsed_time:.1f}s"
         )
         return docs
 
@@ -282,9 +303,7 @@ class Loader:
         Returns:
             List[str]: List of collected URLs, sorted alphabetically.
         """
-        log_context.info(
-            f"Getting all pages for base url: {base_url}, maximum number is: {max_num}"
-        )
+        log_context.info(f"🔍 Discovering URLs from {base_url} (max: {max_num})")
         urls_visited = []
         base_url = base_url.split("#")[0].rstrip("/")
         urls_to_visit = [base_url]
@@ -299,7 +318,7 @@ class Loader:
             # Check time limit
             if time.time() - start_time > max_time_seconds:
                 log_context.warning(
-                    f"URL discovery timed out after {max_time_seconds} seconds"
+                    f"⏰ URL discovery timed out after {max_time_seconds}s"
                 )
                 break
 
@@ -309,26 +328,26 @@ class Loader:
             current_url = urls_to_visit.pop(0)
             iteration_count += 1
 
-            log_context.info(
-                f"Discovering URLs from {current_url} (iteration {iteration_count})"
-            )
-
             if current_url not in urls_visited:
                 urls_visited.append(current_url)
                 try:
                     new_urls = self.get_outsource_urls(current_url, base_url)
                     urls_to_visit.extend(new_urls)
                     urls_to_visit = list(set(urls_to_visit))
-                    log_context.info(
-                        f"Found {len(new_urls)} new URLs from {current_url}"
-                    )
+
+                    if new_urls:
+                        log_context.info(
+                            f"  📎 Found {len(new_urls)} new URLs from {current_url}"
+                        )
                 except Exception as e:
-                    log_context.error(f"Error getting URLs from {current_url}: {e}")
+                    log_context.error(
+                        f"  ❌ Error discovering URLs from {current_url}: {e}"
+                    )
                     continue
 
-        log_context.info(f"URLs visited: {urls_visited}")
+        elapsed_time = time.time() - start_time
         log_context.info(
-            f"Total iterations: {iteration_count}, Time taken: {time.time() - start_time:.2f}s"
+            f"✅ URL discovery complete: {len(urls_visited)} URLs found in {elapsed_time:.1f}s"
         )
         return sorted(urls_visited[:max_num])
 
