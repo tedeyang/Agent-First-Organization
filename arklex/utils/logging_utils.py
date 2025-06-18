@@ -95,10 +95,8 @@ class LogContext:
         log_format: Optional[str] = None,
     ):
         self.log_context = logging.getLogger(name)
-        if "." in name:
-            self.log_context.setLevel(logging.NOTSET)
-        else:
-            self.log_context.setLevel(getattr(logging, level))
+        # Set the log level properly for all modules
+        self.log_context.setLevel(getattr(logging, level))
         self.log_context.propagate = True
         self.base_context = base_context or {}
         handler = self._get_console_handler(log_format)
