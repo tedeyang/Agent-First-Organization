@@ -107,7 +107,7 @@ class TaskGenerator:
     ) -> List[Dict[str, Any]]:
         """Generate tasks from the introduction and existing tasks.
 
-        This method implements the three-step process:
+        This method implements the original three-step process:
         1. Generate high-level tasks using generate_tasks_sys_prompt
         2. Check if tasks need further breakdown using check_best_practice_sys_prompt
         3. Generate steps for tasks that need breakdown using generate_best_practice_sys_prompt
@@ -123,17 +123,11 @@ class TaskGenerator:
             existing_tasks = []
 
         log_context.info(
-            "    📝 Step 1: Processing objective and generating high-level tasks..."
-        )
-        # Step 1: Generate high-level tasks
-        objective = getattr(self, "objective", intro)
-        docs = intro
-        processed_objective = self._process_objective(
-            objective, intro, docs, existing_tasks
+            "    📝 Step 1: Generating high-level tasks using generate_tasks_sys_prompt..."
         )
 
-        # Step 2: Check which tasks need further breakdown
-        high_level_tasks = processed_objective.get("tasks", [])
+        # Step 1: Generate high-level tasks using the original generate_tasks_sys_prompt
+        high_level_tasks = self._generate_high_level_tasks(intro, existing_tasks)
         log_context.info(f"    📋 Generated {len(high_level_tasks)} high-level tasks")
 
         log_context.info("    🔍 Step 2: Analyzing tasks for breakdown requirements...")
@@ -147,13 +141,15 @@ class TaskGenerator:
                 f"      🔍 Analyzing task {i}/{len(high_level_tasks)}: {task_name}"
             )
 
-            # Check if this task needs further breakdown
-            needs_breakdown = self._check_task_breakdown(task_name, task_intent)
+            # Step 2: Check if this task needs further breakdown using check_best_practice_sys_prompt
+            needs_breakdown = self._check_task_breakdown_original(
+                task_name, task_intent
+            )
 
             if needs_breakdown:
                 log_context.info(f"      📝 Generating detailed steps for: {task_name}")
-                # Step 3: Generate steps for tasks that need breakdown
-                steps = self._generate_task_steps(task_name, task_intent)
+                # Step 3: Generate steps for tasks that need breakdown using generate_best_practice_sys_prompt
+                steps = self._generate_task_steps_original(task_name, task_intent)
                 task["steps"] = steps
                 log_context.info(
                     f"      ✅ Generated {len(steps)} steps for: {task_name}"
@@ -289,11 +285,71 @@ class TaskGenerator:
             tasks_data = []
         return {"tasks": tasks_data}
 
-    def _check_task_breakdown(self, task_name: str, task_intent: str) -> bool:
-        """Check if a task needs further breakdown into steps.
+    def _generate_high_level_tasks(
+        self, intro: str, existing_tasks: Optional[List[Dict[str, Any]]] = None
+    ) -> List[Dict[str, Any]]:
+        """Generate high-level tasks using the original generate_tasks_sys_prompt.
 
-        This method uses the check_best_practice_sys_prompt to determine
-        if a task is already actionable or needs to be broken down further.
+        This is Step 1 of the original 3-step process.
+
+        Args:
+            intro (str): Introduction or documentation string.
+            existing_tasks (Optional[List[Dict[str, Any]]]): List of existing tasks.
+
+        Returns:
+            List[Dict[str, Any]]: List of high-level tasks.
+        """
+        if existing_tasks is None:
+            existing_tasks = []
+
+        # Format existing tasks for the prompt
+        existing_tasks_str = ""
+        if existing_tasks:
+            existing_tasks_str = "\n".join(
+                [
+                    f"- {task.get('task', '')}: {task.get('intent', '')}"
+                    for task in existing_tasks
+                ]
+            )
+
+        # Use the original generate_tasks_sys_prompt
+        prompt = self.prompt_manager.generate_tasks_sys_prompt.format(
+            role=self.role,
+            u_objective=self.user_objective,
+            intro=intro,
+            docs=self.documents,
+            instructions=self.instructions,
+            existing_tasks=existing_tasks_str,
+        )
+
+        try:
+            response = self.model.invoke(prompt)
+            if hasattr(response, "content"):
+                response_text = response.content
+            else:
+                response_text = str(response)
+
+            # Parse the JSON response
+            import json
+
+            json_start = response_text.find("[")
+            json_end = response_text.rfind("]") + 1
+            if json_start >= 0 and json_end > json_start:
+                json_str = response_text[json_start:json_end]
+                tasks_data = json.loads(json_str)
+                return tasks_data
+            else:
+                log_context.warning("Could not parse high-level tasks response")
+                return []
+
+        except Exception as e:
+            log_context.error(f"Error generating high-level tasks: {e}")
+            return []
+
+    def _check_task_breakdown_original(self, task_name: str, task_intent: str) -> bool:
+        """Check if a task needs further breakdown using the original check_best_practice_sys_prompt.
+
+        This is Step 2 of the original 3-step process.
 
         Args:
             task_name (str): Name of the task
@@ -302,8 +358,8 @@ class TaskGenerator:
         Returns:
             bool: True if task needs breakdown, False if it's already actionable
         """
-        # Create a simple resource list for the check
-        resources = "MessageWorker: Interact with users, RAGWorker: Answer questions based on documentation"
+        # Create a proper resource list for the check
+        resources = "MessageWorker: The worker responsible for interacting with the user with predefined responses, RAGWorker: Answer the user's questions based on the company's internal documentations, such as the policies, FAQs, and product information"
 
         prompt = self.prompt_manager.check_best_practice_sys_prompt.format(
             task=task_name, level=1, resources=resources
@@ -336,13 +392,12 @@ class TaskGenerator:
             log_context.error(f"Error checking task breakdown for {task_name}: {e}")
             return True  # Default to breakdown on error
 
-    def _generate_task_steps(
+    def _generate_task_steps_original(
         self, task_name: str, task_intent: str
     ) -> List[Dict[str, Any]]:
-        """Generate steps for a task that needs breakdown.
+        """Generate steps for a task using the original generate_best_practice_sys_prompt.
 
-        This method uses the generate_best_practice_sys_prompt to create
-        detailed steps for tasks that need further decomposition.
+        This is Step 3 of the original 3-step process.
 
         Args:
             task_name (str): Name of the task
@@ -351,9 +406,9 @@ class TaskGenerator:
         Returns:
             List[Dict[str, Any]]: List of steps for the task
         """
-        # Create background and resources for the prompt
-        f"The builder wants to create a chatbot - {self.role}. {self.user_objective}"
-        resources = "MessageWorker: Interact with users, RAGWorker: Answer questions based on documentation"
+        # Create proper background and resources for the prompt
+        background = f"The builder wants to create a chatbot - {self.role}. {self.user_objective}"
+        resources = "MessageWorker: The worker responsible for interacting with the user with predefined responses, RAGWorker: Answer the user's questions based on the company's internal documentations, such as the policies, FAQs, and product information"
 
         prompt = self.prompt_manager.generate_best_practice_sys_prompt.format(
             role=self.role,
