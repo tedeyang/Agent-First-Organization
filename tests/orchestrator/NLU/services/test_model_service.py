@@ -204,10 +204,15 @@ class TestModelServiceTextProcessing:
             "context": {"user_id": "123"},
             "model": "test-model",
         }
-
+        mock_generation = MagicMock()
+        mock_generation.generations = [[MagicMock(text="mocked result")]]
+        mock_model = MagicMock()
+        mock_model.agenerate = AsyncMock(return_value=mock_generation)
+        model_service.model = mock_model
         response = await model_service._make_model_request(test_request_data)
         assert isinstance(response, dict)
         assert "result" in response
+        assert response["result"] == "mocked result"
 
 
 class TestModelServiceResponseHandling:
