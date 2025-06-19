@@ -6,6 +6,8 @@ including web crawling, file processing, and content chunking functionality.
 
 from unittest.mock import Mock, patch, mock_open
 import pytest
+import tempfile
+import os
 
 from arklex.utils.loader import (
     encode_image,
@@ -64,6 +66,25 @@ class TestEncodeImage:
         result = encode_image("nonexistent.png")
         assert result is None
 
+    def test_encode_image_with_directory(self) -> None:
+        """Test encode_image with directory path."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            result = encode_image(temp_dir)
+            assert result is None
+
+    def test_encode_image_with_non_image_file(self) -> None:
+        """Test encode_image with non-image file."""
+        with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as temp_file:
+            temp_file.write(b"This is not an image")
+            temp_file.flush()
+            try:
+                result = encode_image(temp_file.name)
+                # The function should return the base64 encoded content, not None
+                assert result is not None
+                assert isinstance(result, str)
+            finally:
+                os.unlink(temp_file.name)
+
 
 class TestSourceType:
     """Test cases for SourceType enum."""
@@ -76,9 +97,9 @@ class TestSourceType:
         assert SourceType.TEXT.value == 3
 
     def test_source_type_unknown(self) -> None:
-        """Test SourceType with unknown value raises ValueError."""
+        """Test SourceType with unknown value."""
         with pytest.raises(ValueError):
-            SourceType("unknown")
+            SourceType(999)
 
 
 class TestDocObject:
@@ -631,3 +652,156 @@ class TestLoader:
     def test_source_type_unknown(self) -> None:
         with pytest.raises(ValueError):
             SourceType("unknown")
+
+    @patch("arklex.utils.loader.webdriver.Chrome")
+    @patch("arklex.utils.loader.Service")
+    def test_crawl_with_selenium_chromedriver_installation_failure(
+        self, mock_service, mock_driver
+    ) -> None:
+        """Test selenium crawling with ChromeDriver installation failure."""
+        mock_service.side_effect = Exception("ChromeDriver not found")
+
+        loader = Loader()
+        url_objects = [DocObject(id="1", source="http://example.com")]
+
+        result = loader._crawl_with_selenium(url_objects)
+
+        assert len(result) == 1
+        assert result[0].is_error is True
+        assert "ChromeDriver installation failed" in result[0].error_message
+
+    @patch("arklex.utils.loader.webdriver.Chrome")
+    @patch("arklex.utils.loader.Service")
+    def test_crawl_with_selenium_webdriver_exception(
+        self, mock_service, mock_driver
+    ) -> None:
+        """Test selenium crawling with WebDriver exception."""
+        mock_service.return_value = Mock()
+        mock_driver_instance = Mock()
+        mock_driver_instance.get.side_effect = Exception("Driver error")
+        mock_driver.return_value = mock_driver_instance
+
+        loader = Loader()
+        url_objects = [DocObject(id="1", source="http://example.com")]
+
+        result = loader._crawl_with_selenium(url_objects)
+
+        assert len(result) == 1
+        assert result[0].is_error is True
+        assert "Driver error" in result[0].error_message
+
+    @patch("arklex.utils.loader.requests.get")
+    def test_crawl_with_requests_timeout(self, mock_get) -> None:
+        """Test requests crawling with timeout."""
+        mock_get.side_effect = Exception("Request timeout")
+
+        loader = Loader()
+        url_objects = [DocObject(id="1", source="http://example.com")]
+
+        result = loader._crawl_with_requests(url_objects)
+
+        assert len(result) == 1
+        assert result[0].is_error is True
+        assert "Request timeout" in result[0].error_message
+
+    @patch("builtins.open", create=True)
+    def test_crawl_file_permission_error(self, mock_open) -> None:
+        """Test crawl_file with permission error."""
+        mock_open.side_effect = PermissionError("Permission denied")
+
+        loader = Loader()
+        local_obj = DocObject(id="1", source="/protected/file.txt")
+
+        result = loader.crawl_file(local_obj)
+
+        assert result.id == "1"
+        assert result.source == "/protected/file.txt"
+        assert result.is_error is True
+        assert result.error_message == "Error loading /protected/file.txt"
+
+    @patch("builtins.open", create=True)
+    def test_crawl_file_unicode_error(self, mock_open) -> None:
+        """Test crawl_file with unicode error."""
+        mock_file = Mock()
+        mock_file.read.side_effect = UnicodeDecodeError(
+            "utf-8", b"", 0, 1, "invalid utf-8"
+        )
+        mock_open.return_value.__enter__.return_value = mock_file
+
+        loader = Loader()
+        local_obj = DocObject(id="1", source="/path/to/file.txt")
+
+        result = loader.crawl_file(local_obj)
+
+        assert result.id == "1"
+        assert result.source == "/path/to/file.txt"
+        assert result.is_error is True
+        assert result.error_message == "Error loading /path/to/file.txt"
+
+    @patch("builtins.open", create=True)
+    def test_crawl_file_general_exception(self, mock_open) -> None:
+        """Test crawl_file with general exception."""
+        mock_open.side_effect = Exception("General error")
+
+        loader = Loader()
+        local_obj = DocObject(id="1", source="/path/to/file.txt")
+
+        result = loader.crawl_file(local_obj)
+
+        assert result.id == "1"
+        assert result.source == "/path/to/file.txt"
+        assert result.is_error is True
+        assert result.error_message == "Error loading /path/to/file.txt"
+
+    @patch("builtins.open", create=True)
+    def test_crawl_file_with_mistral_api_error(self, mock_open) -> None:
+        """Test crawl_file with Mistral API error."""
+        mock_file = Mock()
+        mock_file.read.return_value = "Test file content"
+        mock_open.return_value.__enter__.return_value = mock_file
+
+        # Mock the Mistral API call with error
+        with patch("arklex.utils.loader.requests.post") as mock_post:
+            mock_post.side_effect = Exception("API error")
+
+            loader = Loader()
+            local_obj = DocObject(id="1", source="/path/to/file.txt")
+
+            result = loader.crawl_file(local_obj)
+
+            assert result.id == "1"
+            assert result.source == "/path/to/file.txt"
+            assert result.is_error is False
+
+    def test_save_method(self) -> None:
+        """Test save static method."""
+        docs = [
+            CrawledObject(id="1", source="http://example1.com", content="content1"),
+            CrawledObject(id="2", source="http://example2.com", content="content2"),
+        ]
+
+        with tempfile.NamedTemporaryFile(
+            mode="wb", suffix=".pkl", delete=False
+        ) as temp_file:
+            temp_path = temp_file.name
+
+        try:
+            Loader.save(temp_path, docs)
+
+            # Verify file was created and contains data
+            assert os.path.exists(temp_path)
+            with open(temp_path, "rb") as f:
+                content = f.read()
+                assert len(content) > 0  # Should contain pickle data
+
+        finally:
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+
+    def test_chunk_method_with_exception(self) -> None:
+        """Test chunk method with exception during processing."""
+        docs = [Mock()]  # Mock object that will cause issues
+
+        result = Loader.chunk(docs)
+
+        assert result == []
