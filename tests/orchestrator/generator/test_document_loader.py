@@ -7,7 +7,7 @@ handling pipeline.
 """
 
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 import json
 from pathlib import Path
 
@@ -110,7 +110,7 @@ def document_validator():
 class TestDocumentLoader:
     """Test suite for the DocumentLoader class."""
 
-    def test_load_document(self, document_loader, mock_file_system):
+    def test_load_document(self, document_loader, mock_file_system) -> None:
         """Test loading a document from file."""
         doc_path = Path("/path/to/document.json")
         document = document_loader.load_document(doc_path)
@@ -118,7 +118,7 @@ class TestDocumentLoader:
         assert document["title"] == "Product Creation Guide"
         assert len(document["sections"]) == 2
 
-    def test_load_task_document(self, document_loader, mock_file_system):
+    def test_load_task_document(self, document_loader, mock_file_system) -> None:
         """Test loading a task document."""
         doc_path = Path("/path/to/task.json")
         mock_file_system["json_loads"].return_value = SAMPLE_TASK_DOC
@@ -127,7 +127,7 @@ class TestDocumentLoader:
         assert task_doc["task_id"] == "task1"
         assert len(task_doc["steps"]) == 2
 
-    def test_load_instruction_document(self, document_loader, mock_file_system):
+    def test_load_instruction_document(self, document_loader, mock_file_system) -> None:
         """Test loading an instruction document."""
         doc_path = Path("/path/to/instruction.json")
         mock_file_system["json_loads"].return_value = SAMPLE_INSTRUCTION_DOC
@@ -136,44 +136,88 @@ class TestDocumentLoader:
         assert instruction_doc["instruction_id"] == "inst1"
         assert len(instruction_doc["sections"]) == 2
 
-    def test_cache_document(self, document_loader, mock_file_system):
+    def test_cache_document(self, document_loader, mock_file_system) -> None:
         """Test document caching."""
         doc_path = Path("/path/to/document.json")
         document_loader.cache_document(doc_path, SAMPLE_DOCUMENT)
         cached_doc = document_loader.load_document(doc_path)
         assert cached_doc == SAMPLE_DOCUMENT
 
-    def test_validate_document(self, document_loader):
+    def test_validate_document(self, document_loader) -> None:
         """Test document validation."""
         is_valid = document_loader.validate_document(SAMPLE_DOCUMENT)
         assert is_valid
+
+    def test_load_document_file_not_found(self, document_loader) -> None:
+        doc_path = Path("/not/found.json")
+        with patch.object(Path, "exists", return_value=False):
+            with pytest.raises(FileNotFoundError):
+                document_loader.load_document(doc_path)
+
+    def test_load_document_invalid_json(self, document_loader) -> None:
+        doc_path = Path("/invalid.json")
+        with (
+            patch.object(Path, "exists", return_value=True),
+            patch.object(Path, "read_text", return_value="not json"),
+            patch("json.loads", side_effect=json.JSONDecodeError("msg", "doc", 0)),
+        ):
+            with pytest.raises(json.JSONDecodeError):
+                document_loader.load_document(doc_path)
+
+    def test_load_task_document_invalid_structure(
+        self, document_loader, mock_file_system
+    ) -> None:
+        doc_path = Path("/invalid_task.json")
+        mock_file_system["json_loads"].return_value = {"bad": "structure"}
+        with pytest.raises(ValueError):
+            document_loader.load_task_document(doc_path)
+
+    def test_load_instruction_document_invalid_structure(
+        self, document_loader, mock_file_system
+    ) -> None:
+        doc_path = Path("/invalid_instruction.json")
+        mock_file_system["json_loads"].return_value = {"bad": "structure"}
+        with pytest.raises(ValueError):
+            document_loader.load_instruction_document(doc_path)
+
+    def test_load_task_document_html_fallback(self, document_loader) -> None:
+        doc_path = Path("/html_doc.html")
+        html_content = "<html><head><title>Test</title></head><body><p>Step 1</p><p>Step 2</p></body></html>"
+        with (
+            patch.object(Path, "exists", return_value=True),
+            patch.object(Path, "read_text", return_value=html_content),
+            patch("json.loads", side_effect=json.JSONDecodeError("msg", "doc", 0)),
+        ):
+            doc = document_loader.load_task_document(doc_path)
+            assert doc["name"] == "Test"
+            assert len(doc["steps"]) == 2
 
 
 class TestDocumentProcessor:
     """Test suite for the DocumentProcessor class."""
 
-    def test_process_document(self, document_processor):
+    def test_process_document(self, document_processor) -> None:
         """Test document processing."""
         processed_doc = document_processor.process_document(SAMPLE_DOCUMENT)
         assert isinstance(processed_doc, dict)
         assert "processed_sections" in processed_doc
         assert len(processed_doc["processed_sections"]) == 2
 
-    def test_extract_requirements(self, document_processor):
+    def test_extract_requirements(self, document_processor) -> None:
         """Test requirement extraction."""
         requirements = document_processor.extract_requirements(SAMPLE_DOCUMENT)
         assert isinstance(requirements, list)
         assert len(requirements) > 0
         assert all(isinstance(req, str) for req in requirements)
 
-    def test_format_for_tasks(self, document_processor):
+    def test_format_for_tasks(self, document_processor) -> None:
         """Test document formatting for tasks."""
         formatted_doc = document_processor.format_for_tasks(SAMPLE_DOCUMENT)
         assert isinstance(formatted_doc, dict)
         assert "formatted_sections" in formatted_doc
         assert len(formatted_doc["formatted_sections"]) == 2
 
-    def test_handle_specific_requirements(self, document_processor):
+    def test_handle_specific_requirements(self, document_processor) -> None:
         """Test handling specific requirements."""
         requirements = ["Name", "Price", "Description"]
         handled_reqs = document_processor.handle_specific_requirements(requirements)
@@ -184,29 +228,29 @@ class TestDocumentProcessor:
 class TestDocumentValidator:
     """Test suite for the DocumentValidator class."""
 
-    def test_validate_structure(self, document_validator):
+    def test_validate_structure(self, document_validator) -> None:
         """Test document structure validation."""
         is_valid = document_validator.validate_structure(SAMPLE_DOCUMENT)
         assert is_valid
 
-    def test_validate_required_fields(self, document_validator):
+    def test_validate_required_fields(self, document_validator) -> None:
         """Test required fields validation."""
         is_valid = document_validator.validate_required_fields(SAMPLE_DOCUMENT)
         assert is_valid
 
-    def test_validate_consistency(self, document_validator):
+    def test_validate_consistency(self, document_validator) -> None:
         """Test document consistency validation."""
         is_valid = document_validator.validate_consistency(SAMPLE_DOCUMENT)
         assert is_valid
 
-    def test_get_error_messages(self, document_validator):
+    def test_get_error_messages(self, document_validator) -> None:
         """Test error message generation."""
         errors = document_validator.get_error_messages(SAMPLE_DOCUMENT)
         assert isinstance(errors, list)
         assert len(errors) == 0  # No errors in valid document
 
 
-def test_integration_document_pipeline(mock_file_system):
+def test_integration_document_pipeline(mock_file_system) -> None:
     """Test the complete document handling pipeline integration."""
     # Initialize components
     document_loader = DocumentLoader(

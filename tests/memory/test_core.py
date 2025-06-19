@@ -356,3 +356,52 @@ class TestShortTermMemory:
         assert "user: Hello" in memory.chat_history
         assert "assistant: Hi there" in memory.chat_history
         assert "user: How are you?" in memory.chat_history
+
+    @patch.object(
+        ShortTermMemory, "_get_embedding", return_value=np.array([[0.1, 0.2, 0.3]])
+    )
+    def test_retrieve_intent_found(self, mock_get_embedding, short_term_memory) -> None:
+        record = short_term_memory.trajectory[0][0]
+        record.personalized_intent = "intent: buy product: shoes attribute: color"
+        found, intent = short_term_memory.retrieve_intent("color shoes")
+        assert found is True
+        assert intent == record.intent
+
+    @patch.object(
+        ShortTermMemory, "_get_embedding", return_value=np.array([[0.1, 0.2, 0.3]])
+    )
+    def test_retrieve_intent_not_found(
+        self, mock_get_embedding, short_term_memory
+    ) -> None:
+        record = short_term_memory.trajectory[0][0]
+        record.personalized_intent = "intent: buy product: shoes attribute: color"
+        found, intent = short_term_memory.retrieve_intent(
+            "unrelated query", string_threshold=0.99
+        )
+        assert found is False
+        assert intent is None
+
+    @pytest.mark.asyncio
+    async def test_personalize_sets_personalized_intent(
+        self, short_term_memory
+    ) -> None:
+        record = short_term_memory.trajectory[0][0]
+        short_term_memory.llm = Mock()
+        short_term_memory.generate_personalized_product_attribute_intent = AsyncMock(
+            return_value="intent: buy product: shoes attribute: color"
+        )
+        await short_term_memory.personalize()
+        assert (
+            record.personalized_intent == "intent: buy product: shoes attribute: color"
+        )
+
+    @pytest.mark.asyncio
+    async def test__set_personalized_intent(self, short_term_memory) -> None:
+        record = short_term_memory.trajectory[0][0]
+        short_term_memory.generate_personalized_product_attribute_intent = AsyncMock(
+            return_value="intent: buy product: shoes attribute: color"
+        )
+        await short_term_memory._set_personalized_intent(record, "user utterance")
+        assert (
+            record.personalized_intent == "intent: buy product: shoes attribute: color"
+        )
