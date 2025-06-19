@@ -14,7 +14,7 @@ import copy
 from typing import List, Dict, Any, Tuple
 from arklex.evaluation.get_documents import load_docs
 from arklex.evaluation.chatgpt_utils import chatgpt_chatbot
-from arklex.env.env import Env
+from arklex.env.env import Environment
 from arklex.env.tools.tools import Tool
 from arklex.orchestrator.NLU.core.slot import SlotFiller
 from arklex.utils.logging_utils import LogContext
@@ -278,7 +278,7 @@ Full attributes:
 user_info: {{'id': 'gid://shopify/Customer/8740759797990', 'firstName': 'Yunan', 'lastName': 'Lu', 'email': 'yl4021@columbia.edu', 'phone': None, 'createdAt': '2025-03-23T02:47:38Z', 'updatedAt': '2025-03-29T21:01:02Z', 'numberOfOrders': '0', 'orders': {{'edges': []}}, 'amountSpent': {{'amount': '0.0', 'currencyCode': 'USD'}}, 'lastOrder': None, 'addresses': []}}
 current_webpage: Product ID: gid://shopify/Product/8970006790374
 Title: Pink Unicorn Boys & Girls Baseball Hat with Adjustable Buckle (One Size Fits Most)
-Description: 𝐄𝐘𝐄-𝐂𝐀𝐓𝐂𝐇𝐈𝐍𝐆 – The Awhale Girl's Unicorn Baseball Hat stands out with a 3D design and graphics packed with a vibrant pink color and tons of personality. Your kid will not want to take it off! Add some magic to your child's wardrobe with this adorable baseball cap! 𝐏𝐄𝐑𝐅𝐄𝐂𝐓 𝐅𝐈𝐓 – Made for all girl's hair types, our hat contains 6 embroidered eyelets and a full back opening for those messy buns and ponytails. Designed to fit children ages 2-12, the adjustable buckle can be tweaked in seconds for toddlers or tweens! 𝐇𝐈𝐆𝐇-𝐐𝐔𝐀𝐋𝐈𝐓𝐘 – Made with Premium cotton, our girl's unicorn baseball hat stays stunning with machine-washable cotton twill and durable stitching that preserves the colors and personality of the hat. 𝐀𝐋𝐋-𝐃𝐀𝐘 𝐔𝐒𝐄 – Made with breathable material, our unicorn baseball hat is comfortable for outdoor activities like running, baseball, tennis, and golf but also perfect for casual wear at school, the park, or on a playdate! 𝐀𝐖𝐇𝐀𝐋𝐄 𝐁��𝐀𝐍𝐃 – Welcome to AWHALE, where our designers are obsessed with combining High-Quality Materials and Chic Design to bring joy and laughter to boys and girls. Your child will love wearing our stylish outfits, and as everyone knows, there is nothing more adorable than a happy and fashionable child!
+Description: 𝐄𝐘𝐄-𝐂𝐀𝐓𝐂𝐇𝐈𝐍𝐆 – The Awhale Girl's Unicorn Baseball Hat stands out with a 3D design and graphics packed with a vibrant pink color and tons of personality. Your kid will not want to take it off! Add some magic to your child's wardrobe with this adorable baseball cap! 𝐏𝐄𝐑𝐅𝐄𝐂𝐓 𝐅𝐈𝐓 – Made for all girl's hair types, our hat contains 6 embroidered eyelets and a full back opening for those messy buns and ponytails. Designed to fit children ages 2-12, the adjustable buckle can be tweaked in seconds for toddlers or tweens! 𝐇𝐈𝐆𝐇-𝐐𝐔𝐀𝐋𝐈𝐓𝐘 – Made with Premium cotton, our girl's unicorn baseball hat stays stunning with machine-washable cotton twill and durable stitching that preserves the colors and personality of the hat. 𝐀𝐋𝐋-𝐃𝐀𝐘 𝐔𝐒𝐄 – Made with breathable material, our unicorn baseball hat is comfortable for outdoor activities like running, baseball, tennis, and golf but also perfect for casual wear at school, the park, or on a playdate! 𝐀��𝐇𝐀𝐋𝐄 𝐁𝐀𝐍𝐃 – Welcome to AWHALE, where our designers are obsessed with combining High-Quality Materials and Chic Design to bring joy and laughter to boys and girls. Your child will love wearing our stylish outfits, and as everyone knows, there is nothing more adorable than a happy and fashionable child!
 Total Inventory: 546
 Options: [{{'name': 'Title', 'values': ['Default Title']}}]
 The following are several variants of the product:
@@ -609,7 +609,7 @@ def get_label(attribute, config):
     User's goal: {goal}
     Tool_id:
     """
-    env = Env(tools=config["tools"], workers=config["workers"])
+    env = Environment(tools=config["tools"], workers=config["workers"])
     tool_list = []
     for tool in config["tools"]:
         tool_id = tool["id"]
