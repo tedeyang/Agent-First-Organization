@@ -4,13 +4,8 @@ This module contains comprehensive test cases for document and content loading u
 including web crawling, file processing, and content chunking functionality.
 """
 
-from typing import List
-from unittest.mock import Mock, patch, MagicMock, mock_open
+from unittest.mock import Mock, patch, mock_open
 import pytest
-import os
-import tempfile
-import pickle
-from pathlib import Path
 
 from arklex.utils.loader import (
     encode_image,
@@ -64,6 +59,11 @@ class TestEncodeImage:
         assert result is None
         mock_log_context.error.assert_called_once()
 
+    def test_encode_image_nonexistent(self) -> None:
+        """Test encode_image with non-existent file returns None."""
+        result = encode_image("nonexistent.png")
+        assert result is None
+
 
 class TestSourceType:
     """Test cases for SourceType enum."""
@@ -74,6 +74,11 @@ class TestSourceType:
         assert SourceType.WEB.value == 1
         assert SourceType.FILE.value == 2
         assert SourceType.TEXT.value == 3
+
+    def test_source_type_unknown(self) -> None:
+        """Test SourceType with unknown value raises ValueError."""
+        with pytest.raises(ValueError):
+            SourceType("unknown")
 
 
 class TestDocObject:
@@ -91,6 +96,11 @@ class TestDocObject:
         # Assert
         assert doc_obj.id == doc_id
         assert doc_obj.source == source
+
+    def test_docobject_missing_fields(self) -> None:
+        """Test DocObject with missing fields raises TypeError."""
+        with pytest.raises(TypeError):
+            DocObject()  # Missing required fields
 
 
 class TestCrawledObject:
@@ -597,3 +607,27 @@ class TestLoader:
         # Assert
         # The actual implementation returns empty list on exception
         assert len(result) == 0
+
+    def test_loader_load_nonexistent_file(self) -> None:
+        loader = Loader()
+        with pytest.raises(Exception):
+            loader.load("nonexistent_file.txt")
+
+    def test_loader_load_unsupported_extension(self) -> None:
+        loader = Loader()
+        with pytest.raises(Exception):
+            loader.load("file.unsupported")
+
+    def test_loader_crawl_urls_empty(self) -> None:
+        loader = Loader()
+        result = loader.crawl_urls([])
+        assert result == []
+
+    def test_loader_chunk_empty_docs(self) -> None:
+        loader = Loader()
+        result = loader.chunk([])
+        assert result == []
+
+    def test_source_type_unknown(self) -> None:
+        with pytest.raises(ValueError):
+            SourceType("unknown")

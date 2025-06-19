@@ -4,12 +4,8 @@ This module contains comprehensive test cases for nested graph functionality,
 including nested graph component node identification and path traversal.
 """
 
-from typing import Callable
 from unittest.mock import Mock
-
-import pytest
-
-from arklex.env.nested_graph.nested_graph import NestedGraph, NESTED_GRAPH_ID
+from arklex.env.nested_graph.nested_graph import NestedGraph
 from arklex.utils.graph_state import NodeInfo, Params, PathNode, StatusEnum
 
 
@@ -153,248 +149,185 @@ class TestNestedGraph:
 
     def test_get_nested_graph_component_node_with_leaf_jump(self) -> None:
         """Test get_nested_graph_component_node with nested_graph_leaf_jump."""
-        # Setup
-        params = Mock(spec=Params)
-        params.taskgraph = Mock()
-        params.taskgraph.path = [
-            PathNode(
-                node_id="node1",
-                nested_graph_leaf_jump=None,
-                nested_graph_node_value=None,
-            ),
-            PathNode(
-                node_id="node2", nested_graph_leaf_jump=0, nested_graph_node_value=None
-            ),
-        ]
+        params = Params()
+        path_node1 = PathNode(node_id="node1", nested_graph_leaf_jump=0)
+        path_node2 = PathNode(node_id="node2", nested_graph_node_value="node1")
+        params.taskgraph.path = [path_node1, path_node2]
+
+        def is_leaf_func(node_id: str) -> bool:
+            return node_id == "node1"
+
+        result_node, result_params = NestedGraph.get_nested_graph_component_node(
+            params, is_leaf_func
+        )
+
+        assert result_node is not None
+        # The function starts from the last node (node2) and works backwards
+        # Since no nested graph component is found, it returns the current node (node2)
+        assert result_node.node_id == "node2"
+        # No node status should be updated since no nested graph was found
+        assert "node1" not in result_params.taskgraph.node_status
+
+    def test_get_nested_graph_component_node_complex_nested_structure(self) -> None:
+        """Test get_nested_graph_component_node with complex nested structure."""
+        params = Params()
+        path_node1 = PathNode(node_id="node1", nested_graph_node_value="node2")
+        path_node2 = PathNode(node_id="node2", nested_graph_node_value="node3")
+        path_node3 = PathNode(node_id="node3")
+        params.taskgraph.path = [path_node1, path_node2, path_node3]
+
+        def is_leaf_func(node_id: str) -> bool:
+            return node_id in ["node1", "node2"]  # node1 and node2 are leaves
+
+        result_node, result_params = NestedGraph.get_nested_graph_component_node(
+            params, is_leaf_func
+        )
+
+        assert result_node is not None
+        # The algorithm finds nested graph components and returns node1
+        # because it's the first node that forms a valid nested graph pattern
+        assert result_node.node_id == "node1"
+
+    def test_get_nested_graph_component_node_updates_node_status(self) -> None:
+        """Test that get_nested_graph_component_node updates node status correctly."""
+        params = Params()
+        path_node1 = PathNode(node_id="node1")
+        path_node2 = PathNode(node_id="node2", nested_graph_node_value="node1")
+        params.taskgraph.path = [path_node1, path_node2]
         params.taskgraph.node_status = {}
 
         def is_leaf_func(node_id: str) -> bool:
             return node_id == "node1"
 
-        # Execute
         result_node, result_params = NestedGraph.get_nested_graph_component_node(
             params, is_leaf_func
         )
 
-        # Assert
+        assert result_node is not None
+        # The function starts from node2, but no nested graph component is found
+        # So it returns the current node (node2)
         assert result_node.node_id == "node2"
-        assert result_params == params
-
-    def test_get_nested_graph_component_node_complex_nested_structure(self) -> None:
-        """Test get_nested_graph_component_node with complex nested structure."""
-        # Setup
-        params = Mock(spec=Params)
-        params.taskgraph = Mock()
-        params.taskgraph.path = [
-            PathNode(
-                node_id="outer_node",
-                nested_graph_leaf_jump=None,
-                nested_graph_node_value=None,
-            ),
-            PathNode(
-                node_id="middle_node",
-                nested_graph_leaf_jump=None,
-                nested_graph_node_value="outer_node",
-            ),
-            PathNode(
-                node_id="inner_node",
-                nested_graph_leaf_jump=None,
-                nested_graph_node_value="middle_node",
-            ),
-        ]
-        params.taskgraph.node_status = {}
-
-        def is_leaf_func(node_id: str) -> bool:
-            return node_id == "inner_node"  # Only inner_node is a leaf
-
-        # Execute
-        result_node, result_params = NestedGraph.get_nested_graph_component_node(
-            params, is_leaf_func
-        )
-
-        # Assert
-        assert result_node.node_id == "inner_node"
-        assert result_params == params
-
-    def test_get_nested_graph_component_node_updates_node_status(self) -> None:
-        """Test get_nested_graph_component_node updates node status correctly."""
-        # Setup
-        params = Mock(spec=Params)
-        params.taskgraph = Mock()
-        params.taskgraph.path = [
-            PathNode(
-                node_id="main_node",
-                nested_graph_leaf_jump=None,
-                nested_graph_node_value=None,
-            ),
-            PathNode(
-                node_id="nested_node",
-                nested_graph_leaf_jump=None,
-                nested_graph_node_value="main_node",
-            ),
-        ]
-        params.taskgraph.node_status = {}
-
-        def is_leaf_func(node_id: str) -> bool:
-            return node_id == "main_node"
-
-        # Execute
-        result_node, result_params = NestedGraph.get_nested_graph_component_node(
-            params, is_leaf_func
-        )
-
-        # Assert
-        # The logic only sets node_status if the nested_graph_node_value matches prev_node_id, which doesn't happen here
-        # So we check that the function runs and returns the correct node
-        assert result_node.node_id == "nested_node"
-        assert result_params == params
+        # No node status should be updated since no nested graph was found
+        assert "node1" not in result_params.taskgraph.node_status
 
     def test_get_nested_graph_component_node_empty_path(self) -> None:
         """Test get_nested_graph_component_node with empty path."""
-        # Setup
-        params = Mock(spec=Params)
-        params.taskgraph = Mock()
+        params = Params()
         params.taskgraph.path = []
-        params.taskgraph.node_status = {}
 
         def is_leaf_func(node_id: str) -> bool:
             return False
 
-        # Execute
         result_node, result_params = NestedGraph.get_nested_graph_component_node(
             params, is_leaf_func
         )
 
-        # Assert
         assert result_node is None
         assert result_params == params
 
     def test_get_nested_graph_component_node_single_node_path(self) -> None:
-        """Test get_nested_graph_component_node with single node in path."""
-        # Setup
-        params = Mock(spec=Params)
-        params.taskgraph = Mock()
-        params.taskgraph.path = [
-            PathNode(
-                node_id="single_node",
-                nested_graph_leaf_jump=None,
-                nested_graph_node_value=None,
-            ),
-        ]
-        params.taskgraph.node_status = {}
+        """Test get_nested_graph_component_node with single node path."""
+        params = Params()
+        path_node = PathNode(node_id="node1")
+        params.taskgraph.path = [path_node]
 
         def is_leaf_func(node_id: str) -> bool:
-            return node_id == "single_node"
+            return False
 
-        # Execute
         result_node, result_params = NestedGraph.get_nested_graph_component_node(
             params, is_leaf_func
         )
 
-        # Assert
-        assert result_node.node_id == "single_node"
-        assert result_params == params
+        assert result_node is not None
+        assert result_node.node_id == "node1"
 
     def test_get_nested_graph_component_node_multiple_nested_levels(self) -> None:
         """Test get_nested_graph_component_node with multiple nested levels."""
-        # Setup
-        params = Mock(spec=Params)
-        params.taskgraph = Mock()
-        params.taskgraph.path = [
-            PathNode(
-                node_id="level1",
-                nested_graph_leaf_jump=None,
-                nested_graph_node_value=None,
-            ),
-            PathNode(
-                node_id="level2",
-                nested_graph_leaf_jump=None,
-                nested_graph_node_value="level1",
-            ),
-            PathNode(
-                node_id="level3",
-                nested_graph_leaf_jump=None,
-                nested_graph_node_value="level2",
-            ),
-        ]
-        params.taskgraph.node_status = {}
+        params = Params()
+        path_node1 = PathNode(node_id="node1", nested_graph_node_value="node2")
+        path_node2 = PathNode(node_id="node2", nested_graph_node_value="node3")
+        path_node3 = PathNode(node_id="node3", nested_graph_node_value="node4")
+        path_node4 = PathNode(node_id="node4")
+        params.taskgraph.path = [path_node1, path_node2, path_node3, path_node4]
 
         def is_leaf_func(node_id: str) -> bool:
-            return node_id in ["level1", "level2", "level3"]  # All are leaves
+            return node_id in ["node1", "node2", "node3"]  # All except node4 are leaves
 
-        # Execute
         result_node, result_params = NestedGraph.get_nested_graph_component_node(
             params, is_leaf_func
         )
 
-        # Assert
-        assert result_node.node_id == "level3"
-        assert result_params == params
+        assert result_node is not None
+        # The algorithm finds nested graph components and returns node1
+        # because it's the first node that forms a valid nested graph pattern
+        assert result_node.node_id == "node1"
 
     def test_get_nested_graph_component_node_no_nested_graph_found(self) -> None:
         """Test get_nested_graph_component_node when no nested graph is found."""
-        # Setup
-        params = Mock(spec=Params)
-        params.taskgraph = Mock()
-        params.taskgraph.path = [
-            PathNode(
-                node_id="node1",
-                nested_graph_leaf_jump=None,
-                nested_graph_node_value=None,
-            ),
-            PathNode(
-                node_id="node2",
-                nested_graph_leaf_jump=None,
-                nested_graph_node_value=None,
-            ),
-        ]
-        params.taskgraph.node_status = {}
+        params = Params()
+        path_node1 = PathNode(node_id="node1")
+        path_node2 = PathNode(node_id="node2")
+        params.taskgraph.path = [path_node1, path_node2]
 
         def is_leaf_func(node_id: str) -> bool:
-            return node_id == "node2"
+            return False
 
-        # Execute
         result_node, result_params = NestedGraph.get_nested_graph_component_node(
             params, is_leaf_func
         )
 
-        # Assert
-        assert result_node.node_id == "node2"
-        assert result_params == params
-
-    def test_nested_graph_id_constant(self) -> None:
-        """Test NESTED_GRAPH_ID constant value."""
-        # Assert
-        assert NESTED_GRAPH_ID == "nested_graph"
+        assert result_node is not None
+        assert (
+            result_node.node_id == "node2"
+        )  # Should return current node (last in path)
 
     def test_get_nested_graph_component_node_with_updated_path(self) -> None:
-        """Test get_nested_graph_component_node handles path updates correctly."""
-        # Setup
-        params = Mock(spec=Params)
-        params.taskgraph = Mock()
-        params.taskgraph.path = [
-            PathNode(
-                node_id="start",
-                nested_graph_leaf_jump=None,
-                nested_graph_node_value=None,
-            ),
-            PathNode(
-                node_id="nested",
-                nested_graph_leaf_jump=None,
-                nested_graph_node_value="start",
-            ),
-        ]
-        params.taskgraph.node_status = {}
+        """Test get_nested_graph_component_node with path that gets updated during processing."""
+        params = Params()
+        path_node1 = PathNode(node_id="node1")
+        path_node2 = PathNode(node_id="node2", nested_graph_node_value="node1")
+        params.taskgraph.path = [path_node1, path_node2]
 
         def is_leaf_func(node_id: str) -> bool:
-            return node_id == "start"
+            return node_id == "node1"
 
-        # Execute
         result_node, result_params = NestedGraph.get_nested_graph_component_node(
             params, is_leaf_func
         )
 
-        # Assert
-        assert result_node.node_id == "nested"
-        # The logic may not update nested_graph_leaf_jump or node_status in this scenario
-        assert result_params == params
+        assert result_node is not None
+        # The function starts from node2, but no nested graph component is found
+        # So it returns the current node (node2)
+        assert result_node.node_id == "node2"
+        # No path should be updated since no nested graph was found
+        assert result_params.taskgraph.path[1].nested_graph_leaf_jump is None
+
+    def test_get_nested_graph_component_node_complex_leaf_jump_scenario(self) -> None:
+        """Test get_nested_graph_component_node with complex leaf jump scenario."""
+        params = Params()
+        # Create a valid scenario where the leaf jump points to a valid index
+        path_node1 = PathNode(
+            node_id="node1", nested_graph_leaf_jump=0
+        )  # Points to itself
+        path_node2 = PathNode(node_id="node2")
+        path_node3 = PathNode(node_id="node3", nested_graph_node_value="node1")
+        params.taskgraph.path = [path_node1, path_node2, path_node3]
+        params.taskgraph.node_status = {}
+
+        def is_leaf_func(node_id: str) -> bool:
+            return node_id == "node1"
+
+        result_node, result_params = NestedGraph.get_nested_graph_component_node(
+            params, is_leaf_func
+        )
+
+        assert result_node is not None
+        # The function starts from node3, but no nested graph component is found
+        # So it returns the current node (node3)
+        assert result_node.node_id == "node3"
+
+    def test_get_nested_graph_component_node_nested_graph_id_constant(self) -> None:
+        """Test that NESTED_GRAPH_ID constant is correctly defined."""
+        from arklex.env.nested_graph.nested_graph import NESTED_GRAPH_ID
+
+        assert NESTED_GRAPH_ID == "nested_graph"
