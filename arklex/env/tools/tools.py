@@ -12,6 +12,7 @@ import traceback
 import json
 from typing import Any, Callable, Dict, List, Optional
 
+from arklex.env.tools.utils import generate_multi_slot_cohesive_response
 from arklex.utils.graph_state import MessageState, StatusEnum
 from arklex.utils.slot import Slot
 from arklex.orchestrator.NLU.core.slot import SlotFiller
@@ -289,6 +290,9 @@ class Tool:
         if tool_success:
             # Tool execution success
             if self.isResponse:
+                response = generate_multi_slot_cohesive_response(
+                    response, self.llm_config
+                )
                 logger.info(
                     "Tool exeuction COMPLETE, and the output is stored in response"
                 )

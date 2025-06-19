@@ -8,6 +8,7 @@ provide flexible response generation capabilities.
 """
 
 import inspect
+import json
 import logging
 from typing import Dict, Any, List, Optional, Union, TypeVar, Generic
 
@@ -209,3 +210,31 @@ def trace(input: str, state: MessageState) -> MessageState:
     response_meta: Dict[str, str] = {previous_function_name: input}
     state.trajectory[-1][-1].steps.append(response_meta)
     return state
+
+
+def generate_multi_slot_cohesive_response(
+    raw_data: str, llm_config: Dict[str, Any]
+) -> str:
+    # combine raw data into a singular card list
+    json_objects = raw_data.strip().split("\n")
+    card_list = []
+
+    for obj in json_objects:
+        try:
+            data = json.loads(obj)
+            if "card_list" in data and isinstance(data["card_list"], list):
+                card_list.extend(data["card_list"])
+        except json.JSONDecodeError as e:
+            print(f"Skipping invalid JSON object: {e}")
+
+    llm = PROVIDER_MAP.get(llm_config["llm_provider"], ChatOpenAI)(
+        model=llm_config["model_type_or_path"], temperature=0.7
+    )
+    message = [
+        {
+            "role": "user",
+            "content": f"You are helping a customer search products based on the query and get results below and those results will be presented using product card format.\n\n{json.dumps(card_list)}\n\nGenerate a response to continue the conversation without explicitly mentioning contents of the search result. Include one or two questions about those products to know the user's preference. Keep the response within 50 words.\nDIRECTLY GIVE THE RESPONSE.",
+        },
+    ]
+    answer = llm.invoke(message).content
+    return json.dumps({"answer": answer, "card_list": card_list})

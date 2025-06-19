@@ -122,17 +122,7 @@ def search_products(product_query: str, **kwargs: Any) -> str:
                 }
                 card_list.append(product_dict)
             if card_list:
-                llm = PROVIDER_MAP.get(kwargs["llm_provider"], ChatOpenAI)(
-                    model=kwargs["model_type_or_path"], temperature=0.7
-                )
-                message = [
-                    {
-                        "role": "user",
-                        "content": f"You are helping a customer search products based on the query and get results below and those results will be presented using product card format.\n\n{json.dumps(card_list)}\n\nGenerate a response to continue the conversation without explicitly mentioning contents of the search result. Include one or two questions about those products to know the user's preference. Keep the response within 50 words.\nDIRECTLY GIVE THE RESPONSE.",
-                    },
-                ]
-                answer = llm.invoke(message).content
-                return json.dumps({"answer": answer, "card_list": card_list})
+                return json.dumps({"card_list": card_list})
             else:
                 raise ToolExecutionError(
                     func_name, ShopifyExceptionPrompt.PRODUCT_SEARCH_ERROR_PROMPT
