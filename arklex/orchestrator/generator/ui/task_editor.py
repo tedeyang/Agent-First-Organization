@@ -4,7 +4,6 @@ This module provides the TaskEditor class that handles the UI for editing
 task definitions.
 """
 
-
 from arklex.utils.logging_utils import LogContext
 
 from textual.app import App, ComposeResult
@@ -58,8 +57,10 @@ class TaskEditorApp(App):
         self.task_tree = Tree("Tasks")
         self.task_tree.root.expand()
 
+        # Treat None as empty list
+        tasks = self.tasks if self.tasks is not None else []
         # Populate the tree with tasks and steps
-        for task in self.tasks:
+        for task in tasks:
             task_node = self.task_tree.root.add(task["name"], expand=True)
             for step in task["steps"]:
                 label = (
@@ -196,9 +197,15 @@ class TaskEditorApp(App):
         extracting task names and their associated steps.
         """
         self.tasks = []
+        if self.task_tree is None or getattr(self.task_tree, "root", None) is None:
+            return
+
         for task_node in self.task_tree.root.children:
-            task_name = task_node.label.plain
-            steps = [step.label.plain for step in task_node.children]
+            task_name = getattr(getattr(task_node, "label", None), "plain", None)
+            steps = [
+                getattr(getattr(step, "label", None), "plain", None)
+                for step in getattr(task_node, "children", [])
+            ]
             self.tasks.append({"task_name": task_name, "steps": steps})
 
         log_message = f"Updated Tasks: {self.tasks}"
