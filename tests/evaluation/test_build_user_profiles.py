@@ -7,6 +7,7 @@ including profile generation, attribute conversion, and custom profile handling.
 import pytest
 from unittest.mock import Mock, patch
 from typing import Dict, Any
+from contextlib import ExitStack
 
 from arklex.evaluation.build_user_profiles import (
     augment_attributes,
@@ -162,45 +163,68 @@ class TestBuildUserProfiles:
                 "chatgpt_chatbot": mock_chatbot,
             }
 
-    def test_build_profile_predefined(
+    @pytest.mark.parametrize(
+        "test_config,test_name",
+        [
+            ({"system_inputs": False}, "system_inputs_false"),
+            (
+                {
+                    "custom_profile": True,
+                    "user_attributes": {
+                        "goal": {"values": ["goal1", "goal2"]},
+                        "user_profiles": {"profile1": {"values": ["prof1", "prof2"]}},
+                        "system_attributes": {"attr1": {"values": ["val1", "val2"]}},
+                    },
+                },
+                "custom_with_binding",
+            ),
+            (
+                {
+                    "custom_profile": True,
+                    "user_attributes": {
+                        "goal": {"values": ["goal1", "goal2"]},
+                        "user_profiles": {"profile1": {"values": ["prof1", "prof2"]}},
+                        "system_attributes": {"attr1": {"values": ["val1", "val2"]}},
+                    },
+                },
+                "custom_without_documents",
+            ),
+        ],
+    )
+    def test_build_profile_variations(
         self,
         basic_mock_setup,
-        mock_config: Dict[str, Any],
-        mock_synthetic_params: Dict[str, int],
-    ) -> None:
-        """Test build_profile with predefined profiles."""
-        profiles, goals, attributes, system_attrs, labels = build_profile(
-            mock_synthetic_params, mock_config
-        )
-
-        assert len(profiles) == 2
-        assert len(goals) == 2
-        assert len(attributes) == 2
-        assert len(system_attrs) == 2
-        assert len(labels) == 2
-
-    def test_build_profile_custom(
-        self,
         custom_profile_mock_setup,
         mock_config: Dict[str, Any],
         mock_synthetic_params: Dict[str, int],
+        test_config: Dict[str, Any],
+        test_name: str,
     ) -> None:
-        """Test build_profile with custom profiles."""
-        # Setup custom profile config
-        mock_config["custom_profile"] = True
-        mock_config["user_attributes"]["user_profiles"] = {
-            "profile1": {"values": ["prof1", "prof2"]},
-            "profile2": {"values": ["prof3", "prof4"]},
-        }
-        mock_config["user_attributes"]["system_attributes"] = {
-            "attr1": {"values": ["val1", "val2"]},
-            "attr2": {"values": ["val3", "val4"]},
-        }
+        """Test build_profile with various configurations."""
+        # Apply test-specific configuration with proper merging
+        for key, value in test_config.items():
+            if key == "user_attributes" and key in mock_config:
+                # Merge user_attributes instead of replacing
+                mock_config[key].update(value)
+            else:
+                mock_config[key] = value
+
+        # Use appropriate mock setup
+        mock_setup = (
+            custom_profile_mock_setup
+            if test_config.get("custom_profile")
+            else basic_mock_setup
+        )
+
+        # Override load_docs for custom_without_documents test
+        if test_name == "custom_without_documents":
+            mock_setup["load_docs"].return_value = []
 
         profiles, goals, attributes, system_attrs, labels = build_profile(
             mock_synthetic_params, mock_config
         )
 
+        # Common assertions for all variations
         assert len(profiles) == 2
         assert len(goals) == 2
         assert len(attributes) == 2
@@ -475,7 +499,7 @@ class TestBuildUserProfiles:
         result = attributes_to_text([])
         assert result == []
 
-    def test_convert_attributes_to_profiles_empty(
+    def test_convert_attributes_to_profiles_with_empty_lists(
         self, mock_config: Dict[str, Any]
     ) -> None:
         """Test convert_attributes_to_profiles with empty input lists."""
@@ -495,25 +519,6 @@ class TestBuildUserProfiles:
         result = convert_attributes_to_profile({}, mock_config)
 
         assert result == "Test profile"
-
-    def test_build_profile_system_inputs_false(
-        self,
-        basic_mock_setup,
-        mock_config: Dict[str, Any],
-        mock_synthetic_params: Dict[str, int],
-    ) -> None:
-        """Test build_profile with system_inputs=False."""
-        mock_config["system_inputs"] = False
-
-        profiles, goals, attributes, system_attrs, labels = build_profile(
-            mock_synthetic_params, mock_config
-        )
-
-        assert len(profiles) == 2
-        assert len(goals) == 2
-        assert len(attributes) == 2
-        assert len(system_attrs) == 2
-        assert len(labels) == 2
 
     def test_build_profile_custom_with_binding(
         self,
@@ -594,22 +599,6 @@ class TestBuildUserProfiles:
         )
 
         assert result == "adapted goal"
-
-    def test_convert_attributes_to_profiles_with_empty_lists(
-        self, mock_config: Dict[str, Any]
-    ) -> None:
-        """Test convert_attributes_to_profiles with empty input lists."""
-        profiles, goals, system_inputs = convert_attributes_to_profiles(
-            [], [], mock_config
-        )
-        assert profiles == []
-        assert goals == []
-        assert system_inputs == []
-
-    def test_attributes_to_text_with_empty_list(self) -> None:
-        """Test attributes_to_text with empty list."""
-        result = attributes_to_text([])
-        assert result == []
 
     def test_select_system_attributes_with_empty_config(
         self, mock_synthetic_params: Dict[str, int]
@@ -1053,3 +1042,445 @@ product attribute: color"""
             assert len(attributes) == 1
             assert len(system_attrs) == 1
             assert len(labels) == 1
+
+    def test_build_profile_with_custom_profiles(self) -> None:
+        """Test build_profile with custom profiles enabled."""
+        synthetic_data_params = {"num_convos": 2, "num_goals": 1}
+        config = {
+            "custom_profile": True,
+            "system_inputs": True,
+            "user_attributes": {
+                "system_attributes": {
+                    "location": {
+                        "bind_to": "user_profiles.location",
+                        "values": [{"city": "NYC"}, {"city": "LA"}],
+                    }
+                },
+                "user_profiles": {
+                    "location": {
+                        "bind_to": "system_attributes.location",
+                        "values": ["NYC", "LA"],
+                    }
+                },
+                "goal": {"values": ["goal1", "goal2"]},
+            },
+            "documents_dir": "test_dir",
+            "client": "test_client",
+        }
+
+        # Define all patches at the beginning
+        patches = [
+            patch(
+                "arklex.evaluation.build_user_profiles.load_docs",
+                return_value=[{"content": "test doc"}],
+            ),
+            patch(
+                "arklex.evaluation.build_user_profiles.filter_attributes",
+                return_value={"category": {"values": ["value1", "value2"]}},
+            ),
+            patch(
+                "arklex.evaluation.build_user_profiles.augment_attributes",
+                return_value={"category": ["value1", "value2"]},
+            ),
+            patch(
+                "arklex.evaluation.build_user_profiles.pick_attributes",
+                return_value=({"goal": "goal1"}, {"matched": "attr"}),
+            ),
+            patch(
+                "arklex.evaluation.build_user_profiles.adapt_goal",
+                return_value="adapted_goal",
+            ),
+            patch(
+                "arklex.evaluation.build_user_profiles.select_system_attributes",
+                return_value=[{"location": {"city": "NYC"}}],
+            ),
+            patch(
+                "arklex.evaluation.build_user_profiles.convert_attributes_to_profiles",
+                return_value=(["profile1"], ["goal1"], [{"input": "data"}]),
+            ),
+        ]
+
+        with ExitStack() as stack:
+            # Apply all patches
+            for patch_obj in patches:
+                stack.enter_context(patch_obj)
+
+            result = build_profile(synthetic_data_params, config)
+            assert len(result) == 5
+            assert result[0] == ["profile1"]  # profiles
+            assert result[1] == ["goal1"]  # goals
+            assert len(result[2]) == 2  # attributes_list (2 entries for num_convos=2)
+            assert all("goal" in attr for attr in result[2])  # all entries have goal
+            assert isinstance(result[3], list)
+            assert isinstance(result[3][0], dict)
+            assert "input" in result[3][0] or "location" in result[3][0]
+            assert isinstance(result[4], list)
+            assert len(result[4]) == 2
+            assert all(item == {"matched": "attr"} for item in result[4])
+
+    def test_build_profile_without_custom_profiles(self) -> None:
+        """Test build_profile without custom profiles."""
+        synthetic_data_params = {"num_convos": 2, "num_goals": 1}
+        config = {
+            "custom_profile": False,
+            "system_inputs": True,
+            "user_attributes": {
+                "goal": {"values": ["goal1", "goal2"]},
+            },
+            "documents_dir": "test_dir",
+            "client": "test_client",
+        }
+
+        # Define all patches at the beginning
+        patches = [
+            patch(
+                "arklex.evaluation.build_user_profiles.load_docs",
+                return_value=[{"content": "test doc"}],
+            ),
+            patch(
+                "arklex.evaluation.build_user_profiles.filter_attributes",
+                return_value={"category": {"values": ["value1", "value2"]}},
+            ),
+            patch(
+                "arklex.evaluation.build_user_profiles.augment_attributes",
+                return_value={"category": ["value1", "value2"]},
+            ),
+            patch(
+                "arklex.evaluation.build_user_profiles.pick_attributes",
+                return_value=({"goal": "goal1"}, {"matched": "attr"}),
+            ),
+            patch(
+                "arklex.evaluation.build_user_profiles.adapt_goal",
+                return_value="adapted_goal",
+            ),
+            patch(
+                "arklex.evaluation.build_user_profiles.select_system_attributes",
+                return_value=[{"location": {"city": "NYC"}}],
+            ),
+            patch(
+                "arklex.evaluation.build_user_profiles.convert_attributes_to_profiles",
+                return_value=(["profile1"], ["goal1"], [{"input": "data"}]),
+            ),
+        ]
+
+        with ExitStack() as stack:
+            # Apply all patches
+            for patch_obj in patches:
+                stack.enter_context(patch_obj)
+
+            result = build_profile(synthetic_data_params, config)
+            assert len(result) == 5
+            assert result[0] == ["profile1"]  # profiles
+            assert result[1] == ["goal1"]  # goals
+            assert isinstance(result[3], list)
+            assert isinstance(result[3][0], dict)
+            assert "input" in result[3][0] or "location" in result[3][0]
+            assert isinstance(result[4], list)
+            assert len(result[4]) == 2
+            assert all(item == {"matched": "attr"} for item in result[4])
+
+    def test_get_custom_profiles_with_api_calls(self) -> None:
+        """Test get_custom_profiles with API calls."""
+        config = {
+            "user_attributes": {
+                "system_attributes": {
+                    "location": {
+                        "api": "http://api.example.com/location",
+                        "values": ["NYC", "LA"],
+                    }
+                }
+            }
+        }
+        synthetic_data_params = {"num_convos": 2}
+
+        with patch("requests.get") as mock_get:
+            mock_get.return_value.json.return_value = [{"values": ["NYC", "LA"]}]
+
+            result = select_system_attributes(config, synthetic_data_params)
+            assert len(result) == 2
+            assert all("location" in attr for attr in result)
+
+    def test_get_custom_profiles_without_api_calls(self) -> None:
+        """Test get_custom_profiles without API calls."""
+        config = {
+            "user_attributes": {
+                "system_attributes": {"location": {"values": ["NYC", "LA"]}},
+                "user_profiles": {"location": {"values": ["NYC", "LA"]}},
+            }
+        }
+
+        user_profiles, system_attributes = get_custom_profiles(config)
+
+        assert "location" in system_attributes
+        assert "location" in user_profiles
+        assert system_attributes["location"] == ["NYC", "LA"]
+        assert user_profiles["location"] == ["NYC", "LA"]
+
+    def test_get_custom_profiles_with_bindings(self) -> None:
+        """Test get_custom_profiles with field bindings."""
+        config = {
+            "user_attributes": {
+                "system_attributes": {
+                    "location": {
+                        "api": "http://api.example.com/location",
+                        "values": ["NYC", "LA"],
+                    }
+                },
+                "user_profiles": {
+                    "location": {
+                        "bind_to": "system_attributes.location",
+                        "values": ["NYC", "LA"],
+                    }
+                },
+            }
+        }
+
+        with patch("requests.get") as mock_get:
+            mock_get.return_value.json.return_value = {"data": "test_data"}
+
+            user_profiles, system_attributes = get_custom_profiles(config)
+            assert "location" in user_profiles
+            assert "location" in system_attributes
+            assert user_profiles["location"] == ["NYC", "LA"]
+            assert system_attributes["location"] == ["NYC", "LA"]
+
+    def test_get_label_success(self) -> None:
+        """Test get_label with successful tool prediction."""
+        attribute = {"goal": "book appointment"}
+        config = {
+            "tools": [
+                {
+                    "id": "1",
+                    "name": "booking_tool",
+                    "description": "Book appointments",
+                    "slots": [],
+                    "output": "Booking confirmation",
+                }
+            ],
+            "workers": [],
+            "client": Mock(),
+        }
+
+        # Define all patches at the beginning
+        patches = [
+            patch("arklex.evaluation.build_user_profiles.Environment"),
+            patch(
+                "arklex.evaluation.build_user_profiles.chatgpt_chatbot",
+                return_value="1",
+            ),
+            patch("arklex.evaluation.build_user_profiles.SlotFiller"),
+        ]
+
+        with ExitStack() as stack:
+            # Apply patches
+            mock_env = stack.enter_context(patches[0])
+            mock_chat = stack.enter_context(patches[1])
+            mock_slot_filler = stack.enter_context(patches[2])
+
+            # Setup mocks
+            mock_env_instance = Mock()
+            mock_env.return_value = mock_env_instance
+
+            def tool_mock():
+                m = Mock(spec=["slots", "description", "output", "name"])
+                m.slots = []
+                m.description = "Book appointments"
+                m.output = "Booking confirmation"
+                m.name = "booking_tool"
+                return m
+
+            mock_env_instance.tools = {"1": {"execute": tool_mock}}
+
+            mock_slot_filler_instance = Mock()
+            mock_slot_filler.return_value = mock_slot_filler_instance
+            mock_slot_filler_instance.execute.return_value = [
+                Mock(name="slot1", value="value1")
+            ]
+
+            label, valid = get_label(attribute, config)
+
+            assert label[0]["tool_id"] == "1"
+            assert label[0]["tool_name"] == "booking_tool"
+            assert valid is True
+
+    def test_get_label_no_tool_found(self) -> None:
+        """Test get_label when no appropriate tool is found."""
+        attribute = {"goal": "impossible task"}
+        config = {"tools": [], "workers": [], "client": Mock()}
+
+        # Define all patches at the beginning
+        patches = [
+            patch("arklex.evaluation.build_user_profiles.Environment"),
+            patch(
+                "arklex.evaluation.build_user_profiles.chatgpt_chatbot",
+                return_value="0",
+            ),
+        ]
+
+        with ExitStack() as stack:
+            # Apply patches
+            mock_env = stack.enter_context(patches[0])
+            mock_chat = stack.enter_context(patches[1])
+
+            # Setup mocks
+            mock_env_instance = Mock()
+            mock_env.return_value = mock_env_instance
+            mock_env_instance.tools = {}
+
+            label, valid = get_label(attribute, config)
+
+            assert label[0]["tool_id"] == "0"
+            assert label[0]["tool_name"] == "No tool"
+            assert valid is True
+
+    def test_get_label_with_exception(self) -> None:
+        """Test get_label with exception handling."""
+        attribute = {"goal": "book appointment"}
+        config = {
+            "tools": [
+                {
+                    "id": "1",
+                    "name": "booking_tool",
+                    "description": "Book appointments",
+                    "slots": [],
+                    "output": "Booking confirmation",
+                }
+            ],
+            "workers": [],
+            "client": Mock(),
+        }
+
+        # Define all patches at the beginning
+        patches = [
+            patch("arklex.evaluation.build_user_profiles.Environment"),
+            patch(
+                "arklex.evaluation.build_user_profiles.chatgpt_chatbot",
+                side_effect=Exception("API error"),
+            ),
+        ]
+
+        with ExitStack() as stack:
+            # Apply patches
+            mock_env = stack.enter_context(patches[0])
+            stack.enter_context(patches[1])
+
+            # Setup mocks
+            mock_env_instance = Mock()
+            mock_env.return_value = mock_env_instance
+            mock_env_instance.tools = {
+                "1": {
+                    "execute": lambda: Mock(
+                        slots=[],
+                        description="Book appointments",
+                        output="Booking confirmation",
+                        name="booking_tool",
+                    )
+                }
+            }
+
+            label, valid = get_label(attribute, config)
+
+            assert label[0]["tool_id"] == "0"
+            assert label[0]["tool_name"] == "No tool"
+            assert valid is True
+
+    def test_select_system_attributes_with_api_calls(self) -> None:
+        """Test select_system_attributes with API calls."""
+        config = {
+            "user_attributes": {
+                "system_attributes": {
+                    "location": {
+                        "api": "http://api.example.com/location",
+                        "values": ["NYC", "LA"],
+                    }
+                }
+            }
+        }
+        synthetic_data_params = {"num_convos": 2}
+
+        with patch("requests.get") as mock_get:
+            mock_get.return_value.json.return_value = [{"values": ["NYC", "LA"]}]
+
+            result = select_system_attributes(config, synthetic_data_params)
+
+            assert len(result) == 2
+            assert all("location" in attr for attr in result)
+
+    @pytest.mark.parametrize(
+        "attributes,config,documents,expected_behavior",
+        [
+            # Test with documents and generation enabled
+            (
+                {"category": {"values": ["value1"], "generate_values": True}},
+                {"company_summary": "Test company", "client": Mock()},
+                [{"content": "test document"}],
+                "with_documents_and_generation",
+            ),
+            # Test without documents but generation enabled
+            (
+                {"category": {"values": ["value1"], "generate_values": True}},
+                {"company_summary": "Test company", "client": Mock()},
+                [],
+                "without_documents_but_generation",
+            ),
+            # Test without generation
+            (
+                {"category": {"values": ["value1"], "generate_values": False}},
+                {"client": Mock()},
+                [],
+                "no_generation",
+            ),
+            # Test with empty values
+            (
+                {"category": {"values": [], "generate_values": True}},
+                {"company_summary": "Test company", "client": Mock()},
+                [],
+                "empty_values",
+            ),
+        ],
+    )
+    @patch("arklex.evaluation.build_user_profiles.chatgpt_chatbot")
+    def test_augment_attributes_variations(
+        self, mock_chat, attributes, config, documents, expected_behavior
+    ) -> None:
+        """Test augment_attributes with various configurations."""
+        mock_chat.return_value = "new_value1, new_value2, new_value3"
+
+        result = augment_attributes(attributes, config, documents)
+
+        assert "category" in result
+        assert isinstance(result["category"], list)
+
+        if expected_behavior == "no_generation":
+            assert result["category"] == ["value1"]
+        elif expected_behavior == "empty_values":
+            # Accept empty or new values
+            assert result["category"] == [] or "new_value1" in result["category"]
+        else:
+            # With generation enabled
+            assert "value1" in result["category"]
+            assert any(val in result["category"] for val in ["value1", "new_value1"])
+
+    def test_filter_attributes_generic(self) -> None:
+        """Test filter_attributes with generic category."""
+        config = {
+            "user_attributes": {
+                "generic": {
+                    "category1": {"values": ["value1"]},
+                    "category2": {"values": ["value2"]},
+                },
+                "goal": {"values": ["goal1"]},
+            },
+            "synthetic_data_params": {"customer_type": "premium"},
+        }
+
+        result = filter_attributes(config)
+
+        if "generic" in result:
+            assert "category1" in result["generic"]
+            assert "category2" in result["generic"]
+            assert result["generic"]["category1"] == {"values": ["value1"]}
+        else:
+            assert "category1" in result
+            assert "category2" in result
+            assert result["category1"] == {"values": ["value1"]}

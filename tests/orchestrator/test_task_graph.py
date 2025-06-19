@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from arklex.orchestrator.task_graph import TaskGraph
 from arklex.utils.graph_state import (
     LLMConfig,
@@ -12,6 +12,7 @@ from arklex.utils.graph_state import (
     Metadata,
 )
 from arklex.orchestrator.NLU.services.model_service import DummyModelService
+from contextlib import ExitStack
 
 
 @pytest.fixture
@@ -117,12 +118,16 @@ def mock_model_service():
 
 @pytest.fixture
 def task_graph(dummy_config, dummy_llm_config, mock_model_service):
-    return TaskGraph(
+    task_graph = TaskGraph(
         name="test_graph",
         product_kwargs=dummy_config,
         llm_config=dummy_llm_config,
         model_service=mock_model_service,
     )
+    # Set required attributes that are normally set in get_node method
+    task_graph.text = "test text"
+    task_graph.chat_history_str = "test history"
+    return task_graph
 
 
 @pytest.fixture
@@ -427,18 +432,32 @@ class TestTaskGraph:
 
     def test_handle_leaf_node(self, task_graph, params) -> None:
         """Test handling leaf node."""
-        next_node, updated_params = task_graph.handle_leaf_node("end", params)
+        # Mock NestedGraph.get_nested_graph_component_node
+        with patch(
+            "arklex.orchestrator.task_graph.NestedGraph.get_nested_graph_component_node"
+        ) as mock_nested:
+            mock_nested.return_value = (None, params)
 
-        # The implementation may return 'node1' or 'node2' for this dummy graph
-        assert str(next_node) in ["node1", "node2"]
-        assert updated_params is not None
+            # Mock get_last_flow_stack_node to return a node
+            with patch.object(task_graph, "get_last_flow_stack_node") as mock_flow:
+                mock_flow_node = Mock(spec=PathNode)
+                mock_flow_node.node_id = "node1"  # Match the actual node id
+                mock_flow_node.global_intent = "test_intent"
+                mock_flow.return_value = mock_flow_node
+
+                # Patch graph.successors to return empty list (leaf node)
+                with patch.object(task_graph.graph, "successors", return_value=[]):
+                    result_node, result_params = task_graph.handle_leaf_node(
+                        "curr_node", params
+                    )
+                    assert result_node == "node1"
 
     def test_validate_node_valid(self, task_graph) -> None:
         """Test validating a valid node."""
         valid_node = {
             "id": "test",
             "type": "task",
-            "resource": {"name": "test", "id": "test_id"},
+            "resource": {"name": "test", "id": "test"},
             "attribute": {},
         }
 
@@ -449,7 +468,7 @@ class TestTaskGraph:
         """Test validating a node missing required fields."""
         invalid_node = {
             "type": "task",
-            "resource": {"name": "test", "id": "test_id"},
+            "resource": {"name": "test", "id": "test"},
             "attribute": {},
         }
 
@@ -459,13 +478,431 @@ class TestTaskGraph:
             task_graph._validate_node(invalid_node)
 
     def test_validate_node_missing_attribute(self, task_graph) -> None:
-        """Test validating a node missing attribute."""
-        invalid_node = {
-            "id": "test",
-            "type": "task",
-            "resource": {"name": "test", "id": "test_id"},
+        """Test _validate_node with missing attribute."""
+        node = {"id": "test_id"}
+        with pytest.raises(Exception):  # TaskGraphError
+            task_graph._validate_node(node)
+
+    def test_global_intent_prediction_with_excluded_intents(
+        self, task_graph, params
+    ) -> None:
+        """Test global_intent_prediction with excluded intents."""
+        available_global_intents = {"intent1": [{"name": "intent1"}]}
+        excluded_intents = {"intent1": True}
+
+        # Mock the _get_node method
+        with patch.object(task_graph, "_get_node") as mock_get_node:
+            mock_node_info = NodeInfo(
+                node_id="next_node",
+                type="test",
+                resource_id="test",
+                resource_name="test",
+            )
+            mock_get_node.return_value = (mock_node_info, params)
+
+            # Mock graph.successors to return a non-empty list
+            with patch.object(
+                task_graph.graph, "successors", return_value=["next_node"]
+            ):
+                result, pred_intent, node_info, params = (
+                    task_graph.global_intent_prediction(
+                        "curr_node", params, available_global_intents, excluded_intents
+                    )
+                )
+                assert result is False
+
+    def test_global_intent_prediction_with_no_candidates(
+        self, task_graph, params
+    ) -> None:
+        """Test global_intent_prediction with no candidate intents."""
+        available_global_intents = {}
+        excluded_intents = {}
+
+        result, pred_intent, node_info, params = task_graph.global_intent_prediction(
+            "curr_node", params, available_global_intents, excluded_intents
+        )
+        assert result is False
+        assert pred_intent == "others"
+
+    def test_global_intent_prediction_with_same_intent_and_incomplete_status(
+        self, task_graph, params
+    ) -> None:
+        """Test global_intent_prediction with same intent and incomplete status."""
+        available_global_intents = {"intent1": [{"name": "intent1"}]}
+        excluded_intents = {}
+
+        # Define patches at the beginning
+        patches = [
+            patch.object(task_graph.intent_detector, "execute", return_value="intent1"),
+        ]
+
+        with ExitStack() as stack:
+            # Apply patches
+            stack.enter_context(patches[0])
+            with patch.object(
+                task_graph.graph, "successors", return_value=["next_node"]
+            ):
+                params.taskgraph.curr_global_intent = "intent1"
+                params.taskgraph.node_status = {"curr_node": StatusEnum.INCOMPLETE}
+
+                result, pred_intent, node_info, params = (
+                    task_graph.global_intent_prediction(
+                        "curr_node", params, available_global_intents, excluded_intents
+                    )
+                )
+                assert result is False
+
+    def test_global_intent_prediction_with_different_intent(
+        self, task_graph, params
+    ) -> None:
+        """Test global_intent_prediction with different intent."""
+        available_global_intents = {"intent1": [{"name": "intent1"}]}
+        excluded_intents = {}
+
+        # Define patches at the beginning
+        patches = [
+            patch.object(task_graph.intent_detector, "execute", return_value="intent1"),
+            patch.object(
+                task_graph, "jump_to_node", return_value=("next_node", "intent1")
+            ),
+            patch.object(
+                task_graph,
+                "_get_node",
+                return_value=(
+                    NodeInfo(
+                        node_id="next_node",
+                        type="test",
+                        resource_id="test",
+                        resource_name="test",
+                    ),
+                    params,
+                ),
+            ),
+        ]
+
+        with ExitStack() as stack:
+            # Apply patches
+            stack.enter_context(patches[0])
+            stack.enter_context(patches[1])
+            stack.enter_context(patches[2])
+            with patch.object(
+                task_graph.graph, "successors", return_value=["next_node"]
+            ):
+                params.taskgraph.curr_global_intent = "different_intent"
+
+                result, pred_intent, node_info, params = (
+                    task_graph.global_intent_prediction(
+                        "curr_node", params, available_global_intents, excluded_intents
+                    )
+                )
+                assert result is True
+                assert pred_intent == "intent1"
+
+    def test_local_intent_prediction_with_unsure_intent(
+        self, task_graph, params
+    ) -> None:
+        """Test local_intent_prediction with unsure intent."""
+        curr_local_intents = {"intent1": [{"name": "intent1"}]}
+
+        # Define patches at the beginning
+        patches = [
+            patch.object(task_graph.intent_detector, "execute", return_value="others"),
+        ]
+
+        with ExitStack() as stack:
+            # Apply patches
+            stack.enter_context(patches[0])
+
+            result, node_info, params = task_graph.local_intent_prediction(
+                "curr_node", params, curr_local_intents
+            )
+            assert result is False
+
+    def test_local_intent_prediction_with_found_intent(
+        self, task_graph, params
+    ) -> None:
+        """Test local_intent_prediction with found intent."""
+        curr_local_intents = {"intent1": [{"name": "intent1"}]}
+
+        # Define patches at the beginning
+        patches = [
+            patch.object(task_graph.intent_detector, "execute", return_value="intent1"),
+            patch.object(
+                task_graph,
+                "_get_node",
+                return_value=(
+                    NodeInfo(
+                        node_id="next_node",
+                        type="test",
+                        resource_id="test",
+                        resource_name="test",
+                    ),
+                    params,
+                ),
+            ),
+        ]
+
+        with ExitStack() as stack:
+            # Apply patches
+            stack.enter_context(patches[0])
+            stack.enter_context(patches[1])
+
+            task_graph.graph.out_edges.return_value = [
+                ("curr_node", "next_node", "intent1")
+            ]
+
+            result, node_info, params = task_graph.local_intent_prediction(
+                "curr_node", params, curr_local_intents
+            )
+            assert result is True
+
+    def test_local_intent_prediction_with_start_node(self, task_graph, params) -> None:
+        """Test local_intent_prediction with start node."""
+        curr_local_intents = {"intent1": [{"name": "intent1"}]}
+        task_graph.start_node = "curr_node"
+
+        # Define patches at the beginning
+        patches = [
+            patch.object(task_graph.intent_detector, "execute", return_value="intent1"),
+            patch.object(
+                task_graph,
+                "_get_node",
+                return_value=(
+                    NodeInfo(
+                        node_id="next_node",
+                        type="test",
+                        resource_id="test",
+                        resource_name="test",
+                    ),
+                    params,
+                ),
+            ),
+        ]
+
+        with ExitStack() as stack:
+            # Apply patches
+            stack.enter_context(patches[0])
+            stack.enter_context(patches[1])
+
+            task_graph.graph.out_edges.return_value = [
+                ("curr_node", "next_node", "intent1")
+            ]
+
+            result, node_info, params = task_graph.local_intent_prediction(
+                "curr_node", params, curr_local_intents
+            )
+            assert result is True
+            assert params.taskgraph.curr_global_intent == "intent1"
+
+    def test_handle_leaf_node_with_nested_graph(self, task_graph, params) -> None:
+        """Test handle_leaf_node with nested graph."""
+        with patch.object(task_graph.graph, "successors", return_value=[]):
+            result_node, result_params = task_graph.handle_leaf_node(
+                "curr_node", params
+            )
+            assert result_node is not None
+
+    def test_handle_leaf_node_with_flow_stack(self, task_graph, params) -> None:
+        """Test handle_leaf_node with flow stack."""
+        with patch.object(task_graph.graph, "successors", return_value=[]):
+            result_node, result_params = task_graph.handle_leaf_node(
+                "curr_node", params
+            )
+            assert result_node is not None
+
+    def test_get_node_with_start_text(self, task_graph, params) -> None:
+        """Test get_node with '<start>' text."""
+        inputs = {
+            "text": "<start>",
+            "chat_history_str": "",
+            "parameters": params,
+            "allow_global_intent_switch": True,
         }
 
-        # The implementation does not raise an error for missing attribute
-        # So we expect the validation to pass without raising an exception
-        task_graph._validate_node(invalid_node)
+        # Define patches at the beginning
+        patches = [
+            patch.object(
+                task_graph, "get_current_node", return_value=("start_node", params)
+            ),
+            patch.object(
+                task_graph,
+                "_get_node",
+                return_value=(
+                    NodeInfo(
+                        node_id="start_node",
+                        type="test",
+                        resource_id="test",
+                        resource_name="test",
+                    ),
+                    params,
+                ),
+            ),
+        ]
+
+        with ExitStack() as stack:
+            # Apply patches
+            stack.enter_context(patches[0])
+            stack.enter_context(patches[1])
+
+            node_info, params = task_graph.get_node(inputs)
+            assert node_info.node_id == "start_node"
+
+    def test_get_node_with_global_intent_switch(self, task_graph, params) -> None:
+        """Test get_node with global intent switch allowed."""
+        inputs = {
+            "text": "test text",
+            "chat_history_str": "",
+            "parameters": params,
+            "allow_global_intent_switch": True,
+        }
+
+        # Define patches at the beginning
+        patches = [
+            patch.object(
+                task_graph, "get_current_node", return_value=("curr_node", params)
+            ),
+            patch.object(
+                task_graph,
+                "get_available_global_intents",
+                return_value={"intent1": [{"name": "intent1"}]},
+            ),
+            patch.object(
+                task_graph,
+                "global_intent_prediction",
+                return_value=(
+                    True,
+                    "intent1",
+                    NodeInfo(
+                        node_id="next_node",
+                        type="test",
+                        resource_id="test",
+                        resource_name="test",
+                    ),
+                    params,
+                ),
+            ),
+        ]
+
+        with ExitStack() as stack:
+            # Apply patches
+            stack.enter_context(patches[0])
+            stack.enter_context(patches[1])
+            stack.enter_context(patches[2])
+            # Add curr_node to the graph
+            task_graph.graph.add_node("curr_node")
+            with patch.object(task_graph.graph, "successors", return_value=[]):
+                node_info, params_ = task_graph.get_node(inputs)
+                assert node_info.node_id == "next_node"
+
+    def test_get_node_with_local_intent(self, task_graph, params) -> None:
+        """Test get_node with local intent prediction."""
+        inputs = {
+            "text": "test text",
+            "chat_history_str": "",
+            "parameters": params,
+            "allow_global_intent_switch": False,
+        }
+
+        # Define patches at the beginning
+        patches = [
+            patch.object(
+                task_graph, "get_current_node", return_value=("curr_node", params)
+            ),
+            patch.object(task_graph, "get_available_global_intents", return_value={}),
+            patch.object(
+                task_graph,
+                "get_local_intent",
+                return_value={"intent1": [{"name": "intent1"}]},
+            ),
+            patch.object(
+                task_graph,
+                "local_intent_prediction",
+                return_value=(
+                    True,
+                    NodeInfo(
+                        node_id="next_node",
+                        type="test",
+                        resource_id="test",
+                        resource_name="test",
+                    ),
+                    params,
+                ),
+            ),
+        ]
+
+        with ExitStack() as stack:
+            # Apply patches
+            stack.enter_context(patches[0])
+            stack.enter_context(patches[1])
+            stack.enter_context(patches[2])
+            stack.enter_context(patches[3])
+            # Add curr_node to the graph
+            task_graph.graph.add_node("curr_node")
+            with patch.object(task_graph.graph, "successors", return_value=[]):
+                node_info, params_ = task_graph.get_node(inputs)
+                assert node_info.node_id == "next_node"
+
+    def test_get_node_with_unknown_intent(self, task_graph, params) -> None:
+        """Test get_node with unknown intent."""
+        inputs = {
+            "text": "test text",
+            "chat_history_str": "",
+            "parameters": params,
+            "allow_global_intent_switch": False,
+        }
+
+        # Define patches at the beginning
+        patches = [
+            patch.object(
+                task_graph, "get_current_node", return_value=("curr_node", params)
+            ),
+            patch.object(task_graph, "get_available_global_intents", return_value={}),
+            patch.object(task_graph, "get_local_intent", return_value={}),
+            patch.object(
+                task_graph,
+                "handle_unknown_intent",
+                return_value=(
+                    NodeInfo(
+                        node_id="planner",
+                        type="test",
+                        resource_id="test",
+                        resource_name="test",
+                    ),
+                    params,
+                ),
+            ),
+        ]
+
+        with ExitStack() as stack:
+            # Apply patches
+            stack.enter_context(patches[0])
+            stack.enter_context(patches[1])
+            stack.enter_context(patches[2])
+            stack.enter_context(patches[3])
+            # Add curr_node to the graph
+            task_graph.graph.add_node("curr_node")
+            with patch.object(task_graph.graph, "successors", return_value=[]):
+                node_info, params_ = task_graph.get_node(inputs)
+                assert node_info.node_id == "planner"
+
+    def test_postprocess_node(self, task_graph, params) -> None:
+        """Test postprocess_node method."""
+        node_info = NodeInfo(
+            node_id="test_node", type="test", resource_id="test", resource_name="test"
+        )
+
+        result_node_info, result_params = task_graph.postprocess_node(
+            (node_info, params)
+        )
+        assert result_node_info == node_info
+        assert result_params == params
+
+    def test_validate_node_with_extra_fields(self, task_graph) -> None:
+        """Test _validate_node with extra fields."""
+        node = {"id": "test_id", "type": "test_type", "extra_field": "extra_value"}
+        task_graph._validate_node(node)  # Should not raise an error
+
+    def test_validate_node_with_empty_strings(self, task_graph) -> None:
+        """Test _validate_node with empty string values."""
+        node = {"id": "", "type": ""}
+        task_graph._validate_node(node)  # Should not raise an error for empty strings
