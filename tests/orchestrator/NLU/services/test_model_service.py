@@ -58,7 +58,10 @@ def test_model_service_initialization_missing_config() -> None:
 
 
 @pytest.mark.asyncio
-async def test_process_text_success(model_service: ModelService) -> None:
+@patch("arklex.orchestrator.NLU.services.model_service.APIClientService")
+async def test_process_text_success(
+    mock_api_service, model_service: ModelService
+) -> None:
     """Test successful text processing.
 
     Args:
@@ -66,6 +69,9 @@ async def test_process_text_success(model_service: ModelService) -> None:
     """
     text = "Test input text"
     context = {"user_id": "123"}
+
+    # Mock the API service to avoid any async warnings
+    mock_api_service.return_value = MagicMock()
 
     with patch.object(
         model_service, "_make_model_request", new_callable=AsyncMock
