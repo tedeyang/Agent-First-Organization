@@ -279,6 +279,7 @@ class ToolExecutionError(ArklexError):
             500,
             details,
         )
+        self.extra_message = extra_message
 
 
 class UserFacingError(ArklexError):
