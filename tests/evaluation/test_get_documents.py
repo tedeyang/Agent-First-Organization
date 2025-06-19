@@ -1,358 +1,453 @@
-"""Tests for the get_documents module.
+"""Tests for document loading and processing module.
 
-This module contains comprehensive test cases for document loading and processing
-functionality, including domain information extraction, document loading with caching,
-and handling different document types (web, file, text).
+This module tests the document loading utilities including domain information
+extraction, document loading with caching, and handling different document types.
 """
 
-import os
-import pickle
-from typing import Dict, Any, List
-from unittest.mock import Mock, patch, mock_open
+from unittest.mock import patch, MagicMock
 
-import pytest
-
-from arklex.evaluation.get_documents import get_domain_info, load_docs
+from arklex.evaluation import get_documents
 from arklex.utils.loader import CrawledObject, SourceType
 
 
-class TestGetDocuments:
-    """Test cases for get_documents module.
-
-    This class contains comprehensive tests for document loading and processing,
-    including domain information extraction and document loading from various sources.
-    """
+class TestGetDomainInfo:
+    """Test cases for get_domain_info function."""
 
     def test_get_domain_info_with_summary(self) -> None:
-        """Test get_domain_info function with summary document present."""
-        # Setup
-        documents: List[Dict[str, str]] = [
-            {"URL": "http://example.com", "content": "Example content"},
-            {"URL": "summary", "content": "Summary content"},
-            {"URL": "http://test.com", "content": "Test content"},
+        """Test getting domain info when summary document exists."""
+        documents = [
+            {"URL": "https://example.com", "content": "Example content"},
+            {"URL": "summary", "content": "This is the summary"},
+            {"URL": "https://another.com", "content": "Another content"},
         ]
-
-        # Execute
-        result = get_domain_info(documents)
-
-        # Assert
-        assert result == "Summary content"
+        result = get_documents.get_domain_info(documents)
+        assert result == "This is the summary"
 
     def test_get_domain_info_without_summary(self) -> None:
-        """Test get_domain_info function without summary document."""
-        # Setup
-        documents: List[Dict[str, str]] = [
-            {"URL": "http://example.com", "content": "Example content"},
-            {"URL": "http://test.com", "content": "Test content"},
+        """Test getting domain info when no summary document exists."""
+        documents = [
+            {"URL": "https://example.com", "content": "Example content"},
+            {"URL": "https://another.com", "content": "Another content"},
         ]
-
-        # Execute
-        result = get_domain_info(documents)
-
-        # Assert
+        result = get_documents.get_domain_info(documents)
         assert result is None
 
     def test_get_domain_info_empty_list(self) -> None:
-        """Test get_domain_info function with empty document list."""
-        # Setup
-        documents: List[Dict[str, str]] = []
-
-        # Execute
-        result = get_domain_info(documents)
-
-        # Assert
+        """Test getting domain info with empty document list."""
+        documents = []
+        result = get_documents.get_domain_info(documents)
         assert result is None
 
+    def test_get_domain_info_multiple_summaries(self) -> None:
+        """Test getting domain info with multiple summary documents (should return first)."""
+        documents = [
+            {"URL": "summary", "content": "First summary"},
+            {"URL": "summary", "content": "Second summary"},
+            {"URL": "https://example.com", "content": "Example content"},
+        ]
+        result = get_documents.get_domain_info(documents)
+        assert result == "First summary"
+
+
+class TestLoadDocs:
+    """Test cases for load_docs function."""
+
     @patch("pickle.load")
-    @patch("arklex.evaluation.get_documents.os.path.exists")
-    @patch("arklex.evaluation.get_documents.Loader")
+    @patch("os.path.exists")
+    @patch("builtins.open", create=True)
+    @patch("arklex.utils.loader.Loader.save")
     def test_load_docs_with_existing_cache(
-        self, mock_loader_class: Mock, mock_exists: Mock, mock_pickle_load: Mock
+        self, mock_save, mock_open, mock_exists, mock_pickle_load
     ) -> None:
-        """Test load_docs function with existing cache file."""
-        # Setup
-        document_dir = "/test/dir"
-        doc_config = {"rag_docs": [{"source": "test", "type": "url", "num": 5}]}
-        limit = 10
-
+        """Test loading documents with existing cache file."""
         mock_exists.return_value = True
-        mock_crawled_obj = Mock(spec=CrawledObject)
-        mock_crawled_obj.source_type = SourceType.WEB
-        mock_crawled_obj.to_dict.return_value = {"URL": "test.com", "content": "test"}
-        mock_pickle_load.return_value = [mock_crawled_obj]
+        mock_crawled_objects = [
+            CrawledObject(
+                id="1",
+                source="https://example.com",
+                content="Example content",
+                source_type=SourceType.WEB,
+            ),
+            CrawledObject(
+                id="2",
+                source="file.txt",
+                content="File content",
+                source_type=SourceType.FILE,
+            ),
+        ]
+        mock_pickle_load.return_value = mock_crawled_objects
+        mock_file = MagicMock()
+        mock_open.return_value = mock_file
 
-        mock_loader = Mock()
-        mock_loader.get_candidates_websites.return_value = [mock_crawled_obj]
-        mock_loader_class.return_value = mock_loader
-
-        # Execute
-        result = load_docs(document_dir, doc_config, limit)
-
-        # Assert
-        assert isinstance(result, list)
-
-    @patch("pickle.load")
-    @patch("arklex.evaluation.get_documents.os.path.exists")
-    @patch("arklex.evaluation.get_documents.Loader")
-    @patch("arklex.evaluation.get_documents.os.listdir")
-    def test_load_docs_without_cache_url_type(
-        self,
-        mock_listdir: Mock,
-        mock_loader_class: Mock,
-        mock_exists: Mock,
-        mock_pickle_load: Mock,
-    ) -> None:
-        """Test load_docs function without cache file, URL type documents."""
-        # Setup
-        document_dir = "/test/dir"
         doc_config = {
-            "rag_docs": [{"source": "http://test.com", "type": "url", "num": 2}]
+            "task_docs": [{"source": "https://example.com", "type": "url", "num": 1}]
         }
-        limit = 10
+        result = get_documents.load_docs("./temp_files", doc_config, 10)
 
-        mock_exists.return_value = False
-        mock_listdir.return_value = ["file1.txt", "file2.txt"]
-
-        mock_loader = Mock()
-        mock_loader.get_all_urls.return_value = ["http://test.com", "http://test2.com"]
-        mock_loader.to_crawled_url_objs.return_value = [Mock(spec=CrawledObject)]
-        mock_loader.get_candidates_websites.return_value = [Mock(spec=CrawledObject)]
-        mock_loader.save = Mock()
-        mock_loader_class.return_value = mock_loader
-
-        # Execute
-        result = load_docs(document_dir, doc_config, limit)
-
-        # Assert
-        assert isinstance(result, list)
+        assert len(result) == 2
+        assert result[0]["source"] == "https://example.com"
+        assert result[0]["content"] == "Example content"
+        assert result[1]["source"] == "file.txt"
+        assert result[1]["content"] == "File content"
 
     @patch("pickle.load")
-    @patch("arklex.evaluation.get_documents.os.path.exists")
-    @patch("arklex.evaluation.get_documents.Loader")
-    @patch("arklex.evaluation.get_documents.os.listdir")
-    def test_load_docs_file_type(
-        self,
-        mock_listdir: Mock,
-        mock_loader_class: Mock,
-        mock_exists: Mock,
-        mock_pickle_load: Mock,
+    @patch("os.path.exists")
+    @patch("builtins.open", create=True)
+    @patch("arklex.utils.loader.Loader.save")
+    def test_load_docs_without_cache_url_type(
+        self, mock_save, mock_open, mock_exists, mock_pickle_load
     ) -> None:
-        """Test load_docs function with file type documents."""
-        # Setup
-        document_dir = "/test/dir"
-        doc_config = {"rag_docs": [{"source": "/test/files", "type": "file"}]}
-        limit = 10
-
+        """Test loading documents without cache for URL type."""
         mock_exists.return_value = False
-        mock_listdir.return_value = ["file1.txt", "file2.txt"]
+        from arklex.utils.loader import Loader, CrawledObject, SourceType
 
-        mock_loader = Mock()
-        mock_loader.to_crawled_local_objs.return_value = [Mock(spec=CrawledObject)]
-        mock_loader.save = Mock()
-        mock_loader_class.return_value = mock_loader
+        loader = Loader()
+        with (
+            patch.object(loader, "get_all_urls", return_value=["https://example.com"]),
+            patch.object(
+                loader,
+                "to_crawled_url_objs",
+                return_value=[
+                    CrawledObject(
+                        id="1",
+                        source="https://example.com",
+                        content="Example content",
+                        source_type=SourceType.WEB,
+                    )
+                ],
+            ),
+            patch.object(
+                loader,
+                "get_candidates_websites",
+                return_value=[
+                    CrawledObject(
+                        id="1",
+                        source="https://example.com",
+                        content="Example content",
+                        source_type=SourceType.WEB,
+                    )
+                ],
+            ),
+        ):
+            mock_file = MagicMock()
+            mock_open.return_value = mock_file
 
-        # Execute
-        result = load_docs(document_dir, doc_config, limit)
+            doc_config = {
+                "task_docs": [
+                    {"source": "https://example.com", "type": "url", "num": 1}
+                ]
+            }
+            with patch("arklex.evaluation.get_documents.Loader", return_value=loader):
+                result = get_documents.load_docs("./temp_files", doc_config, 10)
 
-        # Assert
-        assert isinstance(result, list)
+            assert len(result) == 1
+            assert result[0]["source"] == "https://example.com"
+            assert result[0]["content"] == "Example content"
 
     @patch("pickle.load")
-    @patch("arklex.evaluation.get_documents.os.path.exists")
+    @patch("os.path.exists")
+    @patch("arklex.evaluation.get_documents.Loader")
+    @patch("os.listdir")
+    def test_load_docs_file_type(
+        self, mock_listdir, mock_loader_class, mock_exists, mock_pickle_load
+    ) -> None:
+        """Test loading documents for file type."""
+        mock_exists.return_value = False
+        mock_listdir.return_value = ["file1.txt", "file2.txt"]
+        mock_loader = MagicMock()
+        mock_loader_class.return_value = mock_loader
+        mock_loader.to_crawled_local_objs.return_value = [
+            CrawledObject(
+                id="1",
+                source="file1.txt",
+                content="File 1 content",
+                source_type=SourceType.FILE,
+            ),
+            CrawledObject(
+                id="2",
+                source="file2.txt",
+                content="File 2 content",
+                source_type=SourceType.FILE,
+            ),
+        ]
+        mock_loader.save = MagicMock()
+
+        doc_config = {"task_docs": [{"source": "./docs", "type": "file"}]}
+        result = get_documents.load_docs("./temp_files", doc_config, 10)
+
+        assert len(result) == 2
+        assert result[0]["source"] == "file1.txt"
+        assert result[0]["content"] == "File 1 content"
+        assert result[1]["source"] == "file2.txt"
+        assert result[1]["content"] == "File 2 content"
+
+    @patch("pickle.load")
+    @patch("os.path.exists")
     @patch("arklex.evaluation.get_documents.Loader")
     def test_load_docs_text_type(
-        self, mock_loader_class: Mock, mock_exists: Mock, mock_pickle_load: Mock
+        self, mock_loader_class, mock_exists, mock_pickle_load
     ) -> None:
-        """Test load_docs function with text type documents."""
-        # Setup
-        document_dir = "/test/dir"
-        doc_config = {"rag_docs": [{"source": "Sample text content", "type": "text"}]}
-        limit = 10
-
+        """Test loading documents for text type."""
         mock_exists.return_value = False
-
-        mock_loader = Mock()
-        mock_loader.to_crawled_text.return_value = [Mock(spec=CrawledObject)]
-        mock_loader.save = Mock()
+        mock_loader = MagicMock()
         mock_loader_class.return_value = mock_loader
+        mock_loader.to_crawled_text.return_value = [
+            CrawledObject(
+                id="1",
+                source="text_content",
+                content="This is text content",
+                source_type=SourceType.TEXT,
+            )
+        ]
+        mock_loader.save = MagicMock()
 
-        # Execute
-        result = load_docs(document_dir, doc_config, limit)
+        doc_config = {"task_docs": [{"source": "This is text", "type": "text"}]}
+        result = get_documents.load_docs("./temp_files", doc_config, 10)
 
-        # Assert
-        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0]["source"] == "text_content"
+        assert result[0]["content"] == "This is text content"
 
-    @patch("arklex.evaluation.get_documents.os.path.exists")
-    def test_load_docs_invalid_type(self, mock_exists: Mock) -> None:
-        """Test load_docs function with invalid document type."""
-        # Setup
-        document_dir = "/test/dir"
-        doc_config = {"rag_docs": [{"source": "test", "type": "invalid"}]}
-        limit = 10
+    def test_load_docs_missing_rag_and_task_docs(self) -> None:
+        """Test loading documents with missing rag_docs and task_docs."""
+        doc_config = {"other_key": "value"}
 
-        mock_exists.return_value = False
-
-        # Execute
-        result = load_docs(document_dir, doc_config, limit)
-
-        # Assert
-        assert result == []
-
-    @patch("arklex.evaluation.get_documents.os.path.exists")
-    def test_load_docs_missing_type(self, mock_exists: Mock) -> None:
-        """Test load_docs function with missing document type."""
-        # Setup
-        document_dir = "/test/dir"
-        doc_config = {"rag_docs": [{"source": "test"}]}  # Missing 'type' key
-        limit = 10
-
-        mock_exists.return_value = False
-
-        # Execute
-        result = load_docs(document_dir, doc_config, limit)
-
-        # Assert
-        assert result == []
-
-    @patch("arklex.evaluation.get_documents.os.path.exists")
-    def test_load_docs_missing_rag_and_task_docs(self, mock_exists: Mock) -> None:
-        """Test load_docs function with missing rag_docs and task_docs keys."""
-        # Setup
-        document_dir = "/test/dir"
-        doc_config = {}  # Missing both rag_docs and task_docs
-        limit = 10
-
-        mock_exists.return_value = False
-
-        # Execute
-        result = load_docs(document_dir, doc_config, limit)
-
-        # Assert
+        # The function prints an error and returns empty list, doesn't raise ValueError
+        result = get_documents.load_docs("./temp_files", doc_config, 10)
         assert result == []
 
     def test_load_docs_none_directory(self) -> None:
-        """Test load_docs function with None directory."""
-        # Setup
-        document_dir = None
-        doc_config = {"rag_docs": [{"source": "test", "type": "url", "num": 5}]}
-        limit = 10
-
-        # Execute
-        result = load_docs(document_dir, doc_config, limit)
-
-        # Assert
-        assert result == []
-
-    @patch("arklex.evaluation.get_documents.os.path.exists")
-    def test_load_docs_with_exception(self, mock_exists: Mock) -> None:
-        """Test load_docs function when an exception occurs during loading."""
-        # Setup
-        document_dir = "/test/dir"
-        doc_config = {"rag_docs": [{"source": "test", "type": "url", "num": 5}]}
-        limit = 10
-
-        mock_exists.side_effect = Exception("File system error")
-
-        # Execute
-        result = load_docs(document_dir, doc_config, limit)
-
-        # Assert
+        """Test loading documents with None directory."""
+        doc_config = {"task_docs": [{"source": "https://example.com", "type": "url"}]}
+        result = get_documents.load_docs(None, doc_config, 10)
         assert result == []
 
     @patch("pickle.load")
-    @patch("arklex.evaluation.get_documents.os.path.exists")
+    @patch("os.path.exists")
+    @patch("arklex.evaluation.get_documents.Loader")
+    def test_load_docs_with_exception(
+        self, mock_loader_class, mock_exists, mock_pickle_load
+    ) -> None:
+        """Test loading documents with exception handling."""
+        mock_exists.return_value = False
+        mock_loader = MagicMock()
+        mock_loader_class.return_value = mock_loader
+        mock_loader.get_all_urls.side_effect = Exception("Network error")
+
+        doc_config = {
+            "task_docs": [{"source": "https://example.com", "type": "url", "num": 1}]
+        }
+        result = get_documents.load_docs("./temp_files", doc_config, 10)
+
+        assert result == []
+
+    @patch("pickle.load")
+    @patch("os.path.exists")
     @patch("arklex.evaluation.get_documents.Loader")
     def test_load_docs_high_total_docs(
-        self, mock_loader_class: Mock, mock_exists: Mock, mock_pickle_load: Mock
+        self, mock_loader_class, mock_exists, mock_pickle_load
     ) -> None:
-        """Test load_docs function with high total document count."""
-        # Setup
-        document_dir = "/test/dir"
-        doc_config = {"rag_docs": [{"source": "test", "type": "url", "num": 100}]}
-        limit = 10  # Lower limit than requested documents
-
+        """Test loading documents with high total document count."""
         mock_exists.return_value = False
-
-        mock_loader = Mock()
-        mock_loader.get_all_urls.return_value = ["http://test.com"] * 100
-        mock_loader.to_crawled_url_objs.return_value = [Mock(spec=CrawledObject)] * 100
-        mock_loader.get_candidates_websites.return_value = [
-            Mock(spec=CrawledObject)
-        ] * 10
-        mock_loader.save = Mock()
+        mock_loader = MagicMock()
         mock_loader_class.return_value = mock_loader
+        mock_loader.get_all_urls.return_value = ["https://example.com"]
+        mock_loader.to_crawled_url_objs.return_value = [
+            CrawledObject(
+                id="1",
+                source="https://example.com",
+                content="Example content",
+                source_type=SourceType.WEB,
+            )
+        ]
+        mock_loader.get_candidates_websites.return_value = [
+            CrawledObject(
+                id="1",
+                source="https://example.com",
+                content="Example content",
+                source_type=SourceType.WEB,
+            )
+        ]
 
-        # Execute
-        result = load_docs(document_dir, doc_config, limit)
+        # High total docs should adjust the limit for get_candidates_websites
+        doc_config = {
+            "task_docs": [{"source": "https://example.com", "type": "url", "num": 100}]
+        }
+        result = get_documents.load_docs("./temp_files", doc_config, 10)
 
-        # Assert
-        assert isinstance(result, list)
-        assert len(result) <= limit
+        assert len(result) == 1
+        mock_loader.get_all_urls.assert_called_with(
+            "https://example.com", 100
+        )  # Uses original num value
+        mock_loader.get_candidates_websites.assert_called_with(
+            mock_loader.to_crawled_url_objs.return_value, 20
+        )  # Uses adjusted limit
 
     @patch("pickle.load")
-    @patch("arklex.evaluation.get_documents.os.path.exists")
+    @patch("os.path.exists")
     @patch("arklex.evaluation.get_documents.Loader")
     def test_load_docs_mixed_source_types(
-        self, mock_loader_class: Mock, mock_exists: Mock, mock_pickle_load: Mock
+        self, mock_loader_class, mock_exists, mock_pickle_load
     ) -> None:
-        """Test load_docs function with mixed source types."""
-        # Setup
-        document_dir = "/test/dir"
+        """Test loading documents with mixed source types."""
+        mock_exists.return_value = False
+        mock_loader = MagicMock()
+        mock_loader_class.return_value = mock_loader
+        mock_loader.get_all_urls.return_value = ["https://example.com"]
+        mock_loader.to_crawled_url_objs.return_value = [
+            CrawledObject(
+                id="1",
+                source="https://example.com",
+                content="Example content",
+                source_type=SourceType.WEB,
+            )
+        ]
+        mock_loader.to_crawled_local_objs.return_value = [
+            CrawledObject(
+                id="2",
+                source="file.txt",
+                content="File content",
+                source_type=SourceType.FILE,
+            )
+        ]
+        mock_loader.to_crawled_text.return_value = [
+            CrawledObject(
+                id="3",
+                source="text_content",
+                content="Text content",
+                source_type=SourceType.TEXT,
+            )
+        ]
+        mock_loader.get_candidates_websites.return_value = [
+            CrawledObject(
+                id="1",
+                source="https://example.com",
+                content="Example content",
+                source_type=SourceType.WEB,
+            )
+        ]
+        mock_loader.save = MagicMock()
+
         doc_config = {
-            "rag_docs": [
-                {"source": "http://test.com", "type": "url", "num": 2},
-                {"source": "/test/files", "type": "file"},
-                {"source": "Sample text", "type": "text"},
+            "task_docs": [
+                {"source": "https://example.com", "type": "url", "num": 1},
+                {"source": "./docs", "type": "file"},
+                {"source": "This is text", "type": "text"},
             ]
         }
-        limit = 20
+        result = get_documents.load_docs("./temp_files", doc_config, 10)
 
-        mock_exists.return_value = False
+        assert len(result) == 3
+        assert result[0]["source"] == "https://example.com"
+        assert result[1]["source"] == "file.txt"
+        assert result[2]["source"] == "text_content"
 
-        mock_loader = Mock()
-        mock_loader.get_all_urls.return_value = ["http://test.com", "http://test2.com"]
-        mock_loader.to_crawled_url_objs.return_value = [Mock(spec=CrawledObject)] * 2
-        mock_loader.to_crawled_local_objs.return_value = [Mock(spec=CrawledObject)] * 3
-        mock_loader.to_crawled_text.return_value = [Mock(spec=CrawledObject)] * 1
-        mock_loader.get_candidates_websites.return_value = [
-            Mock(spec=CrawledObject)
-        ] * 6
-        mock_loader.save = Mock()
-        mock_loader_class.return_value = mock_loader
+    def test_load_docs_invalid_type(self) -> None:
+        """Test loading documents with invalid type."""
+        doc_config = {
+            "task_docs": [{"source": "https://example.com", "type": "invalid"}]
+        }
 
-        # Execute
-        result = load_docs(document_dir, doc_config, limit)
+        # The function prints an error and returns empty list, doesn't raise Exception
+        result = get_documents.load_docs("./temp_files", doc_config, 10)
+        assert result == []
 
-        # Assert
-        assert isinstance(result, list)
+    def test_load_docs_missing_type(self) -> None:
+        """Test loading documents with missing type."""
+        doc_config = {"task_docs": [{"source": "https://example.com"}]}
+
+        # The function prints an error and returns empty list, doesn't raise Exception
+        result = get_documents.load_docs("./temp_files", doc_config, 10)
+        assert result == []
 
     @patch("pickle.load")
-    @patch("arklex.evaluation.get_documents.os.path.exists")
-    @patch("arklex.evaluation.get_documents.Loader")
+    @patch("os.path.exists")
     def test_load_docs_invalid_crawled_objects(
-        self, mock_loader_class: Mock, mock_exists: Mock, mock_pickle_load: Mock
+        self, mock_exists, mock_pickle_load
     ) -> None:
-        """Test load_docs function with invalid crawled objects."""
-        # Setup
-        document_dir = "/test/dir"
-        doc_config = {"rag_docs": [{"source": "test", "type": "url", "num": 5}]}
-        limit = 10
+        """Test loading documents with invalid crawled objects."""
+        mock_exists.return_value = True
+        # Return a list of dicts instead of CrawledObject instances
+        mock_pickle_load.return_value = [
+            {"url": "https://example.com", "content": "Example content"}
+        ]
 
+        doc_config = {
+            "task_docs": [{"source": "https://example.com", "type": "url", "num": 1}]
+        }
+
+        # The function prints an error and returns empty list, doesn't raise ValueError
+        result = get_documents.load_docs("./temp_files", doc_config, 10)
+        assert result == []
+
+    @patch("pickle.load")
+    @patch("os.path.exists")
+    @patch("arklex.evaluation.get_documents.Loader")
+    def test_load_docs_with_num_field(
+        self, mock_loader_class, mock_exists, mock_pickle_load
+    ) -> None:
+        """Test loading documents with num field specified."""
         mock_exists.return_value = False
-
-        # Create invalid crawled object (missing required methods)
-        invalid_obj = Mock()
-        del invalid_obj.to_dict  # Remove required method
-
-        mock_loader = Mock()
-        mock_loader.get_all_urls.return_value = ["http://test.com"]
-        mock_loader.to_crawled_url_objs.return_value = [invalid_obj]
-        mock_loader.get_candidates_websites.return_value = [invalid_obj]
-        mock_loader.save = Mock()
+        mock_loader = MagicMock()
         mock_loader_class.return_value = mock_loader
+        mock_loader.get_all_urls.return_value = ["https://example.com"]
+        mock_loader.to_crawled_url_objs.return_value = [
+            CrawledObject(
+                id="1",
+                source="https://example.com",
+                content="Example content",
+                source_type=SourceType.WEB,
+            )
+        ]
+        mock_loader.get_candidates_websites.return_value = [
+            CrawledObject(
+                id="1",
+                source="https://example.com",
+                content="Example content",
+                source_type=SourceType.WEB,
+            )
+        ]
+        mock_loader.save = MagicMock()
 
-        # Execute
-        result = load_docs(document_dir, doc_config, limit)
+        doc_config = {
+            "task_docs": [{"source": "https://example.com", "type": "url", "num": 5}]
+        }
+        result = get_documents.load_docs("./temp_files", doc_config, 10)
 
-        # Assert
-        assert isinstance(result, list)
+        assert len(result) == 1
+        mock_loader.get_all_urls.assert_called_with("https://example.com", 5)
+
+    @patch("pickle.load")
+    @patch("os.path.exists")
+    @patch("arklex.evaluation.get_documents.Loader")
+    def test_load_docs_without_num_field(
+        self, mock_loader_class, mock_exists, mock_pickle_load
+    ) -> None:
+        """Test loading documents without num field (should default to 1)."""
+        mock_exists.return_value = False
+        mock_loader = MagicMock()
+        mock_loader_class.return_value = mock_loader
+        mock_loader.get_all_urls.return_value = ["https://example.com"]
+        mock_loader.to_crawled_url_objs.return_value = [
+            CrawledObject(
+                id="1",
+                source="https://example.com",
+                content="Example content",
+                source_type=SourceType.WEB,
+            )
+        ]
+        mock_loader.get_candidates_websites.return_value = [
+            CrawledObject(
+                id="1",
+                source="https://example.com",
+                content="Example content",
+                source_type=SourceType.WEB,
+            )
+        ]
+        mock_loader.save = MagicMock()
+
+        doc_config = {"task_docs": [{"source": "https://example.com", "type": "url"}]}
+        result = get_documents.load_docs("./temp_files", doc_config, 10)
+
+        assert len(result) == 1
+        mock_loader.get_all_urls.assert_called_with("https://example.com", 1)
