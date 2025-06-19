@@ -9,18 +9,22 @@ from unittest.mock import Mock, patch
 from typing import Dict, Any
 
 from arklex.evaluation.build_user_profiles import (
+    augment_attributes,
     build_profile,
     build_labelled_profile,
     convert_attributes_to_profile,
+    filter_attributes,
     get_custom_profiles,
     ATTR_TO_PROFILE,
     ADAPT_GOAL,
+    pick_attributes,
     pick_goal,
     find_matched_attribute,
     adapt_goal,
     convert_attributes_to_profiles,
     attributes_to_text,
     get_label,
+    select_system_attributes,
 )
 
 
@@ -351,14 +355,30 @@ class TestBuildUserProfiles:
 
     def test_pick_goal_invalid_strategy(self) -> None:
         """Test pick_goal with invalid strategy raises ValueError."""
-        from arklex.evaluation.build_user_profiles import pick_goal
+        attributes = {"attr1": "val1"}
+        goals = ["goal1", "goal2"]
+        with pytest.raises(ValueError, match="Invalid strategy"):
+            pick_goal(attributes, goals, strategy="invalid_strategy")
 
-        with pytest.raises(ValueError):
-            pick_goal({}, ["goal1"], strategy="invalid")
+    @patch("arklex.evaluation.build_user_profiles.chatgpt_chatbot")
+    def test_find_matched_attribute_react_strategy(
+        self, mock_chatgpt_chatbot: Mock
+    ) -> None:
+        """Test find_matched_attribute with react strategy."""
+        mock_chatgpt_chatbot.return_value = "Thought: test\nAttribute: test_attr"
+        result = find_matched_attribute("test_goal", "test_profile", client=Mock())
+        assert isinstance(result, dict)
+        assert "goal" in result
+        assert "matched_attribute" in result
 
-    def test_find_matched_attribute(self) -> None:
-        """Test find_matched_attribute returns a dict with expected keys."""
-        result = find_matched_attribute("goal", "profile", client=Mock())
+    @patch("arklex.evaluation.build_user_profiles.chatgpt_chatbot")
+    def test_find_matched_attribute_with_client(
+        self, mock_chatgpt_chatbot: Mock
+    ) -> None:
+        """Test find_matched_attribute with client parameter."""
+        mock_chatgpt_chatbot.return_value = "Thought: test\nAttribute: test_attr"
+        client = Mock()
+        result = find_matched_attribute("test_goal", "test_profile", client=client)
         assert isinstance(result, dict)
         assert "goal" in result
         assert "matched_attribute" in result
@@ -397,21 +417,21 @@ class TestBuildUserProfiles:
         assert isinstance(result, str)
         assert result == "Adapted goal"
 
-    def test_get_label(self, mock_config: Dict[str, Any]) -> None:
-        """Test get_label returns a tuple."""
-        mock_config["tools"][0]["path"] = "dummy/path"
-        mock_config["workers"][0]["path"] = "dummy/path"
-        attribute = {"attr": "val"}
-        try:
-            label, valid = get_label(attribute, mock_config)
-            assert isinstance(label, str)
-            assert isinstance(valid, bool)
-        except Exception as e:
-            # Accept failure if tool registration is not possible
-            if isinstance(e, KeyError):
-                assert True
-            else:
-                assert "not registered" in str(e) or "No module named" in str(e)
+    @patch("arklex.evaluation.build_user_profiles.Environment")
+    def test_get_label_with_invalid_attribute(
+        self, mock_environment: Mock, mock_config: Dict[str, Any]
+    ) -> None:
+        """Test get_label with invalid attribute."""
+        # Mock the Environment to avoid tool registration issues
+        mock_tool = Mock()
+        mock_tool.slots = []
+        mock_tool.description = "desc"
+        mock_env_instance = Mock()
+        mock_env_instance.tools = {"tool1": {"execute": Mock(return_value=mock_tool)}}
+        mock_environment.return_value = mock_env_instance
+
+        result = get_label({"invalid": "attribute"}, mock_config)
+        assert result == ([{"slots": {}, "tool_id": "0", "tool_name": "No tool"}], True)
 
     def test_filter_attributes(self, mock_config: Dict[str, Any]) -> None:
         """Test filter_attributes returns a dict."""
@@ -512,3 +532,238 @@ class TestBuildUserProfiles:
         result = convert_attributes_to_profile({}, mock_config)
         assert isinstance(result, str)
         assert result == ""
+
+    @patch("arklex.evaluation.build_user_profiles.load_docs")
+    @patch("arklex.evaluation.build_user_profiles.filter_attributes")
+    @patch("arklex.evaluation.build_user_profiles.augment_attributes")
+    @patch("arklex.evaluation.build_user_profiles.pick_attributes")
+    @patch("arklex.evaluation.build_user_profiles.adapt_goal")
+    @patch("arklex.evaluation.build_user_profiles.select_system_attributes")
+    @patch("arklex.evaluation.build_user_profiles.chatgpt_chatbot")
+    def test_build_profile_system_inputs_false(
+        self,
+        mock_chatgpt_chatbot: Mock,
+        mock_select_system_attributes: Mock,
+        mock_adapt_goal: Mock,
+        mock_pick_attributes: Mock,
+        mock_augment_attributes: Mock,
+        mock_filter_attributes: Mock,
+        mock_load_docs: Mock,
+        mock_config: Dict[str, Any],
+        mock_synthetic_params: Dict[str, int],
+    ) -> None:
+        """Test build_profile with system_inputs=False."""
+        mock_config["system_inputs"] = False
+        mock_load_docs.return_value = [{"content": "test content"}]
+        mock_filter_attributes.return_value = {
+            "attr1": {"values": ["val1"]},
+            "attr2": {"values": ["val3"]},
+        }
+        mock_augment_attributes.return_value = {
+            "attr1": ["val1", "val2"],
+            "attr2": ["val3", "val4"],
+        }
+        mock_pick_attributes.return_value = (
+            {"goal": "test_goal", "attr1": "val1", "attr2": "val3"},
+            {"matched": "data"},
+        )
+        mock_adapt_goal.return_value = "adapted_goal"
+        mock_chatgpt_chatbot.return_value = "Test profile"
+
+        profiles, goals, attributes, system_attrs, labels = build_profile(
+            mock_synthetic_params, mock_config
+        )
+        assert len(profiles) == 2
+        assert len(system_attrs) == 2
+        # When system_inputs=False, system_attrs should be empty dicts
+        assert all(isinstance(attr, dict) for attr in system_attrs)
+
+    @patch("arklex.evaluation.build_user_profiles.load_docs")
+    @patch("arklex.evaluation.build_user_profiles.filter_attributes")
+    @patch("arklex.evaluation.build_user_profiles.augment_attributes")
+    @patch("arklex.evaluation.build_user_profiles.get_custom_profiles")
+    @patch("arklex.evaluation.build_user_profiles.pick_attributes")
+    @patch("arklex.evaluation.build_user_profiles.adapt_goal")
+    @patch("arklex.evaluation.build_user_profiles.chatgpt_chatbot")
+    def test_build_profile_custom_with_binding(
+        self,
+        mock_chatgpt_chatbot: Mock,
+        mock_adapt_goal: Mock,
+        mock_pick_attributes: Mock,
+        mock_get_custom_profiles: Mock,
+        mock_augment_attributes: Mock,
+        mock_filter_attributes: Mock,
+        mock_load_docs: Mock,
+        mock_config: Dict[str, Any],
+        mock_synthetic_params: Dict[str, int],
+    ) -> None:
+        """Test build_profile with custom profiles and binding logic."""
+        mock_config["custom_profile"] = True
+        mock_config["user_attributes"]["system_attributes"] = {
+            "attr1": {"values": ["val1", "val2"], "bind_to": "user_profiles.profile1"},
+            "attr2": {"values": ["val3", "val4"]},
+        }
+        mock_config["user_attributes"]["user_profiles"] = {
+            "profile1": {"values": ["prof1", "prof2"]},
+            "profile2": {"values": ["prof3", "prof4"]},
+        }
+
+        mock_load_docs.return_value = [{"content": "test content"}]
+        mock_filter_attributes.return_value = {
+            "attr1": {"values": ["val1"]},
+            "attr2": {"values": ["val3"]},
+        }
+        mock_augment_attributes.return_value = {
+            "attr1": ["val1", "val2"],
+            "attr2": ["val3", "val4"],
+        }
+        mock_get_custom_profiles.return_value = (
+            {"profile1": ["prof1", "prof2"], "profile2": ["prof3", "prof4"]},
+            {"attr1": ["val1", "val2"], "attr2": ["val3", "val4"]},
+        )
+        mock_pick_attributes.return_value = (
+            {"goal": "test_goal", "attr1": "val1", "attr2": "val3"},
+            {"matched": "data"},
+        )
+        mock_adapt_goal.return_value = "adapted_goal"
+        mock_chatgpt_chatbot.return_value = "Test profile"
+
+        profiles, goals, attributes, system_attrs, labels = build_profile(
+            mock_synthetic_params, mock_config
+        )
+        assert len(profiles) == 2
+        assert len(goals) == 2
+        assert len(attributes) == 2
+        assert len(system_attrs) == 2
+        assert len(labels) == 2
+
+    @patch("arklex.evaluation.build_user_profiles.load_docs")
+    @patch("arklex.evaluation.build_user_profiles.filter_attributes")
+    @patch("arklex.evaluation.build_user_profiles.augment_attributes")
+    @patch("arklex.evaluation.build_user_profiles.get_custom_profiles")
+    @patch("arklex.evaluation.build_user_profiles.pick_attributes")
+    @patch("arklex.evaluation.build_user_profiles.adapt_goal")
+    @patch("arklex.evaluation.build_user_profiles.chatgpt_chatbot")
+    def test_build_profile_custom_without_documents(
+        self,
+        mock_chatgpt_chatbot: Mock,
+        mock_adapt_goal: Mock,
+        mock_pick_attributes: Mock,
+        mock_get_custom_profiles: Mock,
+        mock_augment_attributes: Mock,
+        mock_filter_attributes: Mock,
+        mock_load_docs: Mock,
+        mock_config: Dict[str, Any],
+        mock_synthetic_params: Dict[str, int],
+    ) -> None:
+        """Test build_profile with custom profiles and no documents."""
+        mock_config["custom_profile"] = True
+        mock_config["user_attributes"]["user_profiles"] = {
+            "profile1": {"values": ["prof1", "prof2"]},
+        }
+        mock_config["user_attributes"]["system_attributes"] = {
+            "attr1": {"values": ["val1", "val2"]},
+        }
+
+        mock_load_docs.return_value = []  # No documents
+        mock_filter_attributes.return_value = {
+            "attr1": {"values": ["val1"]},
+        }
+        mock_augment_attributes.return_value = {
+            "attr1": ["val1", "val2"],
+        }
+        mock_get_custom_profiles.return_value = (
+            {"profile1": ["prof1", "prof2"]},
+            {"attr1": ["val1", "val2"]},
+        )
+        mock_pick_attributes.return_value = (
+            {"goal": "test_goal", "attr1": "val1"},
+            {"matched": "data"},
+        )
+        mock_adapt_goal.return_value = "adapted_goal"
+        mock_chatgpt_chatbot.return_value = "Test profile"
+
+        profiles, goals, attributes, system_attrs, labels = build_profile(
+            mock_synthetic_params, mock_config
+        )
+        assert len(profiles) == 2
+        assert len(goals) == 2
+        assert len(attributes) == 2
+        assert len(system_attrs) == 2
+        assert len(labels) == 2
+
+    def test_pick_attributes_with_invalid_strategy(self) -> None:
+        """Test pick_attributes with invalid strategy falls back to random."""
+        user_profile = {"attr1": "val1"}
+        attributes = {"attr1": ["val1", "val2"]}
+        goals = ["goal1", "goal2"]
+
+        # The function doesn't validate strategy, it just falls back to random
+        result_attributes, result_matched = pick_attributes(
+            user_profile, attributes, goals, strategy="invalid"
+        )
+        assert isinstance(result_attributes, dict)
+        assert isinstance(result_matched, dict)
+        assert "goal" in result_attributes
+
+    @patch("arklex.evaluation.build_user_profiles.chatgpt_chatbot")
+    def test_adapt_goal_with_empty_doc(
+        self, mock_chatgpt_chatbot: Mock, mock_config: Dict[str, Any]
+    ) -> None:
+        """Test adapt_goal with empty document."""
+        mock_chatgpt_chatbot.return_value = "adapted goal"
+        result = adapt_goal(
+            "original_goal", mock_config, doc="", user_profile="test profile"
+        )
+        assert result == "adapted goal"
+
+    def test_convert_attributes_to_profiles_with_empty_lists(
+        self, mock_config: Dict[str, Any]
+    ) -> None:
+        """Test convert_attributes_to_profiles with empty input lists."""
+        profiles, goals, system_inputs = convert_attributes_to_profiles(
+            [], [], mock_config
+        )
+        assert profiles == []
+        assert goals == []
+        assert system_inputs == []
+
+    def test_attributes_to_text_with_empty_list(self) -> None:
+        """Test attributes_to_text with empty list."""
+        result = attributes_to_text([])
+        assert result == []  # Returns empty list, not empty string
+
+    def test_select_system_attributes_with_empty_config(
+        self, mock_synthetic_params: Dict[str, int]
+    ) -> None:
+        """Test select_system_attributes with empty config."""
+        empty_config = {"user_attributes": {"system_attributes": {}}}
+        result = select_system_attributes(empty_config, mock_synthetic_params)
+        assert len(result) == 2
+        assert all(isinstance(attr, dict) for attr in result)
+
+    def test_augment_attributes_with_empty_documents(
+        self, mock_config: Dict[str, Any]
+    ) -> None:
+        """Test augment_attributes with empty documents list."""
+        predefined_attributes = {"attr1": {"values": ["val1", "val2"]}}
+        result = augment_attributes(predefined_attributes, mock_config, documents=[])
+        assert "attr1" in result
+        assert isinstance(result["attr1"], list)
+
+    def test_filter_attributes_with_empty_config(self) -> None:
+        """Test filter_attributes with empty config."""
+        empty_config = {
+            "user_attributes": {"system_attributes": {}, "user_profiles": {}}
+        }
+        result = filter_attributes(empty_config)
+        assert isinstance(result, dict)
+
+    def test_get_custom_profiles_with_empty_config(self) -> None:
+        """Test get_custom_profiles with empty config."""
+        empty_config = {
+            "user_attributes": {"system_attributes": {}, "user_profiles": {}}
+        }
+        user_profiles, system_attributes = get_custom_profiles(empty_config)
+        assert isinstance(user_profiles, dict)
+        assert isinstance(system_attributes, dict)
