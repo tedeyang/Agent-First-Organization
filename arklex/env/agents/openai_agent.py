@@ -50,12 +50,14 @@ class OpenAIAgent(BaseAgent):
 
         self.tool_map = {}
         self.tool_defs = []
+        self.tool_args = Dict[str, Any]()
 
         for tool_id, tool in self.available_tools.items():
             tool = tool["execute"]()
             tool_def = tool.to_openai_tool_def_v2()
             self.tool_defs.append(tool_def)
             self.tool_map[tool_def["function"]["name"]] = tool.func
+            self.tool_args[tool_def["function"]["name"]] = tool.fixed_args
 
         end_conversation_tool = end_conversation()
         end_conversation_tool_def = end_conversation_tool.to_openai_tool_def_v2()
@@ -135,7 +137,9 @@ class OpenAIAgent(BaseAgent):
                 tool_name = tool_call.get("name")
                 if tool_name in self.tool_map:
                     tool_response = self.tool_map[tool_name](
-                        state=state, **tool_call.get("args")
+                        state=state,
+                        **tool_call.get("args"),
+                        **self.tool_args.get(tool_name, {}),
                     )
                     self.messages.append(
                         ToolMessage(
