@@ -13,7 +13,7 @@ The tests cover:
 """
 
 from unittest.mock import Mock, patch, MagicMock
-
+from langchain_core.outputs import Generation
 from arklex.env.workers.message_worker import MessageWorker
 from arklex.utils.graph_state import (
     MessageState,
@@ -164,8 +164,10 @@ class TestMessageWorkerGenerator:
     ) -> None:
         """Test generator with existing message flow."""
         worker: MessageWorker = MessageWorker()
-        mock_llm: Mock = Mock()
-        mock_llm.invoke.return_value = "generated response"
+        mock_llm: MagicMock = MagicMock()
+        mock_chain: Mock = Mock()
+        mock_chain.invoke.return_value = "generated response"
+        mock_llm.__or__.return_value = mock_chain
         worker.llm = mock_llm
 
         mock_load_prompts.return_value = {
@@ -196,8 +198,10 @@ class TestMessageWorkerGenerator:
     ) -> None:
         """Test generator without existing message flow."""
         worker: MessageWorker = MessageWorker()
-        mock_llm: Mock = Mock()
-        mock_llm.invoke.return_value = "generated response"
+        mock_llm: MagicMock = MagicMock()
+        mock_chain: Mock = Mock()
+        mock_chain.invoke.return_value = "generated response"
+        mock_llm.__or__.return_value = mock_chain
         worker.llm = mock_llm
 
         mock_load_prompts.return_value = {
@@ -228,8 +232,10 @@ class TestMessageWorkerGenerator:
     ) -> None:
         """Test generator with empty orchestrator message."""
         worker: MessageWorker = MessageWorker()
-        mock_llm: Mock = Mock()
-        mock_llm.invoke.return_value = "generated response"
+        mock_llm: MagicMock = MagicMock()
+        mock_chain: Mock = Mock()
+        mock_chain.invoke.return_value = "generated response"
+        mock_llm.__or__.return_value = mock_chain
         worker.llm = mock_llm
 
         mock_load_prompts.return_value = {
@@ -260,8 +266,10 @@ class TestMessageWorkerGenerator:
     ) -> None:
         """Test generator with message flow that is only a newline."""
         worker: MessageWorker = MessageWorker()
-        mock_llm: Mock = Mock()
-        mock_llm.invoke.return_value = "generated response"
+        mock_llm: MagicMock = MagicMock()
+        mock_chain: Mock = Mock()
+        mock_chain.invoke.return_value = "generated response"
+        mock_llm.__or__.return_value = mock_chain
         worker.llm = mock_llm
 
         mock_load_prompts.return_value = {
@@ -283,6 +291,8 @@ class TestMessageWorkerGenerator:
         mock_trace.return_value = msg_state  # Patch trace to avoid NoneType error
 
         result: MessageState = worker.generator(msg_state)
+        assert mock_trace.called
+        mock_trace.assert_called_once()
         assert mock_trace.called
         mock_trace.assert_called_once()
 
@@ -546,8 +556,10 @@ class TestMessageWorkerEdgeCases:
     ) -> None:
         """Test generator with None orchestrator message."""
         worker: MessageWorker = MessageWorker()
-        mock_llm: Mock = Mock()
-        mock_llm.invoke.return_value = "generated response"
+        mock_llm: MagicMock = MagicMock()
+        mock_chain: Mock = Mock()
+        mock_chain.invoke.return_value = "generated response"
+        mock_llm.__or__.return_value = mock_chain
         worker.llm = mock_llm
 
         mock_load_prompts.return_value = {
