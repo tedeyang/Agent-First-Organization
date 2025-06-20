@@ -16,7 +16,6 @@ This file contains the code for retrieving product information using the Shopify
 
 import json
 from typing import Any, Dict, List
-import logging
 import inspect
 
 import shopify
@@ -31,10 +30,11 @@ from arklex.env.tools.shopify.utils_slots import (
     ShopifyOutputs,
 )
 from arklex.env.tools.tools import register_tool
-from arklex.exceptions import ToolExecutionError
+from arklex.utils.exceptions import ToolExecutionError
 from arklex.env.tools.shopify._exception_prompt import ShopifyExceptionPrompt
+from arklex.utils.logging_utils import LogContext
 
-logger = logging.getLogger(__name__)
+log_context = LogContext(__name__)
 
 description = "Get the inventory information and description details of a product."
 slots = ShopifyGetWebProductSlots.get_all_slots()
@@ -136,7 +136,7 @@ def get_web_product(web_product_id: str, **kwargs: Any) -> str:
             response_text += "\n"
 
             return response_text
-    except Exception as e:
+    except Exception:
         raise ToolExecutionError(
             func_name, ShopifyExceptionPrompt.PRODUCT_NOT_FOUND_PROMPT
         )
