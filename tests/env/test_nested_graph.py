@@ -6,7 +6,8 @@ including nested graph component node identification and path traversal.
 
 from unittest.mock import Mock
 from arklex.env.nested_graph.nested_graph import NestedGraph
-from arklex.utils.graph_state import NodeInfo, Params, PathNode, StatusEnum
+from arklex.utils.graph_state import NodeInfo, Params, PathNode
+from unittest.mock import Mock
 
 
 class TestNestedGraph:
@@ -331,3 +332,299 @@ class TestNestedGraph:
         from arklex.env.nested_graph.nested_graph import NESTED_GRAPH_ID
 
         assert NESTED_GRAPH_ID == "nested_graph"
+
+    # Defensive/Rare Case Tests
+    def test_get_nested_graph_start_node_id_missing_attributes(self) -> None:
+        """Test get_nested_graph_start_node_id when attributes dict is missing."""
+        # Setup
+        node_info = Mock(spec=NodeInfo)
+        node_info.attributes = {}  # Missing "value" key
+        nested_graph = NestedGraph(node_info)
+
+        # Execute & Assert - Should raise KeyError
+        try:
+            result = nested_graph.get_nested_graph_start_node_id()
+            assert False, "Expected KeyError but got result: " + str(result)
+        except KeyError:
+            pass  # Expected behavior
+
+    def test_get_nested_graph_start_node_id_none_attributes(self) -> None:
+        """Test get_nested_graph_start_node_id when attributes is None."""
+        # Setup
+        node_info = Mock(spec=NodeInfo)
+        node_info.attributes = None
+        nested_graph = NestedGraph(node_info)
+
+        # Execute & Assert - Should raise TypeError (not AttributeError)
+        try:
+            result = nested_graph.get_nested_graph_start_node_id()
+            assert False, "Expected TypeError but got result: " + str(result)
+        except TypeError:
+            pass  # Expected behavior
+
+    def test_get_nested_graph_start_node_id_none_value(self) -> None:
+        """Test get_nested_graph_start_node_id when value is None."""
+        # Setup
+        node_info = Mock(spec=NodeInfo)
+        node_info.attributes = {"value": None}
+        nested_graph = NestedGraph(node_info)
+
+        # Execute
+        result = nested_graph.get_nested_graph_start_node_id()
+
+        # Assert - Should convert None to string "None"
+        assert result == "None"
+
+    def test_get_nested_graph_start_node_id_empty_value(self) -> None:
+        """Test get_nested_graph_start_node_id when value is empty string."""
+        # Setup
+        node_info = Mock(spec=NodeInfo)
+        node_info.attributes = {"value": ""}
+        nested_graph = NestedGraph(node_info)
+
+        # Execute
+        result = nested_graph.get_nested_graph_start_node_id()
+
+        # Assert
+        assert result == ""
+
+    def test_get_nested_graph_component_node_none_params(self) -> None:
+        """Test get_nested_graph_component_node with None params."""
+
+        # Setup
+        def is_leaf_func(node_id: str) -> bool:
+            return False
+
+        # Execute & Assert - Should raise AttributeError
+        try:
+            result = NestedGraph.get_nested_graph_component_node(None, is_leaf_func)
+            assert False, "Expected AttributeError but got result: " + str(result)
+        except AttributeError:
+            pass  # Expected behavior
+
+    def test_get_nested_graph_component_node_none_is_leaf_func(self) -> None:
+        """Test get_nested_graph_component_node with None is_leaf_func."""
+        # Setup
+        params = Params()
+        params.taskgraph.path = [PathNode(node_id="node1")]
+
+        # Execute - The code actually handles None gracefully
+        result_node, result_params = NestedGraph.get_nested_graph_component_node(
+            params, None
+        )
+
+        # Assert - Should return the current node
+        assert result_node is not None
+        assert result_node.node_id == "node1"
+
+    def test_get_nested_graph_component_node_is_leaf_func_raises_exception(
+        self,
+    ) -> None:
+        """Test get_nested_graph_component_node when is_leaf_func raises an exception."""
+        # Setup
+        params = Params()
+        params.taskgraph.path = [PathNode(node_id="node1")]
+
+        def is_leaf_func(node_id: str) -> bool:
+            raise ValueError("Test exception")
+
+        # Execute - The code actually handles exceptions gracefully
+        result_node, result_params = NestedGraph.get_nested_graph_component_node(
+            params, is_leaf_func
+        )
+
+        # Assert - Should return the current node even when is_leaf_func raises
+        assert result_node is not None
+        assert result_node.node_id == "node1"
+
+    def test_get_nested_graph_component_node_path_with_none_nodes(self) -> None:
+        """Test get_nested_graph_component_node with None nodes in path."""
+        # Setup
+        params = Params()
+        params.taskgraph.path = [None, PathNode(node_id="node1")]
+
+        def is_leaf_func(node_id: str) -> bool:
+            return False
+
+        # Execute & Assert - Should raise AttributeError when accessing None node
+        try:
+            result = NestedGraph.get_nested_graph_component_node(params, is_leaf_func)
+            assert False, "Expected AttributeError but got result: " + str(result)
+        except AttributeError:
+            pass  # Expected behavior
+
+    def test_get_nested_graph_component_node_nested_graph_node_value_points_to_nonexistent(
+        self,
+    ) -> None:
+        """Test when nested_graph_node_value points to a node that doesn't exist in path."""
+        # Setup
+        params = Params()
+        path_node1 = PathNode(node_id="node1")
+        path_node2 = PathNode(
+            node_id="node2", nested_graph_node_value="nonexistent_node"
+        )
+        params.taskgraph.path = [path_node1, path_node2]
+        params.taskgraph.node_status = {}
+
+        def is_leaf_func(node_id: str) -> bool:
+            return node_id == "node2"
+
+        # Execute
+        result_node, result_params = NestedGraph.get_nested_graph_component_node(
+            params, is_leaf_func
+        )
+
+        # Assert - Should return current node since no valid nested graph is found
+        assert result_node is not None
+        assert result_node.node_id == "node2"
+        assert "node1" not in result_params.taskgraph.node_status
+
+    def test_get_nested_graph_component_node_negative_leaf_jump(self) -> None:
+        """Test get_nested_graph_component_node with negative nested_graph_leaf_jump."""
+        # Setup
+        params = Params()
+        path_node1 = PathNode(node_id="node1", nested_graph_leaf_jump=-1)
+        path_node2 = PathNode(node_id="node2")
+        params.taskgraph.path = [path_node1, path_node2]
+
+        def is_leaf_func(node_id: str) -> bool:
+            return False
+
+        # Execute - The code actually handles negative indices gracefully
+        result_node, result_params = NestedGraph.get_nested_graph_component_node(
+            params, is_leaf_func
+        )
+
+        # Assert - Should return the current node (node2)
+        assert result_node is not None
+        assert result_node.node_id == "node2"
+
+    def test_get_nested_graph_component_node_leaf_jump_out_of_bounds(self) -> None:
+        """Test get_nested_graph_component_node with nested_graph_leaf_jump out of bounds."""
+        # Setup
+        params = Params()
+        path_node1 = PathNode(
+            node_id="node1", nested_graph_leaf_jump=10
+        )  # Out of bounds
+        path_node2 = PathNode(node_id="node2")
+        params.taskgraph.path = [path_node1, path_node2]
+
+        def is_leaf_func(node_id: str) -> bool:
+            return False
+
+        # Execute & Assert - Should raise IndexError when accessing out of bounds index
+        try:
+            result = NestedGraph.get_nested_graph_component_node(params, is_leaf_func)
+            assert False, "Expected IndexError but got result: " + str(result)
+        except IndexError:
+            pass  # Expected behavior
+
+    def test_get_nested_graph_component_node_missing_taskgraph_attributes(self) -> None:
+        """Test get_nested_graph_component_node when taskgraph is missing required attributes."""
+        # Setup
+        params = Mock(spec=Params)
+        params.taskgraph = Mock()
+        # Configure the mock to raise AttributeError when accessing path
+        params.taskgraph.path = Mock()
+        params.taskgraph.path.__len__ = Mock(
+            side_effect=AttributeError("path attribute missing")
+        )
+
+        def is_leaf_func(node_id: str) -> bool:
+            return False
+
+        # Execute & Assert - Should raise AttributeError
+        try:
+            result = NestedGraph.get_nested_graph_component_node(params, is_leaf_func)
+            assert False, "Expected AttributeError but got result: " + str(result)
+        except AttributeError:
+            pass  # Expected behavior
+
+    def test_get_nested_graph_component_node_missing_node_status(self) -> None:
+        """Test get_nested_graph_component_node when node_status is missing."""
+        # Setup
+        params = Params()
+        path_node1 = PathNode(node_id="node1")
+        path_node2 = PathNode(node_id="node2", nested_graph_node_value="node1")
+        params.taskgraph.path = [path_node1, path_node2]
+        # Don't set node_status
+
+        def is_leaf_func(node_id: str) -> bool:
+            return node_id == "node1"
+
+        # Execute - The code actually handles missing node_status gracefully
+        result_node, result_params = NestedGraph.get_nested_graph_component_node(
+            params, is_leaf_func
+        )
+
+        # Assert - Should return the current node (node2)
+        assert result_node is not None
+        assert result_node.node_id == "node2"
+
+    def test_get_nested_graph_component_node_circular_reference(self) -> None:
+        """Test get_nested_graph_component_node with circular nested graph references."""
+        # Setup
+        params = Params()
+        path_node1 = PathNode(node_id="node1", nested_graph_node_value="node2")
+        path_node2 = PathNode(node_id="node2", nested_graph_node_value="node1")
+        params.taskgraph.path = [path_node1, path_node2]
+        params.taskgraph.node_status = {}
+
+        def is_leaf_func(node_id: str) -> bool:
+            return node_id in ["node1", "node2"]
+
+        # Execute
+        result_node, result_params = NestedGraph.get_nested_graph_component_node(
+            params, is_leaf_func
+        )
+
+        # Assert - Should handle circular reference gracefully
+        assert result_node is not None
+        assert result_node.node_id in ["node1", "node2"]
+
+    def test_get_nested_graph_component_node_pathnode_with_none_attributes(
+        self,
+    ) -> None:
+        """Test get_nested_graph_component_node with PathNode having None attributes."""
+        # Setup
+        params = Params()
+        path_node1 = PathNode(
+            node_id="node1", nested_graph_leaf_jump=None, nested_graph_node_value=None
+        )
+        path_node2 = PathNode(
+            node_id="node2", nested_graph_leaf_jump=None, nested_graph_node_value=None
+        )
+        params.taskgraph.path = [path_node1, path_node2]
+        params.taskgraph.node_status = {}
+
+        def is_leaf_func(node_id: str) -> bool:
+            return node_id == "node2"
+
+        # Execute
+        result_node, result_params = NestedGraph.get_nested_graph_component_node(
+            params, is_leaf_func
+        )
+
+        # Assert - Should work normally with None attributes
+        assert result_node is not None
+        assert result_node.node_id == "node2"
+
+    def test_get_nested_graph_component_node_is_leaf_func_returns_non_boolean(
+        self,
+    ) -> None:
+        """Test get_nested_graph_component_node when is_leaf_func returns non-boolean."""
+        # Setup
+        params = Params()
+        params.taskgraph.path = [PathNode(node_id="node1")]
+
+        def is_leaf_func(node_id: str) -> str:  # Returns string instead of bool
+            return "not_a_boolean"
+
+        # Execute
+        result_node, result_params = NestedGraph.get_nested_graph_component_node(
+            params, is_leaf_func
+        )
+
+        # Assert - Should work (Python treats non-empty strings as True)
+        assert result_node is not None
+        assert result_node.node_id == "node1"

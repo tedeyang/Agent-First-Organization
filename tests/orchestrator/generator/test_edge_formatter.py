@@ -97,3 +97,56 @@ def test_validate_edge() -> None:
 
     # Invalid edge - wrong label
     assert not formatter.validate_edge("n1", "n2", "depends_on", 1.0, 123)
+
+
+def test_format_edge_data_label_fallback() -> None:
+    """Test format_edge_data falls back to type if label is empty."""
+    formatter = edge_formatter.EdgeFormatter()
+    source = {"id": "n1", "name": "Source"}
+    target = {"id": "n2", "name": "Target"}
+    result = formatter.format_edge_data(source, target, "blocks", 2.0)
+    assert result["intent"] == "blocks"
+
+
+@pytest.mark.parametrize(
+    "etype,expected_color",
+    [
+        ("depends_on", "#ff0000"),
+        ("blocks", "#ffa500"),
+        ("related_to", "#00ff00"),
+        ("part_of", "#0000ff"),
+        ("unknown_type", "#808080"),
+    ],
+)
+def test_format_edge_style_types(etype, expected_color) -> None:
+    formatter = edge_formatter.EdgeFormatter()
+    source = {"id": "n1"}
+    target = {"id": "n2"}
+    result = formatter.format_edge_style(source, target, etype)
+    assert result["color"] == expected_color
+    # Check all expected keys
+    for key in [
+        "color",
+        "width",
+        "style",
+        "arrow_size",
+        "arrow_style",
+        "label_color",
+        "label_font_size",
+        "label_font_family",
+        "label_font_weight",
+        "opacity",
+    ]:
+        assert key in result
+
+
+def test_validate_edge_metadata_and_id_variants() -> None:
+    formatter = edge_formatter.EdgeFormatter()
+    # Valid: source/target with only task_id
+    assert formatter.validate_edge({"task_id": "n1"}, {"task_id": "n2"})
+    # Valid: source/target with only id
+    assert formatter.validate_edge({"id": "n1"}, {"id": "n2"})
+    # Invalid: metadata is not a dict
+    assert not formatter.validate_edge("n1", "n2", metadata=[1, 2, 3])
+    # Valid: metadata is a dict
+    assert formatter.validate_edge("n1", "n2", metadata={"foo": "bar"})

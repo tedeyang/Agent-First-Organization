@@ -633,3 +633,240 @@ class TestTaskGenerator:
         assert "task_1" in result
         assert result["task_1"]["name"] == "task1"
         assert result["task_1"]["description"] == "Test description"
+
+    def test_add_provided_tasks_invalid_and_exception(self):
+        model = Mock()
+        generator = TaskGenerator(model, "role", "objective", "instructions", "docs")
+        # Invalid: missing required fields
+        user_tasks = [
+            {"id": "1", "name": "", "description": "", "steps": []},
+            {
+                "id": "2",
+                "name": "Valid",
+                "description": "desc",
+                "steps": [{"task": "t"}],
+                "priority": 10,
+            },
+        ]
+        # Exception: steps is not a list
+        user_tasks.append(
+            {"id": "3", "name": "Bad", "description": "desc", "steps": "notalist"}
+        )
+        # Exception: steps contains invalid type
+        user_tasks.append(
+            {"id": "4", "name": "Bad2", "description": "desc", "steps": [123]}
+        )
+        # All are invalid, so result should be empty
+        result = generator.add_provided_tasks(user_tasks, "intro")
+        assert isinstance(result, list)
+        assert len(result) == 0
+
+    def test_establish_relationships_noop(self) -> None:
+        model = Mock()
+        generator = TaskGenerator(model, "role", "objective", "instructions", "docs")
+        # Should not raise for empty or simple input
+        generator._establish_relationships([])
+        generator._establish_relationships([{"id": "1", "dependencies": []}])
+
+    def test_build_hierarchy_edge_cases(self) -> None:
+        model = Mock()
+        generator = TaskGenerator(model, "role", "objective", "instructions", "docs")
+        # Missing id
+        tasks = [{"name": "A"}]
+        generator._build_hierarchy(tasks)
+        assert tasks[0]["level"] == 0
+        # Duplicate id
+        tasks = [{"id": "1", "dependencies": []}, {"id": "1", "dependencies": []}]
+        generator._build_hierarchy(tasks)
+        assert all("level" in t for t in tasks)
+        # Circular dependency
+        tasks = [
+            {"id": "1", "dependencies": ["2"]},
+            {"id": "2", "dependencies": ["1"]},
+        ]
+        generator._build_hierarchy(tasks)
+        assert all("level" in t for t in tasks)
+        # Empty dependencies
+        tasks = [{"id": "1"}]
+        generator._build_hierarchy(tasks)
+        assert tasks[0]["level"] == 0
+
+    def test_convert_to_task_dict_various_inputs(self) -> None:
+        model = Mock()
+        generator = TaskGenerator(model, "role", "objective", "instructions", "docs")
+        # Normal input
+        task_defs = [
+            {"task": "A", "intent": "desc", "steps": ["step1"]},
+            {"task": "B", "intent": "desc2", "steps": []},
+        ]
+        result = generator._convert_to_task_dict(task_defs)
+        assert isinstance(result, dict)
+        assert "task_1" in result and "task_2" in result
+        # Missing fields: should raise KeyError if 'intent' is missing
+        task_defs = [{"task": "A"}]
+        try:
+            generator._convert_to_task_dict(task_defs)
+            assert False, "Expected KeyError for missing 'intent'"
+        except KeyError:
+            pass
+        # Empty input
+        result = generator._convert_to_task_dict([])
+        assert result == {}
+
+    def test_add_provided_tasks_empty(self) -> None:
+        model = Mock()
+        generator = TaskGenerator(model, "role", "objective", "instructions", "docs")
+        result = generator.add_provided_tasks([], "intro")
+        assert result == []
+
+    def test_add_provided_tasks_valid_all_fields(self) -> None:
+        model = Mock()
+        generator = TaskGenerator(model, "role", "objective", "instructions", "docs")
+        user_tasks = [
+            {
+                "id": "1",
+                "name": "Task",
+                "description": "desc",
+                "steps": [{"task": "t"}],
+                "dependencies": ["2"],
+                "required_resources": ["r"],
+                "estimated_duration": "2h",
+                "priority": 2,
+            }
+        ]
+        result = generator.add_provided_tasks(user_tasks, "intro")
+        assert len(result) == 1
+        assert result[0]["id"] == "1"
+
+    def test_add_provided_tasks_missing_optional_fields(self) -> None:
+        model = Mock()
+        generator = TaskGenerator(model, "role", "objective", "instructions", "docs")
+        user_tasks = [
+            {"id": "1", "name": "Task", "description": "desc", "steps": [{"task": "t"}]}
+        ]
+        result = generator.add_provided_tasks(user_tasks, "intro")
+        assert len(result) == 1
+        assert result[0]["id"] == "1"
+
+    def test_validate_tasks_various_invalid(self) -> None:
+        model = Mock()
+        generator = TaskGenerator(model, "role", "objective", "instructions", "docs")
+        # Missing required fields
+        tasks = [{"name": "A"}]
+        assert generator._validate_tasks(tasks) == []
+        # Steps not a list
+        tasks = [{"name": "A", "description": "desc", "steps": "notalist"}]
+        assert generator._validate_tasks(tasks) == []
+        # Steps as list of strings
+        tasks = [{"name": "A", "description": "desc", "steps": ["s1", "s2"]}]
+        out = generator._validate_tasks(tasks)
+        assert isinstance(out[0]["steps"][0], dict)
+        # Steps with missing 'task' key
+        tasks = [{"name": "A", "description": "desc", "steps": [{"not_task": "x"}]}]
+        assert generator._validate_tasks(tasks) == []
+        # Bad dependencies/resources/priority
+        tasks = [
+            {
+                "name": "A",
+                "description": "desc",
+                "steps": [{"task": "t"}],
+                "dependencies": "notalist",
+                "required_resources": "notalist",
+                "priority": "bad",
+            }
+        ]
+        out = generator._validate_tasks(tasks)
+        assert out[0]["dependencies"] == []
+        assert out[0]["required_resources"] == []
+        assert out[0]["priority"] == 3
+        # Priority out of range
+        tasks = [
+            {
+                "name": "A",
+                "description": "desc",
+                "steps": [{"task": "t"}],
+                "priority": 10,
+            }
+        ]
+        out = generator._validate_tasks(tasks)
+        assert out[0]["priority"] == 3
+
+    def test_validate_task_definition_cases(self) -> None:
+        model = Mock()
+        generator = TaskGenerator(model, "role", "objective", "instructions", "docs")
+        # Valid
+        td = TaskDefinition("id", "n", "d", [{"task": "t"}], [], [], "1h", 2)
+        assert generator._validate_task_definition(td)
+        # Missing name
+        td = TaskDefinition("id", "", "d", [{"task": "t"}], [], [], "1h", 2)
+        assert not generator._validate_task_definition(td)
+        # Missing description
+        td = TaskDefinition("id", "n", "", [{"task": "t"}], [], [], "1h", 2)
+        assert not generator._validate_task_definition(td)
+        # Missing steps
+        td = TaskDefinition("id", "n", "d", [], [], [], "1h", 2)
+        assert not generator._validate_task_definition(td)
+        # Steps missing 'task'
+        td = TaskDefinition("id", "n", "d", [{"not_task": "x"}], [], [], "1h", 2)
+        assert not generator._validate_task_definition(td)
+        # Priority out of range
+        td = TaskDefinition("id", "n", "d", [{"task": "t"}], [], [], "1h", 10)
+        assert not generator._validate_task_definition(td)
+
+    def test_convert_to_dict_variants(self) -> None:
+        model = Mock()
+        generator = TaskGenerator(model, "role", "objective", "instructions", "docs")
+        td = TaskDefinition("id", "n", "d", [{"task": "t"}], ["d"], ["r"], "1h", 2)
+        d = generator._convert_to_dict(td)
+        assert d["id"] == "id"
+        # Minimal
+        td = TaskDefinition("id", "n", "d", [{"task": "t"}], [], [], None, 1)
+        d = generator._convert_to_dict(td)
+        assert d["estimated_duration"] is None
+
+    def test_build_hierarchy_nonexistent_dependency(self) -> None:
+        model = Mock()
+        generator = TaskGenerator(model, "role", "objective", "instructions", "docs")
+        tasks = [
+            {"id": "1", "dependencies": ["2"]},
+            {"id": "2", "dependencies": ["3"]},
+        ]
+        generator._build_hierarchy(tasks)
+        assert all("level" in t for t in tasks)
+
+    def test_convert_to_task_definitions_variants(self) -> None:
+        model = Mock()
+        generator = TaskGenerator(model, "role", "objective", "instructions", "docs")
+        # Steps as strings
+        tasks = [{"task": "A", "steps": ["s1"]}]
+        out = generator._convert_to_task_definitions(tasks)
+        assert isinstance(out[0], TaskDefinition)
+        # Steps as dicts
+        tasks = [{"task": "A", "steps": [{"task": "s1"}]}]
+        out = generator._convert_to_task_definitions(tasks)
+        assert isinstance(out[0], TaskDefinition)
+        # Missing steps
+        tasks = [{"task": "A"}]
+        out = generator._convert_to_task_definitions(tasks)
+        assert isinstance(out[0], TaskDefinition)
+
+    def test_generate_high_level_tasks_error_handling(self) -> None:
+        model = Mock()
+        generator = TaskGenerator(model, "role", "objective", "instructions", "docs")
+        generator.model.invoke = Mock(side_effect=Exception("fail"))
+        out = generator._generate_high_level_tasks("intro")
+        assert out == []
+
+    def test_check_task_breakdown_original_error_handling(self) -> None:
+        model = Mock()
+        generator = TaskGenerator(model, "role", "objective", "instructions", "docs")
+        generator.model.invoke = Mock(side_effect=Exception("fail"))
+        out = generator._check_task_breakdown_original("t", "i")
+        assert out is True
+
+    def test_generate_task_steps_original_error_handling(self) -> None:
+        model = Mock()
+        generator = TaskGenerator(model, "role", "objective", "instructions", "docs")
+        generator.model.invoke = Mock(side_effect=Exception("fail"))
+        out = generator._generate_task_steps_original("t", "i")
+        assert isinstance(out, list) and out[0]["task"].startswith("Execute")
