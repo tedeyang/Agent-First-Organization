@@ -18,15 +18,14 @@
             "1",
             {
                 "resource": {
-                    "id": "nested_graph",
-                    "name": "NestedGraph"
+                    "id": "26bb6634-3bee-417d-ad75-23269ac17bc3",
+                    "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "0",
-                    "task": "Authenticate user",
+                    "value": "",
+                    "task": "Provide detailed information about product specifications and features",
                     "directed": false
-                },
-                "limit": 1
+                }
             }
         ],
         [
@@ -38,7 +37,7 @@
                 },
                 "attribute": {
                     "value": "",
-                    "task": "Provide detailed product information and specifications",
+                    "task": "Assist in scheduling product demonstrations or virtual tours",
                     "directed": false
                 }
             }
@@ -52,7 +51,7 @@
                 },
                 "attribute": {
                     "value": "",
-                    "task": "Provide order and delivery status updates",
+                    "task": "Provide assistance and updates on delivery status",
                     "directed": false
                 }
             }
@@ -66,7 +65,7 @@
                 },
                 "attribute": {
                     "value": "",
-                    "task": "Offer technical support and troubleshooting",
+                    "task": "Facilitate and manage inquiries about rental services for robots",
                     "directed": false
                 }
             }
@@ -80,7 +79,7 @@
                 },
                 "attribute": {
                     "value": "",
-                    "task": "Provide product recommendations based on business needs",
+                    "task": "Address technical support questions and troubleshoot robot issues",
                     "directed": false
                 }
             }
@@ -94,7 +93,7 @@
                 },
                 "attribute": {
                     "value": "",
-                    "task": "Explain rental vs. purchase options",
+                    "task": "Offer information regarding company innovations like the robot milk tea shop",
                     "directed": false
                 }
             }
@@ -108,7 +107,7 @@
                 },
                 "attribute": {
                     "value": "",
-                    "task": "Facilitate customer feedback and service improvements",
+                    "task": "Guide users in customizing and configuring robots for business requirements",
                     "directed": false
                 }
             }
@@ -117,14 +116,15 @@
             "8",
             {
                 "resource": {
-                    "id": "26bb6634-3bee-417d-ad75-23269ac17bc3",
-                    "name": "MessageWorker"
+                    "id": "nested_graph",
+                    "name": "NestedGraph"
                 },
                 "attribute": {
-                    "value": "Execute: Execute Provide detailed product information and specifications",
-                    "task": "",
-                    "directed": false
-                }
+                    "value": "1",
+                    "task": "TBD",
+                    "directed": true
+                },
+                "limit": 1
             }
         ],
         [
@@ -135,7 +135,7 @@
                     "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "Greet the user and ask for the order number to check the status.",
+                    "value": "Execute: Execute Provide detailed information about product specifications and features",
                     "task": "",
                     "directed": false
                 }
@@ -149,7 +149,7 @@
                     "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "Use RAGWorker to retrieve the order and delivery status from the company's internal documentation or system.",
+                    "value": "Greet the user and ask if they are interested in scheduling a product demonstration or virtual tour.",
                     "task": "",
                     "directed": false
                 }
@@ -163,7 +163,7 @@
                     "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "Provide the user with the current order and delivery status.",
+                    "value": "Use RAGWorker to provide information about the available product demonstrations or virtual tours, such as options, formats, and times.",
                     "task": "",
                     "directed": false
                 }
@@ -177,7 +177,7 @@
                     "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "Ask the user if they need any further assistance or information regarding the order.",
+                    "value": "Ask the user for their preferred date and time for the demonstration or tour.",
                     "task": "",
                     "directed": false
                 }
@@ -191,7 +191,7 @@
                     "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "Offer assistance with any other inquiries or conclude the interaction if the user has no further questions.",
+                    "value": "Confirm the user's preferred schedule and check the availability using predefined responses with MessageWorker.",
                     "task": "",
                     "directed": false
                 }
@@ -205,7 +205,7 @@
                     "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "Greet the user and ask them to describe the technical issue or problem they are experiencing.",
+                    "value": "If the preferred slot is available, confirm the booking and provide any preparation details. If not, offer alternative dates and times.",
                     "task": "",
                     "directed": false
                 }
@@ -219,7 +219,7 @@
                     "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "Utilize the RAGWorker to retrieve information from the company's internal documentation relevant to the user's issue.",
+                    "value": "Ask if there is anything else the user needs help with or any other questions they may have.",
                     "task": "",
                     "directed": false
                 }
@@ -233,7 +233,7 @@
                     "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "Provide a possible solution or troubleshooting steps based on the retrieved information and ask the user to try them.",
+                    "value": "Greet the user and ask for their order number or any relevant information to track their delivery.",
                     "task": "",
                     "directed": false
                 }
@@ -247,7 +247,7 @@
                     "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "Inquire if the proposed solution worked or if the issue persists.",
+                    "value": "Use the RAGWorker to look up the delivery status of the order from the company's internal documentation and provide the user with the current status.",
                     "task": "",
                     "directed": false
                 }
@@ -261,7 +261,7 @@
                     "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "If the issue persists, escalate the problem by advising the user to contact technical support or offer to connect them with a live agent.",
+                    "value": "Ask the user if they have any further questions or need more details about the delivery process or policies.",
                     "task": "",
                     "directed": false
                 }
@@ -275,7 +275,7 @@
                     "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "Start the interaction by greeting the user and asking open-ended questions to identify their business needs.",
+                    "value": "Provide additional information or clarification using the RAGWorker as needed, and offer ways to resolve any concerns regarding the delivery.",
                     "task": "",
                     "directed": false
                 }
@@ -289,7 +289,7 @@
                     "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "Use the RAGWorker to provide information about products and services relevant to the business needs discussed.",
+                    "value": "Confirm if the user is satisfied with the information provided and offer further assistance if needed.",
                     "task": "",
                     "directed": false
                 }
@@ -303,7 +303,7 @@
                     "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "List out a set of product recommendations that align well with the identified business needs, utilizing predefined messages via MessageWorker.",
+                    "value": "Execute: Execute Facilitate and manage inquiries about rental services for robots",
                     "task": "",
                     "directed": false
                 }
@@ -317,7 +317,7 @@
                     "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "Ask the user if they need more detailed information or have any other specific requirements about the recommended products.",
+                    "value": "Initiate the conversation by asking the user to describe the technical issue or question they have about the robot.",
                     "task": "",
                     "directed": false
                 }
@@ -331,7 +331,7 @@
                     "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "Conclude the interaction by assisting the user with the next steps if they want to proceed with a transaction or need further assistance.",
+                    "value": "Use the RAGWorker to access the company's internal documentation and provide a response based on the user's described issue using relevant FAQs, product information, or support guides.",
                     "task": "",
                     "directed": false
                 }
@@ -345,7 +345,7 @@
                     "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "Greet the user and ask if they are interested in learning about rental or purchase options for a specific product or service.",
+                    "value": "Check if the provided solution resolved the user's issue or if they need further assistance.",
                     "task": "",
                     "directed": false
                 }
@@ -359,7 +359,7 @@
                     "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "If the user specifies interest in rental options, use RAGWorker to provide details about the rental policies, costs, and benefits from the company's internal documentation.",
+                    "value": "If further assistance is needed, ask follow-up questions to gather more details about the issue for more specific troubleshooting.",
                     "task": "",
                     "directed": false
                 }
@@ -373,7 +373,7 @@
                     "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "If the user specifies interest in purchase options, use RAGWorker to provide details about the purchase policies, costs, and benefits from the company's internal documentation.",
+                    "value": "Provide additional troubleshooting steps or escalate the issue to a human agent if it cannot be resolved using predefined responses and internal documentation.",
                     "task": "",
                     "directed": false
                 }
@@ -387,7 +387,7 @@
                     "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "Ask the user if they have any specific questions or need further clarification on the rental or purchase options.",
+                    "value": "Execute: Execute Offer information regarding company innovations like the robot milk tea shop",
                     "task": "",
                     "directed": false
                 }
@@ -401,7 +401,7 @@
                     "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "Based on the user's questions, provide additional information or redirect them to the appropriate resources if necessary with the help of RAGWorker.",
+                    "value": "Ask the user about the specific business requirements they have for customizing or configuring the robot.",
                     "task": "",
                     "directed": false
                 }
@@ -415,7 +415,7 @@
                     "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "Confirm if the user has all the information they need and offer assistance with proceeding to the next steps if they wish to rent or purchase.",
+                    "value": "Retrieve detailed information and guidance on customization and configuration options based on the company's internal documentation.",
                     "task": "",
                     "directed": false
                 }
@@ -429,7 +429,7 @@
                     "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "Greet the user and acknowledge their interest in providing feedback.",
+                    "value": "Provide the user with options or recommendations based on their specified business requirements and the gathered information.",
                     "task": "",
                     "directed": false
                 }
@@ -443,7 +443,7 @@
                     "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "Use the MessageWorker to ask the user for specific areas they would like to provide feedback on (e.g., products, services, website experience).",
+                    "value": "Inquire if the user needs further assistance or if they have additional questions regarding the customization or configuration process.",
                     "task": "",
                     "directed": false
                 }
@@ -457,35 +457,7 @@
                     "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "Utilize RAGWorker to provide information or clarification if the user inquires about company policies related to feedback and service improvements.",
-                    "task": "",
-                    "directed": false
-                }
-            }
-        ],
-        [
-            "33",
-            {
-                "resource": {
-                    "id": "26bb6634-3bee-417d-ad75-23269ac17bc3",
-                    "name": "MessageWorker"
-                },
-                "attribute": {
-                    "value": "Ask open-ended questions or provide a form for structured feedback to gather detailed input from the user.",
-                    "task": "",
-                    "directed": false
-                }
-            }
-        ],
-        [
-            "34",
-            {
-                "resource": {
-                    "id": "26bb6634-3bee-417d-ad75-23269ac17bc3",
-                    "name": "MessageWorker"
-                },
-                "attribute": {
-                    "value": "Thank the user for their feedback and inform them of any follow-up actions or improvements planned by the company.",
+                    "value": "Offer to connect the user with a human specialist or provide additional documentation if the user's requirements are complex or outside the scope of the chatbot.",
                     "task": "",
                     "directed": false
                 }
@@ -495,9 +467,22 @@
     "edges": [
         [
             "0",
+            "1",
+            {
+                "intent": "User inquires about provide detailed information about product specifications and features",
+                "attribute": {
+                    "weight": 1,
+                    "pred": true,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "0",
             "2",
             {
-                "intent": "User inquires about provide detailed product information and specifications",
+                "intent": "User inquires about assist in scheduling product demonstrations or virtual tours",
                 "attribute": {
                     "weight": 1,
                     "pred": true,
@@ -510,7 +495,7 @@
             "0",
             "3",
             {
-                "intent": "User inquires about provide order and delivery status updates",
+                "intent": "User inquires about provide assistance and updates on delivery status",
                 "attribute": {
                     "weight": 1,
                     "pred": true,
@@ -523,7 +508,7 @@
             "0",
             "4",
             {
-                "intent": "User inquires about offer technical support and troubleshooting",
+                "intent": "User inquires about facilitate and manage inquiries about rental services for robots",
                 "attribute": {
                     "weight": 1,
                     "pred": true,
@@ -536,7 +521,7 @@
             "0",
             "5",
             {
-                "intent": "User inquires about provide product recommendations based on business needs",
+                "intent": "User inquires about address technical support questions and troubleshoot robot issues",
                 "attribute": {
                     "weight": 1,
                     "pred": true,
@@ -549,7 +534,7 @@
             "0",
             "6",
             {
-                "intent": "User inquires about explain rental vs. purchase options",
+                "intent": "User inquires about offer information regarding company innovations like the robot milk tea shop",
                 "attribute": {
                     "weight": 1,
                     "pred": true,
@@ -562,7 +547,7 @@
             "0",
             "7",
             {
-                "intent": "User inquires about facilitate customer feedback and service improvements",
+                "intent": "User inquires about guide users in customizing and configuring robots for business requirements",
                 "attribute": {
                     "weight": 1,
                     "pred": true,
@@ -572,33 +557,20 @@
             }
         ],
         [
+            "1",
+            "9",
+            {
+                "intent": null,
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
             "2",
-            "8",
-            {
-                "intent": null,
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "3",
-            "9",
-            {
-                "intent": null,
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "9",
             "10",
             {
                 "intent": null,
@@ -650,7 +622,7 @@
             }
         ],
         [
-            "4",
+            "13",
             "14",
             {
                 "intent": null,
@@ -676,7 +648,7 @@
             }
         ],
         [
-            "15",
+            "3",
             "16",
             {
                 "intent": null,
@@ -704,6 +676,45 @@
         [
             "17",
             "18",
+            {
+                "intent": null,
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "18",
+            "19",
+            {
+                "intent": null,
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "19",
+            "20",
+            {
+                "intent": null,
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "4",
+            "21",
             {
                 "intent": null,
                 "attribute": {
@@ -716,45 +727,6 @@
         ],
         [
             "5",
-            "19",
-            {
-                "intent": null,
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "19",
-            "20",
-            {
-                "intent": null,
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "20",
-            "21",
-            {
-                "intent": null,
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "21",
             "22",
             {
                 "intent": null,
@@ -769,6 +741,45 @@
         [
             "22",
             "23",
+            {
+                "intent": null,
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "23",
+            "24",
+            {
+                "intent": null,
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "24",
+            "25",
+            {
+                "intent": null,
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "25",
+            "26",
             {
                 "intent": null,
                 "attribute": {
@@ -781,72 +792,7 @@
         ],
         [
             "6",
-            "24",
-            {
-                "intent": null,
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "24",
-            "25",
-            {
-                "intent": null,
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "25",
-            "26",
-            {
-                "intent": null,
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "26",
             "27",
-            {
-                "intent": null,
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "27",
-            "28",
-            {
-                "intent": null,
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "28",
-            "29",
             {
                 "intent": null,
                 "attribute": {
@@ -859,7 +805,7 @@
         ],
         [
             "7",
-            "30",
+            "28",
             {
                 "intent": null,
                 "attribute": {
@@ -871,72 +817,7 @@
             }
         ],
         [
-            "30",
-            "31",
-            {
-                "intent": null,
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "31",
-            "32",
-            {
-                "intent": null,
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "32",
-            "33",
-            {
-                "intent": null,
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "33",
-            "34",
-            {
-                "intent": null,
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "1",
-            "8",
-            {
-                "intent": null,
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "1",
+            "28",
             "29",
             {
                 "intent": null,
@@ -949,8 +830,8 @@
             }
         ],
         [
-            "1",
-            "13",
+            "29",
+            "30",
             {
                 "intent": null,
                 "attribute": {
@@ -962,8 +843,8 @@
             }
         ],
         [
-            "1",
-            "18",
+            "30",
+            "31",
             {
                 "intent": null,
                 "attribute": {
@@ -975,8 +856,8 @@
             }
         ],
         [
-            "1",
-            "23",
+            "31",
+            "32",
             {
                 "intent": null,
                 "attribute": {
@@ -988,8 +869,86 @@
             }
         ],
         [
-            "1",
-            "34",
+            "8",
+            "27",
+            {
+                "intent": null,
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "8",
+            "15",
+            {
+                "intent": null,
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "8",
+            "26",
+            {
+                "intent": null,
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "8",
+            "20",
+            {
+                "intent": null,
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "8",
+            "32",
+            {
+                "intent": null,
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "8",
+            "9",
+            {
+                "intent": null,
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
+            "8",
+            "21",
             {
                 "intent": null,
                 "attribute": {
@@ -1026,113 +985,109 @@
     ],
     "tasks": [
         {
-            "name": "Provide detailed product information and specifications",
+            "name": "Provide detailed information about product specifications and features",
             "steps": [
                 {
-                    "description": "Execute: Execute Provide detailed product information and specifications"
+                    "description": "Execute: Execute Provide detailed information about product specifications and features"
                 }
             ]
         },
         {
-            "name": "Provide order and delivery status updates",
+            "name": "Assist in scheduling product demonstrations or virtual tours",
             "steps": [
                 {
-                    "description": "Greet the user and ask for the order number to check the status."
+                    "description": "Greet the user and ask if they are interested in scheduling a product demonstration or virtual tour."
                 },
                 {
-                    "description": "Use RAGWorker to retrieve the order and delivery status from the company's internal documentation or system."
+                    "description": "Use RAGWorker to provide information about the available product demonstrations or virtual tours, such as options, formats, and times."
                 },
                 {
-                    "description": "Provide the user with the current order and delivery status."
+                    "description": "Ask the user for their preferred date and time for the demonstration or tour."
                 },
                 {
-                    "description": "Ask the user if they need any further assistance or information regarding the order."
+                    "description": "Confirm the user's preferred schedule and check the availability using predefined responses with MessageWorker."
                 },
                 {
-                    "description": "Offer assistance with any other inquiries or conclude the interaction if the user has no further questions."
+                    "description": "If the preferred slot is available, confirm the booking and provide any preparation details. If not, offer alternative dates and times."
+                },
+                {
+                    "description": "Ask if there is anything else the user needs help with or any other questions they may have."
                 }
             ]
         },
         {
-            "name": "Offer technical support and troubleshooting",
+            "name": "Provide assistance and updates on delivery status",
             "steps": [
                 {
-                    "description": "Greet the user and ask them to describe the technical issue or problem they are experiencing."
+                    "description": "Greet the user and ask for their order number or any relevant information to track their delivery."
                 },
                 {
-                    "description": "Utilize the RAGWorker to retrieve information from the company's internal documentation relevant to the user's issue."
+                    "description": "Use the RAGWorker to look up the delivery status of the order from the company's internal documentation and provide the user with the current status."
                 },
                 {
-                    "description": "Provide a possible solution or troubleshooting steps based on the retrieved information and ask the user to try them."
+                    "description": "Ask the user if they have any further questions or need more details about the delivery process or policies."
                 },
                 {
-                    "description": "Inquire if the proposed solution worked or if the issue persists."
+                    "description": "Provide additional information or clarification using the RAGWorker as needed, and offer ways to resolve any concerns regarding the delivery."
                 },
                 {
-                    "description": "If the issue persists, escalate the problem by advising the user to contact technical support or offer to connect them with a live agent."
+                    "description": "Confirm if the user is satisfied with the information provided and offer further assistance if needed."
                 }
             ]
         },
         {
-            "name": "Provide product recommendations based on business needs",
+            "name": "Facilitate and manage inquiries about rental services for robots",
             "steps": [
                 {
-                    "description": "Start the interaction by greeting the user and asking open-ended questions to identify their business needs."
-                },
-                {
-                    "description": "Use the RAGWorker to provide information about products and services relevant to the business needs discussed."
-                },
-                {
-                    "description": "List out a set of product recommendations that align well with the identified business needs, utilizing predefined messages via MessageWorker."
-                },
-                {
-                    "description": "Ask the user if they need more detailed information or have any other specific requirements about the recommended products."
-                },
-                {
-                    "description": "Conclude the interaction by assisting the user with the next steps if they want to proceed with a transaction or need further assistance."
+                    "description": "Execute: Execute Facilitate and manage inquiries about rental services for robots"
                 }
             ]
         },
         {
-            "name": "Explain rental vs. purchase options",
+            "name": "Address technical support questions and troubleshoot robot issues",
             "steps": [
                 {
-                    "description": "Greet the user and ask if they are interested in learning about rental or purchase options for a specific product or service."
+                    "description": "Initiate the conversation by asking the user to describe the technical issue or question they have about the robot."
                 },
                 {
-                    "description": "If the user specifies interest in rental options, use RAGWorker to provide details about the rental policies, costs, and benefits from the company's internal documentation."
+                    "description": "Use the RAGWorker to access the company's internal documentation and provide a response based on the user's described issue using relevant FAQs, product information, or support guides."
                 },
                 {
-                    "description": "If the user specifies interest in purchase options, use RAGWorker to provide details about the purchase policies, costs, and benefits from the company's internal documentation."
+                    "description": "Check if the provided solution resolved the user's issue or if they need further assistance."
                 },
                 {
-                    "description": "Ask the user if they have any specific questions or need further clarification on the rental or purchase options."
+                    "description": "If further assistance is needed, ask follow-up questions to gather more details about the issue for more specific troubleshooting."
                 },
                 {
-                    "description": "Based on the user's questions, provide additional information or redirect them to the appropriate resources if necessary with the help of RAGWorker."
-                },
-                {
-                    "description": "Confirm if the user has all the information they need and offer assistance with proceeding to the next steps if they wish to rent or purchase."
+                    "description": "Provide additional troubleshooting steps or escalate the issue to a human agent if it cannot be resolved using predefined responses and internal documentation."
                 }
             ]
         },
         {
-            "name": "Facilitate customer feedback and service improvements",
+            "name": "Offer information regarding company innovations like the robot milk tea shop",
             "steps": [
                 {
-                    "description": "Greet the user and acknowledge their interest in providing feedback."
+                    "description": "Execute: Execute Offer information regarding company innovations like the robot milk tea shop"
+                }
+            ]
+        },
+        {
+            "name": "Guide users in customizing and configuring robots for business requirements",
+            "steps": [
+                {
+                    "description": "Ask the user about the specific business requirements they have for customizing or configuring the robot."
                 },
                 {
-                    "description": "Use the MessageWorker to ask the user for specific areas they would like to provide feedback on (e.g., products, services, website experience)."
+                    "description": "Retrieve detailed information and guidance on customization and configuration options based on the company's internal documentation."
                 },
                 {
-                    "description": "Utilize RAGWorker to provide information or clarification if the user inquires about company policies related to feedback and service improvements."
+                    "description": "Provide the user with options or recommendations based on their specified business requirements and the gathered information."
                 },
                 {
-                    "description": "Ask open-ended questions or provide a form for structured feedback to gather detailed input from the user."
+                    "description": "Inquire if the user needs further assistance or if they have additional questions regarding the customization or configuration process."
                 },
                 {
-                    "description": "Thank the user for their feedback and inform them of any follow-up actions or improvements planned by the company."
+                    "description": "Offer to connect the user with a human specialist or provide additional documentation if the user's requirements are complex or outside the scope of the chatbot."
                 }
             ]
         }
@@ -1158,6 +1113,227 @@
     "nluapi": "",
     "slotfillapi": "",
     "reusable_tasks": {
+        "template_1": {
+            "template_id": "template_1",
+            "name": "Provide detailed information about product specifications and features",
+            "description": "User needs information about robot product specifications and features",
+            "steps": [
+                {
+                    "task": "Execute Provide detailed information about product specifications and features",
+                    "description": "Execute: Execute Provide detailed information about product specifications and features",
+                    "step_id": "step_1",
+                    "required_fields": []
+                }
+            ],
+            "parameters": {},
+            "examples": [],
+            "version": "1.0",
+            "category": "general"
+        },
+        "template_2": {
+            "template_id": "template_2",
+            "name": "Assist in scheduling product demonstrations or virtual tours",
+            "description": "User wants to schedule a product demonstration or virtual tour",
+            "steps": [
+                {
+                    "task": "Greet the user and ask if they are interested in scheduling a product demonstration or virtual tour.",
+                    "description": "Greet the user and ask if they are interested in scheduling a product demonstration or virtual tour.",
+                    "step_id": "step_1",
+                    "required_fields": []
+                },
+                {
+                    "task": "Use RAGWorker to provide information about the available product demonstrations or virtual tours, such as options, formats, and times.",
+                    "description": "Use RAGWorker to provide information about the available product demonstrations or virtual tours, such as options, formats, and times.",
+                    "step_id": "step_2",
+                    "required_fields": []
+                },
+                {
+                    "task": "Ask the user for their preferred date and time for the demonstration or tour.",
+                    "description": "Ask the user for their preferred date and time for the demonstration or tour.",
+                    "step_id": "step_3",
+                    "required_fields": []
+                },
+                {
+                    "task": "Confirm the user's preferred schedule and check the availability using predefined responses with MessageWorker.",
+                    "description": "Confirm the user's preferred schedule and check the availability using predefined responses with MessageWorker.",
+                    "step_id": "step_4",
+                    "required_fields": []
+                },
+                {
+                    "task": "If the preferred slot is available, confirm the booking and provide any preparation details. If not, offer alternative dates and times.",
+                    "description": "If the preferred slot is available, confirm the booking and provide any preparation details. If not, offer alternative dates and times.",
+                    "step_id": "step_5",
+                    "required_fields": []
+                },
+                {
+                    "task": "Ask if there is anything else the user needs help with or any other questions they may have.",
+                    "description": "Ask if there is anything else the user needs help with or any other questions they may have.",
+                    "step_id": "step_6",
+                    "required_fields": []
+                }
+            ],
+            "parameters": {},
+            "examples": [],
+            "version": "1.0",
+            "category": "general"
+        },
+        "template_3": {
+            "template_id": "template_3",
+            "name": "Provide assistance and updates on delivery status",
+            "description": "User is inquiring about delivery status and updates",
+            "steps": [
+                {
+                    "task": "Greet the user and ask for their order number or any relevant information to track their delivery.",
+                    "description": "Greet the user and ask for their order number or any relevant information to track their delivery.",
+                    "step_id": "step_1",
+                    "required_fields": []
+                },
+                {
+                    "task": "Use the RAGWorker to look up the delivery status of the order from the company's internal documentation and provide the user with the current status.",
+                    "description": "Use the RAGWorker to look up the delivery status of the order from the company's internal documentation and provide the user with the current status.",
+                    "step_id": "step_2",
+                    "required_fields": []
+                },
+                {
+                    "task": "Ask the user if they have any further questions or need more details about the delivery process or policies.",
+                    "description": "Ask the user if they have any further questions or need more details about the delivery process or policies.",
+                    "step_id": "step_3",
+                    "required_fields": []
+                },
+                {
+                    "task": "Provide additional information or clarification using the RAGWorker as needed, and offer ways to resolve any concerns regarding the delivery.",
+                    "description": "Provide additional information or clarification using the RAGWorker as needed, and offer ways to resolve any concerns regarding the delivery.",
+                    "step_id": "step_4",
+                    "required_fields": []
+                },
+                {
+                    "task": "Confirm if the user is satisfied with the information provided and offer further assistance if needed.",
+                    "description": "Confirm if the user is satisfied with the information provided and offer further assistance if needed.",
+                    "step_id": "step_5",
+                    "required_fields": []
+                }
+            ],
+            "parameters": {},
+            "examples": [],
+            "version": "1.0",
+            "category": "general"
+        },
+        "template_4": {
+            "template_id": "template_4",
+            "name": "Facilitate and manage inquiries about rental services for robots",
+            "description": "User interested in rental services for robots",
+            "steps": [
+                {
+                    "task": "Execute Facilitate and manage inquiries about rental services for robots",
+                    "description": "Execute: Execute Facilitate and manage inquiries about rental services for robots",
+                    "step_id": "step_1",
+                    "required_fields": []
+                }
+            ],
+            "parameters": {},
+            "examples": [],
+            "version": "1.0",
+            "category": "general"
+        },
+        "template_5": {
+            "template_id": "template_5",
+            "name": "Address technical support questions and troubleshoot robot issues",
+            "description": "User seeks technical support and troubleshooting assistance",
+            "steps": [
+                {
+                    "task": "Initiate the conversation by asking the user to describe the technical issue or question they have about the robot.",
+                    "description": "Initiate the conversation by asking the user to describe the technical issue or question they have about the robot.",
+                    "step_id": "step_1",
+                    "required_fields": []
+                },
+                {
+                    "task": "Use the RAGWorker to access the company's internal documentation and provide a response based on the user's described issue using relevant FAQs, product information, or support guides.",
+                    "description": "Use the RAGWorker to access the company's internal documentation and provide a response based on the user's described issue using relevant FAQs, product information, or support guides.",
+                    "step_id": "step_2",
+                    "required_fields": []
+                },
+                {
+                    "task": "Check if the provided solution resolved the user's issue or if they need further assistance.",
+                    "description": "Check if the provided solution resolved the user's issue or if they need further assistance.",
+                    "step_id": "step_3",
+                    "required_fields": []
+                },
+                {
+                    "task": "If further assistance is needed, ask follow-up questions to gather more details about the issue for more specific troubleshooting.",
+                    "description": "If further assistance is needed, ask follow-up questions to gather more details about the issue for more specific troubleshooting.",
+                    "step_id": "step_4",
+                    "required_fields": []
+                },
+                {
+                    "task": "Provide additional troubleshooting steps or escalate the issue to a human agent if it cannot be resolved using predefined responses and internal documentation.",
+                    "description": "Provide additional troubleshooting steps or escalate the issue to a human agent if it cannot be resolved using predefined responses and internal documentation.",
+                    "step_id": "step_5",
+                    "required_fields": []
+                }
+            ],
+            "parameters": {},
+            "examples": [],
+            "version": "1.0",
+            "category": "general"
+        },
+        "template_6": {
+            "template_id": "template_6",
+            "name": "Offer information regarding company innovations like the robot milk tea shop",
+            "description": "User is interested in learning about company-specific strategies and innovations",
+            "steps": [
+                {
+                    "task": "Execute Offer information regarding company innovations like the robot milk tea shop",
+                    "description": "Execute: Execute Offer information regarding company innovations like the robot milk tea shop",
+                    "step_id": "step_1",
+                    "required_fields": []
+                }
+            ],
+            "parameters": {},
+            "examples": [],
+            "version": "1.0",
+            "category": "general"
+        },
+        "template_7": {
+            "template_id": "template_7",
+            "name": "Guide users in customizing and configuring robots for business requirements",
+            "description": "User wishes to customize robots to their business needs",
+            "steps": [
+                {
+                    "task": "Ask the user about the specific business requirements they have for customizing or configuring the robot.",
+                    "description": "Ask the user about the specific business requirements they have for customizing or configuring the robot.",
+                    "step_id": "step_1",
+                    "required_fields": []
+                },
+                {
+                    "task": "Retrieve detailed information and guidance on customization and configuration options based on the company's internal documentation.",
+                    "description": "Retrieve detailed information and guidance on customization and configuration options based on the company's internal documentation.",
+                    "step_id": "step_2",
+                    "required_fields": []
+                },
+                {
+                    "task": "Provide the user with options or recommendations based on their specified business requirements and the gathered information.",
+                    "description": "Provide the user with options or recommendations based on their specified business requirements and the gathered information.",
+                    "step_id": "step_3",
+                    "required_fields": []
+                },
+                {
+                    "task": "Inquire if the user needs further assistance or if they have additional questions regarding the customization or configuration process.",
+                    "description": "Inquire if the user needs further assistance or if they have additional questions regarding the customization or configuration process.",
+                    "step_id": "step_4",
+                    "required_fields": []
+                },
+                {
+                    "task": "Offer to connect the user with a human specialist or provide additional documentation if the user's requirements are complex or outside the scope of the chatbot.",
+                    "description": "Offer to connect the user with a human specialist or provide additional documentation if the user's requirements are complex or outside the scope of the chatbot.",
+                    "step_id": "step_5",
+                    "required_fields": []
+                }
+            ],
+            "parameters": {},
+            "examples": [],
+            "version": "1.0",
+            "category": "general"
+        },
         "nested_graph": {
             "resource": {
                 "id": "nested_graph",
