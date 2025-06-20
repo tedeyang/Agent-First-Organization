@@ -52,6 +52,7 @@ class TaskGraphFormatter:
         default_weight: int = 1,
         nodes: Optional[List[Any]] = None,
         edges: Optional[List[Any]] = None,
+        allow_nested_graph: bool = True,
     ) -> None:
         """Initialize the TaskGraphFormatter.
 
@@ -71,6 +72,7 @@ class TaskGraphFormatter:
             default_weight (int): Default weight for edges
             nodes (Optional[List[Any]]): List of nodes
             edges (Optional[List[Any]]): List of edges
+            allow_nested_graph (bool): Whether to allow nested graph generation
         """
         self._role = role
         self._user_objective = user_objective
@@ -87,6 +89,7 @@ class TaskGraphFormatter:
         self._default_weight = default_weight
         self._nodes = nodes
         self._edges = edges
+        self._allow_nested_graph = allow_nested_graph
 
     def _find_worker_id_by_name(self, worker_name: str) -> str:
         """Find the actual worker ID by name from the config.
@@ -147,6 +150,7 @@ class TaskGraphFormatter:
                 "task": "start message",
                 "directed": False,
             },
+            "type": "start",
         }
         nodes.append([str(node_id_counter), start_node])
         start_node_id = str(node_id_counter)
@@ -158,6 +162,8 @@ class TaskGraphFormatter:
         step_parent_lookup = {}
         step_nodes = []
         all_task_node_ids = []
+        nested_graph_node_id = None
+
         if tasks:
             for task_idx, task in enumerate(tasks):
                 resource = task.get("resource", {})
@@ -185,47 +191,51 @@ class TaskGraphFormatter:
                 task_node_mapping[task_idx] = str(node_id_counter)
                 node_id_counter += 1
 
-            # Find all nodes that are the target of an edge from the main graph start node
-            main_graph_targets = set()
-            for task_idx, task in enumerate(tasks):
-                dependencies = task.get("dependencies", [])
-                if not dependencies:
-                    main_graph_targets.add(task_node_mapping[task_idx])
+            # Only create nested graph node if allow_nested_graph is True
+            if self._allow_nested_graph:
+                # Find all nodes that are the target of an edge from the main graph start node
+                main_graph_targets = set()
+                for task_idx, task in enumerate(tasks):
+                    dependencies = task.get("dependencies", [])
+                    if not dependencies:
+                        main_graph_targets.add(task_node_mapping[task_idx])
 
-            # Subgraph start nodes: task nodes that are not the main graph start node and not directly targeted by the main graph start node
-            subgraph_start_nodes = [
-                node_id
-                for node_id in all_task_node_ids
-                if node_id != start_node_id and node_id not in main_graph_targets
-            ]
-            # Fallback: if all task nodes are main graph targets, just use the first task node that is not the start node
-            if not subgraph_start_nodes:
+                # Subgraph start nodes: task nodes that are not the main graph start node and not directly targeted by the main graph start node
                 subgraph_start_nodes = [
-                    node_id for node_id in all_task_node_ids if node_id != start_node_id
+                    node_id
+                    for node_id in all_task_node_ids
+                    if node_id != start_node_id and node_id not in main_graph_targets
                 ]
-            # Use the first valid subgraph start node
-            nested_graph_value = (
-                subgraph_start_nodes[0]
-                if subgraph_start_nodes
-                else all_task_node_ids[0]
-            )
+                # Fallback: if all task nodes are main graph targets, just use the first task node that is not the start node
+                if not subgraph_start_nodes:
+                    subgraph_start_nodes = [
+                        node_id
+                        for node_id in all_task_node_ids
+                        if node_id != start_node_id
+                    ]
+                # Use the first valid subgraph start node
+                nested_graph_value = (
+                    subgraph_start_nodes[0]
+                    if subgraph_start_nodes
+                    else all_task_node_ids[0]
+                )
 
-            # Now create the nested graph node, value set to a true subgraph start node
-            nested_graph_node = {
-                "resource": {
-                    "id": "nested_graph",
-                    "name": "NestedGraph",
-                },
-                "attribute": {
-                    "value": nested_graph_value,
-                    "task": "TBD",
-                    "directed": True,
-                },
-                "limit": 1,
-            }
-            nested_graph_node_id = str(node_id_counter)
-            nodes.append([nested_graph_node_id, nested_graph_node])
-            node_id_counter += 1
+                # Now create the nested graph node, value set to a true subgraph start node
+                nested_graph_node = {
+                    "resource": {
+                        "id": "nested_graph",
+                        "name": "NestedGraph",
+                    },
+                    "attribute": {
+                        "value": nested_graph_value,
+                        "task": "TBD",
+                        "directed": True,
+                    },
+                    "limit": 1,
+                }
+                nested_graph_node_id = str(node_id_counter)
+                nodes.append([nested_graph_node_id, nested_graph_node])
+                node_id_counter += 1
         else:
             start_node_id = None
             nested_graph_node_id = None
