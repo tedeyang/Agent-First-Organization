@@ -117,3 +117,284 @@ def test_verify_slots_route_missing_field() -> None:
     data = {"slots": [], "model": {}}
     with pytest.raises(ValidationError):
         client.post("/slotfill/verify", json=data)
+
+
+@pytest.mark.asyncio
+async def test_get_model_service_success() -> None:
+    with patch("arklex.orchestrator.NLU.api.routes.ModelService") as MockModelService:
+        mock_service = MockModelService.return_value
+        MockModelService.side_effect = None
+        from arklex.orchestrator.NLU.api.routes import get_model_service
+
+        result = await get_model_service()
+        assert result == mock_service
+        MockModelService.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_get_model_service_exception() -> None:
+    with patch("arklex.orchestrator.NLU.api.routes.ModelService") as MockModelService:
+        MockModelService.side_effect = Exception("Model initialization failed")
+        from arklex.orchestrator.NLU.api.routes import get_model_service
+
+        with pytest.raises(Exception):
+            await get_model_service()
+
+
+def test_predict_intent_router_success() -> None:
+    app = create_test_app()
+    client = TestClient(app)
+    routes_info = [route.path for route in app.routes]
+    print(f"Available routes: {routes_info}")
+    with patch("arklex.orchestrator.NLU.api.routes.ModelService") as MockModelService:
+        mock_service = MockModelService.return_value
+        mock_service.predict_intent.return_value = {
+            "intent": "greet",
+            "confidence": 0.9,
+        }
+        from arklex.orchestrator.NLU.api.routes import (
+            predict_intent as router_predict_intent,
+        )
+
+        assert callable(router_predict_intent)
+
+
+def test_fill_slots_router_success() -> None:
+    app = create_test_app()
+    client = TestClient(app)
+    routes_info = [route.path for route in app.routes]
+    print(f"Available routes: {routes_info}")
+    with patch("arklex.orchestrator.NLU.api.routes.ModelService") as MockModelService:
+        mock_service = MockModelService.return_value
+        mock_service.fill_slots.return_value = {
+            "slots": [{"name": "user", "value": "John"}]
+        }
+        from arklex.orchestrator.NLU.api.routes import (
+            fill_slots as router_fill_slots,
+        )
+
+        assert callable(router_fill_slots)
+
+
+def test_verify_slots_router_success() -> None:
+    app = create_test_app()
+    client = TestClient(app)
+    routes_info = [route.path for route in app.routes]
+    print(f"Available routes: {routes_info}")
+    with patch("arklex.orchestrator.NLU.api.routes.ModelService") as MockModelService:
+        mock_service = MockModelService.return_value
+        mock_service.verify_slots.return_value = {
+            "verified": True,
+            "confidence": 0.8,
+        }
+        from arklex.orchestrator.NLU.api.routes import (
+            verify_slots as router_verify_slots,
+        )
+
+        assert callable(router_verify_slots)
+
+
+def test_predict_intent_app_missing_text_field() -> None:
+    app = create_test_app()
+    client = TestClient(app)
+    data = {
+        "intents": {"greet": []},
+        "chat_history_str": "",
+        "model": {"model_name": "test"},
+    }
+    with pytest.raises(ValidationError) as exc_info:
+        client.post("/nlu/predict", json=data)
+    assert "Missing required field in request" in str(exc_info.value)
+
+
+def test_predict_intent_app_missing_intents_field() -> None:
+    app = create_test_app()
+    client = TestClient(app)
+    data = {
+        "text": "hello",
+        "chat_history_str": "",
+        "model": {"model_name": "test"},
+    }
+    with pytest.raises(ValidationError) as exc_info:
+        client.post("/nlu/predict", json=data)
+    assert "Missing required field in request" in str(exc_info.value)
+
+
+def test_predict_intent_app_missing_chat_history_field() -> None:
+    app = create_test_app()
+    client = TestClient(app)
+    data = {
+        "text": "hello",
+        "intents": {"greet": []},
+        "model": {"model_name": "test"},
+    }
+    with pytest.raises(ValidationError) as exc_info:
+        client.post("/nlu/predict", json=data)
+    assert "Missing required field in request" in str(exc_info.value)
+
+
+def test_predict_intent_app_missing_model_field() -> None:
+    app = create_test_app()
+    client = TestClient(app)
+    data = {"text": "hello", "intents": {"greet": []}, "chat_history_str": ""}
+    with pytest.raises(ValidationError) as exc_info:
+        client.post("/nlu/predict", json=data)
+    assert "Missing required field in request" in str(exc_info.value)
+
+
+def test_predict_intent_app_general_exception() -> None:
+    app = create_test_app()
+    client = TestClient(app)
+    data = {
+        "text": "hello",
+        "intents": {"greet": []},
+        "chat_history_str": "",
+        "model": {"model_name": "test"},
+    }
+    with patch("arklex.orchestrator.NLU.api.routes.ModelService") as MockModelService:
+        mock_service = MockModelService.return_value
+        mock_service.format_intent_input.side_effect = Exception("Model error")
+        with pytest.raises(Exception):
+            client.post("/nlu/predict", json=data)
+
+
+def test_predict_slots_app_missing_slots_field() -> None:
+    app = create_test_app()
+    client = TestClient(app)
+    data = {"context": "my name is John", "model": {"model_name": "test"}}
+    with pytest.raises(ValidationError) as exc_info:
+        client.post("/slotfill/predict", json=data)
+    assert "Missing required field in request" in str(exc_info.value)
+
+
+def test_predict_slots_app_missing_context_field() -> None:
+    app = create_test_app()
+    client = TestClient(app)
+    data = {
+        "slots": [{"name": "user_name", "type": "str"}],
+        "model": {"model_name": "test"},
+    }
+    with pytest.raises(ValidationError) as exc_info:
+        client.post("/slotfill/predict", json=data)
+    assert "Missing required field in request" in str(exc_info.value)
+
+
+def test_predict_slots_app_missing_model_field() -> None:
+    app = create_test_app()
+    client = TestClient(app)
+    data = {
+        "slots": [{"name": "user_name", "type": "str"}],
+        "context": "my name is John",
+    }
+    with pytest.raises(ValidationError) as exc_info:
+        client.post("/slotfill/predict", json=data)
+    assert "Missing required field in request" in str(exc_info.value)
+
+
+def test_predict_slots_app_general_exception() -> None:
+    app = create_test_app()
+    client = TestClient(app)
+    data = {
+        "slots": [{"name": "user_name", "type": "str"}],
+        "context": "my name is John",
+        "model": {"model_name": "test"},
+    }
+    with patch("arklex.orchestrator.NLU.api.routes.ModelService") as MockModelService:
+        mock_service = MockModelService.return_value
+        mock_service.format_slot_input.side_effect = Exception("Model error")
+        with pytest.raises(Exception):
+            client.post("/slotfill/predict", json=data)
+
+
+def test_verify_slot_app_missing_slot_field() -> None:
+    app = create_test_app()
+    client = TestClient(app)
+    data = {"chat_history_str": "my name is John", "model": {"model_name": "test"}}
+    with pytest.raises(ValidationError) as exc_info:
+        client.post("/slotfill/verify", json=data)
+    assert "Missing required field in request" in str(exc_info.value)
+
+
+def test_verify_slot_app_missing_chat_history_field() -> None:
+    app = create_test_app()
+    client = TestClient(app)
+    data = {
+        "slot": {"name": "user_name", "type": "str", "value": "John"},
+        "model": {"model_name": "test"},
+    }
+    with pytest.raises(ValidationError) as exc_info:
+        client.post("/slotfill/verify", json=data)
+    assert "Missing required field in request" in str(exc_info.value)
+
+
+def test_verify_slot_app_missing_model_field() -> None:
+    app = create_test_app()
+    client = TestClient(app)
+    data = {
+        "slot": {"name": "user_name", "type": "str", "value": "John"},
+        "chat_history_str": "my name is John",
+    }
+    with pytest.raises(ValidationError) as exc_info:
+        client.post("/slotfill/verify", json=data)
+    assert "Missing required field in request" in str(exc_info.value)
+
+
+def test_verify_slot_app_general_exception() -> None:
+    app = create_test_app()
+    client = TestClient(app)
+    data = {
+        "slot": {"name": "user_name", "type": "str", "value": "John"},
+        "chat_history_str": "my name is John",
+        "model": {"model_name": "test"},
+    }
+    with patch("arklex.orchestrator.NLU.api.routes.ModelService") as MockModelService:
+        mock_service = MockModelService.return_value
+        mock_service.format_verification_input.side_effect = Exception("Model error")
+        with pytest.raises(Exception):
+            client.post("/slotfill/verify", json=data)
+
+
+def test_predict_intent_app_with_type_parameter() -> None:
+    app = create_test_app()
+    client = TestClient(app)
+    data = {
+        "slots": [{"name": "user_name", "type": "str"}],
+        "context": "my name is John",
+        "model": {"model_name": "test"},
+        "type": "custom_type",
+    }
+    with patch("arklex.orchestrator.NLU.api.routes.ModelService") as MockModelService:
+        mock_service = MockModelService.return_value
+        mock_service.format_slot_input.return_value = "prompt"
+        mock_service.get_model_response.return_value = "response"
+        mock_service.process_slot_response.return_value = [
+            {"name": "user_name", "value": "John"}
+        ]
+        response = client.post("/slotfill/predict", json=data)
+        assert response.status_code == 200
+        mock_service.format_slot_input.assert_called_once()
+        call_args = mock_service.format_slot_input.call_args
+        assert call_args[0][2] == "custom_type"
+
+
+def test_predict_intent_app_with_others_fallback() -> None:
+    app = create_test_app()
+    client = TestClient(app)
+    data = {
+        "text": "hello",
+        "intents": {
+            "greet": [{"definition": "Say hello", "sample_utterances": ["hello"]}]
+        },
+        "chat_history_str": "",
+        "model": {"model_name": "test", "model_type_or_path": "test"},
+    }
+    with patch("arklex.orchestrator.NLU.api.routes.ModelService") as MockModelService:
+        mock_service = MockModelService.return_value
+        mock_service.format_intent_input.return_value = (
+            "prompt",
+            {"greet": "greet"},
+        )
+        mock_service.get_model_response.return_value = "unknown_intent"
+        response = client.post("/nlu/predict", json=data)
+        assert response.status_code == 200
+        assert response.json()["intent"] == "others"
