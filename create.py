@@ -235,7 +235,21 @@ def main():
         default=None,
         help="Output directory for cache and results",
     )
+    parser.add_argument(
+        "--allow-nested-graph",
+        action="store_true",
+        default=True,
+        help="Whether to allow nested graph generation (default: True)",
+    )
+    parser.add_argument(
+        "--no-nested-graph",
+        action="store_true",
+        help="Disable nested graph generation (equivalent to --allow-nested-graph=False)",
+    )
     args = parser.parse_args()
+
+    # Handle nested graph flag
+    allow_nested_graph = args.allow_nested_graph and not args.no_nested_graph
 
     # Set up logging
     log_context.setLevel(getattr(logging, args.log_level.upper()))
@@ -266,7 +280,9 @@ def main():
 
     # Initialize generator with model and output_dir
     log_context.info("🔧 Initializing task graph generator...")
-    generator = Generator(config, model, output_dir)
+    generator = Generator(
+        config, model, output_dir, allow_nested_graph=allow_nested_graph
+    )
 
     # Generate task graph
     log_context.info("🎯 Generating task graph...")

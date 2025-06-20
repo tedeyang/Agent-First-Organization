@@ -320,6 +320,7 @@ class Generator:
                 tools=self.tools,
                 nluapi=self.nluapi,
                 slotfillapi=self.slotfillapi,
+                allow_nested_graph=self.allow_nested_graph,
             )
         return self._task_graph_formatter
 
@@ -572,14 +573,15 @@ class Generator:
         task_graph = task_graph_formatter.format_task_graph(finetuned_tasks)
 
         # Add reusable tasks to the task graph output
-        # Always add the nested_graph reusable component
-        nested_graph_reusable = {
-            "resource": {"id": "nested_graph", "name": "NestedGraph"},
-            "limit": 1,
-        }
-        if not self.reusable_tasks:
-            self.reusable_tasks = {}
-        self.reusable_tasks["nested_graph"] = nested_graph_reusable
+        # Only add the nested_graph reusable component if allow_nested_graph is True
+        if self.allow_nested_graph:
+            nested_graph_reusable = {
+                "resource": {"id": "nested_graph", "name": "NestedGraph"},
+                "limit": 1,
+            }
+            if not self.reusable_tasks:
+                self.reusable_tasks = {}
+            self.reusable_tasks["nested_graph"] = nested_graph_reusable
 
         if self.reusable_tasks:
             log_context.info("  📦 Adding reusable tasks to graph...")
