@@ -5,8 +5,7 @@ including all methods, edge cases, error conditions, and the BestPractice datacl
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from typing import List, Dict, Any
+from unittest.mock import Mock, patch
 
 from arklex.orchestrator.generator.tasks.best_practice_manager import (
     BestPractice,
