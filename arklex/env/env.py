@@ -199,11 +199,11 @@ class Environment:
         )
         self.name2id: Dict[str, str] = {
             resource["name"]: id
-            for id, resource in {**self.tools, **self.workers}.items()
+            for id, resource in {**self.tools, **self.workers, **self.agents}.items()
         }
         self.id2name: Dict[str, str] = {
             id: resource["name"]
-            for id, resource in {**self.tools, **self.workers}.items()
+            for id, resource in {**self.tools, **self.workers, **self.agents}.items()
         }
         self.slotfillapi: SlotFiller = self.initialize_slotfillapi(slotsfillapi)
         if planner_enabled:
@@ -306,7 +306,35 @@ class Environment:
                 tools=self.tools,
                 state=message_state,
             )
-            agent.execute(message_state, **node_info.additional_args)
+            response_state = agent.execute(message_state, **node_info.additional_args)
+            call_id: str = str(uuid.uuid4())
+            params.memory.function_calling_trajectory.append(
+                {
+                    "content": None,
+                    "role": "assistant",
+                    "tool_calls": [
+                        {
+                            "function": {"arguments": "{}", "name": self.id2name[id]},
+                            "id": call_id,
+                            "type": "function",
+                        }
+                    ],
+                    "function_call": None,
+                }
+            )
+            params.memory.function_calling_trajectory.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": call_id,
+                    "name": self.id2name[id],
+                    "content": response_state.response
+                    if response_state.response
+                    else response_state.message_flow,
+                }
+            )
+            params.taskgraph.node_status[params.taskgraph.curr_node] = (
+                response_state.status
+            )
         else:
             logger.info("planner selected")
             action: str
