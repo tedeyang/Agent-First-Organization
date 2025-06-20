@@ -10,6 +10,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 import json
 from pathlib import Path
+import tempfile
 
 from arklex.orchestrator.generator.docs.document_loader import DocumentLoader
 from arklex.orchestrator.generator.docs.document_processor import DocumentProcessor
@@ -68,6 +69,15 @@ SAMPLE_INSTRUCTION_DOC = {
         },
     ],
 }
+
+
+class NoReadTextPath(type(Path())):
+    """Path subclass that raises AttributeError for read_text to test fallback logic."""
+
+    def __getattribute__(self, name):
+        if name == "read_text":
+            raise AttributeError("no read_text")
+        return super().__getattribute__(name)
 
 
 @pytest.fixture
@@ -191,6 +201,236 @@ class TestDocumentLoader:
             doc = document_loader.load_task_document(doc_path)
             assert doc["name"] == "Test"
             assert len(doc["steps"]) == 2
+
+    def test_load_task_document_url_handling(self, document_loader, tmp_path) -> None:
+        """Test loading task document from URL."""
+        url = "http://example.com/task.json"
+        mock_response = MagicMock()
+        mock_response.text = json.dumps(SAMPLE_TASK_DOC)
+        mock_response.raise_for_status.return_value = None
+
+        with (
+            patch("requests.get", return_value=mock_response),
+            patch.object(document_loader, "_validate_task_document", return_value=True),
+        ):
+            document_loader._cache[url] = SAMPLE_TASK_DOC
+            doc = document_loader.load_task_document(url)
+            assert doc["task_id"] == "task1"
+            assert len(doc["steps"]) == 2
+
+    def test_load_task_document_html_fallback_without_title(
+        self, document_loader
+    ) -> None:
+        """Test HTML fallback when document has no title."""
+        doc_path = Path("/html_doc.html")
+        html_content = "<html><body><p>Step 1</p><p>Step 2</p></body></html>"
+        with (
+            patch.object(Path, "exists", return_value=True),
+            patch.object(Path, "read_text", return_value=html_content),
+            patch("json.loads", side_effect=json.JSONDecodeError("msg", "doc", 0)),
+        ):
+            doc = document_loader.load_task_document(doc_path)
+            assert doc["name"] == "HTML Document"
+            assert len(doc["steps"]) == 2
+
+    def test_load_task_document_html_fallback_parsing_error(
+        self, document_loader
+    ) -> None:
+        """Test HTML fallback when parsing fails."""
+        with tempfile.NamedTemporaryFile("w", delete=False, suffix=".html") as tmpfile:
+            tmpfile.write("not html content")
+            tmpfile.flush()
+            tmp_path = NoReadTextPath(tmpfile.name)
+        with (
+            patch("json.loads", side_effect=json.JSONDecodeError("msg", "doc", 0)),
+            patch(
+                "arklex.orchestrator.generator.docs.document_loader.BeautifulSoup",
+                side_effect=Exception("Parsing error"),
+            ),
+            patch.object(document_loader, "_validate_task_document", return_value=True),
+        ):
+            with pytest.raises(
+                ValueError, match="neither valid JSON nor parseable HTML"
+            ):
+                document_loader.load_task_document(tmp_path)
+        Path(tmpfile.name).unlink()
+
+    def test_load_task_document_without_read_text_method(self) -> None:
+        """Test loading task document when Path doesn't have read_text method."""
+        with tempfile.NamedTemporaryFile("w", delete=False, suffix=".json") as tmpfile:
+            tmpfile.write(json.dumps(SAMPLE_TASK_DOC))
+            tmpfile.flush()
+            tmpfile.close()
+            tmp_path = NoReadTextPath(tmpfile.name)
+        loader = DocumentLoader(cache_dir=Path("/tmp/cache"), validate_documents=True)
+        with patch.object(loader, "_validate_task_document", return_value=True):
+            doc = loader.load_task_document(tmp_path)
+            assert doc["task_id"] == SAMPLE_TASK_DOC["task_id"]
+        Path(tmpfile.name).unlink()
+
+    def test_load_instruction_document_without_read_text_method(self) -> None:
+        """Test loading instruction document when Path doesn't have read_text method."""
+        with tempfile.NamedTemporaryFile("w", delete=False, suffix=".json") as tmpfile:
+            tmpfile.write(json.dumps(SAMPLE_INSTRUCTION_DOC))
+            tmpfile.flush()
+            tmpfile.close()
+            tmp_path = NoReadTextPath(tmpfile.name)
+        loader = DocumentLoader(cache_dir=Path("/tmp/cache"), validate_documents=True)
+        with patch.object(loader, "_validate_instruction_document", return_value=True):
+            doc = loader.load_instruction_document(tmp_path)
+            assert doc["instruction_id"] == SAMPLE_INSTRUCTION_DOC["instruction_id"]
+        Path(tmpfile.name).unlink()
+
+    def test_load_document_with_validation_disabled(self) -> None:
+        """Test loading document with validation disabled."""
+        loader = DocumentLoader(cache_dir=Path("/tmp/cache"), validate_documents=False)
+        doc_path = Path("/invalid_structure.json")
+        invalid_doc = {"invalid": "structure"}
+
+        with (
+            patch.object(Path, "exists", return_value=True),
+            patch.object(Path, "read_text", return_value=json.dumps(invalid_doc)),
+        ):
+            doc = loader.load_document(doc_path)
+            assert doc == invalid_doc
+
+    @pytest.mark.parametrize(
+        "invalid_doc,expected",
+        [
+            ("not a dict", False),
+            ({"title": "Test"}, False),
+            ({"title": "Test", "sections": "not a list"}, False),
+            ({"title": "Test", "sections": ["not a dict"]}, False),
+            ({"title": "Test", "sections": [{"name": "Test"}]}, False),
+            (
+                {
+                    "title": "Test",
+                    "sections": [
+                        {
+                            "name": "Test",
+                            "content": "Test",
+                            "requirements": "not a list",
+                        }
+                    ],
+                },
+                False,
+            ),
+        ],
+    )
+    def test_validate_document_invalid_cases(
+        self, document_loader, invalid_doc, expected
+    ) -> None:
+        """Test document validation with various invalid cases."""
+        is_valid = document_loader.validate_document(invalid_doc)
+        assert is_valid == expected
+
+    @pytest.mark.parametrize(
+        "invalid_doc,expected",
+        [
+            ("not a dict", False),
+            ({"task_id": "test"}, False),
+            (
+                {
+                    "task_id": "test",
+                    "name": "test",
+                    "description": "test",
+                    "steps": "not a list",
+                },
+                False,
+            ),
+            (
+                {
+                    "task_id": "test",
+                    "name": "test",
+                    "description": "test",
+                    "steps": ["not a dict"],
+                },
+                False,
+            ),
+            (
+                {
+                    "task_id": "test",
+                    "name": "test",
+                    "description": "test",
+                    "steps": [{"step_id": "test"}],
+                },
+                False,
+            ),
+            (
+                {
+                    "task_id": "test",
+                    "name": "test",
+                    "description": "test",
+                    "steps": [
+                        {
+                            "step_id": "test",
+                            "description": "test",
+                            "required_fields": "not a list",
+                        }
+                    ],
+                },
+                False,
+            ),
+        ],
+    )
+    def test_validate_task_document_invalid_cases(
+        self, document_loader, invalid_doc, expected
+    ) -> None:
+        """Test task document validation with various invalid cases."""
+        is_valid = document_loader._validate_task_document(invalid_doc)
+        assert is_valid == expected
+
+    @pytest.mark.parametrize(
+        "invalid_doc,expected",
+        [
+            ("not a dict", False),
+            ({"instruction_id": "test"}, False),
+            (
+                {
+                    "instruction_id": "test",
+                    "title": "test",
+                    "content": "test",
+                    "sections": "not a list",
+                },
+                False,
+            ),
+            (
+                {
+                    "instruction_id": "test",
+                    "title": "test",
+                    "content": "test",
+                    "sections": ["not a dict"],
+                },
+                False,
+            ),
+            (
+                {
+                    "instruction_id": "test",
+                    "title": "test",
+                    "content": "test",
+                    "sections": [{"section_id": "test"}],
+                },
+                False,
+            ),
+            (
+                {
+                    "instruction_id": "test",
+                    "title": "test",
+                    "content": "test",
+                    "sections": [
+                        {"section_id": "test", "title": "test", "steps": "not a list"}
+                    ],
+                },
+                False,
+            ),
+        ],
+    )
+    def test_validate_instruction_document_invalid_cases(
+        self, document_loader, invalid_doc, expected
+    ) -> None:
+        """Test instruction document validation with various invalid cases."""
+        is_valid = document_loader._validate_instruction_document(invalid_doc)
+        assert is_valid == expected
 
 
 class TestDocumentProcessor:

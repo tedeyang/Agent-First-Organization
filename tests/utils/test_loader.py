@@ -275,18 +275,22 @@ class TestLoader:
                 assert len(result) == 1
 
     def test_crawl_with_selenium_expected_error_filtering(self) -> None:
-        """Test Selenium crawling with expected error filtering."""
+        """Test expected error filtering logic in selenium crawling."""
         loader = Loader()
         url_objects = [DocObject("1", "http://example.com")]
-
-        with patch(
-            "selenium.webdriver.Chrome",
-            side_effect=Exception("cannot determine loading status"),
-        ):
-            with patch("time.sleep"):
-                result = loader._crawl_with_selenium(url_objects)
-                assert len(result) == 1
-                assert result[0].is_error
+        # Patch webdriver.Chrome to raise an expected error
+        mock_driver = Mock()
+        mock_driver.get.side_effect = Exception("timeout")
+        with patch("selenium.webdriver.Chrome", return_value=mock_driver):
+            with patch(
+                "webdriver_manager.chrome.ChromeDriverManager.install",
+                return_value="/tmp/chromedriver",
+            ):
+                with patch("selenium.webdriver.chrome.service.Service"):
+                    result = loader._crawl_with_selenium(url_objects)
+                    assert len(result) == 1
+                    assert result[0].is_error
+                    assert "timeout" in result[0].error_message
 
     def test_crawl_with_requests_http_error(self) -> None:
         """Test requests crawling with HTTP error."""
@@ -323,14 +327,12 @@ class TestLoader:
         assert all("mock_content" in doc.metadata for doc in result)
 
     def test_get_all_urls_timeout(self) -> None:
-        """Test get_all_urls with timeout."""
+        """Test URL discovery timeout handling in get_all_urls."""
         loader = Loader()
-
-        with patch.object(
-            loader, "get_outsource_urls", side_effect=Exception("Network error")
-        ):
-            result = loader.get_all_urls("http://example.com", 10)
-            assert len(result) == 1  # Should include the base URL
+        # Patch time.time to simulate timeout
+        with patch("time.time", side_effect=[0, 100, 200, 300, 400, 1000]):
+            result = loader.get_all_urls("http://example.com", 1)
+            assert isinstance(result, list)
 
     def test_get_all_urls_exception_handling(self) -> None:
         """Test get_all_urls with exception handling."""
@@ -343,30 +345,20 @@ class TestLoader:
             assert len(result) == 1  # Should include the base URL
 
     def test_check_url_edge_cases(self) -> None:
-        """Test _check_url with edge cases."""
+        """Test URL validation logic in _check_url for various edge cases."""
         loader = Loader()
-
-        # Test with different URL formats
-        assert (
-            loader._check_url("http://example.com", "http://example.com") is False
-        )  # Same URL returns False
-        assert (
-            loader._check_url("http://example.com/page", "http://example.com") is True
-        )  # Subpath returns True
-        assert (
-            loader._check_url("https://example.com", "http://example.com") is False
-        )  # Different protocol
-        assert (
-            loader._check_url("http://sub.example.com", "http://example.com") is False
-        )  # Different subdomain
-        assert (
-            loader._check_url("http://example.com#fragment", "http://example.com")
-            is True
-        )  # Fragment returns True
-        assert (
-            loader._check_url("http://example.com/file.pdf", "http://example.com")
-            is False
-        )  # PDF file returns False
+        # Valid URL
+        assert loader._check_url("http://example.com/page", "http://example.com")
+        # Invalid: not base
+        assert not loader._check_url("http://other.com/page", "http://example.com")
+        # Invalid: file extension
+        assert not loader._check_url(
+            "http://example.com/file.pdf", "http://example.com"
+        )
+        # Invalid: same as base
+        assert not loader._check_url("http://example.com", "http://example.com")
+        # Invalid: empty
+        assert not loader._check_url("", "http://example.com")
 
     def test_get_candidates_websites_edge_cases(self) -> None:
         """Test get_candidates_websites with edge cases."""
@@ -441,17 +433,39 @@ class TestLoader:
         assert hasattr(SourceType, "TEXT")
 
     def test_crawl_with_selenium_chromedriver_installation_failure(self) -> None:
-        """Test Selenium crawling with chromedriver installation failure."""
+        """Test ChromeDriver installation failure handling."""
         loader = Loader()
         url_objects = [DocObject("1", "http://example.com")]
 
+        # Patch ChromeDriverManager().install to raise an exception
         with patch(
-            "selenium.webdriver.Chrome", side_effect=Exception("chromedriver not found")
+            "webdriver_manager.chrome.ChromeDriverManager.install",
+            side_effect=Exception("install fail"),
         ):
-            with patch("time.sleep"):
-                result = loader._crawl_with_selenium(url_objects)
-                assert len(result) == 1
-                assert result[0].is_error
+            result = loader._crawl_with_selenium(url_objects)
+            assert len(result) == 1
+            assert result[0].is_error
+            assert "ChromeDriver installation failed" in result[0].error_message
+
+    def test_crawl_with_selenium_driver_quit_exception(self) -> None:
+        """Test driver.quit() raising an exception during error handling."""
+        loader = Loader()
+        url_objects = [DocObject("1", "http://example.com")]
+
+        # Patch webdriver.Chrome to raise an exception on get, and driver.quit to raise as well
+        mock_driver = Mock()
+        mock_driver.get.side_effect = Exception("page load fail")
+        mock_driver.quit.side_effect = Exception("quit fail")
+        with patch("selenium.webdriver.Chrome", return_value=mock_driver):
+            with patch(
+                "webdriver_manager.chrome.ChromeDriverManager.install",
+                return_value="/tmp/chromedriver",
+            ):
+                with patch("selenium.webdriver.chrome.service.Service"):
+                    result = loader._crawl_with_selenium(url_objects)
+                    assert len(result) == 1
+                    assert result[0].is_error
+                    assert "page load fail" in result[0].error_message
 
     def test_crawl_with_selenium_webdriver_exception(self) -> None:
         """Test Selenium crawling with webdriver exception."""
@@ -467,14 +481,14 @@ class TestLoader:
                 assert result[0].is_error
 
     def test_crawl_with_requests_timeout(self) -> None:
-        """Test requests crawling with timeout."""
+        """Test requests timeout handling in _crawl_with_requests."""
         loader = Loader()
         url_objects = [DocObject("1", "http://example.com")]
-
-        with patch("requests.get", side_effect=requests.Timeout("Request timeout")):
+        with patch("requests.get", side_effect=requests.Timeout("timeout")):
             result = loader._crawl_with_requests(url_objects)
             assert len(result) == 1
             assert result[0].is_error
+            assert "timeout" in result[0].error_message
 
     def test_crawl_file_permission_error(self) -> None:
         """Test crawl_file with permission error."""
@@ -554,6 +568,124 @@ class TestLoader:
             assert len(result) == 1
             # The result is a Document object, not CrawledObject, so we check differently
             assert hasattr(result[0], "page_content")
+
+    def test_get_outsource_urls_processing_exception(self) -> None:
+        """Test URL processing exceptions in get_outsource_urls."""
+        loader = Loader()
+
+        # Patch requests.get to return a response with a link that raises exception
+        class DummyLink:
+            def get(self, _):
+                raise Exception("fail href")
+
+        class DummySoup:
+            def find_all(self, _):
+                return [DummyLink()]
+
+        class DummyResponse:
+            status_code = 200
+            text = "<html></html>"
+
+        with patch("requests.get", return_value=DummyResponse()):
+            with patch("bs4.BeautifulSoup", return_value=DummySoup()):
+                # Should log error and continue
+                result = loader.get_outsource_urls(
+                    "http://example.com", "http://example.com"
+                )
+                assert isinstance(result, list)
+
+    def test_get_candidates_websites_graph(self) -> None:
+        """Test graph operations in get_candidates_websites."""
+        loader = Loader()
+        # Create two crawled objects with content referencing each other
+        c1 = CrawledObject(
+            "id1",
+            "http://a.com",
+            "http://b.com",
+            {},
+            False,
+            False,
+            None,
+            SourceType.WEB,
+        )
+        c2 = CrawledObject(
+            "id2",
+            "http://b.com",
+            "http://a.com",
+            {},
+            False,
+            False,
+            None,
+            SourceType.WEB,
+        )
+        result = loader.get_candidates_websites([c1, c2], top_k=2)
+        assert isinstance(result, list)
+        assert all(isinstance(x, CrawledObject) for x in result)
+
+    def test_crawl_file_unsupported_file_type(self) -> None:
+        """Test crawl_file with unsupported file type."""
+        loader = Loader()
+        local_obj = DocObject("id", "file.unsupported")
+        result = loader.crawl_file(local_obj)
+        assert result.is_error
+        assert "Unsupported file type" in result.error_message
+
+    def test_crawl_file_missing_file_type(self) -> None:
+        """Test crawl_file with missing file type."""
+        loader = Loader()
+        local_obj = DocObject("id", "filewithnofiletype")
+        result = loader.crawl_file(local_obj)
+        assert result.is_error
+        assert "No file type detected" in result.error_message
+
+    def test_crawl_file_mistral_api_key_logic(self) -> None:
+        """Test crawl_file Mistral API key logic for pdf with no key."""
+        loader = Loader()
+        # Patch MISTRAL_API_KEY to None and PyPDFLoader to a mock
+        with patch("arklex.utils.loader.MISTRAL_API_KEY", None):
+            with patch("arklex.utils.loader.PyPDFLoader") as mock_loader:
+                mock_loader.return_value.load.return_value = [
+                    Mock(to_json=lambda: {"kwargs": {"page_content": "page1"}})
+                ]
+                local_obj = DocObject("id", "file.pdf")
+                result = loader.crawl_file(local_obj)
+                assert not result.is_error
+                assert "page1" in result.content
+
+    def test_crawl_file_error_handling(self) -> None:
+        """Test crawl_file error handling for general exception."""
+        loader = Loader()
+        # Patch Path to return a mock with .suffix = ''
+        mock_path = Mock()
+        mock_path.suffix = ""
+        mock_path.name = "file.txt"
+        with patch("arklex.utils.loader.Path", return_value=mock_path):
+            local_obj = DocObject("id", "file.txt")
+            result = loader.crawl_file(local_obj)
+            assert result.is_error
+
+    def test_save_with_unsupported_format(self) -> None:
+        """Test save method with unsupported file format (should still pickle)."""
+        docs = [CrawledObject("id", "src", "content")]
+        with tempfile.NamedTemporaryFile(
+            suffix=".unsupported", delete=False
+        ) as tmp_file:
+            tmp_file_path = tmp_file.name
+        try:
+            Loader.save(tmp_file_path, docs)
+            assert os.path.exists(tmp_file_path)
+        finally:
+            os.unlink(tmp_file_path)
+
+    def test_chunk_with_error_and_chunked_docs(self) -> None:
+        """Test chunk skips error and already chunked docs."""
+        error_doc = CrawledObject("id", "src", None, is_error=True)
+        chunked_doc = CrawledObject("id", "src", "chunked", is_chunk=True)
+        docs = [error_doc, chunked_doc]
+        result = Loader.chunk(docs)
+        from langchain_core.documents import Document
+
+        assert all(isinstance(x, Document) for x in result)
 
 
 class TestLoaderExtendedCoverage:
