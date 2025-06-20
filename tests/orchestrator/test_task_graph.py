@@ -445,12 +445,14 @@ class TestTaskGraph:
                 mock_flow_node.global_intent = "test_intent"
                 mock_flow.return_value = mock_flow_node
 
-                # Patch graph.successors to return empty list (leaf node)
-                with patch.object(task_graph.graph, "successors", return_value=[]):
-                    result_node, result_params = task_graph.handle_leaf_node(
-                        "curr_node", params
-                    )
-                    assert result_node == "node1"
+                # Mock initial_node to be None so it doesn't interfere
+                with patch.object(task_graph, "initial_node", None):
+                    # Patch graph.successors to return empty list (leaf node)
+                    with patch.object(task_graph.graph, "successors", return_value=[]):
+                        result_node, result_params = task_graph.handle_leaf_node(
+                            "curr_node", params
+                        )
+                        assert result_node == "node1"
 
     def test_validate_node_valid(self, task_graph) -> None:
         """Test validating a valid node."""

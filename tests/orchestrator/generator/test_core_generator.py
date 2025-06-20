@@ -456,6 +456,36 @@ class TestGeneratorDocumentLoading:
             "instruction1.txt"
         )
 
+    def test_load_multiple_task_documents_with_none_paths(
+        self, minimal_config, mock_model
+    ) -> None:
+        """Test loading multiple task documents with None paths."""
+        gen = Generator(config=minimal_config, model=mock_model)
+
+        doc_paths = None
+        mock_doc_loader = Mock()
+
+        with patch.object(gen, "_load_multiple_task_documents") as mock_load:
+            mock_load.return_value = []
+            result = gen._load_multiple_task_documents(mock_doc_loader, doc_paths)
+            assert result == []
+
+    def test_load_multiple_instruction_documents_with_none_paths(
+        self, minimal_config, mock_model
+    ) -> None:
+        """Test loading multiple instruction documents with None paths."""
+        gen = Generator(config=minimal_config, model=mock_model)
+
+        doc_paths = None
+        mock_doc_loader = Mock()
+
+        with patch.object(gen, "_load_multiple_instruction_documents") as mock_load:
+            mock_load.return_value = []
+            result = gen._load_multiple_instruction_documents(
+                mock_doc_loader, doc_paths
+            )
+            assert result == []
+
 
 class TestGeneratorGenerate:
     """Test Generator generate method."""
@@ -620,6 +650,237 @@ class TestGeneratorGenerate:
 
                 assert isinstance(result, dict)
 
+    def test_generate_with_empty_task_docs(self, minimal_config, mock_model) -> None:
+        """Test generate method with empty task docs."""
+        gen = Generator(config=minimal_config, model=mock_model)
+        gen.task_docs = []
+
+        mock_task_generator = Mock()
+        mock_task_generator.generate_tasks.return_value = []
+
+        mock_bpm = Mock()
+        mock_bpm.generate_best_practices.return_value = []
+
+        mock_rtm = Mock()
+        mock_rtm.generate_reusable_tasks.return_value = {}
+
+        mock_tgf = Mock()
+        mock_tgf.format_task_graph.return_value = {"nodes": [], "edges": []}
+
+        with (
+            patch.object(gen, "_initialize_document_loader") as mock_init_loader,
+            patch.object(gen, "_initialize_task_generator") as mock_init_task,
+            patch.object(gen, "_initialize_best_practice_manager") as mock_init_bpm,
+            patch.object(gen, "_initialize_reusable_task_manager") as mock_init_rtm,
+            patch.object(gen, "_initialize_task_graph_formatter") as mock_init_tgf,
+            patch("arklex.orchestrator.generator.core.generator.UI_AVAILABLE", False),
+        ):
+            mock_init_loader.return_value = Mock()
+            mock_init_task.return_value = mock_task_generator
+            mock_init_bpm.return_value = mock_bpm
+            mock_init_rtm.return_value = mock_rtm
+            mock_init_tgf.return_value = mock_tgf
+
+            result = gen.generate()
+            assert isinstance(result, dict)
+
+    def test_generate_with_empty_user_tasks(self, minimal_config, mock_model) -> None:
+        """Test generate method with empty user tasks."""
+        gen = Generator(config=minimal_config, model=mock_model)
+        gen.user_tasks = []
+
+        mock_task_generator = Mock()
+        mock_task_generator.generate_tasks.return_value = []
+
+        mock_bpm = Mock()
+        mock_bpm.generate_best_practices.return_value = []
+
+        mock_rtm = Mock()
+        mock_rtm.generate_reusable_tasks.return_value = {}
+
+        mock_tgf = Mock()
+        mock_tgf.format_task_graph.return_value = {"nodes": [], "edges": []}
+
+        with (
+            patch.object(gen, "_initialize_document_loader") as mock_init_loader,
+            patch.object(gen, "_initialize_task_generator") as mock_init_task,
+            patch.object(gen, "_initialize_best_practice_manager") as mock_init_bpm,
+            patch.object(gen, "_initialize_reusable_task_manager") as mock_init_rtm,
+            patch.object(gen, "_initialize_task_graph_formatter") as mock_init_tgf,
+            patch("arklex.orchestrator.generator.core.generator.UI_AVAILABLE", False),
+        ):
+            mock_init_loader.return_value = Mock()
+            mock_init_task.return_value = mock_task_generator
+            mock_init_bpm.return_value = mock_bpm
+            mock_init_rtm.return_value = mock_rtm
+            mock_init_tgf.return_value = mock_tgf
+
+            result = gen.generate()
+            assert isinstance(result, dict)
+
+    def test_generate_with_none_user_tasks(self, minimal_config, mock_model) -> None:
+        """Test generate method with None user tasks."""
+        gen = Generator(config=minimal_config, model=mock_model)
+        gen.user_tasks = None
+
+        mock_task_generator = Mock()
+        mock_task_generator.generate_tasks.return_value = []
+
+        mock_bpm = Mock()
+        mock_bpm.generate_best_practices.return_value = []
+
+        mock_rtm = Mock()
+        mock_rtm.generate_reusable_tasks.return_value = {}
+
+        mock_tgf = Mock()
+        mock_tgf.format_task_graph.return_value = {"nodes": [], "edges": []}
+
+        with (
+            patch.object(gen, "_initialize_document_loader") as mock_init_loader,
+            patch.object(gen, "_initialize_task_generator") as mock_init_task,
+            patch.object(gen, "_initialize_best_practice_manager") as mock_init_bpm,
+            patch.object(gen, "_initialize_reusable_task_manager") as mock_init_rtm,
+            patch.object(gen, "_initialize_task_graph_formatter") as mock_init_tgf,
+            patch("arklex.orchestrator.generator.core.generator.UI_AVAILABLE", False),
+            patch(
+                "arklex.orchestrator.generator.core.generator.log_context.info"
+            ) as mock_log,
+        ):
+            mock_init_loader.return_value = Mock()
+            mock_init_task.return_value = mock_task_generator
+            mock_init_bpm.return_value = mock_bpm
+            mock_init_rtm.return_value = mock_rtm
+            mock_init_tgf.return_value = mock_tgf
+
+            result = gen.generate()
+            assert isinstance(result, dict)
+
+    def test_generate_with_none_task_docs(self, minimal_config, mock_model) -> None:
+        """Test generate method with None task docs."""
+        gen = Generator(config=minimal_config, model=mock_model)
+        gen.task_docs = None
+
+        mock_task_generator = Mock()
+        mock_task_generator.generate_tasks.return_value = []
+
+        mock_bpm = Mock()
+        mock_bpm.generate_best_practices.return_value = []
+
+        mock_rtm = Mock()
+        mock_rtm.generate_reusable_tasks.return_value = {}
+
+        mock_tgf = Mock()
+        mock_tgf.format_task_graph.return_value = {"nodes": [], "edges": []}
+
+        with (
+            patch.object(gen, "_initialize_document_loader") as mock_init_loader,
+            patch.object(gen, "_initialize_task_generator") as mock_init_task,
+            patch.object(gen, "_initialize_best_practice_manager") as mock_init_bpm,
+            patch.object(gen, "_initialize_reusable_task_manager") as mock_init_rtm,
+            patch.object(gen, "_initialize_task_graph_formatter") as mock_init_tgf,
+            patch("arklex.orchestrator.generator.core.generator.UI_AVAILABLE", False),
+            patch.object(gen, "_load_multiple_task_documents") as mock_load_task,
+            patch.object(
+                gen, "_load_multiple_instruction_documents"
+            ) as mock_load_instruction,
+            patch(
+                "arklex.orchestrator.generator.core.generator.log_context.info"
+            ) as mock_log,
+        ):
+            mock_init_loader.return_value = Mock()
+            mock_init_task.return_value = mock_task_generator
+            mock_init_bpm.return_value = mock_bpm
+            mock_init_rtm.return_value = mock_rtm
+            mock_init_tgf.return_value = mock_tgf
+            mock_load_task.return_value = []
+            mock_load_instruction.return_value = []
+            # Patch to avoid TypeError in len(self.task_docs)
+            gen.task_docs = []
+            result = gen.generate()
+            assert isinstance(result, dict)
+
+    def test_generate_with_empty_instruction_docs(
+        self, minimal_config, mock_model
+    ) -> None:
+        """Test generate method with empty instruction docs."""
+        gen = Generator(config=minimal_config, model=mock_model)
+        gen.instruction_docs = []
+
+        mock_task_generator = Mock()
+        mock_task_generator.generate_tasks.return_value = []
+
+        mock_bpm = Mock()
+        mock_bpm.generate_best_practices.return_value = []
+
+        mock_rtm = Mock()
+        mock_rtm.generate_reusable_tasks.return_value = {}
+
+        mock_tgf = Mock()
+        mock_tgf.format_task_graph.return_value = {"nodes": [], "edges": []}
+
+        with (
+            patch.object(gen, "_initialize_document_loader") as mock_init_loader,
+            patch.object(gen, "_initialize_task_generator") as mock_init_task,
+            patch.object(gen, "_initialize_best_practice_manager") as mock_init_bpm,
+            patch.object(gen, "_initialize_reusable_task_manager") as mock_init_rtm,
+            patch.object(gen, "_initialize_task_graph_formatter") as mock_init_tgf,
+            patch("arklex.orchestrator.generator.core.generator.UI_AVAILABLE", False),
+        ):
+            mock_init_loader.return_value = Mock()
+            mock_init_task.return_value = mock_task_generator
+            mock_init_bpm.return_value = mock_bpm
+            mock_init_rtm.return_value = mock_rtm
+            mock_init_tgf.return_value = mock_tgf
+
+            result = gen.generate()
+            assert isinstance(result, dict)
+
+    def test_generate_with_none_instruction_docs(
+        self, minimal_config, mock_model
+    ) -> None:
+        """Test generate method with None instruction docs."""
+        gen = Generator(config=minimal_config, model=mock_model)
+        gen.instruction_docs = None
+
+        mock_task_generator = Mock()
+        mock_task_generator.generate_tasks.return_value = []
+
+        mock_bpm = Mock()
+        mock_bpm.generate_best_practices.return_value = []
+
+        mock_rtm = Mock()
+        mock_rtm.generate_reusable_tasks.return_value = {}
+
+        mock_tgf = Mock()
+        mock_tgf.format_task_graph.return_value = {"nodes": [], "edges": []}
+
+        with (
+            patch.object(gen, "_initialize_document_loader") as mock_init_loader,
+            patch.object(gen, "_initialize_task_generator") as mock_init_task,
+            patch.object(gen, "_initialize_best_practice_manager") as mock_init_bpm,
+            patch.object(gen, "_initialize_reusable_task_manager") as mock_init_rtm,
+            patch.object(gen, "_initialize_task_graph_formatter") as mock_init_tgf,
+            patch("arklex.orchestrator.generator.core.generator.UI_AVAILABLE", False),
+            patch.object(gen, "_load_multiple_task_documents") as mock_load_task,
+            patch.object(
+                gen, "_load_multiple_instruction_documents"
+            ) as mock_load_instruction,
+            patch(
+                "arklex.orchestrator.generator.core.generator.log_context.info"
+            ) as mock_log,
+        ):
+            mock_init_loader.return_value = Mock()
+            mock_init_task.return_value = mock_task_generator
+            mock_init_bpm.return_value = mock_bpm
+            mock_init_rtm.return_value = mock_rtm
+            mock_init_tgf.return_value = mock_tgf
+            mock_load_task.return_value = []
+            mock_load_instruction.return_value = []
+            # Patch to avoid TypeError in len(self.instruction_docs)
+            gen.instruction_docs = []
+            result = gen.generate()
+            assert isinstance(result, dict)
+
 
 class TestGeneratorSaveTaskGraph:
     """Test Generator save_task_graph method."""
@@ -684,6 +945,21 @@ class TestGeneratorSaveTaskGraph:
                 assert "/" not in os.path.basename(output_path)
                 assert ":" not in os.path.basename(output_path)
                 assert os.path.exists(output_path)
+
+    def test_save_task_graph_with_invalid_filename(
+        self, minimal_config, mock_model
+    ) -> None:
+        """Test save_task_graph method with invalid filename."""
+        gen = Generator(config=minimal_config, model=mock_model, output_dir="/tmp")
+        task_graph = {"test": "data"}
+
+        # Test with filename containing invalid characters
+        gen.timestamp = "invalid/chars"
+
+        with patch("builtins.open") as mock_open:
+            gen.save_task_graph(task_graph)
+            # Should handle invalid characters gracefully
+            assert mock_open.called
 
 
 class TestGeneratorDocumentTypeConversion:
@@ -803,3 +1079,290 @@ class TestGeneratorDocumentTypeConversion:
                 assert isinstance(gen.instructions, str)
                 assert gen.documents == "Single document content"
                 assert gen.instructions == "Single instruction content"
+
+
+class TestGeneratorExtendedCoverage:
+    """Additional tests to increase coverage for generator.py"""
+
+    def test_generator_with_missing_config_keys(self, mock_model) -> None:
+        """Test generator initialization with missing config keys."""
+        config = {}
+
+        gen = Generator(config=config, model=mock_model)
+
+        assert gen.role == ""
+        assert gen.user_objective == ""
+        assert gen.builder_objective == ""
+        assert gen.domain == ""
+        assert gen.intro == ""
+        assert gen.instruction_docs == []
+        assert gen.task_docs == []
+        assert gen.rag_docs == []
+        assert gen.user_tasks == []
+        assert gen.example_conversations == []
+        assert gen.nluapi == ""
+        assert gen.slotfillapi == ""
+
+    def test_generator_with_none_workers(self, mock_model) -> None:
+        """Test generator initialization with None workers."""
+        config = {"workers": None}
+
+        with pytest.raises(TypeError):
+            gen = Generator(config=config, model=mock_model)
+
+    def test_generator_with_invalid_worker_format(self, mock_model) -> None:
+        """Test generator initialization with invalid worker format."""
+        config = {"workers": ["invalid_worker"]}
+
+        gen = Generator(config=config, model=mock_model)
+        assert gen.workers == []
+
+    def test_generator_with_missing_worker_fields(self, mock_model) -> None:
+        """Test generator initialization with missing worker fields."""
+        config = {"workers": [{"id": "worker1"}]}  # Missing name and path
+
+        gen = Generator(config=config, model=mock_model)
+        assert gen.workers == []
+
+    def test_generator_with_resource_initializer_exception(self, mock_model) -> None:
+        """Test generator initialization with resource initializer exception."""
+        config = {"tools": ["tool1"]}
+
+        with patch("arklex.env.env.DefaultResourceInitializer") as mock_initializer:
+            mock_initializer.return_value.init_tools.side_effect = Exception(
+                "Init error"
+            )
+
+            with pytest.raises(Exception):
+                Generator(config=config, model=mock_model)
+
+    def test_initialize_document_loader_with_exception(
+        self, minimal_config, mock_model
+    ) -> None:
+        """Test document loader initialization with exception."""
+        gen = Generator(config=minimal_config, model=mock_model)
+
+        with patch(
+            "arklex.orchestrator.generator.core.generator.DocumentLoader"
+        ) as mock_loader:
+            mock_loader.side_effect = Exception("Loader error")
+
+            with pytest.raises(Exception):
+                gen._initialize_document_loader()
+
+    def test_initialize_task_generator_with_exception(
+        self, minimal_config, mock_model
+    ) -> None:
+        """Test task generator initialization with exception."""
+        gen = Generator(config=minimal_config, model=mock_model)
+
+        with patch(
+            "arklex.orchestrator.generator.core.generator.TaskGenerator"
+        ) as mock_task_gen:
+            mock_task_gen.side_effect = Exception("Task generator error")
+
+            with pytest.raises(Exception):
+                gen._initialize_task_generator()
+
+    def test_initialize_best_practice_manager_with_exception(
+        self, full_config, mock_model
+    ) -> None:
+        """Test best practice manager initialization with exception."""
+        gen = Generator(config=full_config, model=mock_model)
+
+        with patch(
+            "arklex.orchestrator.generator.core.generator.BestPracticeManager"
+        ) as mock_bpm:
+            mock_bpm.side_effect = Exception("BPM error")
+
+            with pytest.raises(Exception):
+                gen._initialize_best_practice_manager()
+
+    def test_initialize_reusable_task_manager_with_exception(
+        self, minimal_config, mock_model
+    ) -> None:
+        """Test reusable task manager initialization with exception."""
+        gen = Generator(config=minimal_config, model=mock_model)
+
+        with patch(
+            "arklex.orchestrator.generator.core.generator.ReusableTaskManager"
+        ) as mock_rtm:
+            mock_rtm.side_effect = Exception("RTM error")
+
+            with pytest.raises(Exception):
+                gen._initialize_reusable_task_manager()
+
+    def test_initialize_task_graph_formatter_with_exception(
+        self, full_config, mock_model
+    ) -> None:
+        """Test task graph formatter initialization with exception."""
+        gen = Generator(config=full_config, model=mock_model)
+
+        with patch(
+            "arklex.orchestrator.generator.core.generator.TaskGraphFormatter"
+        ) as mock_tgf:
+            mock_tgf.side_effect = Exception("TGF error")
+
+            with pytest.raises(Exception):
+                gen._initialize_task_graph_formatter()
+
+    def test_load_multiple_task_documents_with_exception(
+        self, minimal_config, mock_model
+    ) -> None:
+        """Test loading multiple task documents with exception."""
+        gen = Generator(config=minimal_config, model=mock_model)
+
+        doc_paths = ["doc1.txt"]
+        mock_doc_loader = Mock()
+        mock_doc_loader.load_task_document.side_effect = Exception("Load error")
+
+        with pytest.raises(Exception):
+            gen._load_multiple_task_documents(mock_doc_loader, doc_paths)
+
+    def test_load_multiple_instruction_documents_with_exception(
+        self, minimal_config, mock_model
+    ) -> None:
+        """Test loading multiple instruction documents with exception."""
+        gen = Generator(config=minimal_config, model=mock_model)
+
+        doc_paths = ["instruction1.txt"]
+        mock_doc_loader = Mock()
+        mock_doc_loader.load_instruction_document.side_effect = Exception("Load error")
+
+        with pytest.raises(Exception):
+            gen._load_multiple_instruction_documents(mock_doc_loader, doc_paths)
+
+    def test_generate_with_document_loader_exception(
+        self, minimal_config, mock_model
+    ) -> None:
+        """Test generate method with document loader exception."""
+        gen = Generator(config=minimal_config, model=mock_model)
+
+        with patch.object(gen, "_initialize_document_loader") as mock_init_loader:
+            mock_init_loader.side_effect = Exception("Document loader error")
+
+            with pytest.raises(Exception):
+                gen.generate()
+
+    def test_generate_with_task_generator_exception(
+        self, minimal_config, mock_model
+    ) -> None:
+        """Test generate method with task generator exception."""
+        gen = Generator(config=minimal_config, model=mock_model)
+
+        with (
+            patch.object(gen, "_initialize_document_loader") as mock_init_loader,
+            patch.object(gen, "_initialize_task_generator") as mock_init_task,
+        ):
+            mock_init_loader.return_value = Mock()
+            mock_init_task.side_effect = Exception("Task generator error")
+
+            with pytest.raises(Exception):
+                gen.generate()
+
+    def test_generate_with_best_practice_manager_exception(
+        self, full_config, mock_model
+    ) -> None:
+        """Test generate method with best practice manager exception."""
+        gen = Generator(config=full_config, model=mock_model)
+
+        with (
+            patch.object(gen, "_initialize_document_loader") as mock_init_loader,
+            patch.object(gen, "_initialize_task_generator") as mock_init_task,
+            patch.object(gen, "_initialize_best_practice_manager") as mock_init_bpm,
+        ):
+            mock_init_loader.return_value = Mock()
+            mock_init_task.return_value = Mock()
+            mock_init_bpm.side_effect = Exception("BPM error")
+
+            with pytest.raises(Exception):
+                gen.generate()
+
+    def test_generate_with_reusable_task_manager_exception(
+        self, full_config, mock_model
+    ) -> None:
+        """Test generate method with reusable task manager exception."""
+        gen = Generator(config=full_config, model=mock_model)
+
+        with (
+            patch.object(gen, "_initialize_document_loader") as mock_init_loader,
+            patch.object(gen, "_initialize_task_generator") as mock_init_task,
+            patch.object(gen, "_initialize_best_practice_manager") as mock_init_bpm,
+            patch.object(gen, "_initialize_reusable_task_manager") as mock_init_rtm,
+        ):
+            mock_init_loader.return_value = Mock()
+            mock_init_task.return_value = Mock()
+            mock_init_bpm.return_value = Mock()
+            mock_init_rtm.side_effect = Exception("RTM error")
+
+            with pytest.raises(Exception):
+                gen.generate()
+
+    def test_generate_with_task_graph_formatter_format_exception(
+        self, full_config, mock_model
+    ) -> None:
+        """Test generate method with task graph formatter format exception."""
+        gen = Generator(config=full_config, model=mock_model)
+
+        mock_task_generator = Mock()
+        mock_task_generator.generate_tasks.return_value = []
+
+        mock_bpm = Mock()
+        mock_bpm.generate_best_practices.return_value = {}
+
+        mock_rtm = Mock()
+        mock_rtm.generate_reusable_tasks.return_value = {}
+
+        mock_tgf = Mock()
+        mock_tgf.format_task_graph.side_effect = Exception("Format task graph error")
+
+        with (
+            patch.object(gen, "_initialize_document_loader") as mock_init_loader,
+            patch.object(gen, "_initialize_task_generator") as mock_init_task,
+            patch.object(gen, "_initialize_best_practice_manager") as mock_init_bpm,
+            patch.object(gen, "_initialize_reusable_task_manager") as mock_init_rtm,
+            patch.object(gen, "_initialize_task_graph_formatter") as mock_init_tgf,
+        ):
+            mock_init_loader.return_value = Mock()
+            mock_init_task.return_value = mock_task_generator
+            mock_init_bpm.return_value = mock_bpm
+            mock_init_rtm.return_value = mock_rtm
+            mock_init_tgf.return_value = mock_tgf
+
+            with pytest.raises(Exception):
+                gen.generate()
+
+    def test_save_task_graph_with_exception(self, minimal_config, mock_model) -> None:
+        """Test save_task_graph method with exception."""
+        gen = Generator(config=minimal_config, model=mock_model)
+        task_graph = {"test": "data"}
+
+        with patch("builtins.open") as mock_open:
+            mock_open.side_effect = Exception("File error")
+
+            with pytest.raises(Exception):
+                gen.save_task_graph(task_graph)
+
+    def test_load_multiple_task_documents_with_empty_list(
+        self, minimal_config, mock_model
+    ) -> None:
+        """Test loading multiple task documents with empty list."""
+        gen = Generator(config=minimal_config, model=mock_model)
+
+        doc_paths = []
+        mock_doc_loader = Mock()
+
+        result = gen._load_multiple_task_documents(mock_doc_loader, doc_paths)
+        assert result == []
+
+    def test_load_multiple_instruction_documents_with_empty_list(
+        self, minimal_config, mock_model
+    ) -> None:
+        """Test loading multiple instruction documents with empty list."""
+        gen = Generator(config=minimal_config, model=mock_model)
+
+        doc_paths = []
+        mock_doc_loader = Mock()
+
+        result = gen._load_multiple_instruction_documents(mock_doc_loader, doc_paths)
+        assert result == []

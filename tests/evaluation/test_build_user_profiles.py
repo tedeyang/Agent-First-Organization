@@ -1484,3 +1484,256 @@ product attribute: color"""
             assert "category1" in result
             assert "category2" in result
             assert result["category1"] == {"values": ["value1"]}
+
+    def test_build_profile_with_missing_documents_dir(self) -> None:
+        """Test build_profile with missing documents_dir."""
+        synthetic_data_params = {"num_goals": 2, "num_convos": 2}
+        config = {
+            "documents_dir": "",
+            "custom_profile": False,
+            "system_inputs": True,
+            "company_summary": "Test company summary",
+            "client": Mock(),
+            "user_attributes": {
+                "goal": {"values": ["goal1", "goal2"]},
+                "user_profiles": {"profile1": {"values": ["prof1", "prof2"]}},
+                "system_attributes": {"attr1": {"values": ["val1", "val2"]}},
+            },
+            "tools": [{"id": "tool1", "name": "Test Tool"}],
+            "workers": [{"id": "worker1", "name": "Test Worker"}],
+        }
+
+        with (
+            patch("arklex.evaluation.build_user_profiles.load_docs") as mock_load,
+            patch(
+                "arklex.evaluation.build_user_profiles.filter_attributes"
+            ) as mock_filter,
+            patch(
+                "arklex.evaluation.build_user_profiles.augment_attributes"
+            ) as mock_augment,
+            patch("arklex.evaluation.build_user_profiles.pick_attributes") as mock_pick,
+            patch("arklex.evaluation.build_user_profiles.adapt_goal") as mock_adapt,
+            patch(
+                "arklex.evaluation.build_user_profiles.select_system_attributes"
+            ) as mock_select,
+            patch(
+                "arklex.evaluation.build_user_profiles.chatgpt_chatbot"
+            ) as mock_chatbot,
+        ):
+            # Setup mock returns
+            mock_load.return_value = []
+            mock_filter.return_value = {
+                "attr1": {"values": ["val1"]},
+                "attr2": {"values": ["val3"]},
+            }
+            mock_augment.return_value = {
+                "attr1": ["val1", "val2"],
+                "attr2": ["val3", "val4"],
+            }
+            mock_pick.return_value = (
+                {"goal": "test_goal", "attr1": "val1", "attr2": "val3"},
+                {"matched": "data"},
+            )
+            mock_adapt.return_value = "adapted_goal"
+            mock_select.return_value = [{"sys_attr": "val"}, {"sys_attr": "val2"}]
+            mock_chatbot.return_value = "Test profile"
+
+            profiles, goals, attributes, system_attrs, labels = build_profile(
+                synthetic_data_params, config
+            )
+            assert len(profiles) == 2
+            assert len(goals) == 2
+            assert len(attributes) == 2
+            assert len(system_attrs) == 2
+            assert len(labels) == 2
+
+
+class TestBuildUserProfilesExtendedCoverage:
+    """Additional tests to increase coverage for build_user_profiles.py"""
+
+    def test_pick_goal_with_empty_attributes(self) -> None:
+        """Test pick_goal with empty attributes."""
+        attributes = {}
+        goals = ["goal1", "goal2"]
+
+        with patch(
+            "arklex.evaluation.build_user_profiles.chatgpt_chatbot"
+        ) as mock_chat:
+            mock_chat.return_value = "Thought: test\nGoal: goal1"
+            result = pick_goal(attributes, goals, strategy="react")
+            assert result == "goal1"
+
+    def test_pick_goal_with_empty_goals(self) -> None:
+        """Test pick_goal with empty goals list."""
+        attributes = {"attr1": "val1"}
+        goals = []
+
+        with pytest.raises(ValueError):
+            pick_goal(attributes, goals, strategy="random")
+
+    @patch("arklex.evaluation.build_user_profiles.chatgpt_chatbot")
+    def test_find_matched_attribute_with_empty_goal(self, mock_chat: Mock) -> None:
+        """Test find_matched_attribute with empty goal."""
+        mock_chat.return_value = "Thought: test\nAttribute: test_attr"
+        result = find_matched_attribute("", "test_profile", client=Mock())
+        assert isinstance(result, str)
+
+    def test_find_matched_attribute_with_empty_profile(self) -> None:
+        """Test find_matched_attribute with empty profile."""
+        with patch(
+            "arklex.evaluation.build_user_profiles.chatgpt_chatbot"
+        ) as mock_chat:
+            mock_chat.return_value = "Thought: test\nAttribute: test_attr"
+            result = find_matched_attribute("test_goal", "", client=Mock())
+            assert isinstance(result, str)
+
+    def test_pick_attributes_with_empty_user_profile(self) -> None:
+        """Test pick_attributes with empty user profile."""
+        user_profile = {}
+        attributes = {"attr1": ["val1", "val2"]}
+        goals = ["goal1", "goal2"]
+
+        result_attributes, result_matched = pick_attributes(
+            user_profile, attributes, goals, strategy="random"
+        )
+        assert isinstance(result_attributes, dict)
+        assert isinstance(result_matched, dict)
+
+    def test_pick_attributes_with_empty_attributes(self) -> None:
+        """Test pick_attributes with empty attributes."""
+        user_profile = {"attr1": "val1"}
+        attributes = {}
+        goals = ["goal1", "goal2"]
+
+        result_attributes, result_matched = pick_attributes(
+            user_profile, attributes, goals, strategy="random"
+        )
+        assert isinstance(result_attributes, dict)
+        assert isinstance(result_matched, dict)
+
+    def test_pick_attributes_with_empty_goals(self) -> None:
+        """Test pick_attributes with empty goals."""
+        user_profile = {"attr1": "val1"}
+        attributes = {"attr1": ["val1", "val2"]}
+        goals = []
+
+        with pytest.raises(IndexError):
+            result_attributes, result_matched = pick_attributes(
+                user_profile, attributes, goals, strategy="random"
+            )
+
+    @patch("arklex.evaluation.build_user_profiles.chatgpt_chatbot")
+    def test_adapt_goal_with_chatgpt_exception(self, mock_chat: Mock) -> None:
+        """Test adapt_goal with chatgpt exception."""
+        mock_chat.side_effect = Exception("ChatGPT error")
+        config = {"company_summary": "Test company", "client": None}
+
+        with pytest.raises(Exception):
+            adapt_goal(
+                "original_goal", config, doc="test doc", user_profile="test profile"
+            )
+
+    def test_build_profile_with_load_docs_exception(self) -> None:
+        """Test build_profile with load_docs exception."""
+        synthetic_data_params = {"num_goals": 2, "num_convos": 2}
+        config = {
+            "user_attributes": {
+                "goal": {"values": ["goal1", "goal2"]},
+                "user_profiles": {"profile1": {"values": ["prof1", "prof2"]}},
+                "system_attributes": {"attr1": {"values": ["val1", "val2"]}},
+            }
+        }
+
+        with patch("arklex.evaluation.build_user_profiles.load_docs") as mock_load:
+            mock_load.side_effect = Exception("Load docs error")
+
+            with pytest.raises(Exception):
+                build_profile(synthetic_data_params, config)
+
+    def test_build_profile_with_augment_attributes_exception(self) -> None:
+        """Test build_profile with augment_attributes exception."""
+        synthetic_data_params = {"num_goals": 2, "num_convos": 2}
+        config = {
+            "user_attributes": {
+                "goal": {"values": ["goal1", "goal2"]},
+                "user_profiles": {"profile1": {"values": ["prof1", "prof2"]}},
+                "system_attributes": {"attr1": {"values": ["val1", "val2"]}},
+            }
+        }
+
+        with patch("arklex.evaluation.build_user_profiles.load_docs") as mock_load:
+            mock_load.return_value = []
+
+            with patch(
+                "arklex.evaluation.build_user_profiles.augment_attributes"
+            ) as mock_augment:
+                mock_augment.side_effect = Exception("Augment attributes error")
+
+                with pytest.raises(Exception):
+                    build_profile(synthetic_data_params, config)
+
+    def test_build_profile_with_pick_attributes_exception(self) -> None:
+        """Test build_profile with pick_attributes exception."""
+        synthetic_data_params = {"num_goals": 2, "num_convos": 2}
+        config = {
+            "user_attributes": {
+                "goal": {"values": ["goal1", "goal2"]},
+                "user_profiles": {"profile1": {"values": ["prof1", "prof2"]}},
+                "system_attributes": {"attr1": {"values": ["val1", "val2"]}},
+            }
+        }
+
+        with patch("arklex.evaluation.build_user_profiles.load_docs") as mock_load:
+            mock_load.return_value = []
+
+            with patch(
+                "arklex.evaluation.build_user_profiles.pick_attributes"
+            ) as mock_pick:
+                mock_pick.side_effect = Exception("Pick attributes error")
+
+                with pytest.raises(Exception):
+                    build_profile(synthetic_data_params, config)
+
+    def test_build_profile_with_adapt_goal_exception(self) -> None:
+        """Test build_profile with adapt_goal exception."""
+        synthetic_data_params = {"num_goals": 2, "num_convos": 2}
+        config = {
+            "user_attributes": {
+                "goal": {"values": ["goal1", "goal2"]},
+                "user_profiles": {"profile1": {"values": ["prof1", "prof2"]}},
+                "system_attributes": {"attr1": {"values": ["val1", "val2"]}},
+            }
+        }
+
+        with patch("arklex.evaluation.build_user_profiles.load_docs") as mock_load:
+            mock_load.return_value = []
+
+            with patch(
+                "arklex.evaluation.build_user_profiles.adapt_goal"
+            ) as mock_adapt:
+                mock_adapt.side_effect = Exception("Adapt goal error")
+
+                with pytest.raises(Exception):
+                    build_profile(synthetic_data_params, config)
+
+    def test_build_profile_with_convert_attributes_exception(self) -> None:
+        """Test build_profile with convert_attributes_to_profiles exception."""
+        synthetic_data_params = {"num_goals": 2, "num_convos": 2}
+        config = {
+            "user_attributes": {
+                "goal": {"values": ["goal1", "goal2"]},
+                "user_profiles": {"profile1": {"values": ["prof1", "prof2"]}},
+                "system_attributes": {"attr1": {"values": ["val1", "val2"]}},
+            }
+        }
+
+        with patch("arklex.evaluation.build_user_profiles.load_docs") as mock_load:
+            mock_load.return_value = []
+
+            with patch(
+                "arklex.evaluation.build_user_profiles.convert_attributes_to_profiles"
+            ) as mock_convert:
+                mock_convert.side_effect = Exception("Convert attributes error")
+
+                with pytest.raises(Exception):
+                    build_profile(synthetic_data_params, config)
