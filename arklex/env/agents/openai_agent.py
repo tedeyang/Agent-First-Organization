@@ -53,12 +53,12 @@ class OpenAIAgent(BaseAgent):
 
         for tool_id, tool in self.available_tools.items():
             tool = tool["execute"]()
-            tool_def = tool.to_openai_tool_def()
+            tool_def = tool.to_openai_tool_def_v2()
             self.tool_defs.append(tool_def)
             self.tool_map[tool_def["function"]["name"]] = tool.func
 
         end_conversation_tool = end_conversation()
-        end_conversation_tool_def = end_conversation_tool.to_openai_tool_def()
+        end_conversation_tool_def = end_conversation_tool.to_openai_tool_def_v2()
         end_conversation_tool_def["function"]["name"] = "end_conversation"
         self.tool_defs.append(end_conversation_tool_def)
         self.tool_map["end_conversation"] = end_conversation_tool.func
@@ -111,14 +111,14 @@ class OpenAIAgent(BaseAgent):
                 "message": orch_msg_content,
             }
         )
-        self.message.append(
+        self.messages.append(
             SystemMessage(
                 content=input_prompt.text,
             )
         )
 
         user_message = state.user_message
-        self.message.append(
+        self.messages.append(
             HumanMessage(
                 content=user_message.message,
             )
