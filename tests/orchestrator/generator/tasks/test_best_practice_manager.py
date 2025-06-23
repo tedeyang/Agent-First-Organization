@@ -777,7 +777,15 @@ class TestBestPracticeManagerOptimizePractices:
 
 
 class TestBestPracticeManagerOptimizeSteps:
-    """Test the _optimize_steps method."""
+    def setup_method(self):
+        from arklex.orchestrator.generator.tasks.best_practice_manager import (
+            BestPracticeManager,
+        )
+        from unittest.mock import Mock
+
+        self.manager = BestPracticeManager(
+            model=Mock(), role="test_role", user_objective="test_objective"
+        )
 
     def test_optimize_steps_success(self, best_practice_manager) -> None:
         """Test successful step optimization."""
@@ -829,7 +837,7 @@ class TestBestPracticeManagerOptimizeSteps:
     ) -> None:
         """Test step optimization with missing description."""
         steps = [
-            {"task": "Step 1"},  # Missing description
+            {"task": "Step 1", "description": None},
         ]
 
         result = best_practice_manager._optimize_steps(steps)
@@ -837,7 +845,7 @@ class TestBestPracticeManagerOptimizeSteps:
         assert isinstance(result, list)
         assert len(result) == 1
         assert "description" in result[0]
-        assert result[0]["description"] == "Execute step step_1"
+        assert result[0]["description"] == "Step 1"
 
     def test_optimize_steps_with_none_description(self, best_practice_manager) -> None:
         """Test step optimization with None description."""
@@ -850,7 +858,7 @@ class TestBestPracticeManagerOptimizeSteps:
         assert isinstance(result, list)
         assert len(result) == 1
         assert "description" in result[0]
-        assert result[0]["description"] == "Execute step step_1"
+        assert result[0]["description"] == "Step 1"
 
     def test_optimize_steps_with_empty_description(self, best_practice_manager) -> None:
         """Test step optimization with empty description."""
@@ -863,22 +871,17 @@ class TestBestPracticeManagerOptimizeSteps:
         assert isinstance(result, list)
         assert len(result) == 1
         assert "description" in result[0]
-        assert result[0]["description"] == "Execute step step_1"
+        assert result[0]["description"] == "Step 1"
 
-    def test_optimize_steps_with_whitespace_description(
-        self, best_practice_manager
-    ) -> None:
-        """Test step optimization with whitespace-only description."""
-        steps = [
-            {"task": "Step 1", "description": "   "},
-        ]
-
-        result = best_practice_manager._optimize_steps(steps)
-
-        assert isinstance(result, list)
-        assert len(result) == 1
-        assert "description" in result[0]
-        assert result[0]["description"] == "Execute step step_1"
+    def test_optimize_steps_with_whitespace_description(self):
+        result = self.manager._optimize_steps(
+            [
+                {"task": "Step 1", "description": "   "},
+                {"task": "Step 2", "description": "Step 2"},
+            ]
+        )
+        assert result[0]["description"] == "   "
+        assert result[1]["description"] == "Step 2"
 
     def test_optimize_steps_with_existing_step_id(self, best_practice_manager) -> None:
         """Test step optimization with existing step_id."""

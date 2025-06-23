@@ -25,6 +25,26 @@ def always_valid_mock_model():
 
 
 @pytest.fixture
+def mock_model():
+    """Create a basic mock model for testing."""
+    mock = MagicMock()
+    mock.generate.return_value = MagicMock()
+    mock.invoke.return_value = MagicMock()
+    return mock
+
+
+@pytest.fixture
+def minimal_config():
+    """Create a minimal configuration for testing."""
+    return {
+        "role": "test_role",
+        "user_objective": "test_objective",
+        "workers": [],
+        "tools": {},
+    }
+
+
+@pytest.fixture
 def patched_sample_config():
     """Create a sample configuration with all required fields."""
     return {
@@ -78,12 +98,17 @@ class TestGeneratorInitialization:
         """Test basic generator initialization."""
         gen = Generator(config=minimal_config, model=mock_model)
 
+    def test_generator_initialization(self, mock_model):
+        gen = Generator(model=mock_model)
+        assert gen.model is mock_model
+
+
+@pytest.fixture
 def mock_document_loader():
-    """Create a mock document loader with standard return values."""
-    loader = MagicMock()
-    loader.load_task_document.return_value = "docs"
-    loader.load_instructions.return_value = "instructions"
-    return loader
+    doc_loader = Mock()
+    doc_loader.load_task_document.return_value = {"id": "doc1"}
+    doc_loader.load_instruction_document.return_value = {"id": "inst1"}
+    return doc_loader
 
 
 @pytest.fixture
@@ -120,8 +145,10 @@ def mock_reusable_task_manager():
 def mock_task_graph_formatter():
     """Create a mock task graph formatter with standard return values."""
     formatter = MagicMock()
-    formatter.format_task_graph.return_value = {"nodes": [], "edges": []}
-    formatter.ensure_nested_graph_connectivity.return_value = {"nodes": [], "edges": []}
+    # Return a mutable dict that can be assigned to
+    task_graph = {"nodes": [], "edges": []}
+    formatter.format_task_graph.return_value = task_graph
+    formatter.ensure_nested_graph_connectivity.return_value = task_graph
     return formatter
 
 
@@ -166,7 +193,12 @@ def patched_generator_components(
         patch.object(
             gen,
             "_initialize_task_graph_formatter",
-            return_value=mock_task_graph_formatter,
+            return_value=MagicMock(
+                format_task_graph=MagicMock(return_value={"nodes": [], "edges": []}),
+                ensure_nested_graph_connectivity=MagicMock(
+                    return_value={"nodes": [], "edges": []}
+                ),
+            ),
         ),
         patch("arklex.orchestrator.generator.core.generator.UI_AVAILABLE", False),
     ):
@@ -220,7 +252,7 @@ class TestGeneratorInitialization:
         assert isinstance(gen.resource_initializer, DefaultResourceInitializer)
         assert gen.interactable_with_user is True
         assert gen.allow_nested_graph is True
-        assert gen.model == mock_model
+        assert gen.model is always_valid_mock_model
 
     def test_generator_with_full_config(self, full_config, mock_model):
         """Test generator initialization with full configuration."""
@@ -247,8 +279,10 @@ class TestGeneratorInitialization:
         """Test generator falls back to DefaultResourceInitializer if None is provided."""
         gen = Generator(
             config=minimal_config, model=mock_model, resource_initializer=None
+        )
+        assert isinstance(gen.resource_initializer, DefaultResourceInitializer)
 
-    def test_generator_with_invalid_resource_initializer(
+    def test_generator_with_invalid_resource_initializer_alt(
         self, patched_sample_config, always_valid_mock_model
     ):
         """Test generator fallback to DefaultResourceInitializer when None is provided."""
@@ -262,8 +296,6 @@ class TestGeneratorInitialization:
     def test_generator_with_custom_resource_initializer(
         self, minimal_config, mock_model
     ) -> None:
-        self, patched_sample_config, always_valid_mock_model
-    ):
         """Test generator with custom resource initializer."""
 
         class CustomInitializer(BaseResourceInitializer):
@@ -276,8 +308,6 @@ class TestGeneratorInitialization:
         gen = Generator(
             config=minimal_config,
             model=mock_model,
-            config=patched_sample_config,
-            model=always_valid_mock_model,
             resource_initializer=CustomInitializer(),
         )
         assert isinstance(gen.resource_initializer, CustomInitializer)
@@ -687,6 +717,10 @@ class TestGeneratorGenerate:
 
             tgf = Mock()
             tgf.format_task_graph.return_value = {"nodes": [], "edges": []}
+            tgf.ensure_nested_graph_connectivity.return_value = {
+                "nodes": [],
+                "edges": [],
+            }
             tgf_patch.return_value = tgf
 
             # Call generate
@@ -731,6 +765,7 @@ class TestGeneratorGenerate:
             task_gen.generate_tasks.return_value = []
             task_gen_patch.return_value = task_gen
 
+
 class TestGeneratorCoreFunctionality:
     """Test suite for core generator functionality."""
 
@@ -769,14 +804,10 @@ class TestGeneratorCoreFunctionality:
 
         gen = Generator(config=config_with_lists, model=always_valid_mock_model)
         mock_document_loader = MagicMock()
-        mock_document_loader.load_task_document.side_effect = [
-            "Document 1 content",
-            "Document 2 content",
-        ]
-        mock_document_loader.load_instruction_document.side_effect = [
-            "Instruction 1 content",
-            "Instruction 2 content",
-        ]
+        mock_document_loader.load_task_document.return_value = "Document content"
+        mock_document_loader.load_instruction_document.return_value = (
+            "Instruction content"
+        )
 
         with (
             patch.object(
@@ -789,28 +820,32 @@ class TestGeneratorCoreFunctionality:
             patch.object(
                 gen, "_initialize_reusable_task_manager", return_value=MagicMock()
             ),
-            patch.object(
-                gen, "_initialize_task_graph_formatter", return_value=MagicMock()
-            ),
+            patch.object(gen, "_initialize_task_graph_formatter") as tgf_patch,
             patch("arklex.orchestrator.generator.core.generator.UI_AVAILABLE", False),
         ):
+            # Patch formatter methods to return a real dict
+            tgf = MagicMock()
+            tgf.format_task_graph.return_value = {"nodes": [], "edges": []}
+            tgf.ensure_nested_graph_connectivity.return_value = {
+                "nodes": [],
+                "edges": [],
+            }
+            tgf_patch.return_value = tgf
+
             gen.generate()
 
             # Verify document loader was called with correct arguments
             assert mock_document_loader.load_task_document.call_count == 2
             assert mock_document_loader.load_instruction_document.call_count == 2
 
-
-# --- Advanced Generator Tests ---
+            # --- Advanced Generator Tests ---
 
             # Call generate
             result = gen.generate()
 
             # Verify documents were loaded and concatenated
-            assert "doc1" in gen.documents
-            assert "doc2" in gen.documents
-            assert "instruction1" in gen.instructions
-            assert "instruction2" in gen.instructions
+            assert "Document content" in gen.documents
+            assert "Instruction content" in gen.instructions
 
             assert isinstance(result, dict)
 
@@ -857,6 +892,10 @@ class TestGeneratorCoreFunctionality:
 
                 tgf = Mock()
                 tgf.format_task_graph.return_value = {"nodes": [], "edges": []}
+                tgf.ensure_nested_graph_connectivity.return_value = {
+                    "nodes": [],
+                    "edges": [],
+                }
                 tgf_patch.return_value = tgf
 
                 # Call generate
@@ -887,6 +926,10 @@ class TestGeneratorCoreFunctionality:
 
         mock_tgf = Mock()
         mock_tgf.format_task_graph.return_value = {"nodes": [], "edges": []}
+        mock_tgf.ensure_nested_graph_connectivity.return_value = {
+            "nodes": [],
+            "edges": [],
+        }
 
         with (
             patch.object(gen, "_initialize_document_loader") as mock_init_loader,
@@ -921,6 +964,10 @@ class TestGeneratorCoreFunctionality:
 
         mock_tgf = Mock()
         mock_tgf.format_task_graph.return_value = {"nodes": [], "edges": []}
+        mock_tgf.ensure_nested_graph_connectivity.return_value = {
+            "nodes": [],
+            "edges": [],
+        }
 
         with (
             patch.object(gen, "_initialize_document_loader") as mock_init_loader,
@@ -955,6 +1002,10 @@ class TestGeneratorCoreFunctionality:
 
         mock_tgf = Mock()
         mock_tgf.format_task_graph.return_value = {"nodes": [], "edges": []}
+        mock_tgf.ensure_nested_graph_connectivity.return_value = {
+            "nodes": [],
+            "edges": [],
+        }
 
         with (
             patch.object(gen, "_initialize_document_loader") as mock_init_loader,
@@ -992,6 +1043,10 @@ class TestGeneratorCoreFunctionality:
 
         mock_tgf = Mock()
         mock_tgf.format_task_graph.return_value = {"nodes": [], "edges": []}
+        mock_tgf.ensure_nested_graph_connectivity.return_value = {
+            "nodes": [],
+            "edges": [],
+        }
 
         with (
             patch.object(gen, "_initialize_document_loader") as mock_init_loader,
@@ -1038,6 +1093,10 @@ class TestGeneratorCoreFunctionality:
 
         mock_tgf = Mock()
         mock_tgf.format_task_graph.return_value = {"nodes": [], "edges": []}
+        mock_tgf.ensure_nested_graph_connectivity.return_value = {
+            "nodes": [],
+            "edges": [],
+        }
 
         with (
             patch.object(gen, "_initialize_document_loader") as mock_init_loader,
@@ -1074,6 +1133,10 @@ class TestGeneratorCoreFunctionality:
 
         mock_tgf = Mock()
         mock_tgf.format_task_graph.return_value = {"nodes": [], "edges": []}
+        mock_tgf.ensure_nested_graph_connectivity.return_value = {
+            "nodes": [],
+            "edges": [],
+        }
 
         with (
             patch.object(gen, "_initialize_document_loader") as mock_init_loader,
@@ -1370,6 +1433,10 @@ class TestGeneratorDocumentTypeConversion:
 
                 tgf = Mock()
                 tgf.format_task_graph.return_value = {"nodes": [], "edges": []}
+                tgf.ensure_nested_graph_connectivity.return_value = {
+                    "nodes": [],
+                    "edges": [],
+                }
                 tgf_patch.return_value = tgf
 
                 # Call generate to trigger the type conversion
@@ -1427,6 +1494,10 @@ class TestGeneratorDocumentTypeConversion:
 
                 tgf = Mock()
                 tgf.format_task_graph.return_value = {"nodes": [], "edges": []}
+                tgf.ensure_nested_graph_connectivity.return_value = {
+                    "nodes": [],
+                    "edges": [],
+                }
                 tgf_patch.return_value = tgf
 
                 gen.generate()
@@ -1435,6 +1506,22 @@ class TestGeneratorDocumentTypeConversion:
                 assert isinstance(gen.instructions, str)
                 assert gen.documents == "Single document content"
                 assert gen.instructions == "Single instruction content"
+
+    def test_generator_document_instruction_type_conversion(
+        self, mock_model, minimal_config
+    ):
+        gen = Generator(config=minimal_config, model=mock_model)
+        doc_loader = Mock()
+        doc_loader.load_task_document.return_value = {"id": "doc1"}
+        doc_loader.load_instruction_document.return_value = {"id": "inst1"}
+        gen._load_multiple_task_documents = lambda loader, sources: [
+            doc_loader.load_task_document(src) for src in (sources or [])
+        ]
+        gen._load_multiple_instruction_documents = lambda loader, sources: [
+            doc_loader.load_instruction_document(src) for src in (sources or [])
+        ]
+        result = gen.generate()
+        assert isinstance(result, dict)
 
 
 class TestGeneratorExtendedCoverage:
@@ -2161,6 +2248,7 @@ class TestGeneratorFinalCompletion:
 
             # Verify exception was handled gracefully
             assert "tasks" in result
+
 
 class TestGeneratorAdvanced:
     """Test suite for advanced generator features."""

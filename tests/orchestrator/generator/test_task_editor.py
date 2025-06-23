@@ -769,8 +769,8 @@ class TestTaskEditorAppDataManagement:
 
         # Verify tasks were updated correctly
         expected_tasks = [
-            {"task_name": "Task 1", "steps": ["Step 1.1", "Step 1.2"]},
-            {"task_name": "Task 2", "steps": ["Step 2.1"]},
+            {"name": "Task 1", "steps": ["Step 1.1", "Step 1.2"]},
+            {"name": "Task 2", "steps": ["Step 2.1"]},
         ]
         assert task_editor_app.tasks == expected_tasks
 

@@ -98,6 +98,44 @@ def sample_instruction_doc() -> Dict:
     }
 
 
+# Sample document constants for testing
+SAMPLE_TASK_DOC = {
+    "task_id": "task1",
+    "name": "Create Product",
+    "description": "Create a new product in the store",
+    "steps": [
+        {
+            "step_id": "step1",
+            "description": "Enter product details",
+            "required_fields": ["name", "description", "price"],
+        },
+        {
+            "step_id": "step2",
+            "description": "Set pricing strategy",
+            "required_fields": ["market_price", "profit_margin"],
+        },
+    ],
+}
+
+SAMPLE_INSTRUCTION_DOC = {
+    "instruction_id": "inst1",
+    "title": "Product Creation Instructions",
+    "content": "Step-by-step guide for creating products",
+    "sections": [
+        {
+            "section_id": "sec1",
+            "title": "Product Information",
+            "steps": ["Enter product name", "Add description", "Set price"],
+        },
+        {
+            "section_id": "sec2",
+            "title": "Pricing Strategy",
+            "steps": ["Research market prices", "Calculate profit margin"],
+        },
+    ],
+}
+
+
 # --- Fixtures ---
 
 
@@ -182,7 +220,6 @@ class TestDocumentLoader:
         assert instruction_doc["instruction_id"] == "inst1"
         assert len(instruction_doc["sections"]) == 2
 
-    def test_cache_document(self, document_loader, mock_file_system) -> None:
     def test_cache_document(
         self,
         document_loader: DocumentLoader,

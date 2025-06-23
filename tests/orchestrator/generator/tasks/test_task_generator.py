@@ -605,7 +605,7 @@ class TestTaskGenerator:
         )
 
         result = generator._convert_to_dict(task_def)
-        assert result["task_id"] == "task1"
+        assert result["id"] == "task1"
         assert result["name"] == "Test Task"
         assert result["description"] == "Test description"
         assert len(result["steps"]) == 1

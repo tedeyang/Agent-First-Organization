@@ -285,18 +285,18 @@ class TestBestPracticeManager:
         self, best_practice_manager: BestPracticeManager
     ) -> None:
         """Test best practice refinement."""
-        practice = BestPractice(
-            practice_id="test1",
-            name="Test Practice",
-            description="Test Description",
-            steps=[
+        practice = {
+            "practice_id": "test1",
+            "name": "Test Practice",
+            "description": "Test Description",
+            "steps": [
                 {"task": "Original step", "description": "Original step description"}
             ],
-            rationale="Test Rationale",
-            examples=[],
-            priority=3,
-            category="test",
-        )
+            "rationale": "Test Rationale",
+            "examples": [],
+            "priority": 3,
+            "category": "test",
+        }
         task = {
             "name": "Test Task",
             "steps": [{"task": "New step", "description": "New step description"}],
@@ -442,9 +442,6 @@ class TestReusableTaskManager:
         )
         assert is_valid
 
-    def test_categorize_templates(self, reusable_task_manager) -> None:
-        """Test template categorization."""
-
     def test_generate_reusable_tasks(
         self, reusable_task_manager: ReusableTaskManager, sample_tasks: List[Dict]
     ) -> None:
@@ -501,14 +498,6 @@ class TestReusableTaskManager:
         reusable_task_manager._categorize_templates(templates)
         assert isinstance(reusable_task_manager._template_categories, dict)
         assert "test" in reusable_task_manager._template_categories
-
-
-def test_integration_generation_pipeline(mock_model) -> None:
-    """Test the complete generation pipeline integration."""
-    # Initialize components
-    task_generator = TaskGenerator(
-        model=mock_model,
-# --- Integration Test ---
 
 
 def test_integration_generation_pipeline(always_valid_mock_model: Mock) -> None:
