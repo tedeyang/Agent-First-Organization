@@ -4,13 +4,6 @@ import traceback
 from functools import partial
 from typing import Any, Dict, Optional
 
-from langchain.prompts import PromptTemplate
-from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
-from langchain_core.output_parsers import StrOutputParser
-from langchain_openai import ChatOpenAI
-from langgraph.graph import START, StateGraph
-
 from arklex.env.agents.agent import BaseAgent, register_agent
 from arklex.env.prompts import load_prompts
 from arklex.env.tools.tools import register_tool
@@ -20,6 +13,12 @@ from arklex.utils.graph_state import BotConfig, MessageState, StatusEnum
 from arklex.utils.model_config import MODEL
 from arklex.utils.model_provider_config import PROVIDER_MAP
 from arklex.utils.utils import chunk_string
+from langchain.prompts import PromptTemplate
+from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.output_parsers import StrOutputParser
+from langchain_openai import ChatOpenAI
+from langgraph.graph import START, StateGraph
 
 logger = logging.getLogger(__name__)
 
@@ -50,14 +49,14 @@ class OpenAIAgent(BaseAgent):
 
         self.tool_map = {}
         self.tool_defs = []
-        self.tool_args = Dict[str, Any]()
+        self.tool_args: Dict[str, Any] = {}
 
         for tool_id, tool in self.available_tools.items():
-            tool = tool["execute"]()
-            tool_def = tool.to_openai_tool_def_v2()
-            self.tool_defs.append(tool_def)
-            self.tool_map[tool_def["function"]["name"]] = tool.func
-            self.tool_args[tool_def["function"]["name"]] = tool.fixed_args
+            tool_object = tool["execute"]()
+            tool_def = tool_object.to_openai_tool_def_v2()
+            self.tool_defs.append(tool_object.to_openai_tool_def_v2())
+            self.tool_map[tool_def["function"]["name"]] = tool_object.func
+            self.tool_args[tool_def["function"]["name"]] = tool["fixed_args"]
 
         end_conversation_tool = end_conversation()
         end_conversation_tool_def = end_conversation_tool.to_openai_tool_def_v2()
@@ -136,6 +135,12 @@ class OpenAIAgent(BaseAgent):
             for tool_call in ai_message.tool_calls:
                 tool_name = tool_call.get("name")
                 if tool_name in self.tool_map:
+                    self.messages.append(
+                        AIMessage(
+                            content=f"Calling tool: {tool_name}",
+                            tool_calls=[tool_call],
+                        )
+                    )
                     tool_response = self.tool_map[tool_name](
                         state=state,
                         **tool_call.get("args"),
@@ -145,7 +150,7 @@ class OpenAIAgent(BaseAgent):
                         ToolMessage(
                             name=tool_name,
                             content=json.dumps(tool_response),
-                            additional_kwargs={"tool_call_id": tool_call.id},
+                            tool_call_id=tool_call.get("id"),
                         )
                     )
                     ai_message = final_chain.invoke(self.messages)
