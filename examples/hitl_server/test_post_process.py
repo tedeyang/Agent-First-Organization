@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Tuple
 
 import pytest
 from arklex.env.env import Environment
+from arklex.orchestrator.NLU.services.model_service import ModelService
 from run import get_api_bot_response
 
 TRIGGER_LIVE_CHAT_PROMPT = "Sorry, I'm not certain about the answer, would you like to connect to an human assistant?"
@@ -24,20 +25,26 @@ def config_and_env(
     with open("taskgraph.json", encoding="utf-8") as f:
         config = json.load(f)
 
-    print(request.config.getoption("--model"))
     model = {
+        "model_name": str(request.config.getoption("--model")),
         "model_type_or_path": str(request.config.getoption("--model")),
         "llm_provider": str(request.config.getoption("--llm-provider")),
+        "api_key": os.getenv("OPENAI_API_KEY", ""),
+        "endpoint": "https://api.openai.com/v1",
     }
     config["input_dir"] = "./"
     config["model"] = model
     os.environ["DATA_DIR"] = config["input_dir"]
+
+    # Initialize model service
+    model_service = ModelService(model)
 
     env = Environment(
         tools=config.get("tools", []),
         workers=config.get("workers", []),
         slot_fill_api=config["slotfillapi"],
         planner_enabled=True,
+        model_service=model_service,
     )
 
     for node in config["nodes"]:

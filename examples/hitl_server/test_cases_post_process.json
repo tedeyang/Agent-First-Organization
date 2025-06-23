@@ -40,7 +40,7 @@
       {
         "test_id": 7,
         "category": "live_chat_triggered",
-        "user_utterance": "How much would a Medbot cost?",
+        "user_utterance": "How much would a Medbot cost",
         "expect_live_chat": true
       },
       {
