@@ -24,7 +24,7 @@ RAG_CONFIDENCE_THRESHOLD = {
     "rag_message_worker": 70.0,
 }
 
-TRIGGER_LIVE_CHAT_PROMPT = "Sorry, I'm not certain about the answer, would you like to connect to an human assistant?"
+TRIGGER_LIVE_CHAT_PROMPT = "Sorry, I'm not certain about the answer, would you like to connect to a human assistant?"
 
 
 def post_process_response(

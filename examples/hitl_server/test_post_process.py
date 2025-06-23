@@ -11,7 +11,7 @@ from arklex.env.env import Environment
 from arklex.orchestrator.NLU.services.model_service import ModelService
 from run import get_api_bot_response
 
-TRIGGER_LIVE_CHAT_PROMPT = "Sorry, I'm not certain about the answer, would you like to connect to an human assistant?"
+TRIGGER_LIVE_CHAT_PROMPT = "Sorry, I'm not certain about the answer, would you like to connect to a human assistant?"
 
 with open("test_cases_post_process.json", encoding="utf-8") as f:
     TEST_CASES = json.load(f)
