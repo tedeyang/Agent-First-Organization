@@ -24,6 +24,8 @@ RAG_CONFIDENCE_THRESHOLD = {
     "rag_message_worker": 70.0,
 }
 
+TRIGGER_LIVE_CHAT_PROMPT = "Sorry, I'm not certain about the answer, would you like to connect to an human assistant?"
+
 
 def post_process_response(
     message_state: MessageState, params: Params, hitl_worker_available: bool
@@ -143,7 +145,9 @@ def _live_chat_verifier(message_state: MessageState, params: Params) -> None:
 
     # check for relevance of the user's question
     if not _is_question_relevant(params):
-        logger.info(f"User's question is not relevant. Skipping live chat initiation.")
+        log_context.info(
+            f"User's question is not relevant. Skipping live chat initiation."
+        )
         return
 
     # look at RAG confidence scores
@@ -164,7 +168,7 @@ def _live_chat_verifier(message_state: MessageState, params: Params) -> None:
                         rag_confidence += confidence
                         num_of_docs += docs
                 except Exception as e:
-                    logger.warning(
+                    log_context.warning(
                         f"Error extracting confidence from step: {e} — step: {step}"
                     )
     try:
@@ -177,12 +181,7 @@ def _live_chat_verifier(message_state: MessageState, params: Params) -> None:
         return
 
     if should_trigger_handoff(message_state):
-        print(
-            f"\n* Live Chat Initiated: Bot was uncertain about the response.\n"
-            f"* Original Bot Response:\n{message_state.response}\n"
-        )
-        worker = HITLWorkerChatFlag()
-        worker._execute(state=message_state)
+        message_state.response = TRIGGER_LIVE_CHAT_PROMPT
 
 
 def _extract_confidence_from_nested_dict(step: Any) -> tuple[float, int]:

@@ -10,6 +10,8 @@ import pytest
 from arklex.env.env import Environment
 from run import get_api_bot_response
 
+TRIGGER_LIVE_CHAT_PROMPT = "Sorry, I'm not certain about the answer, would you like to connect to an human assistant?"
+
 with open("test_cases_post_process.json", encoding="utf-8") as f:
     TEST_CASES = json.load(f)
 
@@ -91,18 +93,18 @@ class TestLiveChatDetection:
         logs_output = caplog.text
         full_captured_output = stdout_output + logs_output
 
-        assert live_chat_triggered == expected_live_chat, (
-            f"\nTest Failed\nExpected live chat: {expected_live_chat}, got: {live_chat_triggered}\n"
-            f"User: {user_text}\nBot: {output}\nFull Captured Output:\n{full_captured_output}"
-        )
-
-        if expected_live_chat:
-            assert (
-                "* Live Chat Initiated: Bot was uncertain about the response."
-                in stdout_output
+        # don't trigger live chat on follow up responses or clear responses
+        if not expected_live_chat:
+            assert live_chat_triggered == expected_live_chat, (
+                f"\nTest Failed\nExpected live chat: {expected_live_chat}, got: {live_chat_triggered}\n"
+                f"User: {user_text}\nBot: {output}\nFull Captured Output:\n{full_captured_output}"
             )
-            assert "* Original Bot Response:" in stdout_output
 
+        # prompt user to chat with human assistant
+        if expected_live_chat:
+            assert TRIGGER_LIVE_CHAT_PROMPT == output
+
+        # for irrelevant questions
         if expected_log_message:
             assert expected_log_message in logs_output, (
                 f"\nTest Failed: Missing expected log message.\n"
