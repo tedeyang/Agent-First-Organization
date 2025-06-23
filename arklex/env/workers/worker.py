@@ -9,10 +9,10 @@ workers that handle different types of tasks and operations within the system.
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional, Type, TypeVar
 from arklex.utils.graph_state import MessageState, StatusEnum
-import logging
+from arklex.utils.logging_utils import LogContext
 import traceback
 
-logger = logging.getLogger(__name__)
+log_context = LogContext(__name__)
 
 T = TypeVar("T")
 
@@ -76,7 +76,6 @@ class BaseWorker(ABC):
         Returns:
             Dict[str, Any]: The execution results as a dictionary.
         """
-        pass
 
     def execute(self, msg_state: MessageState, **kwargs: Any) -> MessageState:
         """Execute the worker with error handling and state management.
@@ -102,7 +101,7 @@ class BaseWorker(ABC):
             if response_state.status == StatusEnum.INCOMPLETE:
                 response_state.status = StatusEnum.COMPLETE
             return response_state
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            log_context.error(traceback.format_exc())
             msg_state.status = StatusEnum.INCOMPLETE
             return msg_state

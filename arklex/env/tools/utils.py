@@ -9,8 +9,8 @@ provide flexible response generation capabilities.
 
 import inspect
 import json
-import logging
 from typing import Dict, Any, List, Optional, Union, TypeVar, Generic
+from typing import Dict, Any, Optional
 
 from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
@@ -20,8 +20,10 @@ from arklex.env.prompts import load_prompts
 from arklex.types import EventType, StreamType
 from arklex.utils.graph_state import MessageState
 from arklex.utils.model_provider_config import PROVIDER_MAP
+from arklex.utils.logging_utils import LogContext
+from arklex.utils.exceptions import ToolError
 
-logger: logging.Logger = logging.getLogger(__name__)
+log_context = LogContext(__name__)
 
 
 def get_prompt_template(state: MessageState, prompt_key: str) -> PromptTemplate:
@@ -29,15 +31,14 @@ def get_prompt_template(state: MessageState, prompt_key: str) -> PromptTemplate:
     prompts: Dict[str, str] = load_prompts(state.bot_config)
 
     if state.stream_type == StreamType.SPEECH:
+        # Use speech prompts, but fall back to regular prompts for Chinese
+        # since Chinese speech prompts are not available yet
         if state.bot_config.language == "CN":
-            # no speech prompts for Chinese yet
-            # TODO(Vishruth): add speech prompts for Chinese
             return PromptTemplate.from_template(prompts[prompt_key])
         else:
             return PromptTemplate.from_template(prompts[prompt_key + "_speech"])
-
-    # the regular text prompts are used for both text stream and text without stream
-    return PromptTemplate.from_template(prompts[prompt_key])
+    else:
+        return PromptTemplate.from_template(prompts[prompt_key])
 
 
 class ToolGenerator:
@@ -53,7 +54,7 @@ class ToolGenerator:
         input_prompt: Any = prompt.invoke(
             {"sys_instruct": state.sys_instruct, "formatted_chat": user_message.history}
         )
-        logger.info(f"Prompt: {input_prompt.text}")
+        log_context.info(f"Prompt: {input_prompt.text}")
         final_chain: Any = llm | StrOutputParser()
         answer: str = final_chain.invoke(input_prompt.text)
 
@@ -94,7 +95,7 @@ class ToolGenerator:
                 relevant_context += "\n"
             message_flow = relevant_context + "\n" + message_flow
 
-        logger.info(
+        log_context.info(
             f"Retrieved texts (from retriever/search engine to generator): {message_flow[:50]} ..."
         )
 
@@ -108,7 +109,7 @@ class ToolGenerator:
             }
         )
         final_chain: Any = llm | StrOutputParser()
-        logger.info(f"Prompt: {input_prompt.text}")
+        log_context.info(f"Prompt: {input_prompt.text}")
         answer: str = final_chain.invoke(input_prompt.text)
         state.message_flow = ""
         state.response = answer
@@ -147,7 +148,7 @@ class ToolGenerator:
                             relevant_context += f"  * {step}\n"
                 relevant_context += "\n"
             message_flow = relevant_context + "\n" + message_flow
-        logger.info(
+        log_context.info(
             f"Retrieved texts (from retriever/search engine to generator): {message_flow[:50]} ..."
         )
 
@@ -162,7 +163,7 @@ class ToolGenerator:
             }
         )
         final_chain: Any = llm | StrOutputParser()
-        logger.info(f"Prompt: {input_prompt.text}")
+        log_context.info(f"Prompt: {input_prompt.text}")
         answer: str = ""
         for chunk in final_chain.stream(input_prompt.text):
             answer += chunk
