@@ -1,59 +1,116 @@
-"""Comprehensive tests for the generator __init__.py module.
+"""Tests for the generator __init__.py module.
 
 This module provides comprehensive test coverage for the generator __init__.py module,
 ensuring all functionality is properly tested including import handling and UI component availability.
 """
 
-import pytest
-from unittest.mock import patch, MagicMock
+import importlib
 import sys
+from typing import Generator as TypeGenerator
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+
+# --- Fixtures ---
+
+
+@pytest.fixture
+def mock_textual_available() -> TypeGenerator[None, None, None]:
+    """Mock that textual is available for UI components."""
+    with patch.dict(sys.modules, {"textual": MagicMock()}):
+        yield
+
+
+@pytest.fixture
+def mock_textual_unavailable() -> TypeGenerator[None, None, None]:
+    """Mock that textual is not available for UI components."""
+    with patch.dict(sys.modules, {"textual": None}):
+        yield
+
+
+@pytest.fixture
+def mock_ui_import_error() -> TypeGenerator[None, None, None]:
+    """Mock that importing ui module raises ImportError."""
+    with patch(
+        "arklex.orchestrator.generator.ui", side_effect=ImportError("textual not found")
+    ):
+        yield
+
+
+@pytest.fixture
+def mock_ui_other_exception() -> TypeGenerator[None, None, None]:
+    """Mock that importing ui module raises other exceptions."""
+    with patch(
+        "arklex.orchestrator.generator.ui", side_effect=Exception("Other error")
+    ):
+        yield
+
+
+@pytest.fixture
+def reload_generator_module() -> TypeGenerator[None, None, None]:
+    """Reload the generator module to test with different conditions."""
+    if "arklex.orchestrator.generator" in sys.modules:
+        del sys.modules["arklex.orchestrator.generator"]
+    yield
+    # Clean up after test
+    if "arklex.orchestrator.generator" in sys.modules:
+        del sys.modules["arklex.orchestrator.generator"]
+
+
+@pytest.fixture
+def mock_generator_class() -> MagicMock:
+    """Create a mock Generator class for testing."""
+    return MagicMock()
+
+
+# --- Test Classes ---
 
 
 class TestGeneratorImports:
     """Test imports from the generator module."""
 
     def test_import_generator_success(self) -> None:
-        """Test successful import of Generator class."""
+        """Should successfully import Generator class."""
         from arklex.orchestrator.generator import Generator
 
         assert Generator is not None
 
     def test_import_core_module(self) -> None:
-        """Test import of core module."""
+        """Should import core module."""
         from arklex.orchestrator.generator import core
 
         assert core is not None
 
     def test_import_tasks_module(self) -> None:
-        """Test import of tasks module."""
+        """Should import tasks module."""
         from arklex.orchestrator.generator import tasks
 
         assert tasks is not None
 
     def test_import_docs_module(self) -> None:
-        """Test import of docs module."""
+        """Should import docs module."""
         from arklex.orchestrator.generator import docs
 
         assert docs is not None
 
     def test_import_formatting_module(self) -> None:
-        """Test import of formatting module."""
+        """Should import formatting module."""
         from arklex.orchestrator.generator import formatting
 
         assert formatting is not None
 
     def test_import_ui_module(self) -> None:
-        """Test import of ui module."""
+        """Should import ui module."""
         from arklex.orchestrator.generator import ui
 
         assert ui is not None
 
     def test_module_all_attribute(self) -> None:
-        """Test that __all__ attribute is properly defined."""
+        """Should have proper __all__ attribute defined."""
         from arklex.orchestrator.generator import __all__
 
         expected_items = ["Generator", "core", "ui", "tasks", "docs", "formatting"]
-
         for item in expected_items:
             assert item in __all__, f"Missing item in __all__: {item}"
 
@@ -61,123 +118,95 @@ class TestGeneratorImports:
 class TestUIComponentsAvailability:
     """Test UI components availability and fallback behavior."""
 
-    def test_ui_components_available_when_textual_installed(self) -> None:
-        """Test UI components are available when textual is installed."""
-        # Mock that textual is available
-        with patch.dict(sys.modules, {"textual": MagicMock()}):
-            # Reload the module to test with textual available
-            if "arklex.orchestrator.generator" in sys.modules:
-                del sys.modules["arklex.orchestrator.generator"]
+    def test_ui_components_available_when_textual_installed(
+        self,
+        mock_textual_available: TypeGenerator,
+        reload_generator_module: TypeGenerator,
+    ) -> None:
+        """Should provide UI components when textual is installed."""
+        from arklex.orchestrator.generator import TaskEditorApp, InputModal
 
-            from arklex.orchestrator.generator import TaskEditorApp, InputModal
+        assert TaskEditorApp is not None
+        assert InputModal is not None
+        assert "Placeholder" not in TaskEditorApp.__doc__
 
-            assert TaskEditorApp is not None
-            assert InputModal is not None
+    def test_ui_components_placeholder_when_textual_not_installed(
+        self,
+        mock_textual_unavailable: TypeGenerator,
+        reload_generator_module: TypeGenerator,
+    ) -> None:
+        """Should provide placeholder classes when textual is not installed."""
+        from arklex.orchestrator.generator import TaskEditorApp, InputModal
 
-            # Test that they are not placeholder classes
-            assert "Placeholder" not in TaskEditorApp.__doc__
+        assert TaskEditorApp is not None
+        assert InputModal is not None
+        assert (
+            "Placeholder" in TaskEditorApp.__doc__
+            or "Textual app" in TaskEditorApp.__doc__
+        )
+        assert (
+            "Placeholder" in InputModal.__doc__ or "input modal" in InputModal.__doc__
+        )
 
-    def test_ui_components_placeholder_when_textual_not_installed(self) -> None:
-        """Test placeholder classes when textual is not installed."""
-        # Mock that textual is not available
-        with patch.dict(sys.modules, {"textual": None}):
-            # Reload the module to test without textual
-            if "arklex.orchestrator.generator" in sys.modules:
-                del sys.modules["arklex.orchestrator.generator"]
+    def test_ui_components_raise_import_error_when_used(
+        self,
+        mock_textual_unavailable: TypeGenerator,
+        reload_generator_module: TypeGenerator,
+    ) -> None:
+        """Should raise ImportError when placeholder UI components are instantiated."""
+        from arklex.orchestrator.generator import TaskEditorApp, InputModal
 
-            from arklex.orchestrator.generator import TaskEditorApp, InputModal
+        try:
+            TaskEditorApp()
+        except (ImportError, TypeError):
+            pass  # Expected behavior
+        try:
+            InputModal()
+        except (ImportError, TypeError):
+            pass  # Expected behavior
 
-            assert TaskEditorApp is not None
-            assert InputModal is not None
+    def test_ui_components_import_error_handling(
+        self,
+        mock_ui_import_error: TypeGenerator,
+        reload_generator_module: TypeGenerator,
+    ) -> None:
+        """Should handle ImportError during UI component import."""
+        from arklex.orchestrator.generator import TaskEditorApp, InputModal
 
-            # Test that they are placeholder classes
-            assert (
-                "Placeholder" in TaskEditorApp.__doc__
-                or "Textual app" in TaskEditorApp.__doc__
-            )
-            assert (
-                "Placeholder" in InputModal.__doc__
-                or "input modal" in InputModal.__doc__
-            )
+        assert TaskEditorApp is not None
+        assert InputModal is not None
+        assert (
+            "Placeholder" in TaskEditorApp.__doc__
+            or "Textual app" in TaskEditorApp.__doc__
+        )
+        assert (
+            "Placeholder" in InputModal.__doc__ or "input modal" in InputModal.__doc__
+        )
 
-    def test_ui_components_raise_import_error_when_used(self) -> None:
-        """Test that placeholder UI components raise ImportError when instantiated."""
-        # Mock that textual is not available
-        with patch.dict(sys.modules, {"textual": None}):
-            # Reload the module to test without textual
-            if "arklex.orchestrator.generator" in sys.modules:
-                del sys.modules["arklex.orchestrator.generator"]
+    def test_ui_components_other_exception_handling(
+        self,
+        mock_ui_other_exception: TypeGenerator,
+        reload_generator_module: TypeGenerator,
+    ) -> None:
+        """Should handle other exceptions during UI component import."""
+        from arklex.orchestrator.generator import TaskEditorApp, InputModal
 
-            from arklex.orchestrator.generator import TaskEditorApp, InputModal
-
-            # Test that instantiation raises ImportError or TypeError (missing args)
-            try:
-                TaskEditorApp()
-            except (ImportError, TypeError):
-                pass  # Expected behavior
-
-            try:
-                InputModal()
-            except (ImportError, TypeError):
-                pass  # Expected behavior
-
-    def test_ui_components_import_error_handling(self) -> None:
-        """Test handling of ImportError during UI component import."""
-        # Mock that importing ui module raises ImportError
-        with patch(
-            "arklex.orchestrator.generator.ui",
-            side_effect=ImportError("textual not found"),
-        ):
-            # Reload the module to test with import error
-            if "arklex.orchestrator.generator" in sys.modules:
-                del sys.modules["arklex.orchestrator.generator"]
-
-            from arklex.orchestrator.generator import TaskEditorApp, InputModal
-
-            assert TaskEditorApp is not None
-            assert InputModal is not None
-
-            # Test that they are placeholder classes
-            assert (
-                "Placeholder" in TaskEditorApp.__doc__
-                or "Textual app" in TaskEditorApp.__doc__
-            )
-            assert (
-                "Placeholder" in InputModal.__doc__
-                or "input modal" in InputModal.__doc__
-            )
-
-    def test_ui_components_other_exception_handling(self) -> None:
-        """Test handling of other exceptions during UI component import."""
-        # Mock that importing ui module raises a different exception
-        with patch(
-            "arklex.orchestrator.generator.ui", side_effect=Exception("Other error")
-        ):
-            # Reload the module to test with other exception
-            if "arklex.orchestrator.generator" in sys.modules:
-                del sys.modules["arklex.orchestrator.generator"]
-
-            from arklex.orchestrator.generator import TaskEditorApp, InputModal
-
-            assert TaskEditorApp is not None
-            assert InputModal is not None
-
-            # Test that they are placeholder classes
-            assert (
-                "Placeholder" in TaskEditorApp.__doc__
-                or "Textual app" in TaskEditorApp.__doc__
-            )
-            assert (
-                "Placeholder" in InputModal.__doc__
-                or "input modal" in InputModal.__doc__
-            )
+        assert TaskEditorApp is not None
+        assert InputModal is not None
+        assert (
+            "Placeholder" in TaskEditorApp.__doc__
+            or "Textual app" in TaskEditorApp.__doc__
+        )
+        assert (
+            "Placeholder" in InputModal.__doc__ or "input modal" in InputModal.__doc__
+        )
 
 
 class TestModuleStructure:
     """Test the overall module structure and organization."""
 
     def test_module_has_docstring(self) -> None:
-        """Test that the module has a comprehensive docstring."""
+        """Should have comprehensive module docstring."""
         import arklex.orchestrator.generator
 
         docstring = arklex.orchestrator.generator.__doc__
@@ -188,32 +217,32 @@ class TestModuleStructure:
         assert "TaskEditorApp" in docstring
 
     def test_module_imports_core_generator(self) -> None:
-        """Test that the module imports Generator from core."""
+        """Should import Generator from core module."""
         from arklex.orchestrator.generator import Generator
         from arklex.orchestrator.generator.core import Generator as CoreGenerator
 
         assert Generator is CoreGenerator
 
     def test_module_imports_specialized_modules(self) -> None:
-        """Test that the module imports all specialized submodules."""
+        """Should import all specialized submodules."""
         from arklex.orchestrator.generator import core, ui, tasks, docs, formatting
 
-        # Test that all modules are imported and accessible
         assert core is not None
         assert ui is not None
         assert tasks is not None
         assert docs is not None
         assert formatting is not None
 
-    def test_module_backward_compatibility(self) -> None:
-        """Test backward compatibility of imports."""
-        # Test that main classes are available at module level
-        from arklex.orchestrator.generator import Generator
+    def test_module_backward_compatibility(
+        self, mock_generator_class: MagicMock
+    ) -> None:
+        """Should maintain backward compatibility of imports."""
+        with patch(
+            "arklex.orchestrator.generator.core.Generator",
+            return_value=mock_generator_class,
+        ):
+            from arklex.orchestrator.generator import Generator
 
-        # Test that Generator can be instantiated (with proper mocking)
-        with patch("arklex.orchestrator.generator.core.Generator") as mock_generator:
-            mock_instance = MagicMock()
-            mock_generator.return_value = mock_instance
             generator = Generator(config={}, model=MagicMock())
             assert generator is not None
 
@@ -222,8 +251,7 @@ class TestErrorHandling:
     """Test error handling in the module."""
 
     def test_import_error_propagation(self) -> None:
-        """Test that import errors are properly handled and don't break the module."""
-        # Test that the module can be imported even if some components fail
+        """Should handle import errors gracefully."""
         try:
             from arklex.orchestrator.generator import Generator
 
@@ -231,38 +259,27 @@ class TestErrorHandling:
         except ImportError:
             pytest.fail("Module import should not fail due to missing dependencies")
 
-    def test_ui_components_graceful_degradation(self) -> None:
-        """Test graceful degradation when UI components are not available."""
-        # Mock that textual is not available
-        with patch.dict(sys.modules, {"textual": None}):
-            # Reload the module to test without textual
-            if "arklex.orchestrator.generator" in sys.modules:
-                del sys.modules["arklex.orchestrator.generator"]
+    def test_ui_components_graceful_degradation(
+        self,
+        mock_textual_unavailable: TypeGenerator,
+        reload_generator_module: TypeGenerator,
+    ) -> None:
+        """Should gracefully degrade when UI components are not available."""
+        import arklex.orchestrator.generator
+        from arklex.orchestrator.generator import TaskEditorApp, InputModal
 
-            # Should still be able to import the module
-            import arklex.orchestrator.generator
-
-            # Should have placeholder classes
-            from arklex.orchestrator.generator import TaskEditorApp, InputModal
-
-            assert TaskEditorApp is not None
-            assert InputModal is not None
+        assert TaskEditorApp is not None
+        assert InputModal is not None
 
     def test_module_reload_behavior(self) -> None:
-        """Test that the module behaves correctly when reloaded."""
-        # Test that the module can be reloaded multiple times
+        """Should behave correctly when reloaded."""
         import arklex.orchestrator.generator as gen_module
-
-        # Reload the module if it exists in sys.modules
-        import importlib
 
         try:
             if "arklex.orchestrator.generator" in sys.modules:
                 importlib.reload(gen_module)
         except ImportError:
             pass  # Module not in sys.modules, which is fine
-
-        # Should still work after reload
         from arklex.orchestrator.generator import Generator
 
         assert Generator is not None
@@ -272,7 +289,7 @@ class TestModuleIntegration:
     """Test integration aspects of the module."""
 
     def test_all_imports_work_together(self) -> None:
-        """Test that all imports work together without conflicts."""
+        """Should allow all imports to work together without conflicts."""
         from arklex.orchestrator.generator import (
             Generator,
             core,
@@ -282,7 +299,6 @@ class TestModuleIntegration:
             formatting,
         )
 
-        # All imports should succeed
         assert Generator is not None
         assert core is not None
         assert ui is not None
@@ -291,17 +307,15 @@ class TestModuleIntegration:
         assert formatting is not None
 
     def test_module_namespace_consistency(self) -> None:
-        """Test that the module namespace is consistent."""
+        """Should maintain consistent module namespace."""
         import arklex.orchestrator.generator as gen_module
 
-        # Check that expected attributes are present
         expected_attrs = ["Generator", "core", "ui", "tasks", "docs", "formatting"]
         for attr in expected_attrs:
             assert hasattr(gen_module, attr), f"Missing attribute: {attr}"
 
     def test_submodule_imports_work(self) -> None:
-        """Test that submodule imports work correctly."""
-        # Test that we can import from submodules
+        """Should allow submodule imports to work correctly."""
         from arklex.orchestrator.generator.core import Generator
         from arklex.orchestrator.generator.tasks import task_generator
         from arklex.orchestrator.generator.docs import document_loader

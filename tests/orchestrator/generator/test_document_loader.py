@@ -613,6 +613,7 @@ class TestDocumentValidator:
 # --- Integration Tests ---
 
 
+@pytest.mark.integration
 def test_integration_document_pipeline(
     mock_file_system: Dict, sample_document: Dict
 ) -> None:
