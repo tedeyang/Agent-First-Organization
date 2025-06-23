@@ -7,7 +7,6 @@ both streaming and non-streaming response generation, with functionality for han
 message flows and direct responses.
 """
 
-import logging
 from typing import Any, Dict, Optional
 
 from langchain.prompts import PromptTemplate
@@ -22,8 +21,9 @@ from arklex.env.workers.worker import BaseWorker, register_worker
 from arklex.types import EventType, StreamType
 from arklex.utils.graph_state import MessageState
 from arklex.utils.model_provider_config import PROVIDER_MAP
+from arklex.utils.logging_utils import LogContext
 
-logger = logging.getLogger(__name__)
+log_context = LogContext(__name__)
 
 
 @register_worker
@@ -76,7 +76,7 @@ class MessageWorker(BaseWorker):
                     "formatted_chat": user_message.history,
                 }
             )
-        logger.info(f"Prompt: {input_prompt.text}")
+        log_context.info(f"Prompt: {input_prompt.text}")
         final_chain = self.llm | StrOutputParser()
         answer: str = final_chain.invoke(input_prompt.text)
 
@@ -126,7 +126,7 @@ class MessageWorker(BaseWorker):
                     "formatted_chat": user_message.history,
                 }
             )
-        logger.info(f"Prompt: {input_prompt.text}")
+        log_context.info(f"Prompt: {input_prompt.text}")
         final_chain = self.llm | StrOutputParser()
         answer: str = ""
         for chunk in final_chain.stream(input_prompt.text):
@@ -180,7 +180,7 @@ class MessageWorker(BaseWorker):
                     "formatted_chat": user_message.history,
                 }
             )
-        logger.info(f"Prompt: {input_prompt.text}")
+        log_context.info(f"Prompt: {input_prompt.text}")
         final_chain = self.llm | StrOutputParser()
         answer = ""
         for chunk in final_chain.stream(input_prompt.text):

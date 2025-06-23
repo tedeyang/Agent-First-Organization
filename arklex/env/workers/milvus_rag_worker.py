@@ -7,7 +7,6 @@ non-streaming responses. It integrates with Milvus for efficient similarity sear
 retrieval of relevant documents.
 """
 
-import logging
 from functools import partial
 from typing import Any, Dict, Optional
 from langgraph.graph import StateGraph, START
@@ -16,9 +15,9 @@ from arklex.env.workers.worker import BaseWorker, register_worker
 from arklex.utils.graph_state import MessageState
 from arklex.env.tools.utils import ToolGenerator
 from arklex.env.tools.RAG.retrievers.milvus_retriever import RetrieveEngine
+from arklex.utils.logging_utils import LogContext
 
-
-logger = logging.getLogger(__name__)
+log_context = LogContext(__name__)
 
 
 @register_worker
