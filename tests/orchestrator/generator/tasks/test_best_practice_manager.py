@@ -77,6 +77,30 @@ def sample_practices():
 
 
 @pytest.fixture
+def sample_practice():
+    """Sample practice for testing."""
+    return {
+        "practice_id": "test1",
+        "name": "Test Practice",
+        "description": "Test description",
+        "steps": [{"task": "Original step", "description": "Original description"}],
+        "rationale": "Test rationale",
+        "examples": [],
+        "priority": 3,
+        "category": "efficiency",
+    }
+
+
+@pytest.fixture
+def sample_task():
+    """Sample task for testing."""
+    return {
+        "name": "Test Task",
+        "steps": [{"task": "New step", "description": "New description"}],
+    }
+
+
+@pytest.fixture
 def best_practice_manager(mock_model):
     """Create a BestPracticeManager instance for testing."""
     return BestPracticeManager(
@@ -103,10 +127,54 @@ def best_practice_manager(mock_model):
     )
 
 
+@pytest.fixture
+def patched_best_practice_manager(best_practice_manager):
+    """Create a BestPracticeManager with patched methods for testing."""
+    with (
+        patch.object(
+            best_practice_manager, "_generate_practice_definitions"
+        ) as mock_gen,
+        patch.object(best_practice_manager, "_validate_practices") as mock_validate,
+        patch.object(best_practice_manager, "_categorize_practices") as mock_categorize,
+        patch.object(best_practice_manager, "_optimize_practices") as mock_optimize,
+    ):
+        mock_gen.return_value = [Mock()]
+        mock_validate.return_value = [{"practice_id": "test1"}]
+        mock_optimize.return_value = [{"practice_id": "test1", "optimized": True}]
+
+        yield {
+            "manager": best_practice_manager,
+            "mock_gen": mock_gen,
+            "mock_validate": mock_validate,
+            "mock_categorize": mock_categorize,
+            "mock_optimize": mock_optimize,
+        }
+
+
+@pytest.fixture
+def patched_optimize_steps(best_practice_manager):
+    """Create a BestPracticeManager with patched _optimize_steps method."""
+    with patch.object(best_practice_manager, "_optimize_steps") as mock_optimize_steps:
+        mock_optimize_steps.return_value = [
+            {"task": "Optimized step", "description": "Optimized description"}
+        ]
+        yield {
+            "manager": best_practice_manager,
+            "mock_optimize_steps": mock_optimize_steps,
+        }
+
+
+@pytest.fixture
+def patched_model_invoke(best_practice_manager):
+    """Create a BestPracticeManager with patched model.invoke method."""
+    with patch.object(best_practice_manager.model, "invoke") as mock_invoke:
+        yield {"manager": best_practice_manager, "mock_invoke": mock_invoke}
+
+
 class TestBestPractice:
     """Test the BestPractice dataclass."""
 
-    def test_best_practice_initialization(self):
+    def test_best_practice_initialization(self) -> None:
         """Test BestPractice initialization with all fields."""
         practice = BestPractice(
             practice_id="test1",
@@ -128,7 +196,7 @@ class TestBestPractice:
         assert practice.priority == 3
         assert practice.category == "efficiency"
 
-    def test_best_practice_with_minimal_fields(self):
+    def test_best_practice_with_minimal_fields(self) -> None:
         """Test BestPractice initialization with minimal fields."""
         practice = BestPractice(
             practice_id="test2",
@@ -172,7 +240,7 @@ class TestBestPracticeManagerInitialization:
         assert isinstance(manager._practice_categories, dict)
         assert manager.prompt_manager is not None
 
-    def test_initialization_with_minimal_parameters(self, mock_model):
+    def test_initialization_with_minimal_parameters(self, mock_model) -> None:
         """Test initialization with minimal parameters."""
         manager = BestPracticeManager(
             model=mock_model,
@@ -189,7 +257,7 @@ class TestBestPracticeManagerInitialization:
         assert isinstance(manager._practices, dict)
         assert isinstance(manager._practice_categories, dict)
 
-    def test_initialization_with_none_parameters(self, mock_model):
+    def test_initialization_with_none_parameters(self, mock_model) -> None:
         """Test initialization with None parameters."""
         manager = BestPracticeManager(
             model=mock_model,
@@ -212,142 +280,86 @@ class TestBestPracticeManagerGenerateBestPractices:
     """Test the generate_best_practices method."""
 
     def test_generate_best_practices_success(
-        self, best_practice_manager, sample_tasks
+        self, patched_best_practice_manager, sample_tasks
     ) -> None:
         """Test successful best practice generation."""
-        with patch.object(
-            best_practice_manager, "_generate_practice_definitions"
-        ) as mock_gen:
-            with patch.object(
-                best_practice_manager, "_validate_practices"
-            ) as mock_validate:
-                with patch.object(
-                    best_practice_manager, "_categorize_practices"
-                ) as mock_categorize:
-                    with patch.object(
-                        best_practice_manager, "_optimize_practices"
-                    ) as mock_optimize:
-                        mock_gen.return_value = [Mock()]
-                        mock_validate.return_value = [{"practice_id": "test1"}]
-                        mock_optimize.return_value = [
-                            {"practice_id": "test1", "optimized": True}
-                        ]
+        manager = patched_best_practice_manager["manager"]
+        mock_gen = patched_best_practice_manager["mock_gen"]
+        mock_validate = patched_best_practice_manager["mock_validate"]
+        mock_categorize = patched_best_practice_manager["mock_categorize"]
+        mock_optimize = patched_best_practice_manager["mock_optimize"]
 
-                        result = best_practice_manager.generate_best_practices(
-                            sample_tasks
-                        )
+        result = manager.generate_best_practices(sample_tasks)
 
-                        mock_gen.assert_called_once_with(sample_tasks)
-                        mock_validate.assert_called_once()
-                        mock_categorize.assert_called_once()
-                        mock_optimize.assert_called_once()
+        mock_gen.assert_called_once_with(sample_tasks)
+        mock_validate.assert_called_once()
+        mock_categorize.assert_called_once()
+        mock_optimize.assert_called_once()
 
-                        assert len(result) == 1
-                        assert result[0]["optimized"] is True
+        assert len(result) == 1
+        assert result[0]["optimized"] is True
 
     def test_generate_best_practices_with_empty_tasks(
-        self, best_practice_manager
+        self, patched_best_practice_manager
     ) -> None:
         """Test best practice generation with empty tasks."""
-        with patch.object(
-            best_practice_manager, "_generate_practice_definitions"
-        ) as mock_gen:
-            with patch.object(
-                best_practice_manager, "_validate_practices"
-            ) as mock_validate:
-                with patch.object(
-                    best_practice_manager, "_categorize_practices"
-                ) as mock_categorize:
-                    with patch.object(
-                        best_practice_manager, "_optimize_practices"
-                    ) as mock_optimize:
-                        mock_gen.return_value = []
-                        mock_validate.return_value = []
-                        mock_optimize.return_value = []
+        manager = patched_best_practice_manager["manager"]
+        mock_gen = patched_best_practice_manager["mock_gen"]
+        mock_validate = patched_best_practice_manager["mock_validate"]
+        mock_categorize = patched_best_practice_manager["mock_categorize"]
+        mock_optimize = patched_best_practice_manager["mock_optimize"]
 
-                        result = best_practice_manager.generate_best_practices([])
+        # Override return values for empty tasks
+        mock_gen.return_value = []
+        mock_validate.return_value = []
+        mock_optimize.return_value = []
 
-                        mock_gen.assert_called_once_with([])
-                        mock_validate.assert_called_once()
-                        mock_categorize.assert_called_once()
-                        mock_optimize.assert_called_once()
+        result = manager.generate_best_practices([])
 
-                        assert len(result) == 0
+        mock_gen.assert_called_once_with([])
+        mock_validate.assert_called_once()
+        mock_categorize.assert_called_once()
+        mock_optimize.assert_called_once()
+
+        assert len(result) == 0
 
 
 class TestBestPracticeManagerFinetuneBestPractice:
     """Test the finetune_best_practice method."""
 
-    def test_finetune_best_practice_with_steps(self, best_practice_manager) -> None:
+    def test_finetune_best_practice_with_steps(
+        self, best_practice_manager, sample_practice, sample_task
+    ) -> None:
         """Test practice refinement with steps."""
-        practice = {
-            "practice_id": "test1",
-            "name": "Test Practice",
-            "description": "Test description",
-            "steps": [{"task": "Original step", "description": "Original description"}],
-            "rationale": "Test rationale",
-            "examples": [],
-            "priority": 3,
-            "category": "efficiency",
-        }
-        task = {
-            "name": "Test Task",
-            "steps": [{"task": "New step", "description": "New description"}],
-        }
-
-        # The actual implementation doesn't call _optimize_steps in this method
-        # It only processes resources and returns the practice as-is
-        result = best_practice_manager.finetune_best_practice(practice, task)
+        result = best_practice_manager.finetune_best_practice(
+            sample_practice, sample_task
+        )
 
         assert isinstance(result, dict)
         assert result["practice_id"] == "test1"
 
-    def test_finetune_best_practice_without_steps(self, best_practice_manager) -> None:
+    def test_finetune_best_practice_without_steps(
+        self, best_practice_manager, sample_practice
+    ) -> None:
         """Test practice refinement without steps in task."""
-        practice = {
-            "practice_id": "test1",
-            "name": "Test Practice",
-            "description": "Test description",
-            "steps": [{"task": "Original step", "description": "Original description"}],
-            "rationale": "Test rationale",
-            "examples": [],
-            "priority": 3,
-            "category": "efficiency",
-        }
-        task = {
-            "name": "Test Task",
-            # No steps
-        }
+        task = {"name": "Test Task"}
 
-        result = best_practice_manager.finetune_best_practice(practice, task)
+        result = best_practice_manager.finetune_best_practice(sample_practice, task)
 
-        assert result == practice
+        assert result == sample_practice
 
     def test_finetune_best_practice_with_all_resources(
-        self, best_practice_manager
+        self, best_practice_manager, sample_practice, sample_task
     ) -> None:
         """Test practice refinement with all_resources available."""
-        practice = {
-            "practice_id": "test1",
-            "name": "Test Practice",
-            "description": "Test description",
-            "steps": [{"task": "Original step", "description": "Original description"}],
-            "rationale": "Test rationale",
-            "examples": [],
-            "priority": 3,
-            "category": "efficiency",
-        }
-        task = {
-            "name": "Test Task",
-            "steps": [{"task": "New step", "description": "New description"}],
-        }
-
-        result = best_practice_manager.finetune_best_practice(practice, task)
+        result = best_practice_manager.finetune_best_practice(
+            sample_practice, sample_task
+        )
 
         assert isinstance(result, dict)
 
     def test_finetune_best_practice_with_workers_and_tools_fallback(
-        self, mock_model
+        self, mock_model, sample_practice, sample_task
     ) -> None:
         """Test practice refinement with workers and tools fallback."""
         manager = BestPracticeManager(
@@ -358,26 +370,13 @@ class TestBestPracticeManagerFinetuneBestPractice:
             tools=[{"name": "Tool1", "description": "Test tool"}],
         )
 
-        practice = {
-            "practice_id": "test1",
-            "name": "Test Practice",
-            "description": "Test description",
-            "steps": [{"task": "Original step", "description": "Original description"}],
-            "rationale": "Test rationale",
-            "examples": [],
-            "priority": 3,
-            "category": "efficiency",
-        }
-        task = {
-            "name": "Test Task",
-            "steps": [{"task": "New step", "description": "New description"}],
-        }
-
-        result = manager.finetune_best_practice(practice, task)
+        result = manager.finetune_best_practice(sample_practice, sample_task)
 
         assert isinstance(result, dict)
 
-    def test_finetune_best_practice_with_default_resources(self, mock_model) -> None:
+    def test_finetune_best_practice_with_default_resources(
+        self, mock_model, sample_practice, sample_task
+    ) -> None:
         """Test practice refinement with default resources."""
         manager = BestPracticeManager(
             model=mock_model,
@@ -385,26 +384,13 @@ class TestBestPracticeManagerFinetuneBestPractice:
             user_objective="test objective",
         )
 
-        practice = {
-            "practice_id": "test1",
-            "name": "Test Practice",
-            "description": "Test description",
-            "steps": [{"task": "Original step", "description": "Original description"}],
-            "rationale": "Test rationale",
-            "examples": [],
-            "priority": 3,
-            "category": "efficiency",
-        }
-        task = {
-            "name": "Test Task",
-            "steps": [{"task": "New step", "description": "New description"}],
-        }
-
-        result = manager.finetune_best_practice(practice, task)
+        result = manager.finetune_best_practice(sample_practice, sample_task)
 
         assert isinstance(result, dict)
 
-    def test_finetune_best_practice_with_invalid_resources(self, mock_model) -> None:
+    def test_finetune_best_practice_with_invalid_resources(
+        self, mock_model, sample_practice, sample_task
+    ) -> None:
         """Test practice refinement with invalid resource formats."""
         manager = BestPracticeManager(
             model=mock_model,
@@ -416,22 +402,7 @@ class TestBestPracticeManagerFinetuneBestPractice:
             ],
         )
 
-        practice = {
-            "practice_id": "test1",
-            "name": "Test Practice",
-            "description": "Test description",
-            "steps": [{"task": "Original step", "description": "Original description"}],
-            "rationale": "Test rationale",
-            "examples": [],
-            "priority": 3,
-            "category": "efficiency",
-        }
-        task = {
-            "name": "Test Task",
-            "steps": [{"task": "New step", "description": "New description"}],
-        }
-
-        result = manager.finetune_best_practice(practice, task)
+        result = manager.finetune_best_practice(sample_practice, sample_task)
 
         assert isinstance(result, dict)
 
@@ -733,21 +704,17 @@ class TestBestPracticeManagerOptimizePractices:
     """Test the _optimize_practices method."""
 
     def test_optimize_practices_success(
-        self, best_practice_manager, sample_practices
+        self, patched_optimize_steps, sample_practices
     ) -> None:
         """Test successful practice optimization."""
-        with patch.object(
-            best_practice_manager, "_optimize_steps"
-        ) as mock_optimize_steps:
-            mock_optimize_steps.return_value = [
-                {"task": "Optimized step", "description": "Optimized description"}
-            ]
+        manager = patched_optimize_steps["manager"]
+        mock_optimize_steps = patched_optimize_steps["mock_optimize_steps"]
 
-            result = best_practice_manager._optimize_practices(sample_practices)
+        result = manager._optimize_practices(sample_practices)
 
-            assert isinstance(result, list)
-            assert len(result) == 2
-            mock_optimize_steps.assert_called()
+        assert isinstance(result, list)
+        assert len(result) == 2
+        mock_optimize_steps.assert_called()
 
     def test_optimize_practices_with_empty_list(self, best_practice_manager) -> None:
         """Test practice optimization with empty list."""
@@ -777,15 +744,7 @@ class TestBestPracticeManagerOptimizePractices:
 
 
 class TestBestPracticeManagerOptimizeSteps:
-    def setup_method(self):
-        from arklex.orchestrator.generator.tasks.best_practice_manager import (
-            BestPracticeManager,
-        )
-        from unittest.mock import Mock
-
-        self.manager = BestPracticeManager(
-            model=Mock(), role="test_role", user_objective="test_objective"
-        )
+    """Test the _optimize_steps method."""
 
     def test_optimize_steps_success(self, best_practice_manager) -> None:
         """Test successful step optimization."""
@@ -873,8 +832,11 @@ class TestBestPracticeManagerOptimizeSteps:
         assert "description" in result[0]
         assert result[0]["description"] == "Step 1"
 
-    def test_optimize_steps_with_whitespace_description(self):
-        result = self.manager._optimize_steps(
+    def test_optimize_steps_with_whitespace_description(
+        self, best_practice_manager
+    ) -> None:
+        """Test step optimization with whitespace description."""
+        result = best_practice_manager._optimize_steps(
             [
                 {"task": "Step 1", "description": "   "},
                 {"task": "Step 2", "description": "Step 2"},
@@ -971,30 +933,17 @@ class TestBestPracticeManagerConvertToDict:
 class TestBestPracticeManagerEdgeCases:
     """Test edge cases and error conditions."""
 
-    def test_finetune_best_practice_with_exception(self, best_practice_manager) -> None:
+    def test_finetune_best_practice_with_exception(
+        self, patched_model_invoke, sample_practice, sample_task
+    ) -> None:
         """Test practice refinement with exception during optimization."""
-        practice = {
-            "practice_id": "test1",
-            "name": "Test Practice",
-            "description": "Test description",
-            "steps": [{"task": "Original step", "description": "Original description"}],
-            "rationale": "Test rationale",
-            "examples": [],
-            "priority": 3,
-            "category": "efficiency",
-        }
-        task = {
-            "name": "Test Task",
-            "steps": [{"task": "New step", "description": "New description"}],
-        }
+        manager = patched_model_invoke["manager"]
+        mock_invoke = patched_model_invoke["mock_invoke"]
+        mock_invoke.side_effect = Exception("Model error")
 
-        # Mock the model.invoke to raise an exception
-        with patch.object(best_practice_manager.model, "invoke") as mock_invoke:
-            mock_invoke.side_effect = Exception("Model error")
+        result = manager.finetune_best_practice(sample_practice, sample_task)
 
-            result = best_practice_manager.finetune_best_practice(practice, task)
-
-            assert result == practice
+        assert result == sample_practice
 
     def test_generate_practice_definitions_with_malformed_json(
         self, best_practice_manager, sample_tasks
@@ -1131,55 +1080,25 @@ class TestBestPracticeManagerEdgeCases:
         assert result is False
 
     def test_finetune_best_practice_with_model_exception(
-        self, best_practice_manager
+        self, patched_model_invoke, sample_practice, sample_task
     ) -> None:
         """Test practice refinement with model exception."""
-        practice = {
-            "practice_id": "test1",
-            "name": "Test Practice",
-            "description": "Test description",
-            "steps": [{"task": "Original step", "description": "Original description"}],
-            "rationale": "Test rationale",
-            "examples": [],
-            "priority": 3,
-            "category": "efficiency",
-        }
-        task = {
-            "name": "Test Task",
-            "steps": [{"task": "New step", "description": "New description"}],
-        }
+        manager = patched_model_invoke["manager"]
+        mock_invoke = patched_model_invoke["mock_invoke"]
+        mock_invoke.side_effect = Exception("Resource mapping error")
 
-        # Mock the model.invoke to raise an exception during resource mapping
-        with patch.object(best_practice_manager.model, "invoke") as mock_invoke:
-            mock_invoke.side_effect = Exception("Resource mapping error")
+        result = manager.finetune_best_practice(sample_practice, sample_task)
 
-            result = best_practice_manager.finetune_best_practice(practice, task)
-
-            assert result == practice
+        assert result == sample_practice
 
     def test_finetune_best_practice_with_json_parse_error(
-        self, best_practice_manager
+        self, patched_model_invoke, sample_practice, sample_task
     ) -> None:
         """Test practice refinement with JSON parse error."""
-        practice = {
-            "practice_id": "test1",
-            "name": "Test Practice",
-            "description": "Test description",
-            "steps": [{"task": "Original step", "description": "Original description"}],
-            "rationale": "Test rationale",
-            "examples": [],
-            "priority": 3,
-            "category": "efficiency",
-        }
-        task = {
-            "name": "Test Task",
-            "steps": [{"task": "New step", "description": "New description"}],
-        }
+        manager = patched_model_invoke["manager"]
+        mock_invoke = patched_model_invoke["mock_invoke"]
+        mock_invoke.return_value = Mock(content="Invalid JSON response")
 
-        # Mock the model.invoke to return invalid JSON
-        with patch.object(best_practice_manager.model, "invoke") as mock_invoke:
-            mock_invoke.return_value = Mock(content="Invalid JSON response")
+        result = manager.finetune_best_practice(sample_practice, sample_task)
 
-            result = best_practice_manager.finetune_best_practice(practice, task)
-
-            assert result == practice
+        assert result == sample_practice
