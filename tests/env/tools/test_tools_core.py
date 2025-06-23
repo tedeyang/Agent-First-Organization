@@ -40,10 +40,9 @@ def test_tool_initialization_and_get_info() -> None:
 def test_tool_init_slotfiller() -> None:
     """Test Tool.init_slotfiller sets the slotfiller attribute."""
     tool = Tool(dummy_func, "toolname", "desc", [], [], False)
-    with patch("arklex.env.tools.tools.SlotFiller") as mock_sf:
-        tool.init_slotfiller("api")
-        mock_sf.assert_called_once_with("api")
-        assert tool.slotfiller is mock_sf.return_value
+    mock_sf = Mock()
+    tool.init_slotfiller(mock_sf)
+    assert tool.slotfiller is mock_sf
 
 
 def test_tool__init_slots_populates_slots() -> None:
@@ -165,7 +164,7 @@ def test_tool_execute_slot_verification_needed() -> None:
     tool.slots = [slot]
     tool.slotfiller = Mock()
     tool.slotfiller.fill_slots.return_value = [slot]
-    tool.slotfiller.verify_needed.return_value = (True, "Need verification")
+    tool.slotfiller.verify_slot.return_value = (True, "Need verification")
     result = tool.execute(state)
     assert result.status == StatusEnum.INCOMPLETE
     assert "verification" in result.message_flow
