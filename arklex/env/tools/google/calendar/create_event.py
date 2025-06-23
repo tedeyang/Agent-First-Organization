@@ -12,6 +12,9 @@ from arklex.env.tools.google.calendar._exception_prompt import (
     GoogleCalendarExceptionPrompt,
 )
 from arklex.exceptions import AuthenticationError, ToolExecutionError
+from arklex.utils.logging_utils import LogContext
+
+log_context = LogContext(__name__)
 
 # Scopes required for accessing Google Calendar
 SCOPES: List[str] = ["https://www.googleapis.com/auth/calendar"]
@@ -26,9 +29,23 @@ slots: List[Dict[str, Any]] = [
         "required": True,
     },
     {
-        "name": "event",
-        "type": "str",
-        "description": "The purpose of the meeting. Or the summary of the conversation",
+        "name": "name",
+        "type": "string",
+        "description": "The name of the customer. Make sure to ask the user for his/her name before proceeding.",
+        "prompt": "Please provide your name",
+        "required": True,
+    },
+    {
+        "name": "description",
+        "type": "string",
+        "description": "Detailed description of the event",
+        "prompt": "Please provide your name",
+        "required": True,
+    },
+    {
+        "name": "event_name",
+        "type": "string",
+        "description": "The purpose/summary of the meeting.",
         "prompt": "",
         "required": True,
     },
@@ -64,7 +81,9 @@ SUCCESS: str = "The event has been created successfully at {start_time}. The mee
 @register_tool(description, slots, outputs)
 def create_event(
     email: str,
-    event: str,
+    name: str,
+    description: str,
+    event_name: str,
     start_time: str,
     timezone: str,
     duration: int = 30,
@@ -108,9 +127,12 @@ def create_event(
         )
 
     try:
+        if kwargs.get("phone_no_to"):
+            description += f"\nCustomer Phone number: {kwargs.get('phone_no_to')}"
+
         final_event: Dict[str, Any] = {
-            "summary": event,
-            "description": "A meeting to discuss project updates.",
+            "summary": f"{name}: {event_name}",
+            "description": description,
             "start": {
                 "dateTime": start_time,
                 "timeZone": timezone,
@@ -119,22 +141,40 @@ def create_event(
                 "dateTime": end_time,
                 "timeZone": timezone,
             },
-            "attendees": [
-                {"email": email},
-            ],
         }
+        if email is not None and kwargs.get("tool_caller") != "openai_realtime":
+            final_event["attendees"] = [{"email": email}]
 
         # Insert the event
         event: Dict[str, Any] = (
             service.events().insert(calendarId=calendar_id, body=final_event).execute()
         )
-        print("Event created: %s" % (event.get("htmlLink")))
+        log_context.info("Event created: %s" % (event.get("htmlLink")))
 
     except Exception as e:
         raise ToolExecutionError(
             func_name,
             GoogleCalendarExceptionPrompt.EVENT_CREATION_ERROR_PROMPT.format(error=e),
         )
+
+    if kwargs.get("tool_caller") == "openai_realtime":
+        log_context.info(
+            f"checking for twilio client: {kwargs.get('twilio_client')}, phone_no_to: {kwargs.get('phone_no_to')}, phone_no_from: {kwargs.get('phone_no_from')}"
+        )
+        if (
+            kwargs.get("twilio_client")
+            and kwargs.get("phone_no_to")
+            and kwargs.get("phone_no_from")
+        ):
+            twilio_client = kwargs.get("twilio_client")
+            phone_no_to = kwargs.get("phone_no_to")
+            phone_no_from = kwargs.get("phone_no_from")
+            message = twilio_client.messages.create(
+                body=f"Meeting Created\nTitle: {event_name}\nStart Time: {start_time_obj.strftime('%Y-%m-%d %H:%M')}\nLink: {event.get('htmlLink')}",
+                from_=phone_no_from,
+                to=phone_no_to,
+            )
+            log_context.info(f"Message sent: {message.sid}")
 
     # return SUCCESS.format(start_time=start_time, email=email)
     return json.dumps(event)
