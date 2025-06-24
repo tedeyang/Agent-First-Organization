@@ -67,26 +67,27 @@ class OpenAIAgent(BaseAgent):
             state.status = StatusEnum.COMPLETE
             return state
 
-        if not self.prompt:
-            prompts: Dict[str, str] = load_prompts(state.bot_config)
-            prompt: PromptTemplate = PromptTemplate.from_template(
-                prompts["function_calling_agent_prompt"]
-            )
-            input_prompt = prompt.invoke(
+        if state.status == StatusEnum.INCOMPLETE:
+            if not self.prompt:
+                prompts: Dict[str, str] = load_prompts(state.bot_config)
+                prompt: PromptTemplate = PromptTemplate.from_template(
+                    prompts["function_calling_agent_prompt"]
+                )
+                input_prompt = prompt.invoke(
+                    {
+                        "sys_instruct": state.sys_instruct,
+                        "message": orch_msg_content,
+                    }
+                )
+            else:
+                input_prompt = self.prompt
+
+            state.function_calling_trajectory.append(
                 {
-                    "sys_instruct": state.sys_instruct,
-                    "message": orch_msg_content,
+                    "role": "system",
+                    "content": input_prompt,
                 }
             )
-        else:
-            input_prompt = self.prompt
-
-        state.function_calling_trajectory.append(
-            {
-                "role": "system",
-                "content": input_prompt,
-            }
-        )
 
         logger.info(f"\n\n\nmessages: {state.function_calling_trajectory}")
 
