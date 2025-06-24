@@ -8,13 +8,21 @@ verification, and utility methods.
 import pytest
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
-from typing import Dict, Any
+from typing import Dict, Any, List
+
+from langchain_core.messages import HumanMessage, SystemMessage
 
 from arklex.orchestrator.NLU.services.model_service import (
     ModelService,
     DummyModelService,
 )
+from arklex.orchestrator.NLU.core.base import (
+    IntentResponse,
+    SlotResponse,
+    VerificationResponse,
+)
 from arklex.utils.exceptions import ValidationError, ModelError
+from arklex.utils.logging_utils import LOG_MESSAGES
 
 
 @pytest.fixture
@@ -694,3 +702,1035 @@ class TestModelServiceErrorHandling:
 
             with pytest.raises(ValidationError, match="Invalid response"):
                 await model_service.verify_slots(text, slots)
+
+
+class TestModelServiceInitializationErrors:
+    """Test ModelService initialization error scenarios."""
+
+    def test_model_service_initialization_with_exception(self) -> None:
+        """Test ModelService initialization when an exception occurs."""
+        config = {
+            "model_name": "test-model",
+            "model_type_or_path": "test-path",
+            "llm_provider": "openai",
+            "api_key": "test-key",
+            "endpoint": "http://test.com",
+        }
+
+        with patch(
+            "arklex.orchestrator.NLU.services.model_service.ModelConfig.get_model_instance",
+            side_effect=Exception("Initialization failed"),
+        ):
+            with pytest.raises(ModelError) as exc_info:
+                ModelService(config)
+
+            assert "Failed to initialize model service" in str(exc_info.value)
+
+    def test_model_service_initialization_with_api_service_exception(self) -> None:
+        """Test ModelService initialization when APIClientService fails."""
+        config = {
+            "model_name": "test-model",
+            "model_type_or_path": "test-path",
+            "llm_provider": "openai",
+            "api_key": "test-key",
+            "endpoint": "http://test.com",
+        }
+
+        with patch(
+            "arklex.orchestrator.NLU.services.model_service.APIClientService",
+            side_effect=Exception("API service failed"),
+        ):
+            with pytest.raises(ModelError) as exc_info:
+                ModelService(config)
+
+            assert "Failed to initialize model service" in str(exc_info.value)
+
+
+class TestModelServiceConfigDefaults:
+    """Test ModelService configuration default values."""
+
+    def test_validate_config_with_default_api_key(self) -> None:
+        """Test config validation when api_key is missing and defaults are used."""
+        config = {
+            "model_name": "test-model",
+            "model_type_or_path": "test-path",
+            "llm_provider": "openai",
+            "endpoint": "http://test.com",
+        }
+
+        with (
+            patch(
+                "arklex.orchestrator.NLU.services.model_service.ModelConfig.get_model_instance"
+            ) as mock_get_model,
+            patch(
+                "arklex.orchestrator.NLU.services.model_service.ModelConfig.configure_response_format"
+            ) as mock_configure,
+        ):
+            mock_model = MagicMock()
+            mock_get_model.return_value = mock_model
+            mock_configure.return_value = None
+
+            service = ModelService(config)
+
+            # Check that default api_key was added
+            assert "api_key" in service.model_config
+            assert service.model_config["api_key"] is not None
+
+    def test_validate_config_with_default_endpoint(self) -> None:
+        """Test config validation when endpoint is missing and defaults are used."""
+        config = {
+            "model_name": "test-model",
+            "model_type_or_path": "test-path",
+            "llm_provider": "openai",
+            "api_key": "test-key",
+        }
+
+        with (
+            patch(
+                "arklex.orchestrator.NLU.services.model_service.ModelConfig.get_model_instance"
+            ) as mock_get_model,
+            patch(
+                "arklex.orchestrator.NLU.services.model_service.ModelConfig.configure_response_format"
+            ) as mock_configure,
+        ):
+            mock_model = MagicMock()
+            mock_get_model.return_value = mock_model
+            mock_configure.return_value = None
+
+            service = ModelService(config)
+
+            # Check that default endpoint was added
+            assert "endpoint" in service.model_config
+            assert service.model_config["endpoint"] is not None
+
+
+class TestModelServiceProcessTextExceptions:
+    """Test ModelService process_text exception handling."""
+
+    @pytest.fixture
+    def model_service_with_mock_model(self) -> ModelService:
+        """Fixture for ModelService with mocked model."""
+        config = {
+            "model_name": "test-model",
+            "model_type_or_path": "test-path",
+            "llm_provider": "openai",
+            "api_key": "test-key",
+            "endpoint": "http://test.com",
+        }
+        with (
+            patch(
+                "arklex.orchestrator.NLU.services.model_service.ModelConfig.get_model_instance"
+            ) as mock_get_model,
+            patch(
+                "arklex.orchestrator.NLU.services.model_service.ModelConfig.configure_response_format"
+            ) as mock_configure,
+        ):
+            mock_model = MagicMock()
+            mock_model.agenerate = AsyncMock()
+            mock_get_model.return_value = mock_model
+            mock_configure.return_value = None
+            service = ModelService(config)
+            return service
+
+    @pytest.mark.asyncio
+    async def test_process_text_with_model_request_exception(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test process_text when _make_model_request raises an exception."""
+        # Mock _make_model_request to raise an exception
+        with patch.object(
+            model_service_with_mock_model,
+            "_make_model_request",
+            side_effect=Exception("Model request failed"),
+        ):
+            with pytest.raises(ModelError) as exc_info:
+                await model_service_with_mock_model.process_text("test text")
+
+            assert "Model request failed" in str(exc_info.value)
+            assert exc_info.value.details["error"] == "Model request failed"
+            assert exc_info.value.details["text"] == "test text"
+
+    @pytest.mark.asyncio
+    async def test_process_text_with_non_string_input(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test process_text with non-string input."""
+        with pytest.raises(Exception) as exc_info:
+            await model_service_with_mock_model.process_text(123)  # type: ignore
+        # Should raise ArklexError due to error handler
+        assert "ArklexError" in type(exc_info.value).__name__
+
+
+class TestModelServiceMakeModelRequestExceptions:
+    """Test ModelService _make_model_request exception handling."""
+
+    @pytest.fixture
+    def model_service_with_mock_model(self) -> ModelService:
+        """Fixture for ModelService with mocked model."""
+        config = {
+            "model_name": "test-model",
+            "model_type_or_path": "test-path",
+            "llm_provider": "openai",
+            "api_key": "test-key",
+            "endpoint": "http://test.com",
+        }
+        with (
+            patch(
+                "arklex.orchestrator.NLU.services.model_service.ModelConfig.get_model_instance"
+            ) as mock_get_model,
+            patch(
+                "arklex.orchestrator.NLU.services.model_service.ModelConfig.configure_response_format"
+            ) as mock_configure,
+        ):
+            mock_model = MagicMock()
+            mock_model.agenerate = AsyncMock()
+            mock_get_model.return_value = mock_model
+            mock_configure.return_value = None
+            service = ModelService(config)
+            # Ensure the model is properly set
+            service.model = mock_model
+            return service
+
+    @pytest.mark.asyncio
+    async def test_make_model_request_with_agenerate_exception(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test _make_model_request when agenerate raises an exception."""
+        # Mock agenerate to raise an exception
+        model_service_with_mock_model.model.agenerate.side_effect = Exception(
+            "Model generation failed"
+        )
+
+        with pytest.raises(ModelError) as exc_info:
+            await model_service_with_mock_model._make_model_request("test text")
+
+        assert "Model generation failed" in str(exc_info.value)
+        assert exc_info.value.details["error"] == "Model generation failed"
+        assert exc_info.value.details["text"] == "test text"
+
+    @pytest.mark.asyncio
+    async def test_make_model_request_with_dict_input(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test _make_model_request with dictionary input."""
+        # Mock successful response
+        mock_response = MagicMock()
+        mock_generation = MagicMock()
+        mock_generation.text = "test response"
+        mock_response.generations = [[mock_generation]]
+        model_service_with_mock_model.model.agenerate.return_value = mock_response
+
+        # Mock _format_messages
+        with patch.object(
+            model_service_with_mock_model,
+            "_format_messages",
+            return_value=[MagicMock()],
+        ):
+            result = await model_service_with_mock_model._make_model_request(
+                {
+                    "text": "test text",
+                    "context": {"key": "value"},
+                    "model": "test-model",
+                }
+            )
+
+        assert result == {"result": "test response"}
+
+
+class TestModelServiceAsyncMethods:
+    """Test ModelService async methods with comprehensive coverage."""
+
+    @pytest.fixture
+    def model_service_with_mock_model(self) -> ModelService:
+        """Fixture for ModelService with mocked model."""
+        config = {
+            "model_name": "test-model",
+            "model_type_or_path": "test-path",
+            "llm_provider": "openai",
+            "api_key": "test-key",
+            "endpoint": "http://test.com",
+        }
+        with (
+            patch(
+                "arklex.orchestrator.NLU.services.model_service.ModelConfig.get_model_instance"
+            ) as mock_get_model,
+            patch(
+                "arklex.orchestrator.NLU.services.model_service.ModelConfig.configure_response_format"
+            ) as mock_configure,
+        ):
+            mock_model = MagicMock()
+            mock_model.invoke = AsyncMock()
+            mock_get_model.return_value = mock_model
+            mock_configure.return_value = None
+            service = ModelService(config)
+            # Ensure the model is properly set
+            service.model = mock_model
+            return service
+
+    @pytest.mark.asyncio
+    async def test_predict_intent_success(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test successful intent prediction."""
+        # Mock successful response
+        mock_response = MagicMock()
+        mock_response.content = '{"intent": "test_intent", "confidence": 0.95}'
+        model_service_with_mock_model.model.invoke.return_value = mock_response
+
+        with patch(
+            "arklex.orchestrator.NLU.services.model_service.validate_intent_response",
+            return_value={"intent": "test_intent", "confidence": 0.95},
+        ):
+            result = await model_service_with_mock_model.predict_intent("test text")
+
+        assert isinstance(result, IntentResponse)
+        assert result.intent == "test_intent"
+        assert result.confidence == 0.95
+
+    @pytest.mark.asyncio
+    async def test_predict_intent_empty_response(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test intent prediction with empty response."""
+        # Mock empty response
+        mock_response = MagicMock()
+        mock_response.content = None
+        model_service_with_mock_model.model.invoke.return_value = mock_response
+
+        with pytest.raises(ModelError) as exc_info:
+            await model_service_with_mock_model.predict_intent("test text")
+
+        assert "Empty response from model" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_predict_intent_json_decode_error(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test intent prediction with JSON decode error."""
+        # Mock response with invalid JSON
+        mock_response = MagicMock()
+        mock_response.content = "invalid json"
+        model_service_with_mock_model.model.invoke.return_value = mock_response
+
+        with pytest.raises(ModelError) as exc_info:
+            await model_service_with_mock_model.predict_intent("test text")
+
+        assert "Failed to parse model response" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_predict_intent_validation_error(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test intent prediction with validation error."""
+        # Mock response with valid JSON but invalid structure
+        mock_response = MagicMock()
+        mock_response.content = '{"invalid": "structure"}'
+        model_service_with_mock_model.model.invoke.return_value = mock_response
+
+        with patch(
+            "arklex.orchestrator.NLU.services.model_service.validate_intent_response",
+            side_effect=ValidationError("Invalid structure"),
+        ):
+            with pytest.raises(ValidationError) as exc_info:
+                await model_service_with_mock_model.predict_intent("test text")
+
+            assert "Invalid intent response format" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_fill_slots_success(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test successful slot filling."""
+        # Mock successful response
+        mock_response = MagicMock()
+        mock_response.content = '{"slot": "test_slot", "value": "test_value", "confidence": 0.9, "slots": [{"name": "test_slot", "value": "test_value"}]}'
+        model_service_with_mock_model.model.invoke.return_value = mock_response
+
+        with patch(
+            "arklex.orchestrator.NLU.services.model_service.validate_slot_response",
+            return_value={
+                "slot": "test_slot",
+                "value": "test_value",
+                "confidence": 0.9,
+                "slots": [{"name": "test_slot", "value": "test_value"}],
+            },
+        ):
+            result = await model_service_with_mock_model.fill_slots(
+                "test text", "test_intent"
+            )
+
+        assert result.slot == "test_slot"
+        assert result.value == "test_value"
+        assert result.confidence == 0.9
+
+    @pytest.mark.asyncio
+    async def test_fill_slots_empty_response(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test slot filling with empty response."""
+        # Mock empty response
+        mock_response = MagicMock()
+        mock_response.content = None
+        model_service_with_mock_model.model.invoke.return_value = mock_response
+
+        with pytest.raises(ModelError) as exc_info:
+            await model_service_with_mock_model.fill_slots("test text", "test_intent")
+
+        assert "Empty response from model" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_fill_slots_json_decode_error(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test slot filling with JSON decode error."""
+        # Mock response with invalid JSON
+        mock_response = MagicMock()
+        mock_response.content = "invalid json"
+        model_service_with_mock_model.model.invoke.return_value = mock_response
+
+        with pytest.raises(ModelError) as exc_info:
+            await model_service_with_mock_model.fill_slots("test text", "test_intent")
+
+        assert "Failed to parse slot response" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_verify_slots_success(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test successful slot verification."""
+        # Mock successful response
+        mock_response = MagicMock()
+        mock_response.content = '{"slot": "test_slot", "verified": true, "verification_needed": false, "reason": "Valid"}'
+        model_service_with_mock_model.model.invoke.return_value = mock_response
+
+        with patch(
+            "arklex.orchestrator.NLU.services.model_service.validate_verification_response",
+            return_value={
+                "slot": "test_slot",
+                "verified": True,
+                "verification_needed": False,
+                "reason": "Valid",
+            },
+        ):
+            result = await model_service_with_mock_model.verify_slots(
+                "test text", {"test_slot": "test_value"}
+            )
+
+        assert result.slot == "test_slot"
+        assert result.verified is True
+        assert result.reason == "Valid"
+
+    @pytest.mark.asyncio
+    async def test_verify_slots_empty_response(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test slot verification with empty response."""
+        # Mock empty response
+        mock_response = MagicMock()
+        mock_response.content = None
+        model_service_with_mock_model.model.invoke.return_value = mock_response
+
+        with pytest.raises(ModelError) as exc_info:
+            await model_service_with_mock_model.verify_slots(
+                "test text", {"test_slot": "test_value"}
+            )
+
+        assert "Empty response from model" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_verify_slots_json_decode_error(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test slot verification with JSON decode error."""
+        # Mock response with invalid JSON
+        mock_response = MagicMock()
+        mock_response.content = "invalid json"
+        model_service_with_mock_model.model.invoke.return_value = mock_response
+
+        with pytest.raises(ModelError) as exc_info:
+            await model_service_with_mock_model.verify_slots(
+                "test text", {"test_slot": "test_value"}
+            )
+
+        assert "Failed to parse verification response" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_predict_intent_invalid_input(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test intent prediction with invalid input."""
+        with pytest.raises(ValidationError) as exc_info:
+            await model_service_with_mock_model.predict_intent("")
+
+        assert "Invalid input text" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_fill_slots_invalid_text(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test slot filling with invalid text."""
+        with pytest.raises(ValidationError) as exc_info:
+            await model_service_with_mock_model.fill_slots("", "test_intent")
+
+        assert "Invalid input text" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_fill_slots_invalid_intent(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test slot filling with invalid intent."""
+        with pytest.raises(ValidationError) as exc_info:
+            await model_service_with_mock_model.fill_slots("test text", "")
+
+        assert "Invalid intent" in str(exc_info.value)
+
+
+class TestModelServiceProcessSlotResponse:
+    """Test ModelService process_slot_response method."""
+
+    @pytest.fixture
+    def model_service(self) -> ModelService:
+        """Fixture for ModelService instance."""
+        config = {
+            "model_name": "test-model",
+            "model_type_or_path": "test-path",
+            "llm_provider": "openai",
+            "api_key": "test-key",
+            "endpoint": "http://test.com",
+        }
+        with (
+            patch(
+                "arklex.orchestrator.NLU.services.model_service.ModelConfig.get_model_instance"
+            ) as mock_get_model,
+            patch(
+                "arklex.orchestrator.NLU.services.model_service.ModelConfig.configure_response_format"
+            ) as mock_configure,
+        ):
+            mock_model = MagicMock()
+            mock_get_model.return_value = mock_model
+            mock_configure.return_value = None
+            service = ModelService(config)
+            return service
+
+    def test_process_slot_response_success(self, model_service: ModelService) -> None:
+        """Test successful slot response processing."""
+        response = '{"slot1": "value1", "slot2": "value2"}'
+        slots = [
+            {"name": "slot1", "type": "string"},
+            {"name": "slot2", "type": "string"},
+            {"name": "slot3", "type": "string"},
+        ]
+
+        result = model_service.process_slot_response(response, slots)
+
+        assert len(result) == 3
+        assert result[0]["value"] == "value1"
+        assert result[1]["value"] == "value2"
+        assert result[2]["value"] is None
+
+    def test_process_slot_response_json_decode_error(
+        self, model_service: ModelService
+    ) -> None:
+        """Test slot response processing with JSON decode error."""
+        response = "invalid json"
+        slots = [{"name": "slot1", "type": "string"}]
+
+        with pytest.raises(ValueError) as exc_info:
+            model_service.process_slot_response(response, slots)
+
+        assert "Failed to parse slot filling response" in str(exc_info.value)
+
+    def test_process_slot_response_general_exception(
+        self, model_service: ModelService
+    ) -> None:
+        """Test slot response processing with general exception."""
+        response = '{"slot1": "value1"}'
+        slots = [{"name": "slot1", "type": "string"}]
+
+        # Mock json.loads to raise a general exception
+        with patch("json.loads", side_effect=Exception("General error")):
+            with pytest.raises(ValueError) as exc_info:
+                model_service.process_slot_response(response, slots)
+
+            assert "Failed to process slot filling response" in str(exc_info.value)
+
+
+class TestModelServiceProcessVerificationResponse:
+    """Test ModelService process_verification_response method."""
+
+    @pytest.fixture
+    def model_service(self) -> ModelService:
+        """Fixture for ModelService instance."""
+        config = {
+            "model_name": "test-model",
+            "model_type_or_path": "test-path",
+            "llm_provider": "openai",
+            "api_key": "test-key",
+            "endpoint": "http://test.com",
+        }
+        with (
+            patch(
+                "arklex.orchestrator.NLU.services.model_service.ModelConfig.get_model_instance"
+            ) as mock_get_model,
+            patch(
+                "arklex.orchestrator.NLU.services.model_service.ModelConfig.configure_response_format"
+            ) as mock_configure,
+        ):
+            mock_model = MagicMock()
+            mock_get_model.return_value = mock_model
+            mock_configure.return_value = None
+            service = ModelService(config)
+            return service
+
+    def test_process_verification_response_success(
+        self, model_service: ModelService
+    ) -> None:
+        """Test successful verification response processing."""
+        response = '{"verification_needed": false, "thought": "Valid value"}'
+
+        verification_needed, thought = model_service.process_verification_response(
+            response
+        )
+
+        assert verification_needed is False
+        assert thought == "Valid value"
+
+    def test_process_verification_response_json_decode_error(
+        self, model_service: ModelService
+    ) -> None:
+        """Test verification response processing with JSON decode error."""
+        response = "invalid json"
+
+        verification_needed, thought = model_service.process_verification_response(
+            response
+        )
+
+        assert verification_needed is True
+        assert "Failed to parse verification response" in thought
+
+
+class TestDummyModelServiceExtended:
+    """Test DummyModelService extended functionality."""
+
+    @pytest.fixture
+    def dummy_model_service(self) -> DummyModelService:
+        """Fixture for DummyModelService instance."""
+        config = {
+            "model_name": "test-model",
+            "model_type_or_path": "test-path",
+            "llm_provider": "openai",
+            "api_key": "test-key",
+            "endpoint": "http://test.com",
+        }
+        with (
+            patch(
+                "arklex.orchestrator.NLU.services.model_service.ModelConfig.get_model_instance"
+            ) as mock_get_model,
+            patch(
+                "arklex.orchestrator.NLU.services.model_service.ModelConfig.configure_response_format"
+            ) as mock_configure,
+        ):
+            mock_model = MagicMock()
+            mock_get_model.return_value = mock_model
+            mock_configure.return_value = None
+            service = DummyModelService(config)
+            return service
+
+    def test_dummy_model_service_get_response_returns_mock(
+        self, dummy_model_service: DummyModelService
+    ) -> None:
+        """Test that DummyModelService.get_response returns the expected mock value."""
+        result = dummy_model_service.get_response("test prompt")
+        assert result == "1) others"
+
+    def test_dummy_model_service_get_response_with_all_parameters(
+        self, dummy_model_service: DummyModelService
+    ) -> None:
+        """Test DummyModelService.get_response with all parameters."""
+        result = dummy_model_service.get_response(
+            prompt="test prompt",
+            model_config={"test": "config"},
+            system_prompt="test system",
+            response_format="json",
+            note="test note",
+        )
+        assert result == "1) others"
+
+    def test_dummy_model_service_process_slot_response_calls_super(
+        self, dummy_model_service: DummyModelService
+    ) -> None:
+        """Test that DummyModelService.process_slot_response calls super method."""
+        response = '{"slot1": "value1"}'
+        slots = [{"name": "slot1", "type": "string"}]
+
+        result = dummy_model_service.process_slot_response(response, slots)
+
+        assert len(result) == 1
+        assert result[0]["value"] == "value1"
+
+    def test_dummy_model_service_format_verification_input_calls_super(
+        self, dummy_model_service: DummyModelService
+    ) -> None:
+        """Test that DummyModelService.format_verification_input calls super method."""
+        slot = {
+            "name": "test_slot",
+            "value": "test_value",
+            "description": "Test slot description",
+        }
+        chat_history = "test history"
+
+        result = dummy_model_service.format_verification_input(slot, chat_history)
+
+        # Should return a string (from the formatter)
+        assert isinstance(result, str)
+
+    def test_dummy_model_service_process_verification_response_calls_super(
+        self, dummy_model_service: DummyModelService
+    ) -> None:
+        """Test that DummyModelService.process_verification_response calls super method."""
+        response = '{"verification_needed": true, "thought": "Needs verification"}'
+
+        verification_needed, thought = (
+            dummy_model_service.process_verification_response(response)
+        )
+
+        assert verification_needed is True
+        assert thought == "Needs verification"
+
+
+class TestModelServiceFormatMessages:
+    """Test ModelService _format_messages method."""
+
+    @pytest.fixture
+    def model_service(self) -> ModelService:
+        """Fixture for ModelService instance."""
+        config = {
+            "model_name": "test-model",
+            "model_type_or_path": "test-path",
+            "llm_provider": "openai",
+            "api_key": "test-key",
+            "endpoint": "http://test.com",
+        }
+        with (
+            patch(
+                "arklex.orchestrator.NLU.services.model_service.ModelConfig.get_model_instance"
+            ) as mock_get_model,
+            patch(
+                "arklex.orchestrator.NLU.services.model_service.ModelConfig.configure_response_format"
+            ) as mock_configure,
+        ):
+            mock_model = MagicMock()
+            mock_get_model.return_value = mock_model
+            mock_configure.return_value = None
+            service = ModelService(config)
+            return service
+
+    def test_format_messages_with_context(self, model_service: ModelService) -> None:
+        """Test _format_messages with context."""
+        prompt = "test prompt"
+        context = {"key": "value"}
+
+        messages = model_service._format_messages(prompt, context)
+
+        assert len(messages) == 2
+        assert isinstance(messages[0], SystemMessage)
+        assert isinstance(messages[1], HumanMessage)
+        assert 'Context: {"key": "value"}' in messages[0].content
+        assert prompt in messages[1].content
+
+    def test_format_messages_without_context(self, model_service: ModelService) -> None:
+        """Test _format_messages without context."""
+        prompt = "test prompt"
+
+        messages = model_service._format_messages(prompt)
+
+        assert len(messages) == 1
+        assert isinstance(messages[0], HumanMessage)
+        assert prompt in messages[0].content
+
+
+class TestModelServiceFormatIntentInput:
+    """Test ModelService format_intent_input method."""
+
+    @pytest.fixture
+    def model_service(self) -> ModelService:
+        """Fixture for ModelService instance."""
+        config = {
+            "model_name": "test-model",
+            "model_type_or_path": "test-path",
+            "llm_provider": "openai",
+            "api_key": "test-key",
+            "endpoint": "http://test.com",
+        }
+        with (
+            patch(
+                "arklex.orchestrator.NLU.services.model_service.ModelConfig.get_model_instance"
+            ) as mock_get_model,
+            patch(
+                "arklex.orchestrator.NLU.services.model_service.ModelConfig.configure_response_format"
+            ) as mock_configure,
+        ):
+            mock_model = MagicMock()
+            mock_get_model.return_value = mock_model
+            mock_configure.return_value = None
+            service = ModelService(config)
+            return service
+
+    def test_format_intent_input_with_complex_intents(
+        self, model_service: ModelService
+    ) -> None:
+        """Test format_intent_input with complex intent structure."""
+        intents = {
+            "intent1": [
+                {"definition": "Test intent 1", "exemplars": ["example 1", "example 2"]}
+            ],
+            "intent2": [{"definition": "Test intent 2", "exemplars": ["example 3"]}],
+        }
+        chat_history = "test history"
+
+        prompt, mapping = model_service.format_intent_input(intents, chat_history)
+
+        assert isinstance(prompt, str)
+        assert isinstance(mapping, dict)
+        assert "intent1" in prompt
+        assert "intent2" in prompt
+        assert "test history" in prompt
+        assert len(mapping) == 2
+
+    def test_format_intent_input_with_empty_intents(
+        self, model_service: ModelService
+    ) -> None:
+        """Test format_intent_input with empty intents."""
+        intents = {}
+        chat_history = "test history"
+
+        prompt, mapping = model_service.format_intent_input(intents, chat_history)
+
+        assert isinstance(prompt, str)
+        assert isinstance(mapping, dict)
+        assert len(mapping) == 0
+
+
+class TestModelServiceFormatSlotInput:
+    """Test ModelService format_slot_input method."""
+
+    @pytest.fixture
+    def model_service(self) -> ModelService:
+        """Fixture for ModelService instance."""
+        config = {
+            "model_name": "test-model",
+            "model_type_or_path": "test-path",
+            "llm_provider": "openai",
+            "api_key": "test-key",
+            "endpoint": "http://test.com",
+        }
+        with (
+            patch(
+                "arklex.orchestrator.NLU.services.model_service.ModelConfig.get_model_instance"
+            ) as mock_get_model,
+            patch(
+                "arklex.orchestrator.NLU.services.model_service.ModelConfig.configure_response_format"
+            ) as mock_configure,
+        ):
+            mock_model = MagicMock()
+            mock_get_model.return_value = mock_model
+            mock_configure.return_value = None
+            service = ModelService(config)
+            return service
+
+    def test_format_slot_input_with_enum_values(
+        self, model_service: ModelService
+    ) -> None:
+        """Test format_slot_input with slots that have enum values."""
+        slots = [
+            {
+                "name": "test_slot",
+                "type": "string",
+                "required": True,
+                "description": "Test slot",
+                "items": {"enum": ["value1", "value2", "value3"]},
+            }
+        ]
+        context = "test context"
+
+        user_prompt, system_prompt = model_service.format_slot_input(slots, context)
+
+        assert isinstance(user_prompt, str)
+        assert isinstance(system_prompt, str)
+        assert "test_slot" in user_prompt
+        assert "value1, value2, value3" in user_prompt
+        assert "slot filling assistant" in system_prompt
+
+    def test_format_slot_input_with_dict_items(
+        self, model_service: ModelService
+    ) -> None:
+        """Test format_slot_input with dict items."""
+        slots = [
+            {
+                "name": "test_slot",
+                "type": "string",
+                "required": True,
+                "description": "Test slot",
+                "items": {"enum": ["value1", "value2"]},
+            }
+        ]
+        context = "test context"
+
+        user_prompt, system_prompt = model_service.format_slot_input(slots, context)
+
+        assert "value1, value2" in user_prompt
+
+    def test_format_slot_input_with_object_items(
+        self, model_service: ModelService
+    ) -> None:
+        """Test format_slot_input with object items."""
+        # Create a mock object with enum attribute
+        mock_items = MagicMock()
+        mock_items.enum = ["value1", "value2"]
+
+        slots = [
+            {
+                "name": "test_slot",
+                "type": "string",
+                "required": True,
+                "description": "Test slot",
+                "items": mock_items,
+            }
+        ]
+        context = "test context"
+
+        user_prompt, system_prompt = model_service.format_slot_input(slots, context)
+
+        assert "value1, value2" in user_prompt
+
+    def test_format_slot_input_without_enum_values(
+        self, model_service: ModelService
+    ) -> None:
+        """Test format_slot_input with slots without enum values."""
+        slots = [
+            {
+                "name": "test_slot",
+                "type": "string",
+                "required": True,
+                "description": "Test slot",
+            }
+        ]
+        context = "test context"
+
+        user_prompt, system_prompt = model_service.format_slot_input(slots, context)
+
+        assert "test_slot" in user_prompt
+        assert "Possible values:" not in user_prompt
+
+
+class TestModelServiceProcessSlotResponseWithPydantic:
+    """Test ModelService process_slot_response with Pydantic models."""
+
+    @pytest.fixture
+    def model_service(self) -> ModelService:
+        """Fixture for ModelService instance."""
+        config = {
+            "model_name": "test-model",
+            "model_type_or_path": "test-path",
+            "llm_provider": "openai",
+            "api_key": "test-key",
+            "endpoint": "http://test.com",
+        }
+        with (
+            patch(
+                "arklex.orchestrator.NLU.services.model_service.ModelConfig.get_model_instance"
+            ) as mock_get_model,
+            patch(
+                "arklex.orchestrator.NLU.services.model_service.ModelConfig.configure_response_format"
+            ) as mock_configure,
+        ):
+            mock_model = MagicMock()
+            mock_get_model.return_value = mock_model
+            mock_configure.return_value = None
+            service = ModelService(config)
+            return service
+
+    def test_process_slot_response_with_pydantic_models(
+        self, model_service: ModelService
+    ) -> None:
+        """Test process_slot_response with Pydantic model slots."""
+        response = '{"slot1": "value1", "slot2": "value2"}'
+
+        # Create mock Pydantic-like objects
+        slot1 = MagicMock()
+        slot1.name = "slot1"
+        slot2 = MagicMock()
+        slot2.name = "slot2"
+        slot3 = MagicMock()
+        slot3.name = "slot3"
+
+        slots = [slot1, slot2, slot3]
+
+        result = model_service.process_slot_response(response, slots)
+
+        assert len(result) == 3
+        assert result[0].value == "value1"
+        assert result[1].value == "value2"
+        assert result[2].value is None
+
+    def test_process_slot_response_with_mixed_types(
+        self, model_service: ModelService
+    ) -> None:
+        """Test process_slot_response with mixed dict and Pydantic model slots."""
+        response = '{"slot1": "value1", "slot2": "value2"}'
+
+        slot1 = {"name": "slot1", "type": "string"}
+        slot2 = MagicMock()
+        slot2.name = "slot2"
+
+        slots = [slot1, slot2]
+
+        result = model_service.process_slot_response(response, slots)
+
+        assert len(result) == 2
+        assert result[0]["value"] == "value1"
+        assert result[1].value == "value2"
+
+
+class TestModelServiceFormatVerificationInput:
+    """Test ModelService format_verification_input method."""
+
+    @pytest.fixture
+    def model_service(self) -> ModelService:
+        """Fixture for ModelService instance."""
+        config = {
+            "model_name": "test-model",
+            "model_type_or_path": "test-path",
+            "llm_provider": "openai",
+            "api_key": "test-key",
+            "endpoint": "http://test.com",
+        }
+        with (
+            patch(
+                "arklex.orchestrator.NLU.services.model_service.ModelConfig.get_model_instance"
+            ) as mock_get_model,
+            patch(
+                "arklex.orchestrator.NLU.services.model_service.ModelConfig.configure_response_format"
+            ) as mock_configure,
+        ):
+            mock_model = MagicMock()
+            mock_get_model.return_value = mock_model
+            mock_configure.return_value = None
+            service = ModelService(config)
+            return service
+
+    def test_format_verification_input_calls_formatter(
+        self, model_service: ModelService
+    ) -> None:
+        """Test that format_verification_input calls the formatter function."""
+        slot = {"name": "test_slot", "value": "test_value"}
+        chat_history = "test history"
+
+        with patch(
+            "arklex.orchestrator.NLU.services.model_service.format_verification_input_formatter",
+            return_value="formatted verification input",
+        ) as mock_formatter:
+            result = model_service.format_verification_input(slot, chat_history)
+
+            mock_formatter.assert_called_once_with(slot, chat_history)
+            assert result == "formatted verification input"
