@@ -4,6 +4,13 @@ import traceback
 from functools import partial
 from typing import Any, Dict, Optional
 
+from langchain.prompts import PromptTemplate
+from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.output_parsers import StrOutputParser
+from langchain_openai import ChatOpenAI
+from langgraph.graph import START, StateGraph
+
 from arklex.env.agents.agent import BaseAgent, register_agent
 from arklex.env.prompts import load_prompts
 from arklex.env.tools.tools import register_tool
@@ -13,12 +20,6 @@ from arklex.utils.graph_state import BotConfig, MessageState, StatusEnum
 from arklex.utils.model_config import MODEL
 from arklex.utils.model_provider_config import PROVIDER_MAP
 from arklex.utils.utils import chunk_string
-from langchain.prompts import PromptTemplate
-from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
-from langchain_core.output_parsers import StrOutputParser
-from langchain_openai import ChatOpenAI
-from langgraph.graph import START, StateGraph
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,7 @@ logger = logging.getLogger(__name__)
 def end_conversation(state: MessageState) -> MessageState:
     logger.info("Ending the conversation.")
     state.response = "Thank you for using Arklex. Goodbye!"
+    state.status = StatusEnum.COMPLETE
     return state
 
 
@@ -63,8 +65,8 @@ class OpenAIAgent(BaseAgent):
         end_conversation_tool_def["function"]["name"] = "end_conversation"
         self.tool_defs.append(end_conversation_tool_def)
         self.tool_map["end_conversation"] = end_conversation_tool.func
+        self.tool_args["end_conversation"] = {"agent": self}
 
-        self.messages: list = []
         prompts: Dict[str, str] = load_prompts(state.bot_config)
         orchestrator_message = state.orchestrator_message
         orch_msg_content: str = (
@@ -79,10 +81,10 @@ class OpenAIAgent(BaseAgent):
                 "message": orch_msg_content,
             }
         )
-        self.messages.append(
+        state.function_calling_trajectory.append(
             SystemMessage(
                 content=input_prompt.text,
-            )
+            ).model_dump()
         )
 
         logger.info(f"OpenAIAgent initialized with {len(self.tool_defs)} tools.")
@@ -90,7 +92,7 @@ class OpenAIAgent(BaseAgent):
     def generate(self, state: MessageState) -> MessageState:
         logger.info("\nGenerating response using the agent.")
 
-        logger.info(f"\n\n\nmessages: {self.messages}")
+        logger.info(f"\n\n\nmessages: {state.function_calling_trajectory}")
 
         orchestrator_message = state.orchestrator_message
         orch_msg_content: str = (
@@ -112,21 +114,21 @@ class OpenAIAgent(BaseAgent):
                 "message": orch_msg_content,
             }
         )
-        self.messages.append(
+        state.function_calling_trajectory.append(
             SystemMessage(
                 content=input_prompt.text,
-            )
+            ).model_dump()
         )
 
         user_message = state.user_message
-        self.messages.append(
+        state.function_calling_trajectory.append(
             HumanMessage(
                 content=user_message.message,
-            )
+            ).model_dump()
         )
 
         final_chain = self.llm
-        ai_message: AIMessage = final_chain.invoke(self.messages)
+        ai_message: AIMessage = final_chain.invoke(state.function_calling_trajectory)
 
         logger.info(f"Generated answer: {ai_message}")
 
@@ -135,25 +137,25 @@ class OpenAIAgent(BaseAgent):
             for tool_call in ai_message.tool_calls:
                 tool_name = tool_call.get("name")
                 if tool_name in self.tool_map:
-                    self.messages.append(
+                    state.function_calling_trajectory.append(
                         AIMessage(
                             content=f"Calling tool: {tool_name}",
                             tool_calls=[tool_call],
-                        )
+                        ).model_dump()
                     )
                     tool_response = self.tool_map[tool_name](
                         state=state,
                         **tool_call.get("args"),
                         **self.tool_args.get(tool_name, {}),
                     )
-                    self.messages.append(
+                    state.function_calling_trajectory.append(
                         ToolMessage(
                             name=tool_name,
                             content=json.dumps(tool_response),
                             tool_call_id=tool_call.get("id"),
-                        )
+                        ).model_dump()
                     )
-                    ai_message = final_chain.invoke(self.messages)
+                    ai_message = final_chain.invoke(state.function_calling_trajectory)
                     state.response = ai_message.content
                 else:
                     logger.warning(f"Tool {tool_name} not found in tool map.")
@@ -178,18 +180,3 @@ class OpenAIAgent(BaseAgent):
         graph = self.action_graph.compile()
         result: Dict[str, Any] = graph.invoke(msg_state)
         return result
-
-    def execute(self, msg_state: MessageState, **kwargs: Any) -> MessageState:
-        try:
-            response_return: Dict[str, Any] = self._execute(msg_state, **kwargs)
-            response_state: MessageState = MessageState.model_validate(response_return)
-            response_state.trajectory[-1][-1].output = (
-                response_state.response
-                if response_state.response
-                else response_state.message_flow
-            )
-            return response_state
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            msg_state.status = StatusEnum.INCOMPLETE
-            return msg_state
