@@ -42,57 +42,18 @@ class OpenAIAgent(BaseAgent):
         super().__init__()
         self.action_graph: StateGraph = self._create_action_graph()
         self.llm: Optional[BaseChatModel] = None
-
-        self.available_tools: dict[str, Any] = {}
-
-        for node in successors + predecessors:
-            if node.resource_id in tools:
-                self.available_tools[node.resource_id] = tools[node.resource_id]
-
+        self.available_tools: Dict[str, Dict[str, Any]] = {}
         self.tool_map = {}
         self.tool_defs = []
         self.tool_args: Dict[str, Any] = {}
 
-        for tool_id, tool in self.available_tools.items():
-            tool_object = tool["execute"]()
-            tool_def = tool_object.to_openai_tool_def_v2()
-            self.tool_defs.append(tool_object.to_openai_tool_def_v2())
-            self.tool_map[tool_def["function"]["name"]] = tool_object.func
-            self.tool_args[tool_def["function"]["name"]] = tool["fixed_args"]
-
-        end_conversation_tool = end_conversation()
-        end_conversation_tool_def = end_conversation_tool.to_openai_tool_def_v2()
-        end_conversation_tool_def["function"]["name"] = "end_conversation"
-        self.tool_defs.append(end_conversation_tool_def)
-        self.tool_map["end_conversation"] = end_conversation_tool.func
-        self.tool_args["end_conversation"] = {"agent": self}
-
-        prompts: Dict[str, str] = load_prompts(state.bot_config)
-        orchestrator_message = state.orchestrator_message
-        orch_msg_content: str = (
-            "None" if not orchestrator_message.message else orchestrator_message.message
-        )
-        prompt: PromptTemplate = PromptTemplate.from_template(
-            prompts["function_calling_agent_prompt"]
-        )
-        input_prompt = prompt.invoke(
-            {
-                "sys_instruct": state.sys_instruct,
-                "message": orch_msg_content,
-            }
-        )
-        state.function_calling_trajectory.append(
-            SystemMessage(
-                content=input_prompt.text,
-            ).model_dump()
-        )
+        self._load_tools(successors=successors, predecessors=predecessors, tools=tools)
+        self._configure_tools()
 
         logger.info(f"OpenAIAgent initialized with {len(self.tool_defs)} tools.")
 
     def generate(self, state: MessageState) -> MessageState:
         logger.info("\nGenerating response using the agent.")
-
-        logger.info(f"\n\n\nmessages: {state.function_calling_trajectory}")
 
         orchestrator_message = state.orchestrator_message
         orch_msg_content: str = (
@@ -103,29 +64,31 @@ class OpenAIAgent(BaseAgent):
         if direct_response:
             state.message_flow = ""
             state.response = orch_msg_content
+            state.status = StatusEnum.COMPLETE
             return state
-        prompts: Dict[str, str] = load_prompts(state.bot_config)
-        prompt: PromptTemplate = PromptTemplate.from_template(
-            prompts["function_calling_agent_prompt"]
-        )
-        input_prompt = prompt.invoke(
+
+        if not self.prompt:
+            prompts: Dict[str, str] = load_prompts(state.bot_config)
+            prompt: PromptTemplate = PromptTemplate.from_template(
+                prompts["function_calling_agent_prompt"]
+            )
+            input_prompt = prompt.invoke(
+                {
+                    "sys_instruct": state.sys_instruct,
+                    "message": orch_msg_content,
+                }
+            )
+        else:
+            input_prompt = self.prompt
+
+        state.function_calling_trajectory.append(
             {
-                "sys_instruct": state.sys_instruct,
-                "message": orch_msg_content,
+                "role": "system",
+                "content": input_prompt,
             }
         )
-        state.function_calling_trajectory.append(
-            SystemMessage(
-                content=input_prompt.text,
-            ).model_dump()
-        )
 
-        user_message = state.user_message
-        state.function_calling_trajectory.append(
-            HumanMessage(
-                content=user_message.message,
-            ).model_dump()
-        )
+        logger.info(f"\n\n\nmessages: {state.function_calling_trajectory}")
 
         final_chain = self.llm
         ai_message: AIMessage = final_chain.invoke(state.function_calling_trajectory)
@@ -163,6 +126,7 @@ class OpenAIAgent(BaseAgent):
             state.message_flow = ""
             state.response = ai_message.content
             state = trace(input=ai_message.content, state=state)
+        state.status = StatusEnum.STAY
         return state
 
     def _create_action_graph(self) -> StateGraph:
@@ -177,6 +141,37 @@ class OpenAIAgent(BaseAgent):
             msg_state.bot_config.llm_config.llm_provider, ChatOpenAI
         )(model=msg_state.bot_config.llm_config.model_type_or_path)
         self.llm = self.llm.bind_tools(self.tool_defs)
+        self.prompt: str = kwargs.get("prompt", "")
         graph = self.action_graph.compile()
         result: Dict[str, Any] = graph.invoke(msg_state)
         return result
+
+    def _load_tools(self, successors: list, predecessors: list, tools: list) -> None:
+        """
+        Load tools for the agent.
+        This method is called during the initialization of the agent.
+        """
+        # Tools are already loaded in the constructor, so this method can be empty.
+
+        for node in successors + predecessors:
+            if node.resource_id in tools:
+                self.available_tools[node.resource_id] = tools[node.resource_id]
+
+    def _configure_tools(self) -> None:
+        """
+        Configure tools for the agent.
+        This method is called during the initialization of the agent.
+        """
+        for tool_id, tool in self.available_tools.items():
+            tool_object = tool["execute"]()
+            tool_def = tool_object.to_openai_tool_def_v2()
+            self.tool_defs.append(tool_object.to_openai_tool_def_v2())
+            self.tool_map[tool_def["function"]["name"]] = tool_object.func
+            self.tool_args[tool_def["function"]["name"]] = tool["fixed_args"]
+
+        end_conversation_tool = end_conversation()
+        end_conversation_tool_def = end_conversation_tool.to_openai_tool_def_v2()
+        end_conversation_tool_def["function"]["name"] = "end_conversation"
+        self.tool_defs.append(end_conversation_tool_def)
+        self.tool_map["end_conversation"] = end_conversation_tool.func
+        self.tool_args["end_conversation"] = {"agent": self}
