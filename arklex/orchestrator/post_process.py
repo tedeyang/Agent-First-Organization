@@ -155,22 +155,25 @@ def _live_chat_verifier(message_state: MessageState, params: Params) -> None:
     num_of_docs = 0
     rag_confidence_threshold = 0.0
 
-    for resource in message_state.trajectory[-1]:
-        rag_step_type = RAG_NODES_STEPS.get(resource.info.get("id"))
-        if rag_step_type:
-            for step in resource.steps:
-                try:
-                    if rag_step_type in step:
-                        rag_confidence_threshold = RAG_CONFIDENCE_THRESHOLD.get(
-                            resource.info.get("id")
+    if len(message_state.trajectory) >= 2:
+        for resource in message_state.trajectory[-2]:
+            rag_step_type = RAG_NODES_STEPS.get(resource.info.get("id"))
+            if rag_step_type:
+                for step in resource.steps:
+                    try:
+                        if rag_step_type in step:
+                            rag_confidence_threshold = RAG_CONFIDENCE_THRESHOLD.get(
+                                resource.info.get("id")
+                            )
+                            confidence, docs = _extract_confidence_from_nested_dict(
+                                step
+                            )
+                            rag_confidence += confidence
+                            num_of_docs += docs
+                    except Exception as e:
+                        log_context.warning(
+                            f"Error extracting confidence from step: {e} — step: {step}"
                         )
-                        confidence, docs = _extract_confidence_from_nested_dict(step)
-                        rag_confidence += confidence
-                        num_of_docs += docs
-                except Exception as e:
-                    log_context.warning(
-                        f"Error extracting confidence from step: {e} — step: {step}"
-                    )
     try:
         rag_avg_confidence = rag_confidence / num_of_docs
     except ZeroDivisionError:
