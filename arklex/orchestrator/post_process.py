@@ -28,7 +28,7 @@ TRIGGER_LIVE_CHAT_PROMPT = "Sorry, I'm not certain about the answer, would you l
 
 
 def post_process_response(
-    message_state: MessageState, params: Params, hitl_worker_available: bool
+    message_state: MessageState, params: Params, hitl_worker_enabled: bool
 ) -> MessageState:
     context_links = _build_context(message_state)
     response_links = _extract_links(message_state.response)
@@ -42,7 +42,7 @@ def post_process_response(
         )
         message_state.response = _rephrase_answer(message_state)
 
-    if hitl_worker_available and not message_state.metadata.hitl:
+    if hitl_worker_enabled and not message_state.metadata.hitl:
         _live_chat_verifier(message_state, params)
 
     return message_state
