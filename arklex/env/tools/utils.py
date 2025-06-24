@@ -227,7 +227,7 @@ def generate_multi_slot_cohesive_response(
                 card_list.extend(data["card_list"])
         except json.JSONDecodeError as e:
             print(f"Skipping invalid JSON object: {e}")
-
+    card_list = dedupe_ordered(card_list)
     llm = PROVIDER_MAP.get(llm_config["llm_provider"], ChatOpenAI)(
         model=llm_config["model_type_or_path"], temperature=0.7
     )
@@ -239,3 +239,14 @@ def generate_multi_slot_cohesive_response(
     ]
     answer = llm.invoke(message).content
     return json.dumps({"answer": answer, "card_list": card_list})
+
+
+def dedupe_ordered(items: list) -> list:
+    seen = set()
+    unique = []
+    for item in items:
+        key = json.dumps(item, sort_keys=True)
+        if key not in seen:
+            seen.add(key)
+            unique.append(item)
+    return unique

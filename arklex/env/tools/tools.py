@@ -222,7 +222,6 @@ class Tool:
         self._init_slots(state)
         # do slotfilling
         chat_history_str: str = format_chat_history(state.function_calling_trajectory)
-
         slots: List[Slot] = self.slotfiller.fill_slots(
             self.slots, chat_history_str, self.llm_config
         )
@@ -266,17 +265,6 @@ class Tool:
         all_responses: List = []
         if not missing_required:
             log_context.info("all required slots filled")
-            # Get all slot values, including optional ones that have values
-            kwargs: Dict[str, Any] = {}
-            for slot in slots:
-                # Always include the slot value, even if None
-                kwargs[slot.name] = slot.value if slot.value is not None else ""
-
-            combined_kwargs: Dict[str, Any] = {
-                **kwargs,
-                **fixed_args,
-                **self.llm_config,
-            }
             try:
                 sig = inspect.signature(self.func)
                 required_args = [
@@ -299,47 +287,10 @@ class Tool:
                     StatusEnum.COMPLETE if tool_success else StatusEnum.INCOMPLETE
                 )
 
-                response = self.func(**combined_kwargs)
-                tool_success = True
-            except ToolExecutionError as tee:
-                log_context.error(traceback.format_exc())
-                response = tee.extra_message
-            except AuthenticationError as ae:
-                log_context.error(traceback.format_exc())
-                response = str(ae)
             except Exception as e:
                 log_context.error(traceback.format_exc())
                 response = str(e)
-            log_context.info(f"Tool {self.name} response: {response}")
-            call_id: str = str(uuid.uuid4())
-            state.function_calling_trajectory.append(
-                {
-                    "content": None,
-                    "role": "assistant",
-                    "tool_calls": [
-                        {
-                            "function": {
-                                "arguments": json.dumps(kwargs),
-                                "name": self.name,
-                            },
-                            "id": call_id,
-                            "type": "function",
-                        }
-                    ],
-                    "function_call": None,
-                }
-            )
-            state.function_calling_trajectory.append(
-                {
-                    "role": "tool",
-                    "tool_call_id": call_id,
-                    "name": self.name,
-                    "content": response,
-                }
-            )
-            state.status = (
-                StatusEnum.COMPLETE if tool_success else StatusEnum.INCOMPLETE
-            )
+                state.status = StatusEnum.INCOMPLETE
 
         state.trajectory[-1][-1].input = slots
         state.trajectory[-1][-1].output = response

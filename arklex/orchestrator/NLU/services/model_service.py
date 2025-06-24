@@ -776,8 +776,10 @@ class ModelService:
             messages.append(HumanMessage(content=prompt))
 
             # Get response from model
+            if response_format == "json_object":
+                self.model.kwargs["response_format"]["type"] = response_format
             response = self.model.invoke(messages)
-
+            self.model.kwargs["response_format"]["type"] = "text"
             if not response or not response.content:
                 raise ValueError("Empty response from model")
 
@@ -924,9 +926,10 @@ Please choose the most appropriate intent by providing the corresponding intent 
         # Create the prompts
         system_prompt = (
             "You are a slot-filling assistant. "
-            "Your task is to extract specific information from the given context based on the slot definitions. "
-            " If the user lists multiple items, return them as a list under the appropriate slot. "
-            "Return the extracted values in JSON format only without any markdown formatting or code blocks."
+            "Your task is to extract specific information from the user's input according to defined slots. "
+            "If multiple items are mentioned for the same slot, return them as a list. "
+            'For example, if the user says \'recommend hats and pillows\', extract: {"product_query": ["hats", "pillows"]}. '
+            'If only one item is mentioned, such as \'recommend pillows\', extract: {"product_query": "pillows"}. '
         )
 
         user_prompt = (
