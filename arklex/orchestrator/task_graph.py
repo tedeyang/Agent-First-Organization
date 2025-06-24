@@ -47,7 +47,6 @@ from typing import Any, DefaultDict, Dict, List, Optional, Tuple, Union
 
 import networkx as nx
 import numpy as np
-
 from arklex.env.nested_graph.nested_graph import NestedGraph
 from arklex.orchestrator.NLU.core.intent import IntentDetector
 from arklex.orchestrator.NLU.core.slot import SlotFiller
@@ -293,6 +292,7 @@ class TaskGraph(TaskGraphBase):
                     self._build_neighbor_node_info(pred)
                     for pred in self.graph.predecessors(sample_node)
                 ],
+                "prompt": node_info["attribute"].get("prompt", ""),
                 "tags": node_info["attribute"].get("tags", {}),
                 **{
                     k2: v2
