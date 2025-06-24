@@ -92,12 +92,9 @@ class BaseAgent(ABC):
                 if response_state.response
                 else response_state.message_flow
             )
-            if response_state.status == StatusEnum.INCOMPLETE:
-                response_state.status = StatusEnum.COMPLETE
             return response_state
         except Exception as e:
             logger.error(traceback.format_exc())
-            msg_state.status = StatusEnum.INCOMPLETE
             return msg_state
 
     def complete_state(self, msg_state: MessageState, **kwargs: Any) -> MessageState:
