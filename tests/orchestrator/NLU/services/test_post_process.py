@@ -62,7 +62,7 @@ class TestPostProcessResponse:
                 return_value={"https://example.com", "https://test.com"},
             ),
         ):
-            result = post_process_response(mock_message_state, mock_params, True)
+            result = post_process_response(mock_message_state, mock_params, True, True)
 
             assert result == mock_message_state
             assert result.response == mock_message_state.response  # No changes
@@ -91,7 +91,7 @@ class TestPostProcessResponse:
                 return_value="Rephrased response",
             ),
         ):
-            result = post_process_response(mock_message_state, mock_params, True)
+            result = post_process_response(mock_message_state, mock_params, True, True)
 
             assert result == mock_message_state
             assert result.response == "Rephrased response"
@@ -123,7 +123,9 @@ class TestPostProcessResponse:
                 return_value="Rephrased response",
             ),
         ):
-            result = post_process_response(mock_message_state, mock_params, False)
+            result = post_process_response(
+                mock_message_state, mock_params, False, False
+            )
 
             assert result == mock_message_state
             assert result.response == "Rephrased response"

@@ -163,6 +163,7 @@ class TestAgentOrgInitialization:
         assert hasattr(agent, "llm")
         assert hasattr(agent, "task_graph")
         assert agent.hitl_proposal_enabled is False
+        assert agent.hitl_worker_available is False
 
     def test_init_with_dict_no_env(self, basic_config) -> None:
         """Test initialization with dictionary config and no environment."""

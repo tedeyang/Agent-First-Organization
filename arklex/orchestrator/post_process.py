@@ -28,7 +28,10 @@ TRIGGER_LIVE_CHAT_PROMPT = "Sorry, I'm not certain about the answer, would you l
 
 
 def post_process_response(
-    message_state: MessageState, params: Params, hitl_proposal_enabled: bool
+    message_state: MessageState,
+    params: Params,
+    hitl_worker_available: bool,
+    hitl_proposal_enabled: bool,
 ) -> MessageState:
     """
     Post-processes the chatbot's response to ensure content quality and determine whether human takeover is needed.
@@ -42,6 +45,7 @@ def post_process_response(
     Args:
         message_state (MessageState): Current state of the conversation including response, context, and metadata.
         params (Params): Additional configuration and NLU metadata.
+        hitl_worker_available (bool): Flag indicating whether HITL worker is available
         hitl_proposal_enabled (bool): Flag indicating whether proactive HITL (human-in-the-loop) routing is allowed.
 
     Returns:
@@ -60,7 +64,11 @@ def post_process_response(
         )
         message_state.response = _rephrase_answer(message_state)
 
-    if hitl_proposal_enabled and not message_state.metadata.hitl:
+    if (
+        hitl_worker_available
+        and hitl_proposal_enabled
+        and not message_state.metadata.hitl
+    ):
         _live_chat_verifier(message_state, params)
 
     return message_state

@@ -334,9 +334,8 @@ class HITLWorkerMCFlag(HITLWorker):
         },
     }
 
-    def verify_literal(self, message: str) -> Tuple[bool, str]:
-        message: str = "I'll connect you to a representative!"
-        return True, message
+    def verify_literal(self, message: str) -> bool:
+        return "buy" in message
 
     def _execute(self, state: MessageState, **kwargs: Any) -> MessageState:
         if not state.metadata.hitl:
@@ -350,7 +349,7 @@ class HITLWorkerMCFlag(HITLWorker):
                 "[[sending confirmation : this should not show up for user]]"
             )
             state.metadata.hitl = "mc"
-            # state.metadata.attempts = self.params.get("max_retries", 3)
+            state.metadata.attempts = self.params.get("max_retries", 3)
             state.status = StatusEnum.STAY
 
         else:
