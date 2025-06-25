@@ -79,17 +79,17 @@ class OpenAIAgent(BaseAgent):
                         "message": orch_msg_content,
                     }
                 )
+                input_prompt = input_prompt.text
             else:
                 input_prompt = self.prompt
 
             state.function_calling_trajectory.append(
-                {
-                    "role": "system",
-                    "content": input_prompt,
-                }
+                SystemMessage(
+                    content=input_prompt,
+                ).model_dump()
             )
 
-        logger.info(f"\n\n\nmessages: {state.function_calling_trajectory}")
+        logger.info(f"\nagent messages: {state.function_calling_trajectory}")
 
         final_chain = self.llm
         ai_message: AIMessage = final_chain.invoke(state.function_calling_trajectory)
@@ -127,7 +127,6 @@ class OpenAIAgent(BaseAgent):
             state.message_flow = ""
             state.response = ai_message.content
             state = trace(input=ai_message.content, state=state)
-        state.status = StatusEnum.STAY
         return state
 
     def _create_action_graph(self) -> StateGraph:
@@ -152,8 +151,6 @@ class OpenAIAgent(BaseAgent):
         Load tools for the agent.
         This method is called during the initialization of the agent.
         """
-        # Tools are already loaded in the constructor, so this method can be empty.
-
         for node in successors + predecessors:
             if node.resource_id in tools:
                 self.available_tools[node.resource_id] = tools[node.resource_id]

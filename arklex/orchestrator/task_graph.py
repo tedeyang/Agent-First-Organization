@@ -47,6 +47,7 @@ from typing import Any, DefaultDict, Dict, List, Optional, Tuple, Union
 
 import networkx as nx
 import numpy as np
+
 from arklex.env.nested_graph.nested_graph import NestedGraph
 from arklex.orchestrator.NLU.core.intent import IntentDetector
 from arklex.orchestrator.NLU.core.slot import SlotFiller
@@ -428,6 +429,15 @@ class TaskGraph(TaskGraphBase):
                 is_leaf=len(list(self.graph.successors(curr_node))) == 0,
                 attributes=node_info["attribute"],
                 additional_args={
+                    "successors": [
+                        self._build_neighbor_node_info(succ)
+                        for succ in self.graph.successors(curr_node)
+                    ],
+                    "predecessors": [
+                        self._build_neighbor_node_info(pred)
+                        for pred in self.graph.predecessors(curr_node)
+                    ],
+                    "prompt": node_info["attribute"].get("prompt", ""),
                     "tags": node_info["attribute"].get("tags", {}),
                     **{
                         k2: v2
