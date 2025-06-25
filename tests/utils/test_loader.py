@@ -1173,13 +1173,35 @@ class TestLoaderExtendedCoverage:
 
 
 class TestLoader100Coverage:
-    def test_selenium_crawling_timeout_and_retry(self):
+    def test_selenium_crawling_timeout_and_retry(self) -> None:
         loader = Loader()
         url_obj = DocObject("1", "http://timeout.com")
         # Patch webdriver and time to simulate timeout
         with (
             patch("selenium.webdriver.Chrome") as mock_driver,
-            patch("time.time", side_effect=[0, 10, 100, 200, 300, 400, 500, 1000]),
+            patch(
+                "time.time",
+                side_effect=[
+                    0,
+                    10,
+                    100,
+                    200,
+                    300,
+                    400,
+                    500,
+                    1000,
+                    1100,
+                    1200,
+                    1300,
+                    1400,
+                    1500,
+                    1600,
+                    1700,
+                    1800,
+                    1900,
+                    2000,
+                ],
+            ),
             patch("time.sleep"),
         ):
             mock_driver_instance = Mock()
@@ -1194,7 +1216,7 @@ class TestLoader100Coverage:
             result = loader._crawl_with_selenium([url_obj])
             assert any(doc.is_error for doc in result)
 
-    def test_requests_crawling_success(self):
+    def test_requests_crawling_success(self) -> None:
         loader = Loader()
         url_obj = DocObject("1", "http://success.com")
         with patch("requests.get") as mock_get:
@@ -1207,19 +1229,19 @@ class TestLoader100Coverage:
             result = loader._crawl_with_requests([url_obj])
             assert any("Success" in doc.metadata["title"] for doc in result)
 
-    def test_mock_content_company_url(self):
+    def test_mock_content_company_url(self) -> None:
         loader = Loader()
         url_obj = DocObject("1", "http://test.com/company")
         result = loader._create_mock_content_from_urls([url_obj])
         assert "Company information" in result[0].content
 
-    def test_get_outsource_urls_processing_exception(self):
+    def test_get_outsource_urls_processing_exception(self) -> None:
         loader = Loader()
         with patch("requests.get", side_effect=Exception("fail")):
             result = loader.get_outsource_urls("http://fail.com", "http://fail.com")
             assert result == []
 
-    def test_get_candidates_websites_graph(self):
+    def test_get_candidates_websites_graph(self) -> None:
         loader = Loader()
         urls = [
             CrawledObject("1", "http://a.com", "b.com"),
@@ -1229,7 +1251,7 @@ class TestLoader100Coverage:
         assert isinstance(result, list)
         assert isinstance(result[0], CrawledObject)
 
-    def test_crawl_file_with_txt_loader(self):
+    def test_crawl_file_with_txt_loader(self) -> None:
         loader = Loader()
         with tempfile.NamedTemporaryFile(
             mode="w", suffix=".txt", delete=False
@@ -1244,13 +1266,13 @@ class TestLoader100Coverage:
         finally:
             os.remove(tmp_file_path)
 
-    def test_crawl_file_with_error(self):
+    def test_crawl_file_with_error(self) -> None:
         loader = Loader()
         doc_obj = DocObject("1", "/nonexistent/file.txt")
         result = loader.crawl_file(doc_obj)
         assert result.is_error
 
-    def test_save_pickle(self):
+    def test_save_pickle(self) -> None:
         docs = [CrawledObject("1", "src", "content")]
         with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
             tmp_file_path = tmp_file.name
@@ -1263,7 +1285,7 @@ class TestLoader100Coverage:
         finally:
             os.remove(tmp_file_path)
 
-    def test_chunk_with_error_and_chunked_docs(self):
+    def test_chunk_with_error_and_chunked_docs(self) -> None:
         class DummyDoc:
             def __init__(self, is_error, is_chunk, content):
                 self.is_error = is_error
