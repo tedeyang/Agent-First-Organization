@@ -242,11 +242,10 @@ class SlotFiller(BaseSlotFilling):
         )
 
         try:
-            filled_slots = self.api_service.fill_slots(
+            filled_slots = self.api_service.predict_slots(
+                text=context,
                 slots=slots,
-                context=context,
                 model_config=model_config,
-                type=type,
             )
             log_context.info(
                 "Slot filling completed",
@@ -396,9 +395,9 @@ class SlotFiller(BaseSlotFilling):
         )
 
         try:
-            is_valid, reason = self.api_service.verify_slot(
-                slot=slot,
-                chat_history_str=chat_history_str,
+            is_valid, reason = self.api_service.verify_slots(
+                text=chat_history_str,
+                slots=[Slot(**slot)],
                 model_config=model_config,
             )
             log_context.info(

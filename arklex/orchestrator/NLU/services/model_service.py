@@ -281,12 +281,10 @@ class ModelService:
             )
 
         # Get model response
-        response = await self.api_service.get_model_response(
-            prompt=text, response_format="intent"
-        )
+        response = await self.model.invoke(text, response_format="intent")
 
         # Validate response
-        if not response or not response.content:
+        if not response or not getattr(response, "content", None):
             log_context.error(
                 "Empty response from model",
                 extra={
@@ -402,12 +400,10 @@ class ModelService:
             )
 
         # Get model response
-        response = await self.api_service.get_model_response(
-            prompt=text, response_format="slots", intent=intent
-        )
+        response = await self.model.invoke(text, response_format="slots", intent=intent)
 
         # Validate response
-        if not response or not response.content:
+        if not response or not getattr(response, "content", None):
             log_context.error(
                 "Empty response from model",
                 extra={
@@ -487,7 +483,6 @@ class ModelService:
             ValidationError: If input validation fails
             ModelError: If slot verification fails
         """
-        # Validate inputs
         if not text or not isinstance(text, str):
             log_context.error(
                 "Invalid input text",
@@ -524,12 +519,12 @@ class ModelService:
             )
 
         # Get model response
-        response = await self.api_service.get_model_response(
-            prompt=text, response_format="verification", slots=slots
+        response = await self.model.invoke(
+            text, response_format="verification", slots=slots
         )
 
         # Validate response
-        if not response or not response.content:
+        if not response or not getattr(response, "content", None):
             log_context.error(
                 "Empty response from model",
                 extra={
