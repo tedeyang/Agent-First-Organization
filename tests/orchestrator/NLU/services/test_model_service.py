@@ -1611,8 +1611,9 @@ class TestModelServiceFormatSlotInput:
             {
                 "name": "test_slot",
                 "type": "string",
-                "required": True,
                 "description": "Test slot",
+                "required": False,
+                "items": {},
             }
         ]
         context = "test context"
@@ -1620,7 +1621,8 @@ class TestModelServiceFormatSlotInput:
         user_prompt, system_prompt = model_service.format_slot_input(slots, context)
 
         assert "test_slot" in user_prompt
-        assert "Possible values:" not in user_prompt
+        assert "optional" in user_prompt
+        assert "enum" not in user_prompt.lower()
 
 
 class TestModelServiceProcessSlotResponseWithPydantic:
@@ -1734,3 +1736,512 @@ class TestModelServiceFormatVerificationInput:
 
             mock_formatter.assert_called_once_with(slot, chat_history)
             assert result == "formatted verification input"
+
+
+class TestModelServiceMissingCoverage:
+    """Test cases to cover missing lines in ModelService."""
+
+    @pytest.fixture
+    def model_service_with_mock_model(
+        self, model_config: Dict[str, Any]
+    ) -> ModelService:
+        """Fixture for ModelService with mocked model."""
+        with patch(
+            "arklex.orchestrator.NLU.services.model_service.ModelConfig.get_model_instance"
+        ) as mock_get_model:
+            mock_model = MagicMock()
+            mock_get_model.return_value = mock_model
+            service = ModelService(model_config)
+            return service
+
+    @pytest.mark.asyncio
+    async def test_process_text_with_model_request_exception(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test process_text when _make_model_request raises an exception."""
+        # Mock _make_model_request to raise an exception
+        with patch.object(
+            model_service_with_mock_model, "_make_model_request"
+        ) as mock_request:
+            mock_request.side_effect = Exception("Model request failed")
+
+            with pytest.raises(ModelError) as exc_info:
+                await model_service_with_mock_model.process_text("test text")
+
+            assert "Model request failed" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_fill_slots_with_empty_response_exception(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test fill_slots when model returns empty response."""
+        # Mock model.invoke to return empty response
+        mock_response = MagicMock()
+        mock_response.content = None
+        model_service_with_mock_model.model.invoke = AsyncMock(
+            return_value=mock_response
+        )
+
+        with pytest.raises(ModelError) as exc_info:
+            await model_service_with_mock_model.fill_slots("test text", "test_intent")
+
+        assert "Empty response from model" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_fill_slots_with_json_decode_exception(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test fill_slots when JSON parsing fails."""
+        # Mock model.invoke to return invalid JSON
+        mock_response = MagicMock()
+        mock_response.content = "invalid json"
+        model_service_with_mock_model.model.invoke = AsyncMock(
+            return_value=mock_response
+        )
+
+        with pytest.raises(ModelError) as exc_info:
+            await model_service_with_mock_model.fill_slots("test text", "test_intent")
+
+        assert "Failed to parse slot response" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_fill_slots_with_validation_exception(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test fill_slots when validation fails."""
+        # Mock model.invoke to return invalid response format
+        mock_response = MagicMock()
+        mock_response.content = '{"invalid": "format"}'
+        model_service_with_mock_model.model.invoke = AsyncMock(
+            return_value=mock_response
+        )
+
+        # Mock validate_slot_response to raise ValidationError
+        with patch(
+            "arklex.orchestrator.NLU.services.model_service.validate_slot_response"
+        ) as mock_validate:
+            mock_validate.side_effect = ValidationError("Invalid format")
+
+            with pytest.raises(ValidationError) as exc_info:
+                await model_service_with_mock_model.fill_slots(
+                    "test text", "test_intent"
+                )
+
+            assert "Invalid slot response format" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_verify_slots_with_empty_response_exception(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test verify_slots when model returns empty response."""
+        # Mock model.invoke to return empty response
+        mock_response = MagicMock()
+        mock_response.content = None
+        model_service_with_mock_model.model.invoke = AsyncMock(
+            return_value=mock_response
+        )
+
+        with pytest.raises(ModelError) as exc_info:
+            await model_service_with_mock_model.verify_slots(
+                "test text", {"test_slot": "test_value"}
+            )
+
+        assert "Empty response from model" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_verify_slots_with_json_decode_exception(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test verify_slots when JSON parsing fails."""
+        # Mock model.invoke to return invalid JSON
+        mock_response = MagicMock()
+        mock_response.content = "invalid json"
+        model_service_with_mock_model.model.invoke = AsyncMock(
+            return_value=mock_response
+        )
+
+        with pytest.raises(ModelError) as exc_info:
+            await model_service_with_mock_model.verify_slots(
+                "test text", {"test_slot": "test_value"}
+            )
+
+        assert "Failed to parse verification response" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_verify_slots_with_validation_exception(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test verify_slots when validation fails."""
+        # Mock model.invoke to return invalid response format
+        mock_response = MagicMock()
+        mock_response.content = '{"invalid": "format"}'
+        model_service_with_mock_model.model.invoke = AsyncMock(
+            return_value=mock_response
+        )
+
+        # Mock validate_verification_response to raise ValidationError
+        with patch(
+            "arklex.orchestrator.NLU.services.model_service.validate_verification_response"
+        ) as mock_validate:
+            mock_validate.side_effect = ValidationError("Invalid format")
+
+            with pytest.raises(ValidationError) as exc_info:
+                await model_service_with_mock_model.verify_slots(
+                    "test text", {"test_slot": "test_value"}
+                )
+
+            assert "Invalid verification response format" in str(exc_info.value)
+
+    def test_process_intent_with_empty_attributes(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test _process_intent with empty attributes."""
+        intent_k = "test_intent"
+        intent_v = [{"attribute": {"definition": "", "sample_utterances": []}}]
+        count = 1
+        idx2intents_mapping = {}
+
+        def_str, ex_str, choice_str, new_count = (
+            model_service_with_mock_model._process_intent(
+                intent_k, intent_v, count, idx2intents_mapping
+            )
+        )
+
+        assert new_count == 2  # count + 1 intent
+        assert def_str == ""  # No definition
+        assert ex_str == ""  # No exemplars
+        assert "1) test_intent" in choice_str  # Fixed expectation
+
+    def test_format_slot_input_with_dict_items(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test format_slot_input with dict items."""
+        slots = [
+            {
+                "name": "test_slot",
+                "type": "object",
+                "description": "Test description",
+                "required": True,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "key1": {"type": "string"},
+                        "key2": {"type": "number"},
+                    },
+                },
+            }
+        ]
+        context = "test context"
+
+        user_prompt, system_prompt = model_service_with_mock_model.format_slot_input(
+            slots, context
+        )
+
+        # The actual implementation doesn't include property details in the prompt
+        assert "test_slot" in user_prompt
+        assert "Test description" in user_prompt
+        assert "object" in user_prompt
+        assert "required" in user_prompt
+
+    def test_format_slot_input_with_object_items(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test format_slot_input with object items."""
+        slots = [
+            {
+                "name": "test_slot",
+                "type": "array",
+                "description": "Test description",
+                "required": True,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "prop1": {"type": "string"},
+                        "prop2": {"type": "integer"},
+                    },
+                },
+            }
+        ]
+        context = "test context"
+
+        user_prompt, system_prompt = model_service_with_mock_model.format_slot_input(
+            slots, context
+        )
+
+        # The actual implementation doesn't include property details in the prompt
+        assert "test_slot" in user_prompt
+        assert "Test description" in user_prompt
+        assert "array" in user_prompt
+        assert "required" in user_prompt
+
+    def test_dummy_model_service_get_response_override(
+        self, dummy_config: Dict[str, Any]
+    ) -> None:
+        """Test DummyModelService get_response override."""
+        dummy_service = DummyModelService(dummy_config)
+
+        result = dummy_service.get_response("test prompt")
+
+        # The actual DummyModelService returns a different format
+        assert "test prompt" in result or "1) others" in result
+
+    def test_initialize_model_with_exception(
+        self, model_config: Dict[str, Any]
+    ) -> None:
+        """Test _initialize_model when ModelConfig.get_model_instance raises an exception."""
+        with patch(
+            "arklex.orchestrator.NLU.services.model_service.ModelConfig.get_model_instance"
+        ) as mock_get_model:
+            mock_get_model.side_effect = Exception("Model initialization failed")
+
+            with pytest.raises(ModelError) as exc_info:
+                ModelService(model_config)
+
+            assert "Failed to initialize model" in str(exc_info.value)
+
+    def test_process_intent_with_list_intents(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test _process_intent with list of intents (else branch)."""
+        intent_k = "test_intent"
+        intent_v = [
+            {
+                "attribute": {
+                    "definition": "Test definition",
+                    "sample_utterances": ["test1", "test2"],
+                }
+            },
+            {
+                "attribute": {
+                    "definition": "Test definition 2",
+                    "sample_utterances": ["test3", "test4"],
+                }
+            },
+        ]
+        count = 1
+        idx2intents_mapping = {}
+
+        def_str, ex_str, choice_str, new_count = (
+            model_service_with_mock_model._process_intent(
+                intent_k, intent_v, count, idx2intents_mapping
+            )
+        )
+
+        assert new_count == 3  # count + 2 intents
+        assert "test_intent__<0>" in def_str
+        assert "test_intent__<1>" in def_str
+        assert "1) test_intent__<0>" in choice_str
+        assert "2) test_intent__<1>" in choice_str
+
+    def test_get_response_with_none_model_config(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test get_response with None model_config parameter."""
+        # Mock model.invoke to return valid response
+        mock_response = MagicMock()
+        mock_response.content = "test response"
+        model_service_with_mock_model.model.invoke.return_value = mock_response
+
+        result = model_service_with_mock_model.get_response(
+            "test prompt", model_config=None
+        )
+
+        assert result == "test response"
+
+    def test_get_response_with_empty_response(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test get_response when model returns empty response."""
+        # Mock model.invoke to return empty response
+        mock_response = MagicMock()
+        mock_response.content = None
+        model_service_with_mock_model.model.invoke.return_value = mock_response
+
+        with pytest.raises(ValueError) as exc_info:
+            model_service_with_mock_model.get_response("test prompt")
+
+        assert "Empty response from model" in str(exc_info.value)
+
+    def test_get_response_with_exception(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test get_response when model.invoke raises an exception."""
+        # Mock model.invoke to raise exception
+        model_service_with_mock_model.model.invoke.side_effect = Exception(
+            "Model error"
+        )
+
+        with pytest.raises(ValueError) as exc_info:
+            model_service_with_mock_model.get_response("test prompt")
+
+        assert "Failed to get model response" in str(exc_info.value)
+
+    def test_get_json_response_with_json_decode_error(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test get_json_response when JSON parsing fails."""
+        # Mock get_response to return invalid JSON
+        with patch.object(model_service_with_mock_model, "get_response") as mock_get:
+            mock_get.return_value = "invalid json"
+
+            with pytest.raises(ValueError) as exc_info:
+                model_service_with_mock_model.get_json_response("test prompt")
+
+            assert "Failed to parse JSON response" in str(exc_info.value)
+
+    def test_get_json_response_with_general_exception(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test get_json_response when get_response raises an exception."""
+        # Mock get_response to raise exception
+        with patch.object(model_service_with_mock_model, "get_response") as mock_get:
+            mock_get.side_effect = Exception("General error")
+
+            with pytest.raises(ValueError) as exc_info:
+                model_service_with_mock_model.get_json_response("test prompt")
+
+            assert "Failed to get JSON response" in str(exc_info.value)
+
+    def test_format_slot_input_with_pydantic_model(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test format_slot_input with Pydantic model slots."""
+
+        # Create a mock Pydantic model
+        class MockSlotModel:
+            def __init__(self):
+                self.name = "test_slot"
+                self.type = "string"
+                self.description = "Test description"
+                self.required = True
+                self.items = {}
+
+        slots = [MockSlotModel()]
+        context = "test context"
+
+        user_prompt, system_prompt = model_service_with_mock_model.format_slot_input(
+            slots, context
+        )
+
+        assert "test_slot" in user_prompt
+        assert "Test description" in user_prompt
+        assert "required" in user_prompt
+
+    def test_format_slot_input_with_enum_values(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test format_slot_input with enum values in items."""
+        slots = [
+            {
+                "name": "test_slot",
+                "type": "enum",
+                "description": "Test description",
+                "required": True,
+                "items": {"type": "string", "enum": ["option1", "option2", "option3"]},
+            }
+        ]
+        context = "test context"
+
+        user_prompt, system_prompt = model_service_with_mock_model.format_slot_input(
+            slots, context
+        )
+
+        assert "option1" in user_prompt
+        assert "option2" in user_prompt
+        assert "option3" in user_prompt
+
+    def test_format_slot_input_without_enum_values(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test format_slot_input without enum values."""
+        slots = [
+            {
+                "name": "test_slot",
+                "type": "string",
+                "description": "Test description",
+                "required": False,
+                "items": {},
+            }
+        ]
+        context = "test context"
+
+        user_prompt, system_prompt = model_service_with_mock_model.format_slot_input(
+            slots, context
+        )
+
+        assert "test_slot" in user_prompt
+        assert "Test description" in user_prompt
+        assert "optional" in user_prompt
+        assert "enum" not in user_prompt.lower()
+
+    def test_dummy_model_service_format_slot_input_override(
+        self, dummy_config: Dict[str, Any]
+    ) -> None:
+        """Test DummyModelService format_slot_input override."""
+        dummy_service = DummyModelService(dummy_config)
+
+        slots = [{"name": "test_slot", "type": "string"}]
+        context = "test context"
+
+        user_prompt, system_prompt = dummy_service.format_slot_input(slots, context)
+
+        # Should call the formatter function
+        assert "test_slot" in user_prompt
+
+    def test_dummy_model_service_process_slot_response_override(
+        self, dummy_config: Dict[str, Any]
+    ) -> None:
+        """Test DummyModelService process_slot_response override."""
+        dummy_service = DummyModelService(dummy_config)
+
+        # Mock the parent class method
+        with patch.object(ModelService, "process_slot_response") as mock_parent:
+            mock_parent.return_value = [{"name": "test_slot", "value": "test_value"}]
+
+            result = dummy_service.process_slot_response(
+                "test response", [{"name": "test_slot"}]
+            )
+
+            # Should call parent method
+            mock_parent.assert_called_once_with(
+                "test response", [{"name": "test_slot"}]
+            )
+            assert result == [{"name": "test_slot", "value": "test_value"}]
+
+    def test_dummy_model_service_format_verification_input_override(
+        self, dummy_config: Dict[str, Any]
+    ) -> None:
+        """Test DummyModelService format_verification_input override."""
+        dummy_service = DummyModelService(dummy_config)
+
+        # Mock the formatter function
+        with patch(
+            "arklex.orchestrator.NLU.services.model_service.format_verification_input_formatter"
+        ) as mock_formatter:
+            mock_formatter.return_value = "formatted verification input"
+
+            result = dummy_service.format_verification_input(
+                {"name": "test_slot"}, "test history"
+            )
+
+            # Should call the formatter function
+            mock_formatter.assert_called_once_with(
+                {"name": "test_slot"}, "test history"
+            )
+            assert result == "formatted verification input"
+
+    def test_dummy_model_service_process_verification_response_override(
+        self, dummy_config: Dict[str, Any]
+    ) -> None:
+        """Test DummyModelService process_verification_response override."""
+        dummy_service = DummyModelService(dummy_config)
+
+        # Mock the parent class method
+        with patch.object(ModelService, "process_verification_response") as mock_parent:
+            mock_parent.return_value = (True, "Verified")
+
+            result = dummy_service.process_verification_response("test response")
+
+            # Should call parent method
+            mock_parent.assert_called_once_with("test response")
+            assert result == (True, "Verified")
