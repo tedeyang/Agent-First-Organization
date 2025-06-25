@@ -71,7 +71,7 @@ class TestAgentOrgInitialization:
         assert agent.product_kwargs["role"] == "test_role"
         assert hasattr(agent, "llm")
         assert hasattr(agent, "task_graph")
-        assert agent.hitl_worker_enabled is False
+        assert agent.hitl_proposal_enabled is False
 
     def test_init_with_dict_no_env(self, basic_config) -> None:
         """Test initialization with dictionary config and no environment."""
@@ -101,7 +101,8 @@ class TestAgentOrgInitParams:
             "chat_history": [],
             "parameters": None,
         }
-        text, chat_history_str, params, message_state = agent.init_params(inputs)
+        text, chat_history_str, params, message_state = agent.init_params(
+            inputs)
         assert text == "hello"
         assert "hello" in chat_history_str
         assert isinstance(params, Params)
@@ -116,7 +117,8 @@ class TestAgentOrgInitParams:
             "chat_history": [],
             "parameters": {"metadata": {"turn_id": 5}},
         }
-        text, chat_history_str, params, message_state = agent.init_params(inputs)
+        text, chat_history_str, params, message_state = agent.init_params(
+            inputs)
         assert params.metadata.turn_id == 6
 
     def test_init_params_edge_cases(self, basic_config) -> None:
@@ -125,7 +127,8 @@ class TestAgentOrgInitParams:
 
         # Empty chat history
         inputs = {"text": "hi", "chat_history": [], "parameters": None}
-        text, chat_history_str, params, message_state = agent.init_params(inputs)
+        text, chat_history_str, params, message_state = agent.init_params(
+            inputs)
         assert text == "hi"
 
         # Chat history with previous messages
@@ -134,7 +137,8 @@ class TestAgentOrgInitParams:
             "chat_history": [{"role": "user", "content": "prev"}],
             "parameters": None,
         }
-        text, chat_history_str, params, message_state = agent.init_params(inputs)
+        text, chat_history_str, params, message_state = agent.init_params(
+            inputs)
         assert "prev" in chat_history_str and "yo" in chat_history_str
 
         # Parameters with memory
@@ -150,7 +154,8 @@ class TestAgentOrgInitParams:
                 }
             },
         }
-        text, chat_history_str, params, message_state = agent.init_params(inputs)
+        text, chat_history_str, params, message_state = agent.init_params(
+            inputs)
         assert hasattr(params.memory, "trajectory")
 
 
@@ -198,5 +203,6 @@ class TestAgentOrgResponse:
             agent, "_get_response", lambda *a, **kw: mock_orchestrator_response
         )
 
-        out = agent.get_response({"text": "hi", "chat_history": [], "parameters": None})
+        out = agent.get_response(
+            {"text": "hi", "chat_history": [], "parameters": None})
         assert out["result"] == "ok"

@@ -28,8 +28,26 @@ TRIGGER_LIVE_CHAT_PROMPT = "Sorry, I'm not certain about the answer, would you l
 
 
 def post_process_response(
-    message_state: MessageState, params: Params, hitl_worker_enabled: bool
+    message_state: MessageState, params: Params, hitl_proposal_enabled: bool
 ) -> MessageState:
+    """
+    Post-processes the chatbot's response to ensure content quality and determine whether human takeover is needed.
+
+    This function performs the following steps:
+    1. **Link Validation**: Compares links in the bot's response against links present in the context.
+    If the response includes invalid links, they are removed and the response is optionally regenerated via LLM.
+    2. **HITL Proposal Trigger**: If HITL proposal is enabled and a HITL worker is available, determines
+    whether to suggest a handoff to a human assistant based on confidence and relevance heuristics.
+
+    Args:
+        message_state (MessageState): Current state of the conversation including response, context, and metadata.
+        params (Params): Additional configuration and NLU metadata.
+        hitl_proposal_enabled (bool): Flag indicating whether proactive HITL (human-in-the-loop) routing is allowed.
+
+    Returns:
+        MessageState: The updated message state with potentially cleaned or rephrased response,
+                    and possibly a human handoff suggestion.
+    """
     context_links = _build_context(message_state)
     response_links = _extract_links(message_state.response)
     missing_links = response_links - context_links
@@ -42,7 +60,7 @@ def post_process_response(
         )
         message_state.response = _rephrase_answer(message_state)
 
-    if hitl_worker_enabled and not message_state.metadata.hitl:
+    if hitl_proposal_enabled and not message_state.metadata.hitl:
         _live_chat_verifier(message_state, params)
 
     return message_state

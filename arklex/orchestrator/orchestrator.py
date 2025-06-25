@@ -167,7 +167,7 @@ class AgentOrg:
             self.env.planner.set_llm_config_and_build_resource_library(self.llm_config)
         # Extra configuration settings
         self.settings = self.task_graph.product_kwargs.get("settings", {})
-        self.hitl_worker_enabled = (
+        self.hitl_proposal_enabled = (
             any(
                 worker.get("name") == "HITLWorkerChatFlag"
                 for worker in self.task_graph.product_kwargs["workers"]
@@ -617,7 +617,7 @@ Answer with only 'yes' or 'no'"""
                 message_state = ToolGenerator.stream_context_generate(message_state)
 
         message_state = post_process_response(
-            message_state, params, self.hitl_worker_enabled
+            message_state, params, self.hitl_proposal_enabled
         )
 
         return OrchestratorResp(
