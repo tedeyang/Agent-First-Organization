@@ -243,7 +243,8 @@ class TestBuildUserProfiles:
                         "system_attributes": {"attr1": {"values": ["val1", "val2"]}},
                     },
                 },
-                "custom_with_binding"),
+                "custom_with_binding",
+            ),
             (
                 {
                     "custom_profile": True,
@@ -253,7 +254,8 @@ class TestBuildUserProfiles:
                         "system_attributes": {"attr1": {"values": ["val1", "val2"]}},
                     },
                 },
-                "custom_without_documents"),
+                "custom_without_documents",
+            ),
         ],
     )
     def test_build_profile_variations(
