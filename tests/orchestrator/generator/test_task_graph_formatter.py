@@ -1604,3 +1604,582 @@ def test_integration_formatting_pipeline() -> None:
 
     # Validate the final graph
     assert graph_validator.validate_graph(formatted_graph)
+
+
+class TestTaskGraphFormatterEdgeCases:
+    """Test edge cases and missing coverage in TaskGraphFormatter."""
+
+    def test_find_worker_by_name_with_fallback_mappings(
+        self, task_graph_formatter
+    ) -> None:
+        """Test _find_worker_by_name with fallback worker mappings."""
+        # Test default fallback mappings
+        message_worker = task_graph_formatter._find_worker_by_name("MessageWorker")
+        assert message_worker["id"] == "26bb6634-3bee-417d-ad75-23269ac17bc3"
+        assert message_worker["name"] == "MessageWorker"
+
+        faiss_worker = task_graph_formatter._find_worker_by_name("FaissRAGWorker")
+        assert faiss_worker["id"] == "FaissRAGWorker"
+        assert faiss_worker["name"] == "FaissRAGWorker"
+
+        search_worker = task_graph_formatter._find_worker_by_name("SearchWorker")
+        assert search_worker["id"] == "9c15af81-04b3-443e-be04-a3522124b905"
+        assert search_worker["name"] == "SearchWorker"
+
+        # Test unknown worker fallback
+        unknown_worker = task_graph_formatter._find_worker_by_name("UnknownWorker")
+        assert unknown_worker["id"] == "unknownworker"
+        assert unknown_worker["name"] == "UnknownWorker"
+
+    def test_format_task_graph_with_predefined_nodes_and_edges(
+        self, task_graph_formatter
+    ) -> None:
+        """Test format_task_graph when nodes and edges are already provided."""
+        predefined_nodes = [["1", {"resource": {"id": "test", "name": "Test"}}]]
+        predefined_edges = [["1", "2", {"intent": "test"}]]
+
+        formatter = TaskGraphFormatter(nodes=predefined_nodes, edges=predefined_edges)
+
+        result = formatter.format_task_graph([])
+        assert result["nodes"] == predefined_nodes
+        assert result["edges"] == predefined_edges
+
+    def test_format_nodes_with_nested_graph_resource(
+        self, task_graph_formatter
+    ) -> None:
+        """Test _format_nodes with nested graph resources."""
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Nested Task",
+                "description": "A task with nested graph",
+                "resource": {"name": "NestedGraph"},
+                "steps": [],
+            }
+        ]
+
+        nodes, node_lookup, all_task_node_ids = task_graph_formatter._format_nodes(
+            tasks
+        )
+
+        # Should have start node + task node + step node (created from description) = 3 nodes
+        assert len(nodes) == 3
+        assert node_lookup["task1"] == "1"
+        assert all_task_node_ids == ["1"]
+
+        # Check that nested graph resource is properly set
+        task_node = nodes[1][1]
+        assert task_node["resource"]["name"] == "NestedGraph"
+        assert task_node["resource"]["id"] == "nested_graph"
+
+    def test_format_nodes_with_workflow_resource(self, task_graph_formatter) -> None:
+        """Test _format_nodes with workflow resources."""
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Workflow Task",
+                "description": "A task with workflow resource",
+                "resource": "CustomWorkflow",
+                "steps": [],
+            }
+        ]
+
+        nodes, node_lookup, all_task_node_ids = task_graph_formatter._format_nodes(
+            tasks
+        )
+
+        # Should have start node + task node + step node (created from description) = 3 nodes
+        assert len(nodes) == 3
+        assert node_lookup["task1"] == "1"
+        assert all_task_node_ids == ["1"]
+
+        # Check that workflow resource is treated as nested graph
+        task_node = nodes[1][1]
+        assert task_node["resource"]["name"] == "NestedGraph"
+        assert task_node["resource"]["id"] == "nested_graph"
+
+    def test_format_nodes_with_task_type_and_limit(self, task_graph_formatter) -> None:
+        """Test _format_nodes with task type and limit attributes."""
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Typed Task",
+                "description": "A task with type and limit",
+                "type": "custom_type",
+                "limit": 5,
+                "steps": [],
+            }
+        ]
+
+        nodes, node_lookup, all_task_node_ids = task_graph_formatter._format_nodes(
+            tasks
+        )
+
+        # Should have start node + task node + step node (created from description) = 3 nodes
+        assert len(nodes) == 3
+        assert node_lookup["task1"] == "1"
+        assert all_task_node_ids == ["1"]
+
+        # Check that type and limit are properly set
+        task_node = nodes[1][1]
+        assert task_node["type"] == "custom_type"
+        assert task_node["limit"] == 5
+
+    def test_format_nodes_with_complex_step_structure(
+        self, task_graph_formatter
+    ) -> None:
+        """Test _format_nodes with complex step structure."""
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Complex Task",
+                "description": "A task with complex steps",
+                "steps": [
+                    {
+                        "task": "Step 1",
+                        "description": "First step description",
+                        "step_id": "step_1",
+                    }
+                ],
+            }
+        ]
+
+        nodes, node_lookup, all_task_node_ids = task_graph_formatter._format_nodes(
+            tasks
+        )
+
+        # Should have start node + task node + step node = 3 nodes
+        assert len(nodes) == 3
+        assert node_lookup["task1"] == "1"
+        assert node_lookup["task1_step0"] == "2"
+        assert all_task_node_ids == ["1"]
+
+        # Check that complex step structure is handled correctly
+        step_node = nodes[2][1]
+        assert step_node["attribute"]["value"] == "First step description"
+
+    def test_format_nodes_with_step_resource(self, task_graph_formatter) -> None:
+        """Test _format_nodes with step resources."""
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Task with Step Resource",
+                "description": "A task with step resources",
+                "steps": [
+                    {"resource": {"name": "FaissRAGWorker"}, "description": "RAG step"}
+                ],
+            }
+        ]
+
+        nodes, node_lookup, all_task_node_ids = task_graph_formatter._format_nodes(
+            tasks
+        )
+
+        # Should have start node + task node + step node = 3 nodes
+        assert len(nodes) == 3
+        assert node_lookup["task1"] == "1"
+        assert node_lookup["task1_step0"] == "2"
+        assert all_task_node_ids == ["1"]
+
+        # Check that step resource is properly set
+        step_node = nodes[2][1]
+        assert step_node["resource"]["name"] == "FaissRAGWorker"
+
+    def test_format_nodes_with_step_workflow_resource(
+        self, task_graph_formatter
+    ) -> None:
+        """Test _format_nodes with step workflow resources."""
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Task with Step Workflow",
+                "description": "A task with step workflow",
+                "steps": [{"resource": "StepWorkflow", "description": "Workflow step"}],
+            }
+        ]
+
+        nodes, node_lookup, all_task_node_ids = task_graph_formatter._format_nodes(
+            tasks
+        )
+
+        # Should have start node + task node + step node = 3 nodes
+        assert len(nodes) == 3
+        assert node_lookup["task1"] == "1"
+        assert node_lookup["task1_step0"] == "2"
+        assert all_task_node_ids == ["1"]
+
+        # Check that step workflow resource is treated as nested graph
+        step_node = nodes[2][1]
+        assert step_node["resource"]["name"] == "NestedGraph"
+        assert step_node["resource"]["id"] == "nested_graph"
+
+    def test_format_nodes_with_non_dict_non_string_step(
+        self, task_graph_formatter
+    ) -> None:
+        """Test _format_nodes with non-dict non-string step."""
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Task with Non-Standard Step",
+                "description": "A task with non-standard step",
+                "steps": [123],  # Non-dict, non-string step
+            }
+        ]
+
+        nodes, node_lookup, all_task_node_ids = task_graph_formatter._format_nodes(
+            tasks
+        )
+
+        # Should have start node + task node + step node = 3 nodes
+        assert len(nodes) == 3
+        assert node_lookup["task1"] == "1"
+        assert node_lookup["task1_step0"] == "2"
+        assert all_task_node_ids == ["1"]
+
+        # Check that non-standard step is converted to string
+        step_node = nodes[2][1]
+        assert step_node["attribute"]["value"] == "123"
+
+    def test_format_edges_with_llm_intent_generation(
+        self, task_graph_formatter
+    ) -> None:
+        """Test _format_edges with LLM intent generation."""
+        from unittest.mock import Mock
+
+        # Mock model that returns a valid intent
+        mock_model = Mock()
+        mock_response = Mock()
+        mock_response.content = "User inquires about product information"
+        mock_model.invoke.return_value = mock_response
+
+        formatter = TaskGraphFormatter(model=mock_model)
+
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Product Inquiry",
+                "description": "Handle product information requests",
+                "steps": [],
+            }
+        ]
+
+        # Create minimal node_lookup for the test
+        node_lookup = {"task1": "1"}
+        all_task_node_ids = ["1"]
+        start_node_id = "0"
+
+        edges, nested_graph_nodes = formatter._format_edges(
+            tasks, node_lookup, all_task_node_ids, start_node_id
+        )
+
+        # Should have one edge from start to task
+        assert len(edges) == 1
+        assert edges[0][0] == "0"  # from start
+        assert edges[0][1] == "1"  # to task
+        assert edges[0][2]["intent"] == "User inquires about product information"
+        assert edges[0][2]["attribute"]["pred"] is True
+
+    def test_format_edges_with_llm_intent_generation_failure(
+        self, task_graph_formatter
+    ) -> None:
+        """Test _format_edges with LLM intent generation failure."""
+        from unittest.mock import Mock
+
+        # Mock model that raises an exception
+        mock_model = Mock()
+        mock_model.invoke.side_effect = Exception("Model error")
+
+        formatter = TaskGraphFormatter(model=mock_model)
+
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Product Inquiry",
+                "description": "Handle product information requests",
+                "steps": [],
+            }
+        ]
+
+        # Create minimal node_lookup for the test
+        node_lookup = {"task1": "1"}
+        all_task_node_ids = ["1"]
+        start_node_id = "0"
+
+        edges, nested_graph_nodes = formatter._format_edges(
+            tasks, node_lookup, all_task_node_ids, start_node_id
+        )
+
+        # Should have one edge from start to task with fallback intent
+        assert len(edges) == 1
+        assert edges[0][0] == "0"  # from start
+        assert edges[0][1] == "1"  # to task
+        assert edges[0][2]["intent"] == "User inquires about purchasing options"
+        assert edges[0][2]["attribute"]["pred"] is True
+
+    def test_format_edges_with_invalid_llm_response(self, task_graph_formatter) -> None:
+        """Test _format_edges with invalid LLM response."""
+        from unittest.mock import Mock
+
+        # Mock model that returns invalid response
+        mock_model = Mock()
+        mock_response = Mock()
+        mock_response.content = "none"  # Invalid intent
+        mock_model.invoke.return_value = mock_response
+
+        formatter = TaskGraphFormatter(model=mock_model)
+
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Product Inquiry",
+                "description": "Handle product information requests",
+                "steps": [],
+            }
+        ]
+
+        # Create minimal node_lookup for the test
+        node_lookup = {"task1": "1"}
+        all_task_node_ids = ["1"]
+        start_node_id = "0"
+
+        edges, nested_graph_nodes = formatter._format_edges(
+            tasks, node_lookup, all_task_node_ids, start_node_id
+        )
+
+        # Should have one edge from start to task with fallback intent
+        assert len(edges) == 1
+        assert edges[0][0] == "0"  # from start
+        assert edges[0][1] == "1"  # to task
+        assert edges[0][2]["intent"] == "User inquires about purchasing options"
+        assert edges[0][2]["attribute"]["pred"] is True
+
+    def test_format_edges_with_no_model(self, task_graph_formatter) -> None:
+        """Test _format_edges without model (should use default fallback)."""
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Product Inquiry",
+                "description": "Handle product information requests",
+                "steps": [],
+            }
+        ]
+
+        # Create minimal node_lookup for the test
+        node_lookup = {"task1": "1"}
+        all_task_node_ids = ["1"]
+        start_node_id = "0"
+
+        edges, nested_graph_nodes = task_graph_formatter._format_edges(
+            tasks, node_lookup, all_task_node_ids, start_node_id
+        )
+
+        # Should have one edge from start to task with default fallback intent
+        assert len(edges) == 1
+        assert edges[0][0] == "0"  # from start
+        assert edges[0][1] == "1"  # to task
+        assert edges[0][2]["intent"] == "User inquires about purchasing options"
+        assert edges[0][2]["attribute"]["pred"] is True
+
+    def test_ensure_nested_graph_connectivity(self, task_graph_formatter) -> None:
+        """Test ensure_nested_graph_connectivity method."""
+        # Create a graph with nested graph nodes
+        graph = {
+            "nodes": [
+                ["0", {"resource": {"id": "start", "name": "MessageWorker"}}],
+                ["1", {"resource": {"id": "task1", "name": "MessageWorker"}}],
+                [
+                    "task1_step0",
+                    {
+                        "resource": {"id": "nested_graph", "name": "NestedGraph"},
+                        "attribute": {"value": "original_value"},
+                    },
+                ],
+                ["task1_step1", {"resource": {"id": "step1", "name": "MessageWorker"}}],
+            ],
+            "edges": [],
+            "tasks": [
+                {
+                    "id": "task1",
+                    "steps": [
+                        {"description": "Nested step"},
+                        {"description": "Next step"},
+                    ],
+                }
+            ],
+        }
+
+        result = task_graph_formatter.ensure_nested_graph_connectivity(graph)
+
+        # Should have one edge connecting nested graph to next step
+        assert len(result["edges"]) == 1
+        assert result["edges"][0][0] == "task1_step0"  # from nested graph
+        assert result["edges"][0][1] == "task1_step1"  # to next step
+        assert (
+            "Continue to next step from nested graph"
+            in result["edges"][0][2]["attribute"]["definition"]
+        )
+
+        # Check that nested graph value is set to next step ID
+        nested_graph_node = result["nodes"][2][1]
+        assert nested_graph_node["attribute"]["value"] == "task1_step1"
+
+    def test_format_task_graph_with_dict_value_replacement(
+        self, task_graph_formatter
+    ) -> None:
+        """Test format_task_graph with dict value replacement."""
+        # Create a formatter with predefined nodes that have dict values
+        nodes = [
+            [
+                "1",
+                {
+                    "resource": {"id": "test", "name": "Test"},
+                    "attribute": {
+                        "value": {"description": "Test description", "other": "data"}
+                    },
+                },
+            ]
+        ]
+        edges = []
+
+        formatter = TaskGraphFormatter(nodes=nodes, edges=edges)
+
+        result = formatter.format_task_graph([])
+
+        # Should return the original value (not replaced) when nodes/edges are passed in
+        assert result["nodes"][0][1]["attribute"]["value"] == {
+            "description": "Test description",
+            "other": "data",
+        }
+
+    def test_format_task_graph_with_dict_value_no_description(
+        self, task_graph_formatter
+    ) -> None:
+        """Test format_task_graph with dict value but no description."""
+        # Create a formatter with predefined nodes that have dict values without description
+        nodes = [
+            [
+                "1",
+                {
+                    "resource": {"id": "test", "name": "Test"},
+                    "attribute": {"value": {"other": "data", "no_description": True}},
+                },
+            ]
+        ]
+        edges = []
+
+        formatter = TaskGraphFormatter(nodes=nodes, edges=edges)
+
+        result = formatter.format_task_graph([])
+
+        # Should return the original value (not stringified) when nodes/edges are passed in
+        assert result["nodes"][0][1]["attribute"]["value"] == {
+            "other": "data",
+            "no_description": True,
+        }
+
+    def test_format_task_graph_with_list_value_flattening(
+        self, task_graph_formatter
+    ) -> None:
+        """Test format_task_graph with list value flattening."""
+        # Create a formatter with predefined nodes that have list values
+        nodes = [
+            [
+                "1",
+                {
+                    "resource": {"id": "test", "name": "Test"},
+                    "attribute": {"value": ["item1", "item2", "item3"]},
+                },
+            ]
+        ]
+        edges = []
+
+        formatter = TaskGraphFormatter(nodes=nodes, edges=edges)
+
+        result = formatter.format_task_graph([])
+
+        # Should return the original value (not flattened) when nodes/edges are passed in
+        assert result["nodes"][0][1]["attribute"]["value"] == [
+            "item1",
+            "item2",
+            "item3",
+        ]
+
+    def test_format_task_graph_with_nested_graph_target_assignment(
+        self, task_graph_formatter
+    ) -> None:
+        """Test format_task_graph with nested graph target assignment."""
+        # Create a formatter with predefined nodes including nested graph
+        nodes = [
+            ["0", {"resource": {"id": "start", "name": "MessageWorker"}}],
+            ["1", {"resource": {"id": "task1", "name": "MessageWorker"}}],
+            [
+                "2",
+                {
+                    "resource": {"id": "nested_graph", "name": "NestedGraph"},
+                    "attribute": {"value": "original_value"},
+                },
+            ],
+        ]
+        edges = [
+            ["2", "1", {"intent": "test"}]  # Nested graph connects to task1
+        ]
+
+        formatter = TaskGraphFormatter(nodes=nodes, edges=edges)
+
+        result = formatter.format_task_graph([])
+
+        # Should return the original value (not updated) when nodes/edges are passed in
+        nested_graph_node = result["nodes"][2][1]
+        assert nested_graph_node["attribute"]["value"] == "original_value"
+
+    def test_format_task_graph_with_nested_graph_no_valid_target(
+        self, task_graph_formatter
+    ) -> None:
+        """Test format_task_graph with nested graph but no valid target."""
+        # Create a formatter with predefined nodes including nested graph
+        nodes = [
+            ["0", {"resource": {"id": "start", "name": "MessageWorker"}}],
+            [
+                "2",
+                {
+                    "resource": {"id": "nested_graph", "name": "NestedGraph"},
+                    "attribute": {"value": "original_value"},
+                },
+            ],
+        ]
+        edges = [
+            ["2", "0", {"intent": "test"}]  # Nested graph connects to start (invalid)
+        ]
+
+        formatter = TaskGraphFormatter(nodes=nodes, edges=edges)
+
+        result = formatter.format_task_graph([])
+
+        # Should return the original value (not updated) when nodes/edges are passed in
+        nested_graph_node = result["nodes"][1][1]
+        assert nested_graph_node["attribute"]["value"] == "original_value"
+
+    def test_format_task_graph_with_nested_graph_no_target_found(
+        self, task_graph_formatter
+    ) -> None:
+        """Test format_task_graph with nested graph but no target found."""
+        # Create a formatter with predefined nodes including nested graph
+        nodes = [
+            ["0", {"resource": {"id": "start", "name": "MessageWorker"}}],
+            [
+                "2",
+                {
+                    "resource": {"id": "nested_graph", "name": "NestedGraph"},
+                    "attribute": {"value": "original_value"},
+                },
+            ],
+        ]
+        edges = []  # No edges from nested graph
+
+        formatter = TaskGraphFormatter(nodes=nodes, edges=edges)
+
+        result = formatter.format_task_graph([])
+
+        # Should return the original value (not updated) when nodes/edges are passed in
+        nested_graph_node = result["nodes"][1][1]
+        assert nested_graph_node["attribute"]["value"] == "original_value"

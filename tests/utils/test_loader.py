@@ -9,6 +9,7 @@ import tempfile
 import os
 import requests
 from langchain_core.documents import Document
+import pickle
 
 from arklex.utils.loader import (
     encode_image,
@@ -1169,3 +1170,137 @@ class TestLoaderExtendedCoverage:
             loader._check_url("http://example.com:8080", "http://example.com:8080")
             is False
         )
+
+
+class TestLoader100Coverage:
+    def test_selenium_crawling_timeout_and_retry(self) -> None:
+        loader = Loader()
+        url_obj = DocObject("1", "http://timeout.com")
+        # Patch webdriver and time to simulate timeout
+        with (
+            patch("selenium.webdriver.Chrome") as mock_driver,
+            patch(
+                "time.time",
+                side_effect=[
+                    0,
+                    10,
+                    100,
+                    200,
+                    300,
+                    400,
+                    500,
+                    1000,
+                    1100,
+                    1200,
+                    1300,
+                    1400,
+                    1500,
+                    1600,
+                    1700,
+                    1800,
+                    1900,
+                    2000,
+                ],
+            ),
+            patch("time.sleep"),
+        ):
+            mock_driver_instance = Mock()
+            mock_driver.return_value = mock_driver_instance
+            mock_driver_instance.page_source = "<html><title>Timeout</title></html>"
+
+            # Simulate timeout exception on first try, success on second
+            def side_effect(*args, **kwargs):
+                raise Exception("URL load timeout")
+
+            mock_driver_instance.get.side_effect = side_effect
+            result = loader._crawl_with_selenium([url_obj])
+            assert any(doc.is_error for doc in result)
+
+    def test_requests_crawling_success(self) -> None:
+        loader = Loader()
+        url_obj = DocObject("1", "http://success.com")
+        with patch("requests.get") as mock_get:
+            mock_response = Mock()
+            mock_response.text = (
+                "<html><title>Success</title><body>Content</body></html>"
+            )
+            mock_response.status_code = 200
+            mock_get.return_value = mock_response
+            result = loader._crawl_with_requests([url_obj])
+            assert any("Success" in doc.metadata["title"] for doc in result)
+
+    def test_mock_content_company_url(self) -> None:
+        loader = Loader()
+        url_obj = DocObject("1", "http://test.com/company")
+        result = loader._create_mock_content_from_urls([url_obj])
+        assert "Company information" in result[0].content
+
+    def test_get_outsource_urls_processing_exception(self) -> None:
+        loader = Loader()
+        with patch("requests.get", side_effect=Exception("fail")):
+            result = loader.get_outsource_urls("http://fail.com", "http://fail.com")
+            assert result == []
+
+    def test_get_candidates_websites_graph(self) -> None:
+        loader = Loader()
+        urls = [
+            CrawledObject("1", "http://a.com", "b.com"),
+            CrawledObject("2", "http://b.com", "a.com"),
+        ]
+        result = loader.get_candidates_websites(urls, 1)
+        assert isinstance(result, list)
+        assert isinstance(result[0], CrawledObject)
+
+    def test_crawl_file_with_txt_loader(self) -> None:
+        loader = Loader()
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".txt", delete=False
+        ) as tmp_file:
+            tmp_file.write("test content")
+            tmp_file_path = tmp_file.name
+        doc_obj = DocObject("1", tmp_file_path)
+        try:
+            result = loader.crawl_file(doc_obj)
+            assert isinstance(result, CrawledObject)
+            assert not result.is_error
+        finally:
+            os.remove(tmp_file_path)
+
+    def test_crawl_file_with_error(self) -> None:
+        loader = Loader()
+        doc_obj = DocObject("1", "/nonexistent/file.txt")
+        result = loader.crawl_file(doc_obj)
+        assert result.is_error
+
+    def test_save_pickle(self) -> None:
+        docs = [CrawledObject("1", "src", "content")]
+        with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+            tmp_file_path = tmp_file.name
+        try:
+            Loader.save(tmp_file_path, docs)
+            with open(tmp_file_path, "rb") as f:
+                loaded = pickle.load(f)
+            assert isinstance(loaded, list)
+            assert isinstance(loaded[0], CrawledObject)
+        finally:
+            os.remove(tmp_file_path)
+
+    def test_chunk_with_error_and_chunked_docs(self) -> None:
+        class DummyDoc:
+            def __init__(self, is_error, is_chunk, content):
+                self.is_error = is_error
+                self.is_chunk = is_chunk
+                self.content = content
+                self.source = "src"
+                self.metadata = {}
+                self.source_type = SourceType.TEXT
+                self.id = "id"
+
+        doc_objs = [
+            DummyDoc(True, False, "content"),
+            DummyDoc(False, True, "content"),
+            DummyDoc(False, False, "chunk me"),
+        ]
+        result = Loader.chunk(doc_objs)
+        # Should skip error and already chunked, and chunk the last
+        assert any(isinstance(doc, Document) for doc in result)
