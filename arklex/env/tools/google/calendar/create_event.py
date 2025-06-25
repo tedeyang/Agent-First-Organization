@@ -13,6 +13,7 @@ from arklex.env.tools.google.calendar._exception_prompt import (
 )
 from arklex.utils.exceptions import AuthenticationError, ToolExecutionError
 from arklex.utils.logging_utils import LogContext
+from arklex.types import StreamType
 
 log_context = LogContext(__name__)
 
@@ -143,7 +144,10 @@ def create_event(
                 "timeZone": timezone,
             },
         }
-        if email is not None and kwargs.get("tool_caller") != "openai_realtime":
+        if (
+            email is not None
+            and kwargs.get("tool_caller") != StreamType.OPENAI_REALTIME_AUDIO
+        ):
             final_event["attendees"] = [{"email": email}]
 
         # Insert the event
@@ -158,7 +162,8 @@ def create_event(
             GoogleCalendarExceptionPrompt.EVENT_CREATION_ERROR_PROMPT.format(error=e),
         )
 
-    if kwargs.get("tool_caller") == "openai_realtime":
+    log_context.info(f"tool_caller: {kwargs.get('tool_caller')}")
+    if kwargs.get("tool_caller") == StreamType.OPENAI_REALTIME_AUDIO:
         log_context.info(
             f"checking for twilio client: {kwargs.get('twilio_client')}, phone_no_to: {kwargs.get('phone_no_to')}, phone_no_from: {kwargs.get('phone_no_from')}"
         )
