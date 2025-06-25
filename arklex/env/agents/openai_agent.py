@@ -55,20 +55,14 @@ class OpenAIAgent(BaseAgent):
     def generate(self, state: MessageState) -> MessageState:
         logger.info("\nGenerating response using the agent.")
 
-        orchestrator_message = state.orchestrator_message
-        orch_msg_content: str = (
-            "None" if not orchestrator_message.message else orchestrator_message.message
-        )
-        orch_msg_attr: Dict[str, Any] = orchestrator_message.attribute
-        direct_response: bool = orch_msg_attr.get("direct_response", False)
-        if direct_response:
-            state.message_flow = ""
-            state.response = orch_msg_content
-            state.status = StatusEnum.COMPLETE
-            return state
-
         if state.status == StatusEnum.INCOMPLETE:
             if not self.prompt:
+                orchestrator_message = state.orchestrator_message
+                orch_msg_content: str = (
+                    "None"
+                    if not orchestrator_message.message
+                    else orchestrator_message.message
+                )
                 prompts: Dict[str, str] = load_prompts(state.bot_config)
                 prompt: PromptTemplate = PromptTemplate.from_template(
                     prompts["function_calling_agent_prompt"]
