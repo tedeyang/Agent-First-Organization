@@ -10,7 +10,7 @@ from arklex.orchestrator.post_process import (
     _include_resource,
     RAG_NODES_STEPS,
 )
-from arklex.utils.graph_state import MessageState, Params, ResourceRecord
+from arklex.utils.graph_state import MessageState, Params, ResourceRecord, Metadata
 
 
 @pytest.fixture
@@ -24,6 +24,8 @@ def mock_message_state():
     state.trajectory = []
     state.bot_config = Mock()
     state.bot_config.llm_config = Mock()
+    state.metadata = Mock(spec=Metadata)
+    state.metadata.hitl = None
     return state
 
 
