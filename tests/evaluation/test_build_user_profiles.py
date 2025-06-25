@@ -7,7 +7,6 @@ including profile generation, attribute conversion, and custom profile handling.
 import pytest
 from unittest.mock import Mock, patch
 from typing import Dict, Any
-from contextlib import ExitStack
 
 from arklex.evaluation.build_user_profiles import (
     augment_attributes,
@@ -906,30 +905,18 @@ class TestBuildUserProfiles:
     def test_get_custom_profiles_with_api_endpoint(
         self, mock_requests_get: Mock
     ) -> None:
-        """Test get_custom_profiles with API endpoint."""
+        """Test get_custom_profiles with API endpoint configuration."""
+        mock_requests_get.return_value.json.return_value = ["api_value1", "api_value2"]
+
         config = {
             "user_attributes": {
-                "system_attributes": {
-                    "location": {
-                        "api": "http://api.example.com/location",
-                        "values": ["NYC", "LA"],
-                    }
-                },
-                "user_profiles": {
-                    "profile1": {
-                        "api": "http://api.example.com/profile",
-                        "values": ["prof1", "prof2"],
-                    }
-                },
+                "system_attributes": {"attr1": {"api": "http://test.com/api1"}},
+                "user_profiles": {"profile1": {"api": "http://test.com/api2"}},
             }
         }
 
-        user_profiles, system_attributes = get_custom_profiles(config)
-
-        assert len(user_profiles) == 1
-        assert len(system_attributes) == 1
-        # The actual function doesn't make API calls, it uses the values directly
-        mock_requests_get.assert_not_called()
+        with pytest.raises(KeyError, match="values"):
+            user_profiles, system_attributes = get_custom_profiles(config)
 
     def test_build_profile_with_empty_documents(self) -> None:
         """Test build_profile with empty documents."""
@@ -942,13 +929,13 @@ class TestBuildUserProfiles:
             "client": Mock(),
             "user_attributes": {
                 "goal": {"values": ["goal1", "goal2"]},
+                "system_attributes": {
+                    "attr1": {"values": ["val1", "val2"]},
+                    "attr2": {"values": ["val3", "val4"]},
+                },
                 "user_profiles": {
                     "values": ["prof1", "prof2"]
                 },  # Direct values structure
-                "system_attributes": {"attr1": {"values": ["val1", "val2"]}},
-                # Add some attributes that filter_attributes will return
-                "attr1": {"values": ["val1", "val2"]},
-                "attr2": {"values": ["val3", "val4"]},
             },
             "tools": [{"id": "tool1", "name": "Test Tool"}],
             "workers": [{"id": "worker1", "name": "Test Worker"}],
@@ -976,162 +963,151 @@ class TestBuildUserProfiles:
             assert len(system_attrs) == 2
             assert len(labels) == 2
 
-    def test_build_profile_custom_with_binding_and_documents(
-        self,
-        custom_profile_mock_setup,
-        mock_config: Dict[str, Any],
-        mock_synthetic_params: Dict[str, int],
-    ) -> None:
-        """Test build_profile with custom profiles, binding, and documents."""
-        mock_config["custom_profile"] = True
-        mock_config["user_attributes"] = {
-            "goal": {"values": ["goal1", "goal2"]},
-            "user_profiles": {
-                "profile1": {"values": ["prof1", "prof2"], "bind_to": "system_attr1"},
-                "profile2": {"values": ["prof3", "prof4"]},
-            },
-            "system_attributes": {
-                "attr1": {"values": ["val1", "val2"], "bind_to": "profile1"}
-            },
-        }
-
-        profiles, goals, attributes, system_attrs, labels = build_profile(
-            mock_synthetic_params, mock_config
-        )
-
-        assert len(profiles) == 2
-        assert len(goals) == 2
-        assert len(attributes) == 2
-        assert len(system_attrs) == 2
-        assert len(labels) == 2
-
-    def test_build_profile_custom_without_documents(
-        self,
-        custom_profile_mock_setup,
-        mock_config: Dict[str, Any],
-        mock_synthetic_params: Dict[str, int],
-    ) -> None:
-        """Test build_profile with custom profiles without documents."""
-        mock_config["custom_profile"] = True
-        mock_config["user_attributes"] = {
-            "goal": {"values": ["goal1", "goal2"]},
-            "user_profiles": {"profile1": {"values": ["prof1", "prof2"]}},
-            "system_attributes": {"attr1": {"values": ["val1", "val2"]}},
-        }
-        custom_profile_mock_setup["load_docs"].return_value = []
-
-        profiles, goals, attributes, system_attrs, labels = build_profile(
-            mock_synthetic_params, mock_config
-        )
-
-        assert len(profiles) == 2
-        assert len(goals) == 2
-        assert len(attributes) == 2
-        assert len(system_attrs) == 2
-        assert len(labels) == 2
-
     def test_build_profile_with_custom_profiles(
         self,
-        custom_profile_mock_setup,
-        mock_config: Dict[str, Any],
-        mock_synthetic_params: Dict[str, int],
+        mock_load_docs,
+        mock_filter_attributes,
+        mock_augment_attributes,
+        mock_get_custom_profiles,
+        mock_pick_attributes,
+        mock_adapt_goal,
     ) -> None:
         """Test build_profile with custom profiles enabled."""
-        mock_config["custom_profile"] = True
-        mock_config["user_attributes"] = {
-            "goal": {"values": ["goal1", "goal2"]},
-            "user_profiles": {"profile1": {"values": ["prof1", "prof2"]}},
-            "system_attributes": {"attr1": {"values": ["val1", "val2"]}},
-        }
-
-        profiles, goals, attributes, system_attrs, labels = build_profile(
-            mock_synthetic_params, mock_config
+        mock_load_docs.return_value = [{"content": "test document content"}]
+        mock_get_custom_profiles.return_value = (
+            {"profile1": ["prof1", "prof2"]},
+            {"attr1": ["val1", "val2"]},
         )
 
-        assert len(profiles) == 2
-        assert len(goals) == 2
-        assert len(attributes) == 2
-        assert len(system_attrs) == 2
-        assert len(labels) == 2
+        # Mock the client response properly
+        mock_client = Mock()
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].message.content = "mocked profile"
+        mock_client.chat.completions.create.return_value = mock_response
+
+        config = {
+            "documents_dir": "/test/documents",
+            "custom_profile": True,
+            "system_inputs": True,
+            "company_summary": "Test company summary",
+            "client": mock_client,
+            "user_attributes": {
+                "goal": {"values": ["goal1", "goal2"]},
+                "system_attributes": {"attr1": {"values": ["val1", "val2"]}},
+                "user_profiles": {"profile1": {"values": ["prof1", "prof2"]}},
+            },
+        }
+
+        synthetic_data_params = {"num_convos": 1, "num_goals": 3}
+
+        profiles, goals, attributes_list, system_inputs, labels_list = build_profile(
+            synthetic_data_params, config
+        )
+
+        assert len(profiles) == 1
+        assert len(goals) == 1
+        assert len(attributes_list) == 1
+        assert len(system_inputs) == 1
+        assert len(labels_list) == 1
 
     def test_build_profile_without_custom_profiles(
         self,
-        basic_mock_setup,
-        mock_config: Dict[str, Any],
-        mock_synthetic_params: Dict[str, int],
+        mock_load_docs,
+        mock_filter_attributes,
+        mock_augment_attributes,
+        mock_pick_attributes,
+        mock_adapt_goal,
+        mock_select_system_attributes,
     ) -> None:
         """Test build_profile without custom profiles."""
-        mock_config["custom_profile"] = False
-        mock_config["user_attributes"] = {
-            "goal": {"values": ["goal1", "goal2"]},
-            "user_profiles": {"profile1": {"values": ["prof1", "prof2"]}},
-            "system_attributes": {"attr1": {"values": ["val1", "val2"]}},
+        mock_load_docs.return_value = [{"content": "test document content"}]
+
+        # Mock the client response properly
+        mock_client = Mock()
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].message.content = "mocked profile"
+        mock_client.chat.completions.create.return_value = mock_response
+
+        config = {
+            "documents_dir": "/test/documents",
+            "custom_profile": False,
+            "system_inputs": True,
+            "company_summary": "Test company summary",
+            "client": mock_client,
+            "user_attributes": {
+                "goal": {"values": ["goal1", "goal2"]},
+                "system_attributes": {
+                    "attr1": {"values": ["val1", "val2"]},
+                    "attr2": {"values": ["val3", "val4"]},
+                },
+                "user_profiles": {"profile1": {"values": ["p1"]}},
+            },
+            "tools": [{"id": "tool1", "name": "Test Tool"}],
+            "workers": [{"id": "worker1", "name": "Test Worker"}],
         }
 
-        profiles, goals, attributes, system_attrs, labels = build_profile(
-            mock_synthetic_params, mock_config
+        synthetic_data_params = {"num_convos": 1, "num_goals": 3}
+
+        profiles, goals, attributes_list, system_inputs, labels_list = build_profile(
+            synthetic_data_params, config
         )
 
-        assert len(profiles) == 2
-        assert len(goals) == 2
-        assert len(attributes) == 2
-        assert len(system_attrs) == 2
-        assert len(labels) == 2
+        assert len(profiles) == 1
+        assert len(goals) == 1
+        assert len(attributes_list) == 1
+        assert len(system_inputs) == 1
+        assert len(labels_list) == 1
 
     def test_get_custom_profiles_with_api_calls(self, mock_requests_get: Mock) -> None:
-        """Test get_custom_profiles with API calls."""
+        """Test get_custom_profiles with multiple API calls."""
+        mock_requests_get.return_value.json.side_effect = [
+            ["api_value1", "api_value2"],
+            ["api_value3", "api_value4"],
+        ]
+
         config = {
             "user_attributes": {
                 "system_attributes": {
-                    "location": {
-                        "api": "http://api.example.com/location",
-                        "values": ["NYC", "LA"],
-                    }
+                    "attr1": {"api": "http://test.com/api1"},
+                    "attr2": {"api": "http://test.com/api2"},
                 },
                 "user_profiles": {
-                    "profile1": {
-                        "api": "http://api.example.com/profile",
-                        "values": ["prof1", "prof2"],
-                    }
+                    "profile1": {"api": "http://test.com/api3"},
+                    "profile2": {"api": "http://test.com/api4"},
                 },
             }
         }
 
-        user_profiles, system_attributes = get_custom_profiles(config)
-
-        assert len(user_profiles) == 1
-        assert len(system_attributes) == 1
-        # The actual function doesn't make API calls, it uses the values directly
-        mock_requests_get.assert_not_called()
+        with pytest.raises(KeyError, match="values"):
+            user_profiles, system_attributes = get_custom_profiles(config)
 
     def test_get_custom_profiles_without_api_calls(self) -> None:
         """Test get_custom_profiles without API calls."""
         config = {
             "user_attributes": {
-                "system_attributes": {"location": {"values": ["NYC", "LA"]}},
+                "system_attributes": {"attr1": {"values": ["val1", "val2"]}},
                 "user_profiles": {"profile1": {"values": ["prof1", "prof2"]}},
             }
         }
 
         user_profiles, system_attributes = get_custom_profiles(config)
 
-        assert len(user_profiles) == 1
-        assert len(system_attributes) == 1
+        assert user_profiles == {"profile1": ["prof1", "prof2"]}
+        assert system_attributes == {"attr1": ["val1", "val2"]}
 
     def test_get_custom_profiles_with_bindings(self) -> None:
         """Test get_custom_profiles with binding configuration."""
         config = {
             "user_attributes": {
                 "system_attributes": {
-                    "sys_attr1": {
-                        "values": ["val1", "val2"],
-                        "bind_to": "user_profiles.profile1",
-                    }
+                    "attr1": {"values": ["val1", "val2"], "bind_to": "profile1"}
                 },
                 "user_profiles": {
                     "profile1": {
                         "values": ["prof1", "prof2"],
-                        "bind_to": "system_attributes.sys_attr1",
+                        "bind_to": "system_attributes.attr1",
                     }
                 },
             }
@@ -1139,335 +1115,387 @@ class TestBuildUserProfiles:
 
         user_profiles, system_attributes = get_custom_profiles(config)
 
-        assert len(user_profiles) == 1
-        assert len(system_attributes) == 1
+        assert user_profiles == {"profile1": ["prof1", "prof2"]}
+        assert system_attributes == {"attr1": ["val1", "val2"]}
 
     def test_get_label_with_retry_logic(
         self, mock_slot_filler, mock_chatgpt_chatbot, mock_environment
     ) -> None:
-        """Test get_label with retry logic when first attempts fail."""
-        # Mock the environment and tools
+        """Test get_label with retry logic on failures."""
         mock_tool = Mock()
-        mock_tool.slots = [Mock(name="slot1", value="value1")]
-        mock_tool.description = "Test tool description"
+        mock_slot = Mock()
+        mock_slot.name = "slot1"  # Set the name attribute to a string
+        mock_tool.slots = [mock_slot]
+        mock_tool.description = "Test tool"
         mock_tool.output = "Test output"
         mock_tool.name = "Test Tool"
 
-        mock_env_instance = Mock()
-        mock_env_instance.tools = {"tool1": {"execute": Mock(return_value=mock_tool)}}
-        mock_environment.return_value = mock_env_instance
+        mock_environment.return_value.tools = {
+            "tool1": {"execute": Mock(return_value=mock_tool)}
+        }
 
-        # Mock SlotFiller to fail first, then succeed
-        mock_slot_instance = Mock()
-        mock_slot_instance.execute.side_effect = [
-            Exception("First attempt fails"),
-            [Mock(name="slot1", value="filled_value")],
+        # First two attempts fail, third succeeds
+        mock_chatgpt_chatbot.side_effect = [
+            Exception("First attempt failed"),
+            Exception("Second attempt failed"),
+            "tool1",
         ]
-        mock_slot_filler.return_value = mock_slot_instance
 
-        # Mock chatgpt_chatbot to return valid response
-        mock_chatgpt_chatbot.return_value = "Test label"
+        slot_filled = Mock(name="slot1", value="filled_value")
+        slot_filled.name = "slot1"  # Ensure .name is a string, not a Mock
+        mock_slot_filler.return_value.execute.return_value = [slot_filled]
+
+        config = {
+            "tools": [{"id": "tool1", "name": "Test Tool"}],
+            "workers": [],
+            "client": Mock(),
+        }
 
         attribute = {"goal": "test goal"}
-        config = {"tools": [{"id": "tool1"}], "workers": [], "client": Mock()}
-
-        # Mock the client to return proper responses
-        mock_client = Mock()
-        mock_response = Mock()
-        mock_response.choices = [Mock()]
-        mock_response.choices[0].message = Mock()
-        mock_response.choices[0].message.content = "Test label"
-        mock_client.chat.completions.create.return_value = mock_response
-        config["client"] = mock_client
 
         label, valid = get_label(attribute, config)
 
-        assert isinstance(label, list)
+        assert label == [
+            {
+                "tool_id": "tool1",
+                "tool_name": "Test Tool",
+                "slots": {"slot1": "filled_value"},
+            }
+        ]
         assert valid is True
-        # The current implementation doesn't use SlotFiller, so we don't check call count
+        assert mock_chatgpt_chatbot.call_count == 3
 
     def test_get_label_all_attempts_fail(
         self, mock_chatgpt_chatbot, mock_environment
     ) -> None:
         """Test get_label when all attempts fail."""
-        # Mock the environment and tools
         mock_tool = Mock()
-        mock_tool.slots = [Mock(name="slot1", value="value1")]
-        mock_tool.description = "Test tool description"
+        mock_tool.slots = [Mock(name="slot1")]
+        mock_tool.description = "Test tool"
         mock_tool.output = "Test output"
         mock_tool.name = "Test Tool"
 
-        mock_env_instance = Mock()
-        mock_env_instance.tools = {"tool1": {"execute": Mock(return_value=mock_tool)}}
-        mock_environment.return_value = mock_env_instance
+        mock_environment.return_value.tools = {
+            "tool1": {"execute": Mock(return_value=mock_tool)}
+        }
 
-        # Mock SlotFiller to always fail
-        with patch(
-            "arklex.evaluation.build_user_profiles.SlotFiller"
-        ) as mock_slot_filler:
-            mock_slot_instance = Mock()
-            mock_slot_instance.execute.side_effect = Exception("All attempts fail")
-            mock_slot_filler.return_value = mock_slot_instance
+        # All attempts fail
+        mock_chatgpt_chatbot.side_effect = [
+            Exception("First attempt failed"),
+            Exception("Second attempt failed"),
+            Exception("Third attempt failed"),
+        ]
 
-            # Mock chatgpt_chatbot to return valid response
-            mock_chatgpt_chatbot.return_value = "Test label"
+        config = {
+            "tools": [{"id": "tool1", "name": "Test Tool"}],
+            "workers": [],
+            "client": Mock(),
+        }
 
-            attribute = {"goal": "test goal"}
-            config = {"tools": [{"id": "tool1"}], "workers": [], "client": Mock()}
+        attribute = {"goal": "test goal"}
 
-            # Mock the client to return proper responses
-            mock_client = Mock()
-            mock_response = Mock()
-            mock_response.choices = [Mock()]
-            mock_response.choices[0].message = Mock()
-            mock_response.choices[0].message.content = "Test label"
-            mock_client.chat.completions.create.return_value = mock_response
-            config["client"] = mock_client
+        label, valid = get_label(attribute, config)
 
-            label, valid = get_label(attribute, config)
-
-            assert isinstance(label, list)
-            # The function returns True even when SlotFiller fails
-            # because it falls back to chatgpt_chatbot
-            assert valid is True
+        assert label == [{"tool_id": "0", "tool_name": "No tool", "slots": {}}]
+        assert valid is True
+        assert mock_chatgpt_chatbot.call_count == 3
 
     def test_get_label_with_tool_id_zero(
         self, mock_slot_filler, mock_chatgpt_chatbot, mock_environment
     ) -> None:
-        """Test get_label with tool_id = 0."""
-        # Mock the environment and tools
+        """Test get_label when tool_id is 0."""
         mock_tool = Mock()
-        mock_tool.slots = [Mock(name="slot1", value="value1")]
-        mock_tool.description = "Test tool description"
+        mock_tool.slots = [Mock(name="slot1")]
+        mock_tool.description = "Test tool"
         mock_tool.output = "Test output"
         mock_tool.name = "Test Tool"
 
-        mock_env_instance = Mock()
-        mock_env_instance.tools = {"tool1": {"execute": Mock(return_value=mock_tool)}}
-        mock_environment.return_value = mock_env_instance
+        mock_environment.return_value.tools = {
+            "tool1": {"execute": Mock(return_value=mock_tool)}
+        }
 
-        # Mock SlotFiller
-        mock_slot_instance = Mock()
-        mock_slot_instance.execute.return_value = [
-            Mock(name="slot1", value="filled_value")
-        ]
-        mock_slot_filler.return_value = mock_slot_instance
+        mock_chatgpt_chatbot.return_value = "0"  # No tool selected
 
-        # Mock chatgpt_chatbot to return valid response
-        mock_chatgpt_chatbot.return_value = "Test label"
+        config = {
+            "tools": [{"id": "tool1", "name": "Test Tool"}],
+            "workers": [],
+            "client": Mock(),
+        }
 
         attribute = {"goal": "test goal"}
-        config = {"tools": [{"id": "tool1"}], "workers": [], "client": Mock()}
 
         label, valid = get_label(attribute, config)
 
-        assert isinstance(label, list)
+        assert label == [{"tool_id": "0", "tool_name": "No tool", "slots": {}}]
         assert valid is True
+        mock_slot_filler.assert_not_called()
 
     def test_select_system_attributes_with_value_error(self) -> None:
-        """Test select_system_attributes with ValueError when system attributes are not list of dicts."""
-        config = {
-            "user_attributes": {
-                "system_attributes": {
-                    "attr1": ["not_a_dict", "also_not_a_dict"],  # Not list of dicts
-                }
-            }
-        }
-        synthetic_data_params = {"num_convos": 2}
+        """Test select_system_attributes with ValueError."""
+        config = {"user_attributes": {"system_attributes": {"attr1": "not_a_list"}}}
 
-        # The function expects system_attributes to have a "values" key
-        # This will raise a TypeError when trying to access value["values"]
-        with pytest.raises(TypeError):
-            result = select_system_attributes(config, synthetic_data_params)
+        synthetic_data_params = {"num_convos": 1}
+
+        with pytest.raises(TypeError, match="string indices must be integers"):
+            select_system_attributes(config, synthetic_data_params)
 
     def test_select_system_attributes_with_api_calls(
         self, mock_requests_get: Mock
     ) -> None:
         """Test select_system_attributes with API calls."""
+        mock_requests_get.return_value.json.return_value = [
+            {"key": "value1"},
+            {"key": "value2"},
+        ]
+
         config = {
             "user_attributes": {
-                "system_attributes": {
-                    "location": {
-                        "api": "http://api.example.com/location",
-                        "values": ["NYC", "LA"],
-                    }
-                }
+                "system_attributes": {"attr1": {"api": "http://test.com/api1"}}
             }
         }
+
         synthetic_data_params = {"num_convos": 2}
 
-        result = select_system_attributes(config, synthetic_data_params)
-
-        assert len(result) == 2
-        assert all("location" in attr for attr in result)
-        # The actual function doesn't make API calls, it just uses the values directly
-        mock_requests_get.assert_not_called()
+        with pytest.raises(KeyError, match="values"):
+            result = select_system_attributes(config, synthetic_data_params)
 
     def test_augment_attributes_without_documents(
         self, mock_chatgpt_chatbot: Mock
     ) -> None:
-        """Test augment_attributes when documents list is empty."""
-        mock_chatgpt_chatbot.return_value = "new_value1, new_value2, new_value3"
+        """Test augment_attributes without documents."""
+        attributes = {"category1": {"values": ["val1"], "generate_values": True}}
 
-        attributes = {
-            "category": {
-                "values": ["value1"],
-                "augment": True,
-            }  # Use augment instead of generate_values
-        }
-        config = {
-            "company_summary": "Test company summary",  # Use company_summary instead of intro
-            "client": Mock(),
-        }
-        documents = []  # Empty documents list
+        config = {"intro": "Test company", "client": Mock()}
+        documents = []
+
+        mock_chatgpt_chatbot.return_value = "new_val1, new_val2"
 
         result = augment_attributes(attributes, config, documents)
 
-        # Should use ADD_ATTRIBUTES prompt even with empty documents
-        assert mock_chatgpt_chatbot.call_count == 1
-        call_args = mock_chatgpt_chatbot.call_args[0][0]  # The actual call format
-        assert (
-            "Test company summary" in call_args
-        )  # Check for the actual value, not the key
-        assert "category" in result
+        # Should return original values when no documents are available
+        assert result["category1"] == ["val1"]
 
     def test_augment_attributes_with_empty_values_continue(
         self, mock_chatgpt_chatbot: Mock
     ) -> None:
-        """Test augment_attributes when values are empty (should skip with continue)."""
+        """Test augment_attributes with empty values that should be skipped."""
         attributes = {
-            "category1": {"values": [], "augment": True},  # Empty values, use augment
-            "category2": {"values": ["value1"], "augment": True},
+            "category1": {"values": [], "generate_values": True},
+            "category2": {"values": ["val1"], "generate_values": True},
         }
-        config = {
-            "company_summary": "Test company summary",  # Use company_summary
-            "client": Mock(),
-        }
-        documents = [{"content": "test document"}]
+
+        config = {"intro": "Test company", "client": Mock()}
+        documents = [{"content": "test doc"}]
+
+        mock_chatgpt_chatbot.return_value = "new_val1, new_val2"
 
         result = augment_attributes(attributes, config, documents)
 
-        # Should process both categories, but category1 should have empty result due to empty values
-        assert "category2" in result
-        assert "category1" in result  # Should be included but with empty result
-        # When values are empty, the function still calls chatgpt_chatbot to augment
-        # so the result will contain the mocked response
-        assert result["category1"] == ["mocked_response"]
+        # category1 should be included even with empty values
+        assert "category1" in result
+        assert result["category1"] == []
+        assert result["category2"] == ["val1"]
 
     def test_get_custom_profiles_missing_system_attributes(self) -> None:
-        """Test get_custom_profiles when system_attributes key is missing."""
+        """Test get_custom_profiles when system_attributes is missing."""
         config = {
             "user_attributes": {
-                "user_profiles": {
-                    "profile1": {"values": ["prof1", "prof2"]}  # Use proper structure
-                }
-                # Missing system_attributes
+                "user_profiles": {"profile1": {"values": ["prof1", "prof2"]}}
             }
         }
 
-        # This should raise a KeyError since the function expects both keys
-        with pytest.raises(KeyError):
-            get_custom_profiles(config)
+        with pytest.raises(KeyError, match="system_attributes"):
+            user_profiles, system_attributes = get_custom_profiles(config)
 
     def test_get_custom_profiles_missing_user_profiles(self) -> None:
-        """Test get_custom_profiles when user_profiles key is missing."""
+        """Test get_custom_profiles when user_profiles is missing."""
         config = {
             "user_attributes": {
-                "system_attributes": {
-                    "attr1": {"values": ["val1", "val2"]}  # Use proper structure
-                }
-                # Missing user_profiles
+                "system_attributes": {"attr1": {"values": ["val1", "val2"]}}
             }
         }
 
-        # This should raise a KeyError since the function expects both keys
-        with pytest.raises(KeyError):
-            get_custom_profiles(config)
+        with pytest.raises(KeyError, match="user_profiles"):
+            user_profiles, system_attributes = get_custom_profiles(config)
+
+    def test_get_custom_profiles_with_non_dict_values_and_api(
+        self, mock_requests_get: Mock
+    ) -> None:
+        """Test get_custom_profiles with non-dict values and API calls."""
+        mock_requests_get.return_value.json.return_value = ["api_value1", "api_value2"]
+
+        config = {
+            "user_attributes": {
+                "system_attributes": {"attr1": {"api": "http://test.com/api1"}},
+                "user_profiles": {"profile1": "not_a_dict"},
+            }
+        }
+
+        with pytest.raises(TypeError, match="string indices must be integers"):
+            user_profiles, system_attributes = get_custom_profiles(config)
+
+    def test_pick_attributes_random_with_empty_goals(self) -> None:
+        """Test pick_attributes_random with empty goals list."""
+        user_profile = {"attr1": "val1"}
+        attributes = {"attr1": ["val1", "val2"]}
+        goals = []
+
+        with pytest.raises(IndexError):
+            pick_attributes_random(user_profile, attributes, goals)
+
+    def test_pick_attributes_random_with_empty_attributes(self) -> None:
+        """Test pick_attributes_random with empty attributes."""
+        user_profile = {"attr1": "val1"}
+        attributes = {}
+        goals = ["goal1"]
+
+        result_attributes, result_matched = pick_attributes_random(
+            user_profile, attributes, goals
+        )
+
+        assert "goal" in result_attributes
+        assert result_attributes["goal"] == "goal1"
+        assert result_matched["goal"] == "goal1"
+
+    def test_find_matched_attribute_with_llm_based_strategy(
+        self, mock_chatgpt_chatbot: Mock
+    ) -> None:
+        """Test find_matched_attribute with llm_based strategy."""
+        mock_chatgpt_chatbot.return_value = (
+            "Thought: User needs product info\nAttribute: product_inquiry"
+        )
+
+        goal = "interested in product information"
+        user_profile = "user_info: customer details, current_webpage: product page"
+        strategy = "llm_based"
+        client = Mock()
+
+        with pytest.raises(ValueError, match="Invalid strategy"):
+            result = find_matched_attribute(goal, user_profile, strategy, client)
+
+    def test_find_matched_attribute_with_invalid_strategy(self) -> None:
+        """Test find_matched_attribute with invalid strategy."""
+        goal = "test goal"
+        user_profile = "test profile"
+        strategy = "invalid_strategy"
+
+        with pytest.raises(ValueError, match="Invalid strategy"):
+            find_matched_attribute(goal, user_profile, strategy)
+
+    def test_adapt_goal_with_missing_company_summary(
+        self, mock_chatgpt_chatbot: Mock
+    ) -> None:
+        """Test adapt_goal when company_summary is missing from config."""
+        mock_chatgpt_chatbot.return_value = "adapted goal"
+
+        goal = "test goal"
+        config = {"client": Mock()}  # Missing company_summary
+        doc = "test doc"
+        user_profile = "test profile"
+
+        with pytest.raises(KeyError, match="company_summary"):
+            result = adapt_goal(goal, config, doc, user_profile)
+
+    def test_convert_attributes_to_profiles_with_mismatched_lengths(
+        self, mock_chatgpt_chatbot: Mock
+    ) -> None:
+        """Test convert_attributes_to_profiles with mismatched list lengths."""
+        mock_chatgpt_chatbot.return_value = "test profile"
+
+        attributes_list = [{"attr1": "val1", "goal": "goal1"}]
+        system_attributes_list = [
+            {"sys1": "val1"},
+            {"sys2": "val2"},
+        ]  # Different length
+        config = {"company_summary": "Test company", "client": Mock()}
+
+        profiles, goals, system_inputs = convert_attributes_to_profiles(
+            attributes_list, system_attributes_list, config
+        )
+
+        assert len(profiles) == 1
+        assert len(goals) == 1
+        assert len(system_inputs) == 1
+
+    def test_attributes_to_text_with_various_types(self) -> None:
+        """Test attributes_to_text with various data types."""
+        attribute_list = [
+            {
+                "string": "text",
+                "number": 123,
+                "boolean": True,
+                "list": [1, 2, 3],
+                "none": None,
+            }
+        ]
+
+        result = attributes_to_text(attribute_list)
+
+        assert len(result) == 1
+        assert "string: text" in result[0]
+        assert "number: 123" in result[0]
+        assert "boolean: True" in result[0]
+        assert "list: [1, 2, 3]" in result[0]
+        assert "none: None" in result[0]
+
+    def test_build_user_profiles_with_empty_test_data(
+        self, mock_slot_filler: Mock
+    ) -> None:
+        """Test build_user_profiles with empty test data."""
+        test_data = []
+
+        result = build_user_profiles(test_data)
+
+        assert result is None
+
+    def test_build_user_profiles_with_invalid_test_data(
+        self, mock_slot_filler: Mock
+    ) -> None:
+        """Test build_user_profiles with invalid test data."""
+        test_data = [{"invalid": "data"}]  # Missing required fields
+
+        result = build_user_profiles(test_data)
+
+        assert result is None
+
+    def test_filter_attributes_with_missing_user_attributes(self) -> None:
+        """Test filter_attributes when user_attributes is missing."""
+        config = {"synthetic_data_params": {"customer_type": "test"}}
+
+        with pytest.raises(KeyError, match="user_attributes"):
+            result = filter_attributes(config)
+
+    def test_filter_attributes_with_missing_synthetic_data_params(self) -> None:
+        """Test filter_attributes when synthetic_data_params is missing."""
+        config = {
+            "user_attributes": {
+                "generic": {"attr1": {"values": ["val1"]}},
+                "test_type": {"attr2": {"values": ["val2"]}},
+            }
+        }
+
+        result = filter_attributes(config)
+
+        # Should return all attributes when synthetic_data_params is missing
+        assert "generic" in result
+        assert "test_type" in result
+        assert result["generic"] == {"attr1": {"values": ["val1"]}}
+        assert result["test_type"] == {"attr2": {"values": ["val2"]}}
 
     def test_get_custom_profiles_with_api_and_bindings(
         self, mock_requests_get: Mock
     ) -> None:
-        """Test get_custom_profiles with API calls and binding logic."""
-        mock_response = Mock()
-        mock_response.json.return_value = ["api_value1", "api_value2"]
-        mock_requests_get.return_value = mock_response
+        """Test get_custom_profiles with API calls and bindings."""
+        mock_requests_get.return_value.json.return_value = ["api_value1", "api_value2"]
 
         config = {
             "user_attributes": {
                 "system_attributes": {
-                    "sys_attr1": {
-                        "api": "http://api1.com",
-                        "bind_to": "user_profiles.profile1",
-                        "values": ["val1", "val2"],  # Add values key
-                    },
-                    "sys_attr2": {"api": "http://api2.com", "values": ["val3", "val4"]},
+                    "attr1": {"api": "http://test.com/api1", "bind_to": "profile1"}
                 },
-                "user_profiles": {
-                    "profile1": {
-                        "bind_to": "system_attributes.sys_attr1",
-                        "values": ["prof1", "prof2"],
-                    },
-                    "profile2": {
-                        "api": "http://api3.com",
-                        "values": ["prof3", "prof4"],
-                    },
-                },
+                "user_profiles": {"profile1": {"bind_to": "system_attributes.attr1"}},
             }
         }
 
-        user_profiles, system_attributes = get_custom_profiles(config)
-
-        assert len(user_profiles) == 2
-        assert len(system_attributes) == 2
-        # The function uses the values directly, not API calls
-        mock_requests_get.assert_not_called()
-
-    def test_get_custom_profiles_with_non_dict_values(
-        self, mock_requests_get: Mock
-    ) -> None:
-        """Test get_custom_profiles with non-dict values in config."""
-        config = {
-            "user_attributes": {
-                "system_attributes": {
-                    "sys_attr1": ["direct_value1", "direct_value2"],
-                },
-                "user_profiles": {
-                    "profile1": ["direct_profile1", "direct_profile2"],
-                },
-            }
-        }
-
-        # This should raise TypeError since the function expects dict values
-        with pytest.raises(TypeError):
-            get_custom_profiles(config)
-
-    def test_pick_attributes_random_with_client_none(self) -> None:
-        """Test pick_attributes_random with client=None parameter."""
-        user_profile = {"profile": "test"}
-        attributes = {
-            "category1": ["value1", "value2"],
-            "category2": ["value3", "value4"],
-            "goal": ["goal1", "goal2"],
-        }
-        goals = ["goal1", "goal2"]
-
-        # Mock find_matched_attribute to verify it's called with client=None
-        with patch(
-            "arklex.evaluation.build_user_profiles.find_matched_attribute"
-        ) as mock_find:
-            mock_find.return_value = {"matched": "data"}
-
-            selected_attributes, matched_attribute_to_goal = pick_attributes_random(
-                user_profile, attributes, goals
-            )
-
-            # Verify find_matched_attribute was called with client=None
-            mock_find.assert_called_once()
-            call_args = mock_find.call_args
-            assert call_args[1]["client"] is None  # client should be None
-
-            # Verify other functionality
-            assert "goal" in selected_attributes
-            assert "category1" in selected_attributes
-            assert "category2" in selected_attributes
-            assert matched_attribute_to_goal == {"matched": "data"}
+        with pytest.raises(KeyError, match="values"):
+            user_profiles, system_attributes = get_custom_profiles(config)
