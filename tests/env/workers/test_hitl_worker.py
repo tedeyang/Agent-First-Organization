@@ -339,10 +339,7 @@ class TestHITLWorkerChatFlag:
             result = worker._execute(state)
 
             assert result == state
-            assert (
-                state.response
-                == "[[sending confirmation : this should not show up for user]]"
-            )
+            assert state.message_flow == "Need help"
             assert state.metadata.hitl == "live"
             assert state.status == StatusEnum.STAY
 
