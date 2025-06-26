@@ -14,12 +14,9 @@ to test. We need to:
 """
 
 import pytest
-from unittest.mock import Mock, patch
-from contextlib import ExitStack
-import sys
+from unittest.mock import Mock
 
 # Import the classes directly from the UI module
-from arklex.orchestrator.generator.ui import TaskEditorApp, InputModal
 
 
 # --- Fixtures ---
