@@ -794,6 +794,129 @@ class TestDocumentProcessor:
         assert isinstance(handled_reqs, list)
         assert len(handled_reqs) == len(requirements)
 
+    def test_document_processor_process_section_method(self) -> None:
+        """Test the _process_section method of DocumentProcessor."""
+        from arklex.orchestrator.generator.docs.document_processor import (
+            DocumentProcessor,
+        )
+
+        processor = DocumentProcessor()
+        section = {
+            "name": "Test Section",
+            "content": "Test content with extra spaces   ",
+            "requirements": ["req1", "req2"],
+        }
+
+        result = processor._process_section(section)
+
+        assert result["name"] == "Test Section"
+        assert result["content"] == "Test content with extra spaces   "
+        assert result["requirements"] == ["req1", "req2"]
+        assert result["processed_content"] == "Test content with extra spaces"
+
+    def test_document_processor_process_content_method(self) -> None:
+        """Test the _process_content method of DocumentProcessor."""
+        from arklex.orchestrator.generator.docs.document_processor import (
+            DocumentProcessor,
+        )
+
+        processor = DocumentProcessor()
+
+        # Test with content that has extra whitespace
+        content = "  Test content with spaces  \n\n"
+        result = processor._process_content(content)
+        assert result == "Test content with spaces"
+
+        # Test with empty content
+        result = processor._process_content("")
+        assert result == ""
+
+        # Test with content that has leading/trailing spaces
+        result = processor._process_content("  content  ")
+        assert result == "content"
+
+    def test_document_processor_extract_steps_with_dict_steps(self) -> None:
+        """Test _extract_steps method with dictionary steps."""
+        from arklex.orchestrator.generator.docs.document_processor import (
+            DocumentProcessor,
+        )
+
+        processor = DocumentProcessor()
+        section = {
+            "steps": [
+                {"task": "Step 1", "description": "First step"},
+                {"task": "Step 2", "description": "Second step"},
+            ]
+        }
+
+        result = processor._extract_steps(section)
+        assert len(result) == 2
+        assert result[0]["task"] == "Step 1"
+        assert result[1]["task"] == "Step 2"
+
+    def test_document_processor_extract_steps_with_string_steps(self) -> None:
+        """Test _extract_steps method with string steps."""
+        from arklex.orchestrator.generator.docs.document_processor import (
+            DocumentProcessor,
+        )
+
+        processor = DocumentProcessor()
+        section = {"steps": ["Step 1", "Step 2", "Step 3"]}
+
+        result = processor._extract_steps(section)
+        assert len(result) == 3
+        assert result[0]["task"] == "Step 1"
+        assert result[1]["task"] == "Step 2"
+        assert result[2]["task"] == "Step 3"
+
+    def test_document_processor_extract_steps_with_mixed_steps(self) -> None:
+        """Test _extract_steps method with mixed step types."""
+        from arklex.orchestrator.generator.docs.document_processor import (
+            DocumentProcessor,
+        )
+
+        processor = DocumentProcessor()
+        section = {
+            "steps": [
+                {"task": "Step 1", "description": "First step"},
+                "Step 2",
+                {"task": "Step 3", "description": "Third step"},
+            ]
+        }
+
+        result = processor._extract_steps(section)
+        assert len(result) == 3
+        assert result[0]["task"] == "Step 1"
+        assert result[1]["task"] == "Step 2"
+        assert result[2]["task"] == "Step 3"
+
+    def test_document_processor_extract_steps_with_no_steps(self) -> None:
+        """Test _extract_steps method with no steps."""
+        from arklex.orchestrator.generator.docs.document_processor import (
+            DocumentProcessor,
+        )
+
+        processor = DocumentProcessor()
+        section = {}
+
+        result = processor._extract_steps(section)
+        assert result == []
+
+    def test_document_processor_extract_steps_with_non_dict_non_string(self) -> None:
+        """Test _extract_steps method with non-dict, non-string steps."""
+        from arklex.orchestrator.generator.docs.document_processor import (
+            DocumentProcessor,
+        )
+
+        processor = DocumentProcessor()
+        section = {"steps": [123, True, None]}
+
+        result = processor._extract_steps(section)
+        assert len(result) == 3
+        assert result[0]["task"] == "123"
+        assert result[1]["task"] == "True"
+        assert result[2]["task"] == "None"
+
 
 class TestDocumentValidator:
     """Test suite for the DocumentValidator class."""
