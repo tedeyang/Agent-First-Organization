@@ -636,6 +636,8 @@ class TestLoader:
         loader = Loader()
 
         with patch("pathlib.Path") as mock_path:
+            # Mock the Path class itself to have _flavour attribute
+            mock_path._flavour = Mock()
             mock_path_instance = Mock()
             mock_path_instance.suffix = ""  # No file extension
             mock_path_instance.name = "testfile"
@@ -654,6 +656,8 @@ class TestLoader:
         loader = Loader()
 
         with patch("pathlib.Path") as mock_path:
+            # Mock the Path class itself to have _flavour attribute
+            mock_path._flavour = Mock()
             mock_path_instance = Mock()
             mock_path_instance.suffix = ".xyz"  # Unsupported file type
             mock_path_instance.name = "testfile.xyz"
@@ -672,6 +676,8 @@ class TestLoader:
         loader = Loader()
 
         with patch("pathlib.Path") as mock_path:
+            # Mock the Path class itself to have _flavour attribute
+            mock_path._flavour = Mock()
             mock_path_instance = Mock()
             mock_path_instance.suffix = ".pdf"
             mock_path_instance.name = "testfile.pdf"
@@ -692,6 +698,8 @@ class TestLoader:
         loader = Loader()
 
         with patch("pathlib.Path") as mock_path:
+            # Mock the Path class itself to have _flavour attribute
+            mock_path._flavour = Mock()
             mock_path_instance = Mock()
             mock_path_instance.suffix = ".pdf"
             mock_path_instance.name = "testfile.pdf"
@@ -1304,6 +1312,8 @@ class TestLoader:
         loader = Loader()
 
         with patch("pathlib.Path") as mock_path:
+            # Mock the Path class itself to have _flavour attribute
+            mock_path._flavour = Mock()
             mock_path_instance = Mock()
             mock_path_instance.suffix = ".txt"
             mock_path_instance.name = "testfile.txt"
@@ -1323,6 +1333,8 @@ class TestLoader:
         loader = Loader()
 
         with patch("pathlib.Path") as mock_path:
+            # Mock the Path class itself to have _flavour attribute
+            mock_path._flavour = Mock()
             mock_path_instance = Mock()
             mock_path_instance.suffix = ".txt"
             mock_path_instance.name = "testfile.txt"
@@ -1345,6 +1357,8 @@ class TestLoader:
         loader = Loader()
 
         with patch("pathlib.Path") as mock_path:
+            # Mock the Path class itself to have _flavour attribute
+            mock_path._flavour = Mock()
             mock_path_instance = Mock()
             mock_path_instance.suffix = ".txt"
             mock_path_instance.name = "testfile.txt"
@@ -1369,6 +1383,8 @@ class TestLoader:
         loader = Loader()
 
         with patch("pathlib.Path") as mock_path:
+            # Mock the Path class itself to have _flavour attribute
+            mock_path._flavour = Mock()
             mock_path_instance = Mock()
             mock_path_instance.suffix = ".txt"
             mock_path_instance.name = "testfile.txt"
