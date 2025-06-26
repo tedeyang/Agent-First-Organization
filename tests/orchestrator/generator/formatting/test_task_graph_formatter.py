@@ -796,3 +796,102 @@ class TestTaskGraphFormatter:
             tasks
         )
         assert any("123" in n[1]["attribute"]["value"] for n in nodes)
+
+    def test_format_edges_model_exception_fallback(
+        self, task_graph_formatter, sample_tasks
+    ) -> None:
+        # Patch model to raise exception
+        task_graph_formatter._model = Mock()
+        task_graph_formatter._model.invoke.side_effect = Exception("fail")
+        nodes, node_lookup, all_task_node_ids = task_graph_formatter._format_nodes(
+            sample_tasks
+        )
+        start_node_id = "0"
+        # Should fallback to default intent
+        edges, _ = task_graph_formatter._format_edges(
+            sample_tasks, node_lookup, all_task_node_ids, start_node_id
+        )
+        assert any(
+            e[2]["intent"] == "User inquires about purchasing options" for e in edges
+        )
+
+    def test_format_edges_dependency_edge_cases(self, task_graph_formatter) -> None:
+        # dep is None, not a string/dict, or dict without 'id'
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Task 1",
+                "description": "desc",
+                "dependencies": [None, 123, {"foo": "bar"}],
+            },
+            {
+                "id": "task2",
+                "name": "Task 2",
+                "description": "desc",
+                "dependencies": [],
+            },
+        ]
+        nodes, node_lookup, all_task_node_ids = task_graph_formatter._format_nodes(
+            tasks
+        )
+        start_node_id = "0"
+        # Should not raise, just skip invalid deps
+        edges, _ = task_graph_formatter._format_edges(
+            tasks, node_lookup, all_task_node_ids, start_node_id
+        )
+        assert isinstance(edges, list)
+
+    def test_format_task_graph_fallback_to_node_1_explicit(
+        self, task_graph_formatter
+    ) -> None:
+        # Patch _format_nodes and _format_edges to return no task nodes
+        with (
+            patch.object(
+                task_graph_formatter, "_format_nodes", return_value=([], {}, [])
+            ),
+            patch.object(task_graph_formatter, "_format_edges", return_value=([], [])),
+            patch.object(
+                task_graph_formatter,
+                "ensure_nested_graph_connectivity",
+                side_effect=lambda g: g,
+            ),
+        ):
+            tasks = [
+                {
+                    "id": "task1",
+                    "name": "Task 1",
+                    "description": "desc",
+                    "steps": [],
+                    "resource": "NestedGraph",
+                }
+            ]
+            graph = task_graph_formatter.format_task_graph(tasks)
+            # Should not error, fallback to '1' for value
+            assert "nodes" in graph
+
+    def test_format_nodes_step_with_resource_as_string(
+        self, task_graph_formatter
+    ) -> None:
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Task 1",
+                "description": "desc",
+                "steps": [{"description": "stepdesc", "resource": "CustomWorker"}],
+            }
+        ]
+        nodes, node_lookup, all_task_node_ids = task_graph_formatter._format_nodes(
+            tasks
+        )
+        # Should create a step node with resource name 'CustomWorker'
+        assert any(n[1]["resource"]["name"] == "CustomWorker" for n in nodes)
+
+    def test_format_nodes_task_with_no_steps_no_description(
+        self, task_graph_formatter
+    ) -> None:
+        tasks = [{"id": "task1", "name": "Task 1"}]
+        nodes, node_lookup, all_task_node_ids = task_graph_formatter._format_nodes(
+            tasks
+        )
+        # Should still create a task node
+        assert any(n[1]["resource"]["name"] == "MessageWorker" for n in nodes)
