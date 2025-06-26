@@ -1637,3 +1637,200 @@ class TestTaskGraphFormatter:
                 if "Could not find source node for dependency" in m
             ]
             assert len(warnings) >= 2
+
+    def test_format_task_graph_with_dict_value_fallback(
+        self, task_graph_formatter
+    ) -> None:
+        """Test format_task_graph with dict value fallback logic."""
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Task 1",
+                "description": {"description": "Task description", "other": "data"},
+                "steps": [],
+            }
+        ]
+
+        result = task_graph_formatter.format_task_graph(tasks)
+        nodes = result["nodes"]
+
+        # Find the task node
+        task_node = None
+        for node in nodes:
+            if node[1].get("attribute", {}).get("task") == "Task 1":
+                task_node = node
+                break
+
+        assert task_node is not None
+        # The value should be extracted from the dict
+        assert task_node[1]["attribute"]["value"] == "Task description"
+
+    def test_format_task_graph_with_list_value_fallback(
+        self, task_graph_formatter
+    ) -> None:
+        """Test format_task_graph with list value fallback logic."""
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Task 1",
+                "description": ["step1", "step2", "step3"],
+                "steps": [],
+            }
+        ]
+
+        result = task_graph_formatter.format_task_graph(tasks)
+        nodes = result["nodes"]
+
+        # Find the task node
+        task_node = None
+        for node in nodes:
+            if node[1].get("attribute", {}).get("task") == "Task 1":
+                task_node = node
+                break
+
+        assert task_node is not None
+        # The value should be flattened to string
+        assert task_node[1]["attribute"]["value"] == "step1, step2, step3"
+
+    def test_format_task_graph_with_empty_task_node_ids_fallback(
+        self, task_graph_formatter
+    ) -> None:
+        """Test format_task_graph with empty task_node_ids fallback."""
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Task 1",
+                "description": "Task description",
+                "steps": [],
+            }
+        ]
+
+        # Mock the _format_nodes method to return empty task_node_ids
+        with patch.object(
+            task_graph_formatter, "_format_nodes", return_value=([], {}, [])
+        ):
+            # Mock the _format_edges method to return empty edges
+            with patch.object(
+                task_graph_formatter, "_format_edges", return_value=([], [])
+            ):
+                # Mock the ensure_nested_graph_connectivity method
+                with patch.object(
+                    task_graph_formatter,
+                    "ensure_nested_graph_connectivity",
+                    return_value={
+                        "nodes": [
+                            ["0", {"type": "start", "attribute": {"value": "1"}}]
+                        ],
+                        "edges": [],
+                        "tasks": [],
+                    },
+                ):
+                    result = task_graph_formatter.format_task_graph(tasks)
+                    nodes = result["nodes"]
+
+                    # Find the start node
+                    start_node = None
+                    for node in nodes:
+                        if node[1].get("type") == "start":
+                            start_node = node
+                            break
+
+                    assert start_node is not None
+                    # Should fallback to "1" if no task nodes exist
+                    assert start_node[1]["attribute"]["value"] == "1"
+
+    def test_format_task_graph_with_dict_value_no_description(
+        self, task_graph_formatter
+    ) -> None:
+        """Test format_task_graph with dict value that has no description."""
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Task 1",
+                "description": {"other": "data", "no_description": "here"},
+                "steps": [],
+            }
+        ]
+
+        result = task_graph_formatter.format_task_graph(tasks)
+        nodes = result["nodes"]
+
+        # Find the task node
+        task_node = None
+        for node in nodes:
+            if node[1].get("attribute", {}).get("task") == "Task 1":
+                task_node = node
+                break
+
+        assert task_node is not None
+        # Should fallback to string representation of the dict
+        assert (
+            task_node[1]["attribute"]["value"]
+            == "{'other': 'data', 'no_description': 'here'}"
+        )
+
+    def test_ensure_nested_graph_connectivity_simple_case(
+        self, task_graph_formatter
+    ) -> None:
+        """Test ensure_nested_graph_connectivity method with simple case."""
+        graph = {
+            "nodes": [
+                ["0", {"type": "start", "attribute": {"value": "1"}}],
+                ["1", {"type": "task", "attribute": {"value": "Task 1"}}],
+                ["2", {"type": "nested_graph", "attribute": {"value": "Nested Task"}}],
+            ],
+            "edges": [
+                ["0", "1", {"intent": "start"}],
+                ["1", "2", {"intent": "continue"}],
+            ],
+            "tasks": [
+                {"id": "task1", "name": "Task 1"},
+                {"id": "nested1", "name": "Nested Task", "type": "nested_graph"},
+            ],
+        }
+
+        result = task_graph_formatter.ensure_nested_graph_connectivity(graph)
+
+        # The method should return the graph unchanged for this simple case
+        assert result == graph
+        assert len(result["nodes"]) == 3
+        assert len(result["edges"]) == 2
+
+    def test_ensure_nested_graph_connectivity_complex_nesting(
+        self, task_graph_formatter
+    ) -> None:
+        """Test ensure_nested_graph_connectivity with complex nested graphs."""
+        graph = {
+            "nodes": [
+                ["0", {"type": "start", "attribute": {"value": "1"}}],
+                ["1", {"type": "task", "attribute": {"value": "Task 1"}}],
+                [
+                    "2",
+                    {"type": "nested_graph", "attribute": {"value": "Nested Task 1"}},
+                ],
+                [
+                    "3",
+                    {"type": "nested_graph", "attribute": {"value": "Nested Task 2"}},
+                ],
+                ["4", {"type": "task", "attribute": {"value": "Task 2"}}],
+            ],
+            "edges": [
+                ["0", "1", {"intent": "start"}],
+                ["1", "2", {"intent": "continue"}],
+                ["2", "3", {"intent": "nested"}],
+                ["3", "4", {"intent": "complete"}],
+            ],
+            "tasks": [
+                {"id": "task1", "name": "Task 1"},
+                {"id": "nested1", "name": "Nested Task 1", "type": "nested_graph"},
+                {"id": "nested2", "name": "Nested Task 2", "type": "nested_graph"},
+                {"id": "task2", "name": "Task 2"},
+            ],
+        }
+
+        result = task_graph_formatter.ensure_nested_graph_connectivity(graph)
+
+        # The method should return the graph with proper connectivity
+        assert result is not None
+        assert len(result["nodes"]) == 5
+        assert len(result["edges"]) == 4
