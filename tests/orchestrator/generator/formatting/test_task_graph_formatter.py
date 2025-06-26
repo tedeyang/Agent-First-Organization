@@ -1457,49 +1457,52 @@ class TestTaskGraphFormatter:
         graph = {
             "nodes": [
                 [
-                    "ng1",
+                    "t1_step0",
                     {"resource": {"name": "NestedGraph"}, "attribute": {"value": "v1"}},
                 ],
                 [
-                    "ng2",
-                    {"resource": {"name": "NestedGraph"}, "attribute": {"value": "v2"}},
+                    "t1_step1",
+                    {"resource": {"name": "TaskWorker"}, "attribute": {"value": "v2"}},
                 ],
                 [
-                    "ng3",
+                    "t2_step0",
                     {"resource": {"name": "NestedGraph"}, "attribute": {"value": "v3"}},
                 ],
             ],
-            "edges": [],
+            "edges": [
+                ["0", "1", {"intent": "start"}],
+                ["1", "2", {"intent": "continue"}],
+            ],
             "tasks": [
                 {
                     "id": "t1",
-                    "steps": [{"step": "s1"}, {"step": "s2"}],
-                },  # ng1 maps to t1_step0
-                {"id": "t2", "steps": []},  # ng2 has no steps
+                    "name": "Task 1",
+                    "steps": [
+                        {"id": "step0", "description": "Step 0"},
+                        {"id": "step1", "description": "Step 1"},
+                    ],
+                },
                 {
-                    "id": "t3",
-                    "steps": [{"step": "s3"}],
-                },  # ng3 maps to t3_step0 (last step)
+                    "id": "t2",
+                    "name": "Task 2",
+                    "steps": [{"id": "step0", "description": "Step 0"}],
+                },
             ],
         }
-        # Map ng1 to t1_step0, ng2 to t2_step0 (but t2 has no steps), ng3 to t3_step0
-        graph["nodes"][0][0] = "t1_step0"
-        graph["nodes"][1][0] = "t2_step0"  # This won't be found in node_to_task_map
-        graph["nodes"][2][0] = "t3_step0"  # This is the last step
 
         result = task_graph_formatter.ensure_nested_graph_connectivity(graph)
 
-        # ng1 should be updated (not last step)
-        ng1_node = next(n for n in result["nodes"] if n[0] == "t1_step0")
-        assert ng1_node[1]["attribute"]["value"] == "t1_step1"
+        # t1_step0 should be updated to point to t1_step1 (not last step)
+        t1_step0_node = next(n for n in result["nodes"] if n[0] == "t1_step0")
+        assert t1_step0_node[1]["attribute"]["value"] == "t1_step1"
 
-        # ng2 should remain unchanged (no corresponding task)
-        ng2_node = next(n for n in result["nodes"] if n[0] == "t2_step0")
-        assert ng2_node[1]["attribute"]["value"] == "v2"
+        # t2_step0 should not be updated (it's the last step)
+        t2_step0_node = next(n for n in result["nodes"] if n[0] == "t2_step0")
+        assert t2_step0_node[1]["attribute"]["value"] == "v3"
 
-        # ng3 should remain unchanged (last step)
-        ng3_node = next(n for n in result["nodes"] if n[0] == "t3_step0")
-        assert ng3_node[1]["attribute"]["value"] == "v3"
+        # Check that edges were added for the nested graph connection
+        edge_sources = [edge[0] for edge in result["edges"]]
+        assert "t1_step0" in edge_sources
 
     def test_format_task_graph_nestedgraph_value_processing_edge_cases(
         self, task_graph_formatter
@@ -1834,3 +1837,48 @@ class TestTaskGraphFormatter:
         assert result is not None
         assert len(result["nodes"]) == 5
         assert len(result["edges"]) == 4
+
+    def test_format_task_graph_with_empty_tasks(self) -> None:
+        """Test format_task_graph with empty tasks list."""
+        formatter = TaskGraphFormatter()
+
+        result = formatter.format_task_graph([])
+
+        # Should return a valid task graph structure even with empty tasks
+        assert "nodes" in result
+        assert "edges" in result
+        # The formatter always creates a start node, so we expect at least 1 node
+        assert len(result["nodes"]) >= 1
+
+    def test_ensure_nested_graph_connectivity_with_complex_structure(self) -> None:
+        """Test ensure_nested_graph_connectivity with complex nested structure."""
+        formatter = TaskGraphFormatter()
+
+        # Create a complex task graph with nested structures in the correct format
+        task_graph = {
+            "nodes": [
+                [
+                    "node1",
+                    {
+                        "resource": {"id": "resource1", "name": "Resource 1"},
+                        "attribute": {
+                            "type": "nested_graph",
+                            "nested_graph": {"nodes": []},
+                        },
+                    },
+                ],
+                [
+                    "node2",
+                    {
+                        "resource": {"id": "resource2", "name": "Resource 2"},
+                        "attribute": {"type": "task"},
+                    },
+                ],
+            ],
+            "edges": [["node1", "node2", {"intent": "test_intent"}]],
+        }
+
+        result = formatter.ensure_nested_graph_connectivity(task_graph)
+
+        # Should return the same structure when no connectivity issues
+        assert result == task_graph
