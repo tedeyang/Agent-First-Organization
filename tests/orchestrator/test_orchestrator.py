@@ -162,6 +162,7 @@ class TestAgentOrgInitialization:
         assert agent.product_kwargs["role"] == "test_role"
         assert hasattr(agent, "llm")
         assert hasattr(agent, "task_graph")
+        assert agent.hitl_proposal_enabled is False
         assert agent.hitl_worker_available is False
 
     def test_init_with_dict_no_env(self, basic_config) -> None:
