@@ -920,9 +920,9 @@ class TestBuildUserProfiles:
         mock_load_docs,
         mock_filter_attributes,
         mock_augment_attributes,
-        mock_get_custom_profiles,
         mock_pick_attributes,
         mock_adapt_goal,
+        mock_chatgpt_chatbot,
     ) -> None:
         """Test build_profile with complex binding scenario between system and user attributes."""
         mock_config = {
@@ -1058,3 +1058,387 @@ class TestBuildUserProfiles:
 
         assert result["attr1"] == ["val1"]
         assert set(["val2", "new_val1", "new_val2"]).issuperset(set(result["attr2"]))
+
+    def test_build_profile_with_bind_to_logic(
+        self,
+        mock_load_docs,
+        mock_filter_attributes,
+        mock_augment_attributes,
+        mock_pick_attributes,
+        mock_adapt_goal,
+        mock_chatgpt_chatbot,
+    ) -> None:
+        """Test build_profile with bind_to logic to cover line 130."""
+        config = {
+            "documents_dir": "/test/documents",
+            "custom_profile": True,
+            "system_inputs": True,
+            "company_summary": "Test company summary",
+            "client": Mock(),
+            "user_attributes": {
+                "goal": {"values": ["goal1", "goal2"]},
+                "system_attributes": {
+                    "attr1": {"values": ["val1", "val2"]},
+                    "attr2": {"values": ["val3", "val4"]},
+                },
+                "user_profiles": {
+                    "profile1": {
+                        "values": ["prof1", "prof2"],
+                        "bind_to": "system_attributes.attr1",
+                    },
+                    "profile2": {"values": ["prof3", "prof4"]},  # No bind_to
+                },
+            },
+        }
+        synthetic_params = {"num_convos": 2, "num_goals": 3}
+
+        # Mock the custom profiles to include binding logic
+        with patch(
+            "arklex.evaluation.build_user_profiles.get_custom_profiles"
+        ) as mock_get_custom:
+            mock_get_custom.return_value = (
+                {
+                    "profile1": ["prof1", "prof2"],
+                    "profile2": ["prof3", "prof4"],
+                },
+                {
+                    "attr1": ["val1", "val2"],
+                    "attr2": ["val3", "val4"],
+                },
+            )
+
+            result = build_profile(synthetic_params, config)
+
+            # Verify the function completed without errors
+            assert len(result) == 5
+            assert all(isinstance(item, list) for item in result)
+
+    def test_build_profile_with_empty_documents_edge_case(
+        self,
+        mock_filter_attributes,
+        mock_augment_attributes,
+        mock_pick_attributes,
+        mock_adapt_goal,
+        mock_chatgpt_chatbot,
+    ) -> None:
+        """Test build_profile with empty documents to cover line 143."""
+        config = {
+            "documents_dir": "/test/documents",
+            "custom_profile": False,
+            "system_inputs": True,
+            "company_summary": "Test company summary",
+            "client": Mock(),
+            "user_attributes": {
+                "goal": {"values": ["goal1", "goal2"]},
+                "system_attributes": {
+                    "attr1": {"values": ["val1", "val2"]},
+                },
+                "user_profiles": {"profile1": {"values": ["prof1"]}},
+            },
+        }
+        synthetic_params = {"num_convos": 1, "num_goals": 1}
+
+        # Mock load_docs to return empty list
+        with patch("arklex.evaluation.build_user_profiles.load_docs") as mock_load_docs:
+            mock_load_docs.return_value = []
+
+            result = build_profile(synthetic_params, config)
+
+            # Verify the function handles empty documents gracefully
+            assert len(result) == 5
+            assert all(isinstance(item, list) for item in result)
+
+    def test_pick_goal_llm_based_strategy_with_exception(
+        self, mock_chatgpt_chatbot: Mock
+    ) -> None:
+        """Test pick_goal with llm_based strategy and exception handling."""
+        attributes = {"attr1": "value1"}
+        goals = ["goal1", "goal2"]
+
+        # Mock chatgpt_chatbot to raise an exception
+        mock_chatgpt_chatbot.side_effect = Exception("API Error")
+
+        with pytest.raises(Exception):
+            pick_goal(attributes, goals, strategy="llm_based", client=Mock())
+
+    def test_pick_goal_react_strategy_with_malformed_response(
+        self, mock_chatgpt_chatbot: Mock
+    ) -> None:
+        """Test pick_goal with react strategy and malformed response."""
+        attributes = {"attr1": "value1"}
+        goals = ["goal1", "goal2"]
+
+        # Mock chatgpt_chatbot to return malformed response that doesn't contain expected sections
+        mock_chatgpt_chatbot.return_value = (
+            "Invalid response format without Thought: or Goal: sections"
+        )
+
+        # Should handle malformed response gracefully by returning the response as is
+        result = pick_goal(attributes, goals, strategy="react", client=Mock())
+
+        # Should handle malformed response gracefully
+        assert isinstance(result, str)
+
+    def test_find_matched_attribute_with_llm_based_strategy(
+        self, mock_chatgpt_chatbot: Mock
+    ) -> None:
+        """Test find_matched_attribute with llm_based strategy."""
+        goal = "test_goal"
+        user_profile = "test profile string"
+
+        # Mock chatgpt_chatbot to return a valid response
+        mock_chatgpt_chatbot.return_value = (
+            "Thought: test thought\nAttribute: test_attribute"
+        )
+
+        # The function only supports "react" strategy, so this should raise ValueError
+        with pytest.raises(ValueError, match="Invalid strategy"):
+            find_matched_attribute(
+                goal, user_profile, strategy="llm_based", client=Mock()
+            )
+
+    def test_pick_attributes_with_exception(self, mock_chatgpt_chatbot: Mock) -> None:
+        """Test pick_attributes with exception handling."""
+        user_profile = {"attr1": "value1"}
+        attributes = {"attr1": ["val1", "val2"]}
+        goals = ["goal1", "goal2"]
+
+        # Mock chatgpt_chatbot to raise an exception
+        mock_chatgpt_chatbot.side_effect = Exception("API Error")
+
+        # The function supports "react" and "random" strategies
+        # Test with "react" strategy which uses chatgpt_chatbot
+        # Since the function handles exceptions internally, we need to check the result
+        result = pick_attributes(
+            user_profile, attributes, goals, strategy="react", client=Mock()
+        )
+
+        # The function should handle the exception and return a fallback result
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+
+    def test_build_profile_with_complex_binding_and_exceptions(
+        self,
+        mock_load_docs,
+        mock_filter_attributes,
+        mock_augment_attributes,
+        mock_pick_attributes,
+        mock_adapt_goal,
+        mock_chatgpt_chatbot,
+    ) -> None:
+        """Test build_profile with complex binding scenarios and exception handling."""
+        config = {
+            "documents_dir": "/test/documents",
+            "custom_profile": True,
+            "system_inputs": True,
+            "company_summary": "Test company summary",
+            "client": Mock(),
+            "user_attributes": {
+                "goal": {"values": ["goal1", "goal2"]},
+                "system_attributes": {
+                    "attr1": {"values": ["val1", "val2"]},
+                    "attr2": {"values": ["val3", "val4"]},
+                },
+                "user_profiles": {
+                    "profile1": {
+                        "values": ["prof1", "prof2"],
+                        "bind_to": "system_attributes.attr1",
+                    },
+                    "profile2": {
+                        "values": ["prof3", "prof4"],
+                        "bind_to": "system_attributes.attr2",
+                    },
+                },
+            },
+        }
+        synthetic_params = {"num_convos": 1, "num_goals": 1}
+
+        # Mock get_custom_profiles to return complex binding data
+        with patch(
+            "arklex.evaluation.build_user_profiles.get_custom_profiles"
+        ) as mock_get_custom:
+            mock_get_custom.return_value = (
+                {
+                    "profile1": ["prof1", "prof2"],
+                    "profile2": ["prof3", "prof4"],
+                },
+                {
+                    "attr1": ["val1", "val2"],
+                    "attr2": ["val3", "val4"],
+                },
+            )
+
+            # Mock random.choice to simulate binding index creation and document selection
+            def choice_side_effect(arg):
+                # If arg is a range, return 0 (for index selection)
+                if isinstance(arg, range):
+                    return 0
+                # If arg is a list of documents, return the first document dict
+                if (
+                    isinstance(arg, list)
+                    and arg
+                    and isinstance(arg[0], dict)
+                    and "content" in arg[0]
+                ):
+                    return arg[0]
+                # Fallback
+                return 0
+
+            with patch(
+                "arklex.evaluation.build_user_profiles.random.choice"
+            ) as mock_choice:
+                mock_choice.side_effect = choice_side_effect
+
+                # Mock load_docs to return proper document structure
+                mock_load_docs.return_value = [{"content": "test content"}]
+
+                # Mock pick_attributes to return proper structure
+                mock_pick_attributes.return_value = (
+                    {"goal": "goal1", "attr1": "val1"},
+                    {"goal": "goal1", "matched_attribute": {"attr1": "val1"}},
+                )
+
+                # Mock adapt_goal to return proper structure
+                mock_adapt_goal.return_value = "adapted_goal"
+
+                # Mock select_system_attributes to return proper structure
+                with patch(
+                    "arklex.evaluation.build_user_profiles.select_system_attributes"
+                ) as mock_select_system:
+                    mock_select_system.return_value = [
+                        {"attr1": "val1", "attr2": "val3"}
+                    ]
+
+                    result = build_profile(synthetic_params, config)
+
+                    # Verify the result structure
+                    assert isinstance(result, tuple)
+                    assert len(result) == 5
+                    assert isinstance(result[0], list)  # profile descriptions
+                    assert isinstance(result[1], list)  # goals
+                    assert isinstance(result[2], list)  # attributes
+                    assert isinstance(result[3], list)  # system inputs
+                    assert isinstance(result[4], list)  # labels
+
+    def test_build_profile_with_missing_binding_target(
+        self,
+        mock_load_docs,
+        mock_filter_attributes,
+        mock_augment_attributes,
+        mock_pick_attributes,
+        mock_adapt_goal,
+        mock_chatgpt_chatbot,
+    ) -> None:
+        """Test build_profile with missing binding target."""
+        config = {
+            "documents_dir": "/test/documents",
+            "custom_profile": True,
+            "system_inputs": True,
+            "company_summary": "Test company summary",
+            "client": Mock(),
+            "user_attributes": {
+                "goal": {"values": ["goal1", "goal2"]},
+                "system_attributes": {
+                    "attr1": {"values": ["val1", "val2"]},
+                },
+                "user_profiles": {
+                    "profile1": {
+                        "values": ["prof1", "prof2"],
+                        "bind_to": "nonexistent.attr",
+                    },
+                },
+            },
+        }
+        synthetic_params = {"num_convos": 1, "num_goals": 1}
+
+        # Mock get_custom_profiles
+        with patch(
+            "arklex.evaluation.build_user_profiles.get_custom_profiles"
+        ) as mock_get_custom:
+            mock_get_custom.return_value = (
+                {"profile1": ["prof1", "prof2"]},
+                {"attr1": ["val1", "val2"]},
+            )
+
+            result = build_profile(synthetic_params, config)
+
+            # Should handle missing binding target gracefully
+            assert len(result) == 5
+            assert all(isinstance(item, list) for item in result)
+
+    def test_build_profile_with_empty_user_profiles(
+        self,
+        mock_load_docs,
+        mock_filter_attributes,
+        mock_augment_attributes,
+        mock_pick_attributes,
+        mock_adapt_goal,
+        mock_chatgpt_chatbot,
+    ) -> None:
+        """Test build_profile with empty user_profiles."""
+        config = {
+            "documents_dir": "/test/documents",
+            "custom_profile": True,
+            "system_inputs": True,
+            "company_summary": "Test company summary",
+            "client": Mock(),
+            "user_attributes": {
+                "goal": {"values": ["goal1", "goal2"]},
+                "system_attributes": {
+                    "attr1": {"values": ["val1", "val2"]},
+                },
+                "user_profiles": {},  # Empty user_profiles
+            },
+        }
+        synthetic_params = {"num_convos": 1, "num_goals": 1}
+
+        # Mock get_custom_profiles
+        with patch(
+            "arklex.evaluation.build_user_profiles.get_custom_profiles"
+        ) as mock_get_custom:
+            mock_get_custom.return_value = ({}, {"attr1": ["val1", "val2"]})
+
+            result = build_profile(synthetic_params, config)
+
+            # Should handle empty user_profiles gracefully
+            assert len(result) == 5
+            assert all(isinstance(item, list) for item in result)
+
+    def test_build_profile_with_empty_system_attributes(
+        self,
+        mock_load_docs,
+        mock_filter_attributes,
+        mock_augment_attributes,
+        mock_pick_attributes,
+        mock_adapt_goal,
+        mock_chatgpt_chatbot,
+    ) -> None:
+        """Test build_profile with empty system_attributes."""
+        config = {
+            "documents_dir": "/test/documents",
+            "custom_profile": True,
+            "system_inputs": True,
+            "company_summary": "Test company summary",
+            "client": Mock(),
+            "user_attributes": {
+                "goal": {"values": ["goal1", "goal2"]},
+                "system_attributes": {},  # Empty system_attributes
+                "user_profiles": {"profile1": {"values": ["prof1", "prof2"]}},
+            },
+        }
+        synthetic_params = {"num_convos": 1, "num_goals": 1}
+
+        # Mock get_custom_profiles
+        with patch(
+            "arklex.evaluation.build_user_profiles.get_custom_profiles"
+        ) as mock_get_custom:
+            mock_get_custom.return_value = (
+                {"profile1": ["prof1", "prof2"]},
+                {},
+            )
+
+            result = build_profile(synthetic_params, config)
+
+            # Should handle empty system_attributes gracefully
+            assert len(result) == 5
+            assert all(isinstance(item, list) for item in result)
