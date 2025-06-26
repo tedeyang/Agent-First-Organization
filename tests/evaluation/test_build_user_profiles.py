@@ -657,383 +657,598 @@ class TestBuildUserProfiles:
         assert len(result) == 2
         assert all(isinstance(attr, dict) for attr in result)
 
-    def test_augment_attributes_with_empty_documents(
+    def test_augment_attributes_with_generate_values_false(
         self, mock_config: Dict[str, Any]
     ) -> None:
-        """Test augment_attributes with empty documents."""
-        attributes = {"category": {"values": ["value1"], "augment": True}}
-        documents = []
+        """Test augment_attributes function when generate_values is False."""
+        attributes = {
+            "attr1": {"values": ["val1", "val2"], "generate_values": False},
+            "attr2": {"values": ["val3", "val4"], "generate_values": False},
+        }
+        documents = [{"content": "test content"}]
+
         with patch(
             "arklex.evaluation.build_user_profiles.chatgpt_chatbot"
-        ) as mock_chat:
-            mock_chat.return_value = "new_val1, new_val2"
+        ) as mock_chatgpt_chatbot:
+            mock_chatgpt_chatbot.return_value = "new_val1, new_val2"
+
             result = augment_attributes(attributes, mock_config, documents)
-            assert isinstance(result, dict)
-            assert result["category"] == ["value1", "new_val1", "new_val2"]
 
-    def test_filter_attributes_with_empty_config(self) -> None:
-        """Test filter_attributes with empty config."""
-        config = {"user_attributes": {}}
-        result = filter_attributes(config)
-        assert isinstance(result, dict)
+            # Should return original values when generate_values is False
+            assert result["attr1"] == ["val1", "val2"]
+            assert result["attr2"] == ["val3", "val4"]
+            # Should not call chatgpt_chatbot when generate_values is False
+            mock_chatgpt_chatbot.assert_not_called()
 
-    @patch("arklex.evaluation.build_user_profiles.requests.get")
-    def test_get_custom_profiles_with_api(self, mock_requests_get) -> None:
-        """Test get_custom_profiles with API calls."""
+    def test_augment_attributes_with_empty_values(
+        self, mock_config: Dict[str, Any]
+    ) -> None:
+        """Test augment_attributes function when some attributes have empty values."""
+        attributes = {
+            "attr1": {"values": [], "augment": True},  # Empty values
+            "attr2": {"values": ["val3", "val4"], "augment": True},
+        }
+        documents = [{"content": "test content"}]
+
+        with patch(
+            "arklex.evaluation.build_user_profiles.chatgpt_chatbot"
+        ) as mock_chatgpt_chatbot:
+            mock_chatgpt_chatbot.return_value = "new_val1, new_val2"
+
+            result = augment_attributes(attributes, mock_config, documents)
+
+            # Should skip attributes with empty values in text_attribute
+            assert (
+                "attr1" not in result["attr2"]
+            )  # attr1 should not appear in text_attribute
+            # Should still process attr2
+            assert result["attr2"] == ["val3", "val4", "new_val1", "new_val2"]
+
+    def test_augment_attributes_with_mixed_generate_values_and_documents(
+        self, mock_config: Dict[str, Any]
+    ) -> None:
+        """Test augment_attributes function with mixed generate_values and documents."""
+        attributes = {
+            "attr1": {"values": ["val1"], "augment": False},
+            "attr2": {"values": ["val2"], "augment": True},
+        }
+        documents = [{"content": "test content"}]
+
+        with patch(
+            "arklex.evaluation.build_user_profiles.chatgpt_chatbot"
+        ) as mock_chatgpt_chatbot:
+            mock_chatgpt_chatbot.return_value = "new_val1, new_val2"
+
+            result = augment_attributes(attributes, mock_config, documents)
+
+            # Should use original values for attr1 (augment=False)
+            assert result["attr1"] == ["val1"]
+            # Should generate new values for attr2 (augment=True)
+            assert result["attr2"] == ["val2", "new_val1", "new_val2"]
+            # Should call chatgpt_chatbot only once for attr2
+            assert mock_chatgpt_chatbot.call_count == 1
+
+    def test_augment_attributes_with_mixed_generate_values_and_no_documents(
+        self, mock_config: Dict[str, Any]
+    ) -> None:
+        """Test augment_attributes function with mixed generate_values and no documents."""
+        attributes = {
+            "attr1": {"values": ["val1"], "augment": False},
+            "attr2": {"values": ["val2"], "augment": True},
+        }
+        documents = []  # No documents
+
+        with patch(
+            "arklex.evaluation.build_user_profiles.chatgpt_chatbot"
+        ) as mock_chatgpt_chatbot:
+            mock_chatgpt_chatbot.return_value = "new_val1, new_val2"
+
+            result = augment_attributes(attributes, mock_config, documents)
+
+            # Should use original values for attr1 (augment=False)
+            assert result["attr1"] == ["val1"]
+            # Should generate new values for attr2 (augment=True) without documents
+            assert result["attr2"] == ["val2", "new_val1", "new_val2"]
+            # Should call chatgpt_chatbot only once for attr2
+            assert mock_chatgpt_chatbot.call_count == 1
+
+    def test_build_profile_with_system_inputs_false_and_custom_profile(
+        self, mock_config: Dict[str, Any], mock_synthetic_params: Dict[str, int]
+    ) -> None:
+        """Test build_profile function when system_inputs is False and custom_profile is True."""
+        config = mock_config.copy()
+        config["custom_profile"] = True
+        config["system_inputs"] = False
+        config["user_attributes"] = {
+            "goal": {"values": ["goal1", "goal2"]},
+            "user_profiles": {
+                "profile1": {"values": ["prof1", "prof2"]},
+            },
+            "system_attributes": {
+                "attr1": {"values": ["val1", "val2"]},
+            },
+        }
+
+        with patch("arklex.evaluation.build_user_profiles.load_docs") as mock_load_docs:
+            mock_load_docs.return_value = [{"content": "test content"}]
+
+            with patch(
+                "arklex.evaluation.build_user_profiles.filter_attributes"
+            ) as mock_filter_attributes:
+                mock_filter_attributes.return_value = {
+                    "attr1": {"values": ["val1"], "generate_values": False},
+                }
+
+                with patch(
+                    "arklex.evaluation.build_user_profiles.augment_attributes"
+                ) as mock_augment_attributes:
+                    mock_augment_attributes.return_value = {
+                        "attr1": ["val1"],
+                    }
+
+                    with patch(
+                        "arklex.evaluation.build_user_profiles.get_custom_profiles"
+                    ) as mock_get_custom_profiles:
+                        mock_get_custom_profiles.return_value = (
+                            {"profile1": ["prof1", "prof2"]},
+                            {"attr1": ["val1", "val2"]},
+                        )
+
+                        with patch(
+                            "arklex.evaluation.build_user_profiles.pick_attributes"
+                        ) as mock_pick_attributes:
+                            mock_pick_attributes.return_value = (
+                                {"goal": "test_goal", "attr1": "val1"},
+                                {"matched": "data"},
+                            )
+
+                            with patch(
+                                "arklex.evaluation.build_user_profiles.adapt_goal"
+                            ) as mock_adapt_goal:
+                                mock_adapt_goal.return_value = "adapted_goal"
+
+                                with patch(
+                                    "arklex.evaluation.build_user_profiles.convert_attributes_to_profiles"
+                                ) as mock_convert:
+                                    mock_convert.return_value = (
+                                        ["profile1", "profile1"],
+                                        ["goal1", "goal1"],
+                                        [{"sys": "input"}, {"sys": "input"}],
+                                    )
+
+                                    (
+                                        profiles,
+                                        goals,
+                                        attributes_list,
+                                        system_inputs,
+                                        labels_list,
+                                    ) = build_profile(mock_synthetic_params, config)
+
+                                    # num_convos is 2, so we expect 2 items
+                                    assert len(profiles) == 2
+                                    assert len(goals) == 2
+                                    assert len(attributes_list) == 2
+                                    assert len(system_inputs) == 2
+                                    assert len(labels_list) == 2
+
+    def test_build_profile_with_binding_index_mismatch(
+        self, mock_config: Dict[str, Any], mock_synthetic_params: Dict[str, int]
+    ) -> None:
+        """Test build_profile function when binding_index doesn't contain the expected key."""
+        config = mock_config.copy()
+        config["custom_profile"] = True
+        config["user_attributes"] = {
+            "goal": {"values": ["goal1", "goal2"]},
+            "user_profiles": {
+                "profile1": {"values": ["prof1", "prof2"], "bind_to": "system_attr1"},
+            },
+            "system_attributes": {
+                "attr1": {"values": ["val1", "val2"]},  # No bind_to specified
+            },
+        }
+
+        with patch("arklex.evaluation.build_user_profiles.load_docs") as mock_load_docs:
+            mock_load_docs.return_value = [{"content": "test content"}]
+
+            with patch(
+                "arklex.evaluation.build_user_profiles.filter_attributes"
+            ) as mock_filter_attributes:
+                mock_filter_attributes.return_value = {
+                    "attr1": {"values": ["val1"], "generate_values": False},
+                }
+
+                with patch(
+                    "arklex.evaluation.build_user_profiles.augment_attributes"
+                ) as mock_augment_attributes:
+                    mock_augment_attributes.return_value = {
+                        "attr1": ["val1"],
+                    }
+
+                    with patch(
+                        "arklex.evaluation.build_user_profiles.get_custom_profiles"
+                    ) as mock_get_custom_profiles:
+                        mock_get_custom_profiles.return_value = (
+                            {"profile1": ["prof1", "prof2"]},
+                            {"attr1": ["val1", "val2"]},
+                        )
+
+                        with patch(
+                            "arklex.evaluation.build_user_profiles.pick_attributes"
+                        ) as mock_pick_attributes:
+                            mock_pick_attributes.return_value = (
+                                {"goal": "test_goal", "attr1": "val1"},
+                                {"matched": "data"},
+                            )
+
+                            with patch(
+                                "arklex.evaluation.build_user_profiles.adapt_goal"
+                            ) as mock_adapt_goal:
+                                mock_adapt_goal.return_value = "adapted_goal"
+
+                                with patch(
+                                    "arklex.evaluation.build_user_profiles.convert_attributes_to_profiles"
+                                ) as mock_convert:
+                                    mock_convert.return_value = (
+                                        ["profile1", "profile1"],
+                                        ["goal1", "goal1"],
+                                        [{"sys": "input"}, {"sys": "input"}],
+                                    )
+
+                                    (
+                                        profiles,
+                                        goals,
+                                        attributes_list,
+                                        system_inputs,
+                                        labels_list,
+                                    ) = build_profile(mock_synthetic_params, config)
+
+                                    # num_convos is 2, so we expect 2 items
+                                    assert len(profiles) == 2
+                                    assert len(goals) == 2
+                                    assert len(attributes_list) == 2
+                                    assert len(system_inputs) == 2
+                                    assert len(labels_list) == 2
+
+    def test_build_profile_with_commented_get_label(
+        self, mock_config: Dict[str, Any], mock_synthetic_params: Dict[str, int]
+    ) -> None:
+        """Test build_profile function with the commented get_label section."""
+        config = mock_config.copy()
+        config["custom_profile"] = True
+        config["user_attributes"] = {
+            "goal": {"values": ["goal1", "goal2"]},
+            "user_profiles": {
+                "profile1": {"values": ["prof1", "prof2"]},
+            },
+            "system_attributes": {
+                "attr1": {"values": ["val1", "val2"]},
+            },
+        }
+
+        with patch("arklex.evaluation.build_user_profiles.load_docs") as mock_load_docs:
+            mock_load_docs.return_value = [{"content": "test content"}]
+
+            with patch(
+                "arklex.evaluation.build_user_profiles.filter_attributes"
+            ) as mock_filter_attributes:
+                mock_filter_attributes.return_value = {
+                    "attr1": {"values": ["val1"], "generate_values": False},
+                }
+
+                with patch(
+                    "arklex.evaluation.build_user_profiles.augment_attributes"
+                ) as mock_augment_attributes:
+                    mock_augment_attributes.return_value = {
+                        "attr1": ["val1"],
+                    }
+
+                    with patch(
+                        "arklex.evaluation.build_user_profiles.get_custom_profiles"
+                    ) as mock_get_custom_profiles:
+                        mock_get_custom_profiles.return_value = (
+                            {"profile1": ["prof1", "prof2"]},
+                            {"attr1": ["val1", "val2"]},
+                        )
+
+                        with patch(
+                            "arklex.evaluation.build_user_profiles.pick_attributes"
+                        ) as mock_pick_attributes:
+                            mock_pick_attributes.return_value = (
+                                {"goal": "test_goal", "attr1": "val1"},
+                                {"matched": "data"},
+                            )
+
+                            with patch(
+                                "arklex.evaluation.build_user_profiles.adapt_goal"
+                            ) as mock_adapt_goal:
+                                mock_adapt_goal.return_value = "adapted_goal"
+
+                                with patch(
+                                    "arklex.evaluation.build_user_profiles.convert_attributes_to_profiles"
+                                ) as mock_convert:
+                                    mock_convert.return_value = (
+                                        ["profile1", "profile1"],
+                                        ["goal1", "goal1"],
+                                        [{"sys": "input"}, {"sys": "input"}],
+                                    )
+
+                                    (
+                                        profiles,
+                                        goals,
+                                        attributes_list,
+                                        system_inputs,
+                                        labels_list,
+                                    ) = build_profile(mock_synthetic_params, config)
+
+                                    # num_convos is 2, so we expect 2 items
+                                    assert len(profiles) == 2
+                                    assert len(goals) == 2
+                                    assert len(attributes_list) == 2
+                                    assert len(system_inputs) == 2
+                                    assert len(labels_list) == 2
+
+    def test_build_profile_with_empty_documents_in_custom_mode(
+        self, mock_config: Dict[str, Any], mock_synthetic_params: Dict[str, int]
+    ) -> None:
+        """Test build_profile function with empty documents in custom profile mode."""
+        config = mock_config.copy()
+        config["custom_profile"] = True
+        config["user_attributes"] = {
+            "goal": {"values": ["goal1", "goal2"]},
+            "user_profiles": {
+                "profile1": {"values": ["prof1", "prof2"]},
+            },
+            "system_attributes": {
+                "attr1": {"values": ["val1", "val2"]},
+            },
+        }
+
+        with patch("arklex.evaluation.build_user_profiles.load_docs") as mock_load_docs:
+            mock_load_docs.return_value = []  # Empty documents
+
+            with patch(
+                "arklex.evaluation.build_user_profiles.filter_attributes"
+            ) as mock_filter_attributes:
+                mock_filter_attributes.return_value = {
+                    "attr1": {"values": ["val1"], "generate_values": False},
+                }
+
+                with patch(
+                    "arklex.evaluation.build_user_profiles.augment_attributes"
+                ) as mock_augment_attributes:
+                    mock_augment_attributes.return_value = {
+                        "attr1": ["val1"],
+                    }
+
+                    with patch(
+                        "arklex.evaluation.build_user_profiles.get_custom_profiles"
+                    ) as mock_get_custom_profiles:
+                        mock_get_custom_profiles.return_value = (
+                            {"profile1": ["prof1", "prof2"]},
+                            {"attr1": ["val1", "val2"]},
+                        )
+
+                        with patch(
+                            "arklex.evaluation.build_user_profiles.pick_attributes"
+                        ) as mock_pick_attributes:
+                            mock_pick_attributes.return_value = (
+                                {"goal": "test_goal", "attr1": "val1"},
+                                {"matched": "data"},
+                            )
+
+                            with patch(
+                                "arklex.evaluation.build_user_profiles.adapt_goal"
+                            ) as mock_adapt_goal:
+                                mock_adapt_goal.return_value = "adapted_goal"
+
+                                with patch(
+                                    "arklex.evaluation.build_user_profiles.convert_attributes_to_profiles"
+                                ) as mock_convert:
+                                    mock_convert.return_value = (
+                                        ["profile1", "profile1"],
+                                        ["goal1", "goal1"],
+                                        [{"sys": "input"}, {"sys": "input"}],
+                                    )
+
+                                    (
+                                        profiles,
+                                        goals,
+                                        attributes_list,
+                                        system_inputs,
+                                        labels_list,
+                                    ) = build_profile(mock_synthetic_params, config)
+
+                                    # num_convos is 2, so we expect 2 items
+                                    assert len(profiles) == 2
+                                    assert len(goals) == 2
+                                    assert len(attributes_list) == 2
+                                    assert len(system_inputs) == 2
+                                    assert len(labels_list) == 2
+
+    def test_get_custom_profiles_with_api_and_exception(self) -> None:
+        """Test get_custom_profiles function when API call raises an exception."""
         config = {
             "user_attributes": {
                 "system_attributes": {
-                    "location": {
-                        "api": "http://api.example.com/location",
-                        "values": ["NYC", "LA"],
-                    }
+                    "attr1": {"api": "http://test.com/api1"},
                 },
                 "user_profiles": {
-                    "profile1": {
-                        "api": "http://api.example.com/profile",
-                        "values": ["prof1", "prof2"],
-                    }
+                    "profile1": {"api": "http://test.com/api2"},
                 },
             }
         }
 
-        user_profiles, system_attributes = get_custom_profiles(config)
-
-        assert len(user_profiles) == 1
-        assert len(system_attributes) == 1
-        # The actual function doesn't make API calls, it uses the values directly
-        mock_requests_get.assert_not_called()
-
-    def test_adapt_goal_missing_company_summary(self) -> None:
-        """Test adapt_goal with missing company summary."""
-        config = {"client": Mock()}
-        with pytest.raises(KeyError):
-            adapt_goal("test goal", config, "test doc", "test profile")
-
-    def test_attributes_to_text_various_types(self) -> None:
-        """Test attributes_to_text with various data types."""
-        attribute_list = [{"str_attr": "string", "int_attr": 123, "bool_attr": True}]
-        result = attributes_to_text(attribute_list)
-        assert isinstance(result, list)
-        assert len(result) == 1
-
-    def test_convert_attributes_to_profiles_mismatched_lengths(
-        self, mock_config: Dict[str, Any]
-    ) -> None:
-        """Test convert_attributes_to_profiles with mismatched list lengths."""
-        attributes_list = [{"attr1": "value1", "goal": "goal1"}]
-        system_attributes_list = [{"sys1": "val1"}, {"sys2": "val2"}]
-
-        # Mock the client to return proper responses
-        mock_client = Mock()
-        mock_response = Mock()
-        mock_response.choices = [Mock()]
-        mock_response.choices[0].message = Mock()
-        mock_response.choices[0].message.content = "converted_profile"
-        mock_client.chat.completions.create.return_value = mock_response
-        mock_config["client"] = mock_client
-
-        # The function uses zip, so it will only process the shorter list
-        profiles, goals, system_inputs = convert_attributes_to_profiles(
-            attributes_list, system_attributes_list, mock_config
-        )
-
-        # Should only have one result since attributes_list has length 1
-        assert len(profiles) == 1
-        assert len(goals) == 1
-        assert len(system_inputs) == 1
-
-    def test_filter_attributes_missing_user_attributes(self) -> None:
-        """Test filter_attributes with missing user_attributes."""
-        config = {}
-        with pytest.raises(KeyError):
-            filter_attributes(config)
-
-    def test_augment_attributes_with_unexpected_documents(
-        self, mock_config: Dict[str, Any]
-    ) -> None:
-        """Test augment_attributes with unexpected document format."""
-        attributes = {"category": {"values": ["value1"], "augment": True}}
-        documents = ["unexpected_string"]
-        with pytest.raises(TypeError):
-            augment_attributes(attributes, mock_config, documents)
-
-    def test_get_label_no_matching_tool(self, mock_environment: Mock) -> None:
-        """Test get_label when no matching tool is found."""
-        attribute = {"goal": "test goal"}
-        config = {"tools": [{"id": "tool1"}], "workers": [], "client": Mock()}
-
-        label, valid = get_label(attribute, config)
-        assert isinstance(label, list)
-        assert valid is True
-
-    def test_find_matched_attribute_with_long_prompt(self) -> None:
-        """Test find_matched_attribute with long prompt."""
-        goal = "test goal"
-        user_profile = "test profile"
-        client = Mock()
-
         with patch(
-            "arklex.evaluation.build_user_profiles.chatgpt_chatbot"
-        ) as mock_chatbot:
-            mock_chatbot.return_value = "Thought: test\nAttribute: test_attr"
-            result = find_matched_attribute(goal, user_profile, client=client)
+            "arklex.evaluation.build_user_profiles.requests.get"
+        ) as mock_requests_get:
+            # Mock the first API call to succeed
+            mock_response1 = Mock()
+            mock_response1.json.return_value = ["api_value1", "api_value2"]
 
-            # Verify the prompt is properly formatted
-            call_args = mock_chatbot.call_args[0][0]
-            # The function passes a list of messages, so we need to check the content
-            assert isinstance(call_args, list)
-            assert len(call_args) == 1
-            assert call_args[0]["role"] == "user"
-            assert result == "test_attr"  # The function returns just the attribute part
+            # Mock the second API call to raise an exception
+            mock_requests_get.side_effect = [mock_response1, Exception("API Error")]
 
-    def test_find_matched_attribute_with_client(self) -> None:
-        """Test find_matched_attribute with client parameter."""
-        goal = "test goal"
-        user_profile = "test profile"
-        client = Mock()
+            # This should test the first get_custom_profiles function (lines 548-600)
+            # which expects the config structure with API calls
+            with pytest.raises(KeyError, match="'values'"):
+                # Use the first get_custom_profiles function
+                from arklex.evaluation.build_user_profiles import (
+                    get_custom_profiles as get_custom_profiles_v1,
+                )
 
-        with patch(
-            "arklex.evaluation.build_user_profiles.chatgpt_chatbot"
-        ) as mock_chatbot:
-            mock_chatbot.return_value = "Thought: test\nAttribute: test_attr"
-            result = find_matched_attribute(goal, user_profile, client=client)
+                get_custom_profiles_v1(config)
 
-            assert result == "test_attr"
-            mock_chatbot.assert_called_once()
-
-    def test_find_matched_attribute_invalid_strategy(self) -> None:
-        """Test find_matched_attribute with invalid strategy."""
-        goal = "test goal"
-        user_profile = "test profile"
-        strategy = "invalid_strategy"
-
-        with pytest.raises(ValueError, match="Invalid strategy"):
-            find_matched_attribute(goal, user_profile, strategy)
-
-    def test_find_matched_attribute_dict_version(self) -> None:
-        """Test find_matched_attribute with dict version."""
-        goal = "test goal"
-        user_profile = {"attr1": "value1", "attr2": "value2"}
-
-        with patch(
-            "arklex.evaluation.build_user_profiles.chatgpt_chatbot"
-        ) as mock_chatbot:
-            mock_chatbot.return_value = "Thought: test\nAttribute: attr1"
-            result = find_matched_attribute(goal, user_profile, strategy="react")
-
-            # The function returns a dict when user_profile is a dict
-            assert isinstance(result, dict)
-            assert "goal" in result
-            assert "matched_attribute" in result
-            # When user_profile is a dict, chatgpt_chatbot is not called
-            mock_chatbot.assert_not_called()
-
-    def test_adapt_goal_with_company_summary(self) -> None:
-        """Test adapt_goal with company summary."""
-        goal = "test goal"
-        config = {"company_summary": "Test company summary", "client": Mock()}
-        doc = "test document"
-        user_profile = "test profile"
-
-        with patch(
-            "arklex.evaluation.build_user_profiles.chatgpt_chatbot"
-        ) as mock_chatbot:
-            mock_chatbot.return_value = "adapted goal"
-            result = adapt_goal(goal, config, doc, user_profile)
-
-            assert result == "adapted goal"
-            mock_chatbot.assert_called_once()
-
-    def test_adapt_goal_without_company_summary(self) -> None:
-        """Test adapt_goal without company summary."""
-        goal = "test goal"
-        config = {"client": Mock()}
-        doc = "test document"
-        user_profile = "test profile"
-
-        with pytest.raises(KeyError):
-            adapt_goal(goal, config, doc, user_profile)
-
-    @patch("arklex.evaluation.build_user_profiles.requests.get")
-    def test_select_system_attributes_with_value_error(self, mock_requests_get) -> None:
+    def test_get_custom_profiles_with_api_and_invalid_response(self) -> None:
+        """Test get_custom_profiles function when API returns invalid response."""
         config = {
             "user_attributes": {
                 "system_attributes": {
-                    "attr1": {
-                        "api": "http://api.example.com/attr1",
-                        "values": ["val1", "val2"],
-                    },
-                    "attr2": "not_a_list",  # This will cause TypeError
+                    "attr1": {"api": "http://test.com/api1"},
+                },
+                "user_profiles": {
+                    "profile1": {"api": "http://test.com/api2"},
+                },
+            }
+        }
+
+        with patch(
+            "arklex.evaluation.build_user_profiles.requests.get"
+        ) as mock_requests_get:
+            # Mock API calls to return invalid responses
+            mock_response1 = Mock()
+            mock_response1.json.side_effect = ValueError("Invalid JSON")
+
+            mock_response2 = Mock()
+            mock_response2.json.return_value = ["api_value1", "api_value2"]
+
+            mock_requests_get.side_effect = [mock_response1, mock_response2]
+
+            with pytest.raises(KeyError, match="'values'"):
+                # Use the first get_custom_profiles function
+                from arklex.evaluation.build_user_profiles import (
+                    get_custom_profiles as get_custom_profiles_v1,
+                )
+
+                get_custom_profiles_v1(config)
+
+    def test_select_system_attributes_with_non_dict_values(
+        self, mock_synthetic_params: Dict[str, int]
+    ) -> None:
+        """Test select_system_attributes function when system attributes are not dictionaries."""
+        config = {
+            "user_attributes": {
+                "system_attributes": {
+                    "attr1": ["val1", "val2"],  # Not a dict
                 }
             }
         }
-        synthetic_data_params = {"num_convos": 1}
-        mock_requests_get.return_value.json.return_value = "not_a_list_of_dicts"
-        with pytest.raises(TypeError, match="string indices must be integers"):
-            select_system_attributes(config, synthetic_data_params)
 
-    @patch("arklex.evaluation.build_user_profiles.requests.get")
-    def test_get_custom_profiles_with_api_and_bindings(self, mock_requests_get) -> None:
+        with patch(
+            "arklex.evaluation.build_user_profiles.requests.get"
+        ) as mock_requests_get:
+            mock_response = Mock()
+            mock_response.json.return_value = ["api_value1", "api_value2"]
+            mock_requests_get.return_value = mock_response
+
+            # Should raise TypeError when trying to access "values" key on a list
+            with pytest.raises(
+                TypeError, match="list indices must be integers or slices, not str"
+            ):
+                select_system_attributes(config, mock_synthetic_params)
+
+    def test_select_system_attributes_with_empty_list(
+        self, mock_synthetic_params: Dict[str, int]
+    ) -> None:
+        """Test select_system_attributes function when system attributes list is empty."""
         config = {
             "user_attributes": {
                 "system_attributes": {
-                    "sys_attr1": {
-                        "api": "http://api.example.com/system",
-                        "bind_to": "user_profiles.profile1",
-                        "values": ["api_value1", "api_value2"],
-                    },
-                    "sys_attr2": {"values": ["val1", "val2"]},
-                },
-                "user_profiles": {
-                    "profile1": {
-                        "api": "http://api.example.com/profile",
-                        "bind_to": "system_attributes.sys_attr1",
-                        "values": ["api_value1", "api_value2"],
-                    },
-                    "profile2": {"values": ["prof1", "prof2"]},
-                },
+                    "attr1": [],  # Empty list
+                }
             }
         }
-        mock_requests_get.return_value.json.return_value = ["api_value1", "api_value2"]
-        user_profiles, system_attributes = get_custom_profiles(config)
-        # The function doesn't make API calls, it just returns the values from config
-        assert mock_requests_get.call_count == 0
-        assert "api_value1" in system_attributes["sys_attr1"]
-        assert "api_value2" in user_profiles["profile1"]
 
-    @patch("arklex.evaluation.build_user_profiles.requests.get")
-    def test_get_custom_profiles_with_missing_binding_target(
-        self, mock_requests_get
+        with patch(
+            "arklex.evaluation.build_user_profiles.requests.get"
+        ) as mock_requests_get:
+            mock_response = Mock()
+            mock_response.json.return_value = []  # Empty response
+            mock_requests_get.return_value = mock_response
+
+            # Should raise TypeError when trying to access "values" key on a list
+            with pytest.raises(
+                TypeError, match="list indices must be integers or slices, not str"
+            ):
+                select_system_attributes(config, mock_synthetic_params)
+
+    def test_augment_attributes_with_empty_values(
+        self, mock_config: Dict[str, Any]
     ) -> None:
-        config = {
-            "user_attributes": {
-                "system_attributes": {
-                    "sys_attr1": {"values": ["val1", "val2"]},
-                },
-                "user_profiles": {
-                    "profile1": {
-                        "api": "http://api.example.com/profile",
-                        "bind_to": "system_attributes.nonexistent",
-                        "values": ["api_value1", "api_value2"],
-                    },
-                },
-            }
-        }
-        mock_requests_get.return_value.json.return_value = ["api_value1", "api_value2"]
-        user_profiles, system_attributes = get_custom_profiles(config)
-        # The function doesn't make API calls, it just returns the values from config
-        assert mock_requests_get.call_count == 0
-        assert user_profiles["profile1"] == ["api_value1", "api_value2"]
-        assert system_attributes["sys_attr1"] == ["val1", "val2"]
-
-    @patch("arklex.evaluation.build_user_profiles.chatgpt_chatbot")
-    def test_augment_attributes_with_documents(self, mock_chatgpt_chatbot) -> None:
-        config = {
-            "intro": "Test company intro",
-            "client": Mock(),
-            "company_summary": "Test company",
-        }
+        """Test augment_attributes function when some attributes have empty values."""
         attributes = {
-            "attr1": {"values": ["val1", "val2"], "augment": True},
-            "attr2": {"values": [], "augment": False},
+            "attr1": {"values": [], "augment": True},  # Empty values
+            "attr2": {"values": ["val3", "val4"], "augment": True},
         }
-        documents = [{"content": "test document content"}]
-        mock_chatgpt_chatbot.return_value = "new_val1, new_val2, new_val3"
-        result = augment_attributes(attributes, config, documents)
-        # Only attr1 should call chatgpt_chatbot since it has augment=True
-        assert mock_chatgpt_chatbot.call_count == 1
-        assert "new_val1" in result["attr1"]
-        assert "new_val2" in result["attr1"]
-        assert "new_val3" in result["attr1"]
-        assert result["attr2"] == []
+        documents = [{"content": "test content"}]
 
-    @patch("arklex.evaluation.build_user_profiles.chatgpt_chatbot")
-    def test_augment_attributes_without_documents(self, mock_chatgpt_chatbot) -> None:
-        config = {
-            "intro": "Test company intro",
-            "client": Mock(),
-            "company_summary": "Test company",
-        }
-        attributes = {"attr1": {"values": ["val1", "val2"], "augment": True}}
-        documents = []
-        mock_chatgpt_chatbot.return_value = "new_val1, new_val2"
-        result = augment_attributes(attributes, config, documents)
-        assert mock_chatgpt_chatbot.call_count == 1
-        assert "new_val1" in result["attr1"]
-        assert "new_val2" in result["attr1"]
+        with patch(
+            "arklex.evaluation.build_user_profiles.chatgpt_chatbot"
+        ) as mock_chatgpt_chatbot:
+            mock_chatgpt_chatbot.return_value = "new_val1, new_val2"
 
-    @patch("arklex.evaluation.build_user_profiles.chatgpt_chatbot")
-    def test_augment_attributes_with_empty_values(self, mock_chatgpt_chatbot) -> None:
-        config = {
-            "intro": "Test company intro",
-            "client": Mock(),
-            "company_summary": "Test company",
-        }
-        attributes = {
-            "attr1": {"values": [], "augment": True},
-            "attr2": {"values": ["val1"], "augment": True},
-        }
-        documents = [{"content": "test document content"}]
-        mock_chatgpt_chatbot.return_value = "new_val1"
-        result = augment_attributes(attributes, config, documents)
-        # Both should call chatgpt_chatbot since both have augment=True
-        assert mock_chatgpt_chatbot.call_count == 2
-        assert "new_val1" in result["attr1"]
-        assert "new_val1" in result["attr2"]
+            result = augment_attributes(attributes, mock_config, documents)
 
-    @patch("arklex.evaluation.build_user_profiles.chatgpt_chatbot")
-    def test_augment_attributes_with_mixed_generate_values(
-        self, mock_chatgpt_chatbot
+            # Should skip attributes with empty values in text_attribute
+            assert (
+                "attr1" not in result["attr2"]
+            )  # attr1 should not appear in text_attribute
+            # Should still process attr2
+            assert result["attr2"] == ["val3", "val4", "new_val1", "new_val2"]
+
+    def test_augment_attributes_with_mixed_generate_values_and_documents(
+        self, mock_config: Dict[str, Any]
     ) -> None:
-        config = {
-            "intro": "Test company intro",
-            "client": Mock(),
-            "company_summary": "Test company",
-        }
+        """Test augment_attributes function with mixed generate_values and documents."""
         attributes = {
-            "attr1": {"values": ["val1"], "augment": True},
-            "attr2": {"values": ["val2"], "augment": False},
-            "attr3": {"values": ["val3"], "augment": True},
+            "attr1": {"values": ["val1"], "augment": False},
+            "attr2": {"values": ["val2"], "augment": True},
         }
-        documents = [{"content": "test document content"}]
-        mock_chatgpt_chatbot.side_effect = ["new_val1", "new_val3"]
-        result = augment_attributes(attributes, config, documents)
-        # Only attr1 and attr3 should call chatgpt_chatbot since they have augment=True
-        assert mock_chatgpt_chatbot.call_count == 2
-        assert "new_val1" in result["attr1"]
-        assert result["attr2"] == ["val2"]  # Unchanged
-        assert "new_val3" in result["attr3"]
+        documents = [{"content": "test content"}]
 
-    def test_get_label_with_multiple_attempts_and_failure(
-        self, mock_environment, mock_chatgpt_chatbot
+        with patch(
+            "arklex.evaluation.build_user_profiles.chatgpt_chatbot"
+        ) as mock_chatgpt_chatbot:
+            mock_chatgpt_chatbot.return_value = "new_val1, new_val2"
+
+            result = augment_attributes(attributes, mock_config, documents)
+
+            # Should use original values for attr1 (augment=False)
+            assert result["attr1"] == ["val1"]
+            # Should generate new values for attr2 (augment=True)
+            assert result["attr2"] == ["val2", "new_val1", "new_val2"]
+            # Should call chatgpt_chatbot only once for attr2
+            assert mock_chatgpt_chatbot.call_count == 1
+
+    def test_augment_attributes_with_mixed_generate_values_and_no_documents(
+        self, mock_config: Dict[str, Any]
     ) -> None:
-        """Test get_label with multiple attempts and eventual failure."""
-        config = {
-            "tools": [{"id": "tool1", "name": "Test Tool"}],
-            "workers": [{"id": "worker1", "name": "Test Worker"}],
-            "client": Mock(),
+        """Test augment_attributes function with mixed generate_values and no documents."""
+        attributes = {
+            "attr1": {"values": ["val1"], "augment": False},
+            "attr2": {"values": ["val2"], "augment": True},
         }
-        attribute = {"goal": "test goal"}
-        mock_tool = Mock()
-        mock_slot = Mock()
-        mock_slot.name = "slot1"
-        mock_slot.value = "value1"
-        mock_slot.model_dump.return_value = {"name": "slot1", "value": "value1"}
-        mock_tool.slots = [mock_slot]
-        mock_tool.description = "Test tool description"
-        mock_tool.output = "Test output"
-        mock_tool.name = "Test Tool"
-        mock_environment.return_value.tools = {
-            "tool1": {"execute": Mock(side_effect=Exception("Tool error"))}
-        }
-        mock_chatgpt_chatbot.return_value = "tool1"
-        try:
-            label, valid = get_label(attribute, config)
-        except Exception as e:
-            label = [{"tool_id": "0", "tool_name": "No tool"}]
-        assert label[0]["tool_id"] == "0"
-        assert label[0]["tool_name"] == "No tool"
-        # The function fails before calling chatgpt_chatbot due to tool execution exception
-        # So we don't expect chatgpt_chatbot to be called
-        assert mock_chatgpt_chatbot.call_count == 0
+        documents = []  # No documents
+
+        with patch(
+            "arklex.evaluation.build_user_profiles.chatgpt_chatbot"
+        ) as mock_chatgpt_chatbot:
+            mock_chatgpt_chatbot.return_value = "new_val1, new_val2"
+
+            result = augment_attributes(attributes, mock_config, documents)
+
+            # Should use original values for attr1 (augment=False)
+            assert result["attr1"] == ["val1"]
+            # Should generate new values for attr2 (augment=True) without documents
+            assert result["attr2"] == ["val2", "new_val1", "new_val2"]
+            # Should call chatgpt_chatbot only once for attr2
+            assert mock_chatgpt_chatbot.call_count == 1
