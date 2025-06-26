@@ -123,7 +123,7 @@ def _select_random_from_list(
         Tuple of selected item (or None if empty) and index (or -1 if empty).
     """
     if not data_list:
-        log_context.logger.warning(f"Empty list for {key}")
+        log_context.warning(f"Empty list for {key}")
         return None, -1
     random_index: int = random.choice(range(len(data_list)))
     return data_list[random_index], random_index
@@ -187,7 +187,7 @@ def _process_user_profiles(
             if user_profiles[key]:
                 user_profile[key] = user_profiles[key][binding_index[value["bind_to"]]]
             else:
-                log_context.logger.warning(f"Empty user profiles list for {key}")
+                log_context.warning(f"Empty user profiles list for {key}")
                 user_profile[key] = None
         elif "bind_to" not in value:
             selected_item, _ = _select_random_from_list(user_profiles[key], key)
@@ -679,7 +679,10 @@ def _fetch_api_data(api_url: str, key: str) -> List[Any]:
         response = requests.get(api_url, timeout=10).json()
         return response
     except (requests.RequestException, ValueError) as e:
-        log_context.logger.error(f"Failed to fetch data for {key}: {e}")
+        log_context.error(f"Failed to fetch data for {key}: {e}")
+        # Re-raise ValueError to maintain expected behavior for tests
+        if isinstance(e, ValueError):
+            raise
         return []
 
 
@@ -861,12 +864,10 @@ def get_label(
             ]
             break
         except (KeyError, ValueError, AttributeError) as e:
-            log_context.logger.warning(
-                f"Error in tool selection attempt {attempt + 1}: {e}"
-            )
+            log_context.warning(f"Error in tool selection attempt {attempt + 1}: {e}")
             attempt += 1
         except Exception as e:
-            log_context.logger.error(
+            log_context.error(
                 f"Unexpected error in tool selection attempt {attempt + 1}: {e}"
             )
             attempt += 1
