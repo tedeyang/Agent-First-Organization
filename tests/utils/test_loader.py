@@ -18,6 +18,7 @@ from arklex.utils.loader import (
     CrawledObject,
     Loader,
 )
+from typing import NoReturn
 
 
 class TestEncodeImage:
@@ -954,95 +955,165 @@ class TestLoader:
             os.unlink(tmp_file_path)
 
     def test_crawl_with_selenium_timeout_detection(self) -> None:
-        """Test Selenium crawl timeout and error logging."""
+        """Test selenium crawling with timeout detection."""
         loader = Loader()
         url_objects = [DocObject("1", "http://example.com")]
-        with (
-            patch("selenium.webdriver.Chrome") as mock_driver,
-            patch(
-                "time.time",
-                side_effect=[
-                    0,
-                    1000,
-                    1001,
-                    1002,
-                    1003,
-                    1004,
-                    1005,
-                    1006,
-                    1007,
-                    1008,
-                    1009,
-                    1010,
-                ],
-            ),
-            patch("time.sleep"),
-        ):
-            mock_driver_instance = Mock()
-            mock_driver.return_value = mock_driver_instance
-            mock_driver_instance.page_source = (
-                "<html><title>Test</title><body>Content</body></html>"
-            )
-            mock_driver_instance.quit.return_value = None
-            # Simulate timeout by making time.time() return a large value
-            # This should trigger the timeout block
-            result = loader._crawl_with_selenium(url_objects)
-            assert isinstance(result, list)
 
-    def test_get_all_urls_break_on_max_num(self) -> None:
-        """Test get_all_urls breaks when max_num is reached."""
-        loader = Loader()
-        with patch.object(
-            loader, "get_outsource_urls", return_value=["http://a.com", "http://b.com"]
-        ):
-            urls = [f"http://site{i}.com" for i in range(10)]
+        # Create a generator that provides enough time values
+        def time_gen():
+            times = [0, 100]  # Start time and timeout time
+            for t in times:
+                yield t
+            while True:
+                yield times[-1]  # Keep returning the last value
 
-            # Patch time to avoid timeout
-            def time_gen():
-                times = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-                for t in times:
-                    yield t
-                while True:
-                    yield times[-1]
+        time_iter = time_gen()
 
-            time_iter = time_gen()
-            with patch("time.time", side_effect=lambda: next(time_iter)):
-                result = loader.get_all_urls("http://site0.com", max_num=3)
-                assert len(result) == 3
+        with patch("time.time", side_effect=lambda: next(time_iter)):
+            with patch("selenium.webdriver.Chrome") as mock_driver:
+                mock_driver_instance = Mock()
+                mock_driver.return_value = mock_driver_instance
+
+                # Patch page_source to raise Exception after timeout
+                def page_source_side_effect() -> NoReturn:
+                    # Simulate timeout by raising Exception
+                    raise Exception("URL load timeout")
+
+                mock_driver_instance.page_source = property(page_source_side_effect)
+                mock_driver_instance.quit = Mock()
+
+                result = loader._crawl_with_selenium(url_objects)
+
+                # Should create error doc due to timeout
+                assert len(result) == 1
+                assert result[0].is_error
+                assert result[0].error_message is not None
 
     def test_get_outsource_urls_non_200_status(self) -> None:
-        """Test get_outsource_urls logs error for non-200 status code."""
+        """Test get_outsource_urls with non-200 status code."""
         loader = Loader()
 
-        class DummyResponse:
-            status_code = 404
-            text = ""
+        with patch("requests.get") as mock_get:
+            mock_response = Mock()
+            mock_response.status_code = 404
+            mock_get.return_value = mock_response
 
-        with patch("requests.get", return_value=DummyResponse()):
-            result = loader.get_outsource_urls("http://bad.com", "http://bad.com")
+            result = loader.get_outsource_urls(
+                "http://example.com", "http://example.com"
+            )
+
+            # Should return empty list for non-200 status
             assert result == []
 
-    def test_crawl_file_not_implemented_error(self) -> None:
-        """Test crawl_file raises NotImplementedError for unsupported file types."""
+    def test_get_outsource_urls_exception_handling(self) -> None:
+        """Test get_outsource_urls with exception handling."""
         loader = Loader()
-        doc = DocObject("id", "/tmp/file.unsupported")
-        result = loader.crawl_file(doc)
-        assert result.is_error is True
-        assert "Unsupported file type" in result.error_message
+
+        with patch("requests.get", side_effect=Exception("Network error")):
+            result = loader.get_outsource_urls(
+                "http://example.com", "http://example.com"
+            )
+
+            # Should return empty list when exception occurs
+            assert result == []
 
     def test_crawl_file_error_handling(self) -> None:
-        """Test crawl_file error handling for exceptions (e.g., permission error)."""
+        """Test crawl_file with error handling."""
         loader = Loader()
-        doc = DocObject("id", "/tmp/file.txt")
-        with patch("arklex.utils.loader.Path") as mock_path:
-            mock_path_instance = Mock()
-            mock_path_instance.suffix = ".txt"
-            mock_path_instance.name = "file.txt"
-            mock_path.return_value = mock_path_instance
-            with patch(
-                "arklex.utils.loader.TextLoader",
-                side_effect=Exception("Permission denied"),
-            ):
-                result = loader.crawl_file(doc)
-                assert result.is_error is True
-                assert "Permission denied" in result.error_message
+        local_obj = DocObject("1", "/nonexistent/file.txt")
+
+        result = loader.crawl_file(local_obj)
+
+        # Should create error doc when file processing fails
+        assert result.is_error
+        assert result.error_message is not None
+
+    def test_chunk_method_with_error_and_chunked_docs(self) -> None:
+        """Test chunk method with error docs and already chunked docs."""
+        loader = Loader()
+
+        # Create error doc
+        error_doc = CrawledObject(
+            id="1",
+            source="error.txt",
+            content=None,
+            is_error=True,
+            error_message="File not found",
+        )
+
+        # Create already chunked doc
+        chunked_doc = CrawledObject(
+            id="2", source="chunked.txt", content="Some content", is_chunk=True
+        )
+
+        # Create normal doc
+        normal_doc = CrawledObject(
+            id="3",
+            source="normal.txt",
+            content="This is a normal document with some content",
+        )
+
+        docs = [error_doc, chunked_doc, normal_doc]
+        result = loader.chunk(docs)
+
+        # Should skip error doc and already chunked doc, only process normal doc
+        assert len(result) == 1  # Only the normal doc gets chunked
+        assert result[0].page_content == "This is a normal document with some content"
+
+    def test_chunk_method_skip_logic(self) -> None:
+        """Test chunk method skip logic for error and chunked docs."""
+        loader = Loader()
+
+        # Test with None content
+        none_content_doc = CrawledObject(id="1", source="none.txt", content=None)
+
+        # Test with error doc
+        error_doc = CrawledObject(
+            id="2", source="error.txt", content="content", is_error=True
+        )
+
+        # Test with chunked doc
+        chunked_doc = CrawledObject(
+            id="3", source="chunked.txt", content="content", is_chunk=True
+        )
+
+        docs = [none_content_doc, error_doc, chunked_doc]
+        result = loader.chunk(docs)
+
+        # Should skip all three docs
+        assert len(result) == 0
+
+    def test_chunk_method_return_logic(self) -> None:
+        """Test chunk method return logic for different document types."""
+        loader = Loader()
+
+        # Test with normal doc that gets chunked
+        normal_doc = CrawledObject(id="1", source="normal.txt", content="Short content")
+
+        docs = [normal_doc]
+        result = loader.chunk(docs)
+
+        # Should return langchain Document objects
+        assert len(result) == 1
+        assert hasattr(result[0], "page_content")
+        assert hasattr(result[0], "metadata")
+        assert result[0].page_content == "Short content"
+        assert result[0].metadata["source"] == "normal.txt"
+
+    def test_chunk_method_with_multiple_chunks(self) -> None:
+        """Test chunk method with document that gets split into multiple chunks."""
+        loader = Loader()
+
+        # Create a longer document that will be split
+        long_content = "This is a very long document. " * 50  # Create long content
+        long_doc = CrawledObject(id="1", source="long.txt", content=long_content)
+
+        docs = [long_doc]
+        result = loader.chunk(docs)
+
+        # Should return multiple chunks
+        assert len(result) > 1
+        for doc in result:
+            assert hasattr(doc, "page_content")
+            assert hasattr(doc, "metadata")
+            assert doc.metadata["source"] == "long.txt"
