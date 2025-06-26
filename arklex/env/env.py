@@ -9,20 +9,19 @@ import os
 import uuid
 from functools import partial
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
-from typing import Any, Callable, Dict, List, Optional, Union, Tuple
 
 from arklex.env.agents.agent import BaseAgent
 from arklex.env.planner.react_planner import DefaultPlanner, ReactPlanner
 from arklex.env.tools.tools import Tool
 from arklex.env.workers.worker import BaseWorker
 from arklex.orchestrator.NLU.core.slot import SlotFiller
-from arklex.utils.graph_state import MessageState, NodeInfo, Params
-from arklex.utils.logging_utils import LogContext
+from arklex.orchestrator.NLU.services.api_service import APIClientService
 from arklex.orchestrator.NLU.services.model_service import (
     DummyModelService,
     ModelService,
 )
-from arklex.orchestrator.NLU.services.api_service import APIClientService
+from arklex.utils.graph_state import MessageState, NodeInfo, Params
+from arklex.utils.logging_utils import LogContext
 
 log_context = LogContext(__name__)
 
@@ -158,7 +157,7 @@ class DefaultResourceInitializer(BaseResourceInitializer):
                     "execute": partial(func, **agent.get("fixed_args", {})),
                 }
             except Exception as e:
-                logger.error(f"Agent {name} is not registered, error: {e}")
+                log_context.error(f"Agent {name} is not registered, error: {e}")
                 continue
         return agent_registry
 
@@ -314,7 +313,7 @@ class Environment:
             )
 
         elif id in self.agents:
-            logger.info(f"{self.agents[id]['name']} agent selected")
+            log_context.info(f"{self.agents[id]['name']} agent selected")
             agent: BaseAgent = self.agents[id]["execute"](
                 successors=node_info.additional_args.get("successors", []),
                 predecessors=node_info.additional_args.get("predecessors", []),
