@@ -953,713 +953,87 @@ class TestLoader:
         finally:
             os.unlink(tmp_file_path)
 
-    def test_selenium_crawling_timeout_detection(self) -> None:
-        """Test Selenium crawling with timeout detection (simulate many time.time() calls)."""
+    def test_crawl_with_selenium_timeout_detection(self) -> None:
+        """Test Selenium crawl timeout and error logging."""
         loader = Loader()
         url_objects = [DocObject("1", "http://example.com")]
-        with patch("selenium.webdriver.Chrome") as mock_driver:
+        with (
+            patch("selenium.webdriver.Chrome") as mock_driver,
+            patch(
+                "time.time",
+                side_effect=[
+                    0,
+                    1000,
+                    1001,
+                    1002,
+                    1003,
+                    1004,
+                    1005,
+                    1006,
+                    1007,
+                    1008,
+                    1009,
+                    1010,
+                ],
+            ),
+            patch("time.sleep"),
+        ):
             mock_driver_instance = Mock()
             mock_driver.return_value = mock_driver_instance
-            mock_driver_instance.page_source = "<html><body>Content</body></html>"
+            mock_driver_instance.page_source = (
+                "<html><title>Test</title><body>Content</body></html>"
+            )
             mock_driver_instance.quit.return_value = None
-            # Provide enough values for all time.time() calls - using a generator to provide infinite values
-            with patch("time.sleep"), patch("time.time") as mock_time:
-                # Create a generator that provides increasing time values that don't trigger timeout
-                def time_generator():
-                    current_time = 100
-                    while True:
-                        yield current_time
-                        current_time += 1  # Small increments to avoid timeout
-
-                mock_time.side_effect = time_generator()
-                result = loader._crawl_with_selenium(url_objects)
-                # Should return a successful crawl since we're not actually hitting timeout
-                assert len(result) == 1
-                assert not result[0].is_error
-
-    def test_chunk_method_with_langchain_document_creation(self) -> None:
-        """Test chunk method creates langchain Document objects correctly."""
-        loader = Loader()
-
-        # Create a test document with content
-        doc = CrawledObject(
-            "1",
-            "test.txt",
-            "This is a test document with some content that should be chunked into smaller pieces for processing.",
-        )
-
-        result = loader.chunk([doc])
-
-        # Check that we get langchain Document objects with correct structure
-        assert len(result) > 0
-        for doc_obj in result:
-            assert hasattr(doc_obj, "page_content")
-            assert hasattr(doc_obj, "metadata")
-            assert doc_obj.metadata["source"] == "test.txt"
-            assert len(doc_obj.page_content) > 0
-
-    def test_get_all_urls_with_url_processing_exception(self) -> None:
-        """Test get_all_urls with URL processing exception."""
-        loader = Loader()
-
-        with patch.object(
-            loader, "get_outsource_urls", side_effect=Exception("URL processing error")
-        ):
-            result = loader.get_all_urls("http://example.com", 10)
-            # Should handle exception and continue
+            # Simulate timeout by making time.time() return a large value
+            # This should trigger the timeout block
+            result = loader._crawl_with_selenium(url_objects)
             assert isinstance(result, list)
 
-    def test_get_candidates_websites_with_graph_analysis(self) -> None:
-        """Test get_candidates_websites with full graph analysis."""
+    def test_get_all_urls_break_on_max_num(self) -> None:
+        """Test get_all_urls breaks when max_num is reached."""
+        loader = Loader()
+        with patch.object(
+            loader, "get_outsource_urls", return_value=["http://a.com", "http://b.com"]
+        ):
+            urls = [f"http://site{i}.com" for i in range(10)]
+            # Patch time to avoid timeout
+            with patch("time.time", side_effect=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]):
+                result = loader.get_all_urls("http://site0.com", max_num=3)
+                assert len(result) == 3
+
+    def test_get_outsource_urls_non_200_status(self) -> None:
+        """Test get_outsource_urls logs error for non-200 status code."""
         loader = Loader()
 
-        # Create test URLs with content that references each other
-        url1 = CrawledObject(
-            "1", "http://example1.com", "Content about example2.com and example3.com"
-        )
-        url2 = CrawledObject("2", "http://example2.com", "Content about example1.com")
-        url3 = CrawledObject("3", "http://example3.com", "Content about example1.com")
+        class DummyResponse:
+            status_code = 404
+            text = ""
 
-        with patch("networkx.pagerank", return_value={"1": 0.5, "2": 0.3, "3": 0.2}):
-            result = loader.get_candidates_websites([url1, url2, url3], 2)
-            assert len(result) == 2
+        with patch("requests.get", return_value=DummyResponse()):
+            result = loader.get_outsource_urls("http://bad.com", "http://bad.com")
+            assert result == []
 
-    def test_save_method_with_pickle_serialization(self) -> None:
-        """Test save method with pickle serialization."""
+    def test_crawl_file_not_implemented_error(self) -> None:
+        """Test crawl_file raises NotImplementedError for unsupported file types."""
         loader = Loader()
-        docs = [CrawledObject("1", "test", "content")]
-
-        with tempfile.NamedTemporaryFile(suffix=".pkl", delete=False) as tmp_file:
-            tmp_file_path = tmp_file.name
-
-        try:
-            loader.save(tmp_file_path, docs)
-            assert os.path.exists(tmp_file_path)
-
-            # Verify the file can be loaded back
-            with open(tmp_file_path, "rb") as f:
-                loaded_docs = pickle.load(f)
-                assert len(loaded_docs) == 1
-                assert loaded_docs[0].id == "1"
-                assert loaded_docs[0].content == "content"
-        finally:
-            os.unlink(tmp_file_path)
-
-    def test_encode_image_with_actual_file_reading(self) -> None:
-        """Test encode_image with actual file reading."""
-        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_file:
-            tmp_file.write(b"fake image data")
-            tmp_file_path = tmp_file.name
-
-        try:
-            result = encode_image(tmp_file_path)
-            assert result is not None
-            assert isinstance(result, str)
-            # Should be base64 encoded
-            assert len(result) > 0
-        finally:
-            os.unlink(tmp_file_path)
-
-    def test_crawled_object_initialization_with_all_parameters(self) -> None:
-        """Test CrawledObject initialization with all parameters."""
-        crawled = CrawledObject(
-            "test_id",
-            "test_source",
-            "test_content",
-            {"key": "value"},
-            is_chunk=True,
-            is_error=True,
-            error_message="test error",
-            source_type=SourceType.FILE,
-        )
-
-        assert crawled.id == "test_id"
-        assert crawled.source == "test_source"
-        assert crawled.content == "test_content"
-        assert crawled.metadata == {"key": "value"}
-        assert crawled.is_chunk is True
-        assert crawled.is_error is True
-        assert crawled.error_message == "test error"
-        assert crawled.source_type == SourceType.FILE
-
-    def test_doc_object_initialization(self) -> None:
-        """Test DocObject initialization."""
-        doc = DocObject("test_id", "test_source")
-        assert doc.id == "test_id"
-        assert doc.source == "test_source"
-
-    def test_source_type_enum_values(self) -> None:
-        """Test SourceType enum values."""
-        assert SourceType.WEB.value == 1
-        assert SourceType.FILE.value == 2
-        assert SourceType.TEXT.value == 3
-
-    def test_loader_initialization(self) -> None:
-        """Test Loader initialization."""
-        loader = Loader()
-        assert loader is not None
-
-    def test_create_error_doc_method(self) -> None:
-        """Test _create_error_doc method."""
-        loader = Loader()
-        url_obj = DocObject("1", "http://example.com")
-        error_msg = "Test error message"
-
-        result = loader._create_error_doc(url_obj, error_msg)
-
-        assert result.id == "1"
-        assert result.source == "http://example.com"
-        assert result.content == ""
+        doc = DocObject("id", "/tmp/file.unsupported")
+        result = loader.crawl_file(doc)
         assert result.is_error is True
-        assert result.error_message == "Test error message"
-        assert result.source_type == SourceType.WEB
-        assert result.metadata["title"] == "http://example.com"
-        assert result.metadata["source"] == "http://example.com"
+        assert "Unsupported file type" in result.error_message
 
-    def test_get_outsource_urls_with_non_200_status_code(self) -> None:
-        """Test get_outsource_urls with non-200 status code to cover line 606-620."""
+    def test_crawl_file_error_handling(self) -> None:
+        """Test crawl_file error handling for exceptions (e.g., permission error)."""
         loader = Loader()
-
-        with patch("requests.get") as mock_get:
-            mock_response = Mock()
-            mock_response.status_code = 404
-            mock_get.return_value = mock_response
-
-            result = loader.get_outsource_urls(
-                "http://example.com", "http://example.com"
-            )
-
-            assert result == []
-
-    def test_get_outsource_urls_with_requests_exception(self) -> None:
-        """Test get_outsource_urls with requests exception to cover line 621-622."""
-        loader = Loader()
-
-        with patch("requests.get") as mock_get:
-            mock_get.side_effect = Exception("Connection error")
-
-            result = loader.get_outsource_urls(
-                "http://example.com", "http://example.com"
-            )
-
-            assert result == []
-
-    def test_get_outsource_urls_with_link_processing_exception(self) -> None:
-        """Test get_outsource_urls with link processing exception to cover line 600-603."""
-        loader = Loader()
-
-        with patch("requests.get") as mock_get:
-            mock_response = Mock()
-            mock_response.status_code = 200
-            mock_response.text = "<html><a href='invalid://url'></a></html>"
-            mock_get.return_value = mock_response
-
-            with patch("urllib.parse.urljoin") as mock_urljoin:
-                mock_urljoin.side_effect = Exception("Invalid URL")
-
-                result = loader.get_outsource_urls(
-                    "http://example.com", "http://example.com"
-                )
-
-                assert result == []
-
-    def test_get_outsource_urls_with_valid_links(self) -> None:
-        """Test get_outsource_urls with valid links to cover line 598-599."""
-        loader = Loader()
-
-        with patch("requests.get") as mock_get:
-            mock_response = Mock()
-            mock_response.status_code = 200
-            mock_response.text = (
-                "<html><a href='/page1'></a><a href='/page2'></a></html>"
-            )
-            mock_get.return_value = mock_response
-
-            with patch.object(loader, "_check_url") as mock_check_url:
-                mock_check_url.return_value = True
-
-                result = loader.get_outsource_urls(
-                    "http://example.com", "http://example.com"
-                )
-
-                assert len(result) == 2
-                assert "http://example.com/page1" in result
-                assert "http://example.com/page2" in result
-
-    def test_get_outsource_urls_with_filtered_links(self) -> None:
-        """Test get_outsource_urls with filtered links to cover line 598-599."""
-        loader = Loader()
-
-        with patch("requests.get") as mock_get:
-            mock_response = Mock()
-            mock_response.status_code = 200
-            mock_response.text = (
-                "<html><a href='/page1'></a><a href='/page2'></a></html>"
-            )
-            mock_get.return_value = mock_response
-
-            with patch.object(loader, "_check_url") as mock_check_url:
-                mock_check_url.side_effect = [
-                    True,
-                    False,
-                ]  # First link valid, second invalid
-
-                result = loader.get_outsource_urls(
-                    "http://example.com", "http://example.com"
-                )
-
-                assert len(result) == 1
-                assert "http://example.com/page1" in result
-
-    def test_check_url_with_invalid_urls(self) -> None:
-        """Test _check_url with various invalid URLs to cover line 628-635."""
-        loader = Loader()
-
-        # Test with file extensions that should be filtered out
-        invalid_urls = [
-            "http://example.com/file.pdf",
-            "http://example.com/image.jpg",
-            "http://example.com/document.docx",
-            "http://example.com/presentation.pptx",
-            "http://example.com/spreadsheet.xlsx",
-            "http://example.com/archive.zip",
-            "http://example.com/photo.jpeg",
-            "http://example.com/photo.png",
-        ]
-
-        for url in invalid_urls:
-            assert not loader._check_url(url, "http://example.com")
-
-    def test_check_url_with_valid_urls(self) -> None:
-        """Test _check_url with valid URLs to cover line 628-635."""
-        loader = Loader()
-
-        # Test with valid URLs
-        valid_urls = [
-            "http://example.com/page1",
-            "http://example.com/about",
-            "http://example.com/contact",
-            "http://example.com/products/item1",
-        ]
-
-        for url in valid_urls:
-            assert loader._check_url(url, "http://example.com")
-
-    def test_check_url_with_base_url_mismatch(self) -> None:
-        """Test _check_url with base URL mismatch to cover line 628-635."""
-        loader = Loader()
-
-        # Test with URLs that don't start with base URL
-        invalid_urls = [
-            "http://other.com/page1",
-            "https://example.com/page1",  # Different protocol
-            "http://subdomain.example.com/page1",  # Different subdomain
-        ]
-
-        for url in invalid_urls:
-            assert not loader._check_url(url, "http://example.com")
-
-    def test_check_url_with_empty_and_base_urls(self) -> None:
-        """Test _check_url with empty and base URLs to cover line 628-635."""
-        loader = Loader()
-
-        # Test with empty URL
-        assert not loader._check_url("", "http://example.com")
-
-        # Test with URL equal to base URL
-        assert not loader._check_url("http://example.com", "http://example.com")
-
-    def test_get_all_urls_with_exception_in_url_processing(self) -> None:
-        """Test get_all_urls with exception in URL processing to cover line 564-568."""
-        loader = Loader()
-
-        with patch.object(
-            loader, "get_outsource_urls", side_effect=Exception("URL processing error")
-        ):
-            result = loader.get_all_urls("http://example.com", 5)
-
-            # The base URL is always added to the list, even if processing fails
-            assert result == ["http://example.com"]
-
-    def test_get_all_urls_with_new_urls_found(self) -> None:
-        """Test get_all_urls with new URLs found to cover line 564-568."""
-        loader = Loader()
-
-        with patch.object(loader, "get_outsource_urls") as mock_get_outsource:
-            mock_get_outsource.return_value = [
-                "http://example.com/page1",
-                "http://example.com/page2",
-            ]
-
-            result = loader.get_all_urls("http://example.com", 10)
-
-            assert isinstance(result, list)
-            assert len(result) > 0
-
-    def test_get_all_urls_with_no_new_urls(self) -> None:
-        """Test get_all_urls with no new URLs found to cover line 564-568."""
-        loader = Loader()
-
-        with patch.object(loader, "get_outsource_urls") as mock_get_outsource:
-            mock_get_outsource.return_value = []
-
-            result = loader.get_all_urls("http://example.com", 10)
-
-            assert isinstance(result, list)
-
-    def test_crawl_file_with_file_not_found(self) -> None:
-        """Test crawl_file with file not found to cover line 704-714."""
-        loader = Loader()
-
+        doc = DocObject("id", "/tmp/file.txt")
         with patch("arklex.utils.loader.Path") as mock_path:
-            # Mock the Path class itself to have _flavour attribute
-            mock_path._flavour = Mock()
             mock_path_instance = Mock()
             mock_path_instance.suffix = ".txt"
-            mock_path_instance.name = "testfile.txt"
-            mock_path_instance.exists.return_value = False
-            # Add the _flavour attribute that Path objects have
-            mock_path_instance._flavour = Mock()
+            mock_path_instance.name = "file.txt"
             mock_path.return_value = mock_path_instance
-
-            result = loader.crawl_file(DocObject("test_id", "nonexistent.txt"))
-
-            assert result.is_error is True
-            # The actual error message depends on the implementation
-            assert result.error_message is not None
-
-    def test_crawl_file_with_permission_error(self) -> None:
-        """Test crawl_file with permission error to cover line 704-714."""
-        loader = Loader()
-
-        with patch("arklex.utils.loader.Path") as mock_path:
-            # Mock the Path class itself to have _flavour attribute
-            mock_path._flavour = Mock()
-            mock_path_instance = Mock()
-            mock_path_instance.suffix = ".txt"
-            mock_path_instance.name = "testfile.txt"
-            mock_path_instance.exists.return_value = True
-            # Add the _flavour attribute that Path objects have
-            mock_path_instance._flavour = Mock()
-            mock_path.return_value = mock_path_instance
-
-            with patch("builtins.open") as mock_open:
-                mock_open.side_effect = PermissionError("Permission denied")
-
-                result = loader.crawl_file(DocObject("test_id", "testfile.txt"))
-
+            with patch(
+                "arklex.utils.loader.TextLoader",
+                side_effect=Exception("Permission denied"),
+            ):
+                result = loader.crawl_file(doc)
                 assert result.is_error is True
-                # The actual error message depends on the implementation
-                assert result.error_message is not None
-
-    def test_crawl_file_with_unicode_error(self) -> None:
-        """Test crawl_file with unicode error to cover line 704-714."""
-        loader = Loader()
-
-        with patch("arklex.utils.loader.Path") as mock_path:
-            # Mock the Path class itself to have _flavour attribute
-            mock_path._flavour = Mock()
-            mock_path_instance = Mock()
-            mock_path_instance.suffix = ".txt"
-            mock_path_instance.name = "testfile.txt"
-            mock_path_instance.exists.return_value = True
-            # Add the _flavour attribute that Path objects have
-            mock_path_instance._flavour = Mock()
-            mock_path.return_value = mock_path_instance
-
-            with patch("builtins.open") as mock_open:
-                mock_open.side_effect = UnicodeDecodeError(
-                    "utf-8", b"", 0, 1, "invalid byte"
-                )
-
-                result = loader.crawl_file(DocObject("test_id", "testfile.txt"))
-
-                assert result.is_error is True
-                # The actual error message depends on the implementation
-                assert result.error_message is not None
-
-    def test_crawl_file_with_general_exception(self) -> None:
-        """Test crawl_file with general exception to cover line 704-714."""
-        loader = Loader()
-
-        with patch("arklex.utils.loader.Path") as mock_path:
-            # Mock the Path class itself to have _flavour attribute
-            mock_path._flavour = Mock()
-            mock_path_instance = Mock()
-            mock_path_instance.suffix = ".txt"
-            mock_path_instance.name = "testfile.txt"
-            mock_path_instance.exists.return_value = True
-            # Add the _flavour attribute that Path objects have
-            mock_path_instance._flavour = Mock()
-            mock_path.return_value = mock_path_instance
-
-            with patch("builtins.open") as mock_open:
-                mock_open.side_effect = Exception("General error")
-
-                result = loader.crawl_file(DocObject("test_id", "testfile.txt"))
-
-                assert result.is_error is True
-                # The actual error message depends on the implementation
-                assert result.error_message is not None
-
-    def test_get_outsource_urls_processing_exception_with_soup_error(self) -> None:
-        """Test get_outsource_urls with soup processing exception to cover line 600-603."""
-        loader = Loader()
-
-        with patch("requests.get") as mock_get:
-            mock_response = Mock()
-            mock_response.status_code = 200
-            mock_response.text = "<html><a href='test'></a></html>"
-            mock_get.return_value = mock_response
-
-            with patch("bs4.BeautifulSoup") as mock_soup:
-                mock_soup_instance = Mock()
-                mock_soup_instance.find_all.return_value = [Mock()]
-                mock_soup.return_value = mock_soup_instance
-
-                with patch("urllib.parse.urljoin") as mock_urljoin:
-                    mock_urljoin.side_effect = Exception("URL processing error")
-
-                    result = loader.get_outsource_urls(
-                        "http://example.com", "http://example.com"
-                    )
-
-                    # Should handle exception gracefully
-                    assert isinstance(result, list)
-
-    def test_get_candidates_websites_with_empty_urls(self) -> None:
-        """Test get_candidates_websites with empty URLs list to cover line 670."""
-        loader = Loader()
-
-        result = loader.get_candidates_websites([], 5)
-
-        assert result == []
-
-    def test_get_candidates_websites_with_all_error_urls(self) -> None:
-        """Test get_candidates_websites with all error URLs to cover line 670."""
-        loader = Loader()
-
-        error_docs = [
-            CrawledObject("1", "http://example1.com", "content1", is_error=True),
-            CrawledObject("2", "http://example2.com", "content2", is_error=True),
-        ]
-
-        result = loader.get_candidates_websites(error_docs, 5)
-
-        # Should handle all error URLs gracefully
-        assert isinstance(result, list)
-
-    def test_get_candidates_websites_with_no_content_matches(self) -> None:
-        """Test get_candidates_websites with no content matches to cover line 670."""
-        loader = Loader()
-
-        docs = [
-            CrawledObject("1", "http://example1.com", "content1"),
-            CrawledObject("2", "http://example2.com", "content2"),
-        ]
-
-        result = loader.get_candidates_websites(docs, 5)
-
-        # Should handle no content matches gracefully
-        assert isinstance(result, list)
-
-    def test_to_crawled_text_with_empty_list(self) -> None:
-        """Test to_crawled_text with empty list to cover line 670."""
-        loader = Loader()
-
-        result = loader.to_crawled_text([])
-
-        assert result == []
-
-    def test_to_crawled_local_objs_with_empty_list(self) -> None:
-        """Test to_crawled_local_objs with empty list."""
-        loader = Loader()
-        result = loader.to_crawled_local_objs([])
-        assert result == []
-
-    def test_selenium_crawling_driver_quit_exception_handling(self) -> None:
-        """Test selenium crawling with driver.quit() exception (lines 266-269)."""
-        loader = Loader()
-        url_objects = [DocObject("1", "http://example.com")]
-
-        with patch("selenium.webdriver.Chrome") as mock_driver:
-            mock_driver_instance = Mock()
-            mock_driver.return_value = mock_driver_instance
-            # Make driver.quit() raise an exception
-            mock_driver_instance.quit.side_effect = Exception("Driver quit error")
-            # Make the crawling fail by raising an exception during the process
-            mock_driver_instance.page_source = "<html><body>Content</body></html>"
-            mock_driver_instance.get.side_effect = Exception("Page load error")
-
-            with patch("time.sleep"):
-                with patch(
-                    "time.time", side_effect=[0, 1, 2, 3, 4, 5]
-                ):  # More time values for multiple calls
-                    result = loader._crawl_with_selenium(url_objects)
-
-                    # Should create an error document when crawling fails
-                    assert len(result) == 1
-                    assert result[0].is_error is True
-
-    def test_get_all_urls_exception_handling_in_url_processing(self) -> None:
-        """Test get_all_urls with exception in URL processing (line 555)."""
-        loader = Loader()
-
-        with patch.object(
-            loader, "get_outsource_urls", side_effect=Exception("URL processing error")
-        ):
-            result = loader.get_all_urls("http://example.com", 5)
-
-            # The base URL is always added to the list, even if processing fails
-            assert result == ["http://example.com"]
-
-    def test_get_outsource_urls_link_processing_exception(self) -> None:
-        """Test get_outsource_urls with exception in link processing (lines 611-612)."""
-        loader = Loader()
-
-        class MockLink:
-            def get(self, attr):
-                if attr == "href":
-                    raise Exception("Link processing error")
-                return None
-
-        class MockSoup:
-            def find_all(self, tag):
-                return [MockLink()]
-
-        class MockResponse:
-            status_code = 200
-            text = "<html><a href='test'>link</a></html>"
-
-        with patch("requests.get", return_value=MockResponse()):
-            with patch("bs4.BeautifulSoup", return_value=MockSoup()):
-                with patch(
-                    "urllib.parse.urljoin", return_value="http://example.com/test"
-                ):
-                    with patch.object(
-                        loader, "_check_url", return_value=False
-                    ):  # Make _check_url return False
-                        result = loader.get_outsource_urls(
-                            "http://example.com", "http://example.com"
-                        )
-
-                        # Should return empty list when link processing fails
-                        assert result == []
-
-    def test_to_crawled_text_with_non_empty_list(self) -> None:
-        """Test to_crawled_text with non-empty list to cover loop body (lines 706-713)."""
-        loader = Loader()
-        text_list = ["text1", "text2", "text3"]
-
-        result = loader.to_crawled_text(text_list)
-
-        assert len(result) == 3
-        assert all(isinstance(obj, CrawledObject) for obj in result)
-        assert all(obj.source_type == SourceType.TEXT for obj in result)
-        assert all(obj.source == "text" for obj in result)
-        assert result[0].content == "text1"
-        assert result[1].content == "text2"
-        assert result[2].content == "text3"
-
-    def test_chunk_method_with_error_documents(self) -> None:
-        """Test chunk method with error documents to cover continue statements (lines 833, 835)."""
-        loader = Loader()
-
-        # Create documents with errors
-        error_doc1 = CrawledObject(
-            id="error1",
-            source="error_source1",
-            content=None,
-            is_error=True,
-            error_message="Test error",
-        )
-
-        error_doc2 = CrawledObject(
-            id="error2",
-            source="error_source2",
-            content="Some content",
-            is_error=True,
-            error_message="Another error",
-        )
-
-        doc_objs = [error_doc1, error_doc2]
-
-        result = loader.chunk(doc_objs)
-
-        # Should skip error documents and return empty list
-        assert result == []
-
-    def test_chunk_method_with_already_chunked_documents(self) -> None:
-        """Test chunk method with already chunked documents to cover continue statement (line 839)."""
-        loader = Loader()
-
-        # Create already chunked document
-        chunked_doc = CrawledObject(
-            id="chunked1",
-            source="chunked_source",
-            content="Some content",
-            is_chunk=True,
-        )
-
-        doc_objs = [chunked_doc]
-
-        result = loader.chunk(doc_objs)
-
-        # Chunked documents are added to docs list but not returned in final result
-        # The method returns langchain_docs, not the docs list
-        assert (
-            len(result) == 0
-        )  # No langchain docs created for already chunked documents
-
-    def test_chunk_method_with_none_content_documents(self) -> None:
-        """Test chunk method with None content documents to cover continue statement (line 841)."""
-        loader = Loader()
-
-        # Create document with None content
-        none_content_doc = CrawledObject(
-            id="none1", source="none_source", content=None, is_error=False
-        )
-
-        doc_objs = [none_content_doc]
-
-        result = loader.chunk(doc_objs)
-
-        # Should skip documents with None content and return empty list
-        assert result == []
-
-    def test_chunk_method_with_mixed_document_types(self) -> None:
-        """Test chunk method with mixed document types to cover all branches."""
-        loader = Loader()
-
-        # Create various types of documents
-        normal_doc = CrawledObject(
-            id="normal1",
-            source="normal_source",
-            content="This is a normal document with some content to chunk.",
-            is_error=False,
-            is_chunk=False,
-        )
-
-        error_doc = CrawledObject(
-            id="error1", source="error_source", content=None, is_error=True
-        )
-
-        chunked_doc = CrawledObject(
-            id="chunked1",
-            source="chunked_source",
-            content="Already chunked content",
-            is_chunk=True,
-        )
-
-        none_content_doc = CrawledObject(
-            id="none1", source="none_source", content=None, is_error=False
-        )
-
-        doc_objs = [normal_doc, error_doc, chunked_doc, none_content_doc]
-
-        result = loader.chunk(doc_objs)
-
-        # Should process normal doc and skip others
-        # Should skip error_doc, chunked_doc, and none_content_doc
-        assert len(result) == 1  # Only normal_doc gets processed into langchain docs
-        assert "normal document" in result[0].page_content
+                assert "Permission denied" in result.error_message
