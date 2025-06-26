@@ -635,7 +635,7 @@ class TestLoader:
         """Test crawl_file with missing file type to cover line 704-714."""
         loader = Loader()
 
-        with patch("pathlib.Path") as mock_path:
+        with patch("arklex.utils.loader.Path") as mock_path:
             # Mock the Path class itself to have _flavour attribute
             mock_path._flavour = Mock()
             mock_path_instance = Mock()
@@ -655,7 +655,7 @@ class TestLoader:
         """Test crawl_file with unsupported file type to cover line 728-730."""
         loader = Loader()
 
-        with patch("pathlib.Path") as mock_path:
+        with patch("arklex.utils.loader.Path") as mock_path:
             # Mock the Path class itself to have _flavour attribute
             mock_path._flavour = Mock()
             mock_path_instance = Mock()
@@ -675,7 +675,7 @@ class TestLoader:
         """Test crawl_file with Mistral API key not set to cover line 728-730."""
         loader = Loader()
 
-        with patch("pathlib.Path") as mock_path:
+        with patch("arklex.utils.loader.Path") as mock_path:
             # Mock the Path class itself to have _flavour attribute
             mock_path._flavour = Mock()
             mock_path_instance = Mock()
@@ -697,7 +697,7 @@ class TestLoader:
         """Test crawl_file with Mistral API key set to default value to cover line 728-730."""
         loader = Loader()
 
-        with patch("pathlib.Path") as mock_path:
+        with patch("arklex.utils.loader.Path") as mock_path:
             # Mock the Path class itself to have _flavour attribute
             mock_path._flavour = Mock()
             mock_path_instance = Mock()
@@ -1311,7 +1311,7 @@ class TestLoader:
         """Test crawl_file with file not found to cover line 704-714."""
         loader = Loader()
 
-        with patch("pathlib.Path") as mock_path:
+        with patch("arklex.utils.loader.Path") as mock_path:
             # Mock the Path class itself to have _flavour attribute
             mock_path._flavour = Mock()
             mock_path_instance = Mock()
@@ -1332,7 +1332,7 @@ class TestLoader:
         """Test crawl_file with permission error to cover line 704-714."""
         loader = Loader()
 
-        with patch("pathlib.Path") as mock_path:
+        with patch("arklex.utils.loader.Path") as mock_path:
             # Mock the Path class itself to have _flavour attribute
             mock_path._flavour = Mock()
             mock_path_instance = Mock()
@@ -1356,7 +1356,7 @@ class TestLoader:
         """Test crawl_file with unicode error to cover line 704-714."""
         loader = Loader()
 
-        with patch("pathlib.Path") as mock_path:
+        with patch("arklex.utils.loader.Path") as mock_path:
             # Mock the Path class itself to have _flavour attribute
             mock_path._flavour = Mock()
             mock_path_instance = Mock()
@@ -1382,7 +1382,7 @@ class TestLoader:
         """Test crawl_file with general exception to cover line 704-714."""
         loader = Loader()
 
-        with patch("pathlib.Path") as mock_path:
+        with patch("arklex.utils.loader.Path") as mock_path:
             # Mock the Path class itself to have _flavour attribute
             mock_path._flavour = Mock()
             mock_path_instance = Mock()
