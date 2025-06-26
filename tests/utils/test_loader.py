@@ -956,12 +956,12 @@ class TestLoader:
             mock_driver_instance.quit.return_value = None
             # Provide enough values for all time.time() calls - using a generator to provide infinite values
             with patch("time.sleep"), patch("time.time") as mock_time:
-                # Create a generator that provides increasing time values
+                # Create a generator that provides increasing time values that don't trigger timeout
                 def time_generator():
                     current_time = 100
                     while True:
                         yield current_time
-                        current_time += 100
+                        current_time += 1  # Small increments to avoid timeout
 
                 mock_time.side_effect = time_generator()
                 result = loader._crawl_with_selenium(url_objects)
