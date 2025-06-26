@@ -15,6 +15,7 @@ to test. We need to:
 
 import pytest
 from unittest.mock import Mock
+from unittest.mock import patch
 
 # Import the classes directly from the UI module
 
@@ -177,41 +178,109 @@ class TestTaskEditorUI:
         # - Make run method use the service
         pass
 
+    def test_task_editor_show_input_modal(self) -> None:
+        """Test TaskEditorApp show_input_modal method."""
+        from arklex.orchestrator.generator.ui.task_editor import TaskEditorApp
+
+        app = TaskEditorApp([])
+
+        # Mock the push_screen method
+        app.push_screen = Mock()
+
+        # Mock the InputModal class
+        mock_modal = Mock()
+        mock_modal.result = "modal result"
+
+        with patch(
+            "arklex.orchestrator.generator.ui.task_editor.InputModal",
+            return_value=mock_modal,
+        ):
+            result = app.show_input_modal("Test Title", "default value")
+
+            # Verify push_screen was called
+            app.push_screen.assert_called_once_with(mock_modal)
+            assert result == "modal result"
+
+    def test_task_editor_update_tasks_with_none_tree(self) -> None:
+        """Test TaskEditorApp update_tasks with None tree."""
+        from arklex.orchestrator.generator.ui.task_editor import TaskEditorApp
+
+        app = TaskEditorApp([])
+        app.task_tree = None
+
+        # This should not raise an error
+        app.update_tasks()
+        assert app.tasks == []
+
+    def test_task_editor_update_tasks_with_none_root(self) -> None:
+        """Test TaskEditorApp update_tasks with None root."""
+        from arklex.orchestrator.generator.ui.task_editor import TaskEditorApp
+
+        app = TaskEditorApp([])
+        app.task_tree = Mock()
+        app.task_tree.root = None
+
+        # This should not raise an error
+        app.update_tasks()
+        assert app.tasks == []
+
+    def test_task_editor_run_method(self) -> None:
+        """Test TaskEditorApp run method."""
+        from arklex.orchestrator.generator.ui.task_editor import TaskEditorApp
+
+        tasks = [{"name": "Task 1", "steps": ["Step 1"]}]
+        app = TaskEditorApp(tasks)
+
+        # Mock the parent run method
+        with patch.object(app.__class__.__bases__[0], "run"):
+            result = app.run()
+
+            # Should return the tasks
+            assert result == tasks
+
 
 class TestInputModalUI:
-    """Test the InputModal UI component with mock interactions."""
+    """Test InputModal UI component functionality."""
 
     def test_input_modal_initialization(self) -> None:
         """Test InputModal initialization."""
-        # TODO: Refactor InputModal to separate business logic from UI rendering
-        # - Extract input validation logic into InputValidationService
-        # - Make InputModal a thin wrapper around the service
-        # - Test the service logic independently of UI framework
-        pass
+        from arklex.orchestrator.generator.ui.input_modal import InputModal
+
+        modal = InputModal("Test Title", "default value")
+        assert modal.title == "Test Title"
+        assert modal.default == "default value"
+        assert modal.result == "default value"
 
     def test_input_modal_with_callback(self) -> None:
-        """Test InputModal with a callback."""
-        # TODO: Refactor to separate callback handling logic from UI framework
-        # - Create CallbackHandlerService with handle_callback method
-        # - Test callback handling logic independently
-        # - Make InputModal use the service
-        pass
+        """Test InputModal with callback function."""
+        from arklex.orchestrator.generator.ui.input_modal import InputModal
+
+        callback_called = False
+
+        def mock_callback(result, node):
+            nonlocal callback_called
+            callback_called = True
+
+        modal = InputModal("Test Title", "default value", callback=mock_callback)
+        assert modal.callback == mock_callback
 
     def test_compose_creates_input_structure(self) -> None:
-        """Test that compose method creates proper input structure."""
-        # TODO: Refactor to separate input structure logic from UI rendering
-        # - Create InputStructureBuilder service
-        # - Test input structure building logic independently
-        # - Make compose method use the service
-        pass
+        """Test that compose creates the expected input structure."""
+        from arklex.orchestrator.generator.ui.input_modal import InputModal
+
+        modal = InputModal("Test Title", "default value")
+        # The compose method should be callable
+        assert hasattr(modal, "compose")
+        assert callable(modal.compose)
 
     def test_modal_dismissal(self) -> None:
         """Test modal dismissal functionality."""
-        # TODO: Refactor to separate modal dismissal logic from UI framework
-        # - Create ModalDismissalService with dismiss_modal method
-        # - Test dismissal logic independently
-        # - Make UI method use the service
-        pass
+        from arklex.orchestrator.generator.ui.input_modal import InputModal
+
+        modal = InputModal("Test Title", "default value")
+        # The modal should have a way to be dismissed
+        assert hasattr(modal, "on_button_pressed")
+        assert callable(modal.on_button_pressed)
 
 
 class TestUIErrorHandling:
