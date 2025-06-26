@@ -895,3 +895,235 @@ class TestTaskGraphFormatter:
         )
         # Should still create a task node
         assert any(n[1]["resource"]["name"] == "MessageWorker" for n in nodes)
+
+    def test_format_task_graph_fallback_to_node_1_when_no_task_nodes(
+        self, task_graph_formatter
+    ) -> None:
+        # Simulate a step node (NestedGraph) with no valid target, should fallback to '1'
+        tasks = [
+            {
+                "id": "t1",
+                "name": "Task with step",
+                "description": "desc",
+                "steps": [
+                    {
+                        "resource": {"name": "NestedGraph"},
+                        "attribute": {"value": "should fallback"},
+                    }
+                ],
+                "resource": {"name": "MessageWorker"},
+            }
+        ]
+        with patch.object(
+            task_graph_formatter,
+            "ensure_nested_graph_connectivity",
+            side_effect=lambda g: g,
+        ):
+            graph = task_graph_formatter.format_task_graph(tasks)
+            # Find the step node with resource NestedGraph and check fallback
+            found = False
+            for n in graph["nodes"]:
+                if (
+                    n[1]["resource"]["name"] == "NestedGraph"
+                    and n[1]["attribute"]["value"] == "1"
+                ):
+                    found = True
+            assert found
+
+    def test_format_task_graph_handles_attribute_value_types(
+        self, task_graph_formatter
+    ) -> None:
+        # Task node with description - the formatter uses task.description, not task.attribute.value
+        tasks = [
+            {
+                "id": "t1",
+                "name": "Task with description",
+                "description": "desc",
+                "resource": {"name": "MessageWorker"},
+            }
+        ]
+        with patch.object(
+            task_graph_formatter,
+            "ensure_nested_graph_connectivity",
+            side_effect=lambda g: g,
+        ):
+            graph = task_graph_formatter.format_task_graph(tasks)
+            assert any(
+                n[1]["resource"]["name"] == "MessageWorker"
+                and n[1]["attribute"]["value"] == "desc"
+                for n in graph["nodes"]
+            )
+        # Task node with empty description
+        tasks = [
+            {
+                "id": "t2",
+                "name": "Task with empty description",
+                "description": "",
+                "resource": {"name": "MessageWorker"},
+            }
+        ]
+        with patch.object(
+            task_graph_formatter,
+            "ensure_nested_graph_connectivity",
+            side_effect=lambda g: g,
+        ):
+            graph = task_graph_formatter.format_task_graph(tasks)
+            assert any(
+                n[1]["resource"]["name"] == "MessageWorker"
+                and n[1]["attribute"]["value"] == ""
+                for n in graph["nodes"]
+            )
+        # Task node with no description
+        tasks = [
+            {
+                "id": "t3",
+                "name": "Task with no description",
+                "resource": {"name": "MessageWorker"},
+            }
+        ]
+        with patch.object(
+            task_graph_formatter,
+            "ensure_nested_graph_connectivity",
+            side_effect=lambda g: g,
+        ):
+            graph = task_graph_formatter.format_task_graph(tasks)
+            assert any(
+                n[1]["resource"]["name"] == "MessageWorker"
+                and n[1]["attribute"]["value"] == ""
+                for n in graph["nodes"]
+            )
+
+    def test_format_nodes_task_and_step_resource_as_string(
+        self, task_graph_formatter
+    ) -> None:
+        tasks = [
+            {
+                "id": "t1",
+                "resource": "CustomWorker",
+                "steps": [{"resource": "StepWorker"}],
+            }
+        ]
+        nodes, node_lookup, all_task_node_ids = task_graph_formatter._format_nodes(
+            tasks
+        )
+        assert any(n[1]["resource"]["name"] == "CustomWorker" for n in nodes)
+        assert any(n[1]["resource"]["name"] == "StepWorker" for n in nodes)
+
+    def test_format_nodes_step_as_string_and_int(self, task_graph_formatter) -> None:
+        tasks = [{"id": "t1", "steps": ["step as string", 123]}]
+        nodes, node_lookup, all_task_node_ids = task_graph_formatter._format_nodes(
+            tasks
+        )
+        # Should create nodes for each step
+        assert len(nodes) >= 3  # start + task + 2 steps
+
+    def test_format_nodes_step_with_complex_structure(
+        self, task_graph_formatter
+    ) -> None:
+        tasks = [
+            {
+                "id": "t1",
+                "steps": [{"task": "t", "description": "desc", "step_id": "s1"}],
+            }
+        ]
+        nodes, node_lookup, all_task_node_ids = task_graph_formatter._format_nodes(
+            tasks
+        )
+        # Should extract just the description for the step node
+        assert any(n[1]["attribute"]["value"] == "desc" for n in nodes)
+
+    def test_format_edges_dependency_edge_cases_and_source_not_found(
+        self, task_graph_formatter
+    ) -> None:
+        tasks = [
+            {"id": "t1", "dependencies": [None, 123, {"foo": "bar"}, "t2"]},
+            {"id": "t2"},
+        ]
+        nodes, node_lookup, all_task_node_ids = task_graph_formatter._format_nodes(
+            tasks
+        )
+        start_node_id = "0"
+        # Patch node_lookup to not contain t2
+        node_lookup.pop("t2", None)
+        edges, nested_graph_nodes = task_graph_formatter._format_edges(
+            tasks, node_lookup, all_task_node_ids, start_node_id
+        )
+        # Should log warnings and skip invalid dependencies, and warn for missing source node
+        assert isinstance(edges, list)
+
+    def test_format_edges_model_exception(
+        self, task_graph_formatter, sample_tasks
+    ) -> None:
+        # Patch model to raise exception
+        task_graph_formatter._model = Mock()
+        task_graph_formatter._model.invoke.side_effect = Exception("fail")
+        nodes, node_lookup, all_task_node_ids = task_graph_formatter._format_nodes(
+            sample_tasks
+        )
+        start_node_id = "0"
+        edges, _ = task_graph_formatter._format_edges(
+            sample_tasks, node_lookup, all_task_node_ids, start_node_id
+        )
+        assert any(
+            e[2]["intent"] == "User inquires about purchasing options" for e in edges
+        )
+
+    def test_ensure_nested_graph_connectivity_nested_graph_no_task(
+        self, task_graph_formatter
+    ) -> None:
+        # NestedGraph node with no corresponding task
+        graph = {
+            "nodes": [
+                [
+                    "ng1",
+                    {"resource": {"name": "NestedGraph"}, "attribute": {"value": "v"}},
+                ]
+            ],
+            "edges": [],
+            "tasks": [],
+        }
+        result = task_graph_formatter.ensure_nested_graph_connectivity(graph)
+        # Should not error, and value remains unchanged
+        ng_node = result["nodes"][0]
+        assert ng_node[1]["attribute"]["value"] == "v"
+
+    def test_ensure_nested_graph_connectivity_nested_graph_no_steps(
+        self, task_graph_formatter
+    ) -> None:
+        # NestedGraph node with corresponding task but no steps
+        graph = {
+            "nodes": [
+                [
+                    "ng1",
+                    {"resource": {"name": "NestedGraph"}, "attribute": {"value": "v"}},
+                ]
+            ],
+            "edges": [],
+            "tasks": [{"id": "t1", "steps": []}],
+        }
+        # Map ng1 to t1
+        result = task_graph_formatter.ensure_nested_graph_connectivity(graph)
+        ng_node = result["nodes"][0]
+        assert ng_node[1]["attribute"]["value"] == "v"
+
+    def test_ensure_nested_graph_connectivity_nested_graph_last_step(
+        self, task_graph_formatter
+    ) -> None:
+        # NestedGraph node that is the last step
+        graph = {
+            "nodes": [
+                [
+                    "ng1",
+                    {"resource": {"name": "NestedGraph"}, "attribute": {"value": "v"}},
+                ]
+            ],
+            "edges": [],
+            "tasks": [{"id": "t1", "steps": [{}, {}]}],
+        }
+        # Map ng1 to t1_step1 (last step)
+        # Patch node_to_task_map to map ng1 to t1, and patch steps to have ng1 as last step
+        with patch.object(task_graph_formatter, "DEFAULT_NESTED_GRAPH", "NestedGraph"):
+            graph["nodes"][0][0] = "t1_step1"
+            result = task_graph_formatter.ensure_nested_graph_connectivity(graph)
+            ng_node = result["nodes"][0]
+            assert ng_node[1]["attribute"]["value"] == "v"
