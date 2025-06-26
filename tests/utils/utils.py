@@ -6,16 +6,16 @@ methods for initializing tests, executing conversations, and validating results,
 with support for custom validation through abstract methods.
 """
 
+import contextlib
 import json
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple, Generator
-import contextlib
+from typing import Any, Dict, Generator, List, Optional, Tuple
 from unittest.mock import patch
 
 from arklex.env.env import Environment
-from arklex.orchestrator.orchestrator import AgentOrg
-from arklex.orchestrator.NLU.services.model_service import DummyModelService
 from arklex.orchestrator.NLU.core.slot import SlotFiller
+from arklex.orchestrator.NLU.services.model_service import DummyModelService
+from arklex.orchestrator.orchestrator import AgentOrg
 
 
 class MockTool:
@@ -152,6 +152,40 @@ class MockResourceInitializer:
         print(json.dumps({k: v.__dict__ for k, v in workers_map.items()}, indent=2))
         return workers_map
 
+    @staticmethod
+    def init_agents(agents: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+        """Initialize mock agents from configuration.
+
+        Args:
+            agents (List[Dict[str, Any]]): List of agent configurations
+
+        Returns:
+            Dict[str, Dict[str, Any]]: Dictionary mapping agent IDs to their configurations
+        """
+        print("\n=== Debug: MockResourceInitializer.init_agents ===")
+        print(f"Input agents: {json.dumps(agents, indent=2)}")
+
+        agents_map = {}
+        if not agents:
+            print("No agents provided, returning empty map")
+            return agents_map
+
+        for agent in agents:
+            name = agent.get("name", agent.get("id", "unnamed_agent"))
+            description = agent.get("description", "No description provided.")
+            print(f"\nProcessing agent: {name}")
+            print(f"Agent config: {json.dumps(agent, indent=2)}")
+
+            mock_tool = MockTool(name, description)
+            agent_id = agent.get("id", name)
+            agents_map[agent_id] = mock_tool
+            print(f"Added agent to map with ID: {agent_id}")
+            print(f"Agent entry: {json.dumps(agents_map[agent_id].__dict__, indent=2)}")
+
+        print("\nFinal agents map:")
+        print(json.dumps({k: v.__dict__ for k, v in agents_map.items()}, indent=2))
+        return agents_map
+
 
 @contextlib.contextmanager
 def mock_llm_invoke() -> Generator[None, None, None]:
@@ -255,8 +289,8 @@ class MockOrchestrator(ABC):
             "chat_history": history,
             "parameters": params,
         }
-        from tests.utils.utils import MockResourceInitializer
         from arklex.orchestrator.task_graph import TaskGraph
+        from tests.utils.utils import MockResourceInitializer
 
         # Patch TaskGraph to always use DummyModelService for tests
         orig_taskgraph_init = TaskGraph.__init__
@@ -286,6 +320,7 @@ class MockOrchestrator(ABC):
             env_kwargs = dict(
                 tools=self.config["tools"],
                 workers=self.config["workers"],
+                agents=self.config.get("agents", []),
                 slot_fill_api=self.config["slotfillapi"],
                 planner_enabled=True,
                 resource_initializer=MockResourceInitializer(),

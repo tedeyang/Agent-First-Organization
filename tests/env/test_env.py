@@ -1,29 +1,30 @@
-from unittest.mock import patch, MagicMock, Mock
-from arklex.env.env import Environment, DefaultResourceInitializer
-from arklex.orchestrator.NLU.services.model_service import DummyModelService
-from arklex.orchestrator.NLU.core.slot import SlotFiller
-from arklex.utils.graph_state import MessageState, Params, NodeInfo, StatusEnum
+from unittest.mock import MagicMock, Mock, patch
+
+from arklex.env.env import DefaultResourceInitializer, Environment
 from arklex.env.planner.react_planner import ReactPlanner
+from arklex.orchestrator.NLU.core.slot import SlotFiller
+from arklex.orchestrator.NLU.services.model_service import DummyModelService
+from arklex.utils.graph_state import MessageState, NodeInfo, Params, StatusEnum
 
 
 def test_environment_uses_dummy_model_service() -> None:
-    env = Environment(tools=[], workers=[])
+    env = Environment(tools=[], workers=[], agents=[])
     assert isinstance(env.model_service, DummyModelService)
 
 
 def test_environment_initializes_with_planner() -> None:
-    env = Environment(tools=[], workers=[], planner_enabled=True)
+    env = Environment(tools=[], workers=[], agents=[], planner_enabled=True)
     assert hasattr(env, "planner")
 
 
 def test_environment_initializes_with_slotfillapi_str() -> None:
-    env = Environment(tools=[], workers=[], slotsfillapi="http://fakeapi")
+    env = Environment(tools=[], workers=[], agents=[], slotsfillapi="http://fakeapi")
     assert hasattr(env, "slotfillapi")
     assert isinstance(env.slotfillapi, SlotFiller)
 
 
 def test_environment_initializes_with_slotfillapi_model_service() -> None:
-    env = Environment(tools=[], workers=[], slotsfillapi="")
+    env = Environment(tools=[], workers=[], agents=[], slotsfillapi="")
     assert hasattr(env, "slotfillapi")
     assert isinstance(env.slotfillapi.model_service, DummyModelService)
 
@@ -73,7 +74,7 @@ def test_environment_step_tool_executes_and_updates_params() -> None:
         fake_module = MagicMock()
         setattr(fake_module, "fake_tool", MagicMock(return_value=fake_tool))
         mock_import.return_value = fake_module
-        env = Environment(tools=tools, workers=[])
+        env = Environment(tools=tools, workers=[], agents=[])
 
         # Setup params and state
         class DummyParams:
@@ -96,7 +97,7 @@ def test_environment_step_tool_executes_and_updates_params() -> None:
 
 
 def test_environment_step_invalid_id_raises() -> None:
-    env = Environment(tools=[], workers=[])
+    env = Environment(tools=[], workers=[], agents=[])
     # The step method doesn't raise KeyError for invalid IDs, it falls back to planner
     # So we should test that it doesn't raise an exception
     message_state = MessageState()
@@ -117,7 +118,9 @@ def test_environment_step_worker_executes_and_updates_params() -> None:
     mock_worker.execute.return_value = MessageState(status=StatusEnum.COMPLETE)
     mock_worker.init_slotfilling = Mock()
     env = Environment(
-        tools=[], workers=[{"id": "worker1", "name": "test_worker", "path": "test"}]
+        tools=[],
+        workers=[{"id": "worker1", "name": "test_worker", "path": "test"}],
+        agents=[],
     )
     env.workers = {
         "worker1": {"name": "test_worker", "execute": Mock(return_value=mock_worker)}
@@ -142,7 +145,9 @@ def test_environment_step_worker_without_init_slotfilling() -> None:
     if hasattr(mock_worker, "init_slotfilling"):
         delattr(mock_worker, "init_slotfilling")
     env = Environment(
-        tools=[], workers=[{"id": "worker1", "name": "test_worker", "path": "test"}]
+        tools=[],
+        workers=[{"id": "worker1", "name": "test_worker", "path": "test"}],
+        agents=[],
     )
     env.workers = {
         "worker1": {"name": "test_worker", "execute": Mock(return_value=mock_worker)}
@@ -165,7 +170,9 @@ def test_environment_step_worker_with_response_content() -> None:
         status=StatusEnum.COMPLETE, response="test response"
     )
     env = Environment(
-        tools=[], workers=[{"id": "worker1", "name": "test_worker", "path": "test"}]
+        tools=[],
+        workers=[{"id": "worker1", "name": "test_worker", "path": "test"}],
+        agents=[],
     )
     env.workers = {
         "worker1": {"name": "test_worker", "execute": Mock(return_value=mock_worker)}
@@ -193,7 +200,9 @@ def test_environment_step_worker_with_message_flow() -> None:
         status=StatusEnum.COMPLETE, message_flow="test flow"
     )
     env = Environment(
-        tools=[], workers=[{"id": "worker1", "name": "test_worker", "path": "test"}]
+        tools=[],
+        workers=[{"id": "worker1", "name": "test_worker", "path": "test"}],
+        agents=[],
     )
     env.workers = {
         "worker1": {"name": "test_worker", "execute": Mock(return_value=mock_worker)}
@@ -219,7 +228,7 @@ def test_environment_step_planner_executes() -> None:
         MessageState(status=StatusEnum.COMPLETE),
         [],
     )
-    env = Environment(tools=[], workers=[])
+    env = Environment(tools=[], workers=[], agents=[])
     env.planner = mock_planner
     message_state = MessageState()
     params = Params()
@@ -234,7 +243,7 @@ def test_environment_step_planner_executes() -> None:
 
 def test_environment_register_tool_success() -> None:
     """Test successful tool registration."""
-    env = Environment(tools=[], workers=[])
+    env = Environment(tools=[], workers=[], agents=[])
     mock_tool = {"name": "test_tool", "description": "test description"}
     env.register_tool("test_tool", mock_tool)
     assert "test_tool" in env.tools
@@ -243,7 +252,7 @@ def test_environment_register_tool_success() -> None:
 
 def test_environment_register_tool_failure() -> None:
     """Test tool registration failure."""
-    env = Environment(tools=[], workers=[])
+    env = Environment(tools=[], workers=[], agents=[])
     # Mock the tools dict to raise an exception
     with patch.object(env, "tools", side_effect=Exception("Registration failed")):
         env.register_tool("test_tool", {})
@@ -252,7 +261,7 @@ def test_environment_register_tool_failure() -> None:
 
 def test_environment_with_slot_fill_api_alias() -> None:
     """Test environment initialization with slot_fill_api alias."""
-    env = Environment(tools=[], workers=[], slot_fill_api="http://test-api")
+    env = Environment(tools=[], workers=[], agents=[], slot_fill_api="http://test-api")
     assert isinstance(env.slotfillapi, SlotFiller)
 
 
@@ -264,6 +273,7 @@ def test_environment_with_custom_resource_initializer() -> None:
     env = Environment(
         tools=[{"id": "tool1", "name": "test", "path": "test"}],
         workers=[{"id": "worker1", "name": "test", "path": "test"}],
+        agents=[],
         resource_initializer=mock_initializer,
     )
     assert env.tools == {"tool1": {"name": "test_tool"}}
@@ -274,34 +284,54 @@ def test_environment_with_custom_resource_initializer() -> None:
 
 def test_environment_with_planner_enabled() -> None:
     """Test environment initialization with planner enabled."""
-    env = Environment(tools=[], workers=[], planner_enabled=True)
+    env = Environment(
+        tools=[],
+        workers=[],
+        agents=[],
+        model_service=DummyModelService(),
+        planner_enabled=True,
+    )
     assert isinstance(env.planner, ReactPlanner)
 
 
 def test_environment_with_custom_model_service() -> None:
     """Test environment initialization with custom model service."""
     mock_model_service = Mock()
-    env = Environment(tools=[], workers=[], model_service=mock_model_service)
+    env = Environment(
+        tools=[],
+        workers=[],
+        agents=[],
+        model_service=mock_model_service,
+    )
     assert env.model_service == mock_model_service
 
 
 def test_initialize_slotfillapi_with_string() -> None:
     """Test slotfillapi initialization with string endpoint."""
-    env = Environment(tools=[], workers=[])
+    env = Environment(
+        tools=[], workers=[], agents=[], model_service=DummyModelService()
+    )
     slotfiller = env.initialize_slotfillapi("http://test-api")
     assert isinstance(slotfiller, SlotFiller)
 
 
 def test_initialize_slotfillapi_with_empty_string() -> None:
     """Test slotfillapi initialization with empty string."""
-    env = Environment(tools=[], workers=[])
+    env = Environment(
+        tools=[], workers=[], agents=[], model_service=DummyModelService()
+    )
     slotfiller = env.initialize_slotfillapi("")
     assert isinstance(slotfiller, SlotFiller)
 
 
 def test_initialize_slotfillapi_with_non_string() -> None:
     """Test slotfillapi initialization with non-string value."""
-    env = Environment(tools=[], workers=[])
+    env = Environment(
+        tools=[],
+        workers=[],
+        agents=[],
+        model_service=DummyModelService(),
+    )
     slotfiller = env.initialize_slotfillapi(None)
     assert isinstance(slotfiller, SlotFiller)
 

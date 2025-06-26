@@ -4,8 +4,8 @@ import json
 import unittest
 from typing import Any, Dict, List, Tuple
 
-from arklex.orchestrator.orchestrator import AgentOrg
 from arklex.env.env import Environment
+from arklex.orchestrator.orchestrator import AgentOrg
 
 
 class Logic_Test(unittest.TestCase):
@@ -24,6 +24,7 @@ class Logic_Test(unittest.TestCase):
         cls.env: Environment = Environment(
             tools=cls.config.get("tools", []),
             workers=cls.config.get("workers", []),
+            agents=cls.config.get("agents", []),
             slot_fill_api=cls.config["slotfillapi"],
         )
 

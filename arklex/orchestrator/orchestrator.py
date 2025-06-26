@@ -52,40 +52,39 @@ Usage:
 """
 
 import copy
-import janus
 import json
 import time
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+import janus
 from dotenv import load_dotenv
+from langchain_core.runnables import RunnableLambda
 from langchain_openai.chat_models import ChatOpenAI
-from typing import Any, Dict, Tuple, List, Optional, Union
-from arklex.env.nested_graph.nested_graph import NESTED_GRAPH_ID, NestedGraph
+
 from arklex.env.env import Environment
-from arklex.orchestrator.task_graph import TaskGraph
-from arklex.orchestrator.post_process import post_process_response
+from arklex.env.nested_graph.nested_graph import NESTED_GRAPH_ID, NestedGraph
 from arklex.env.tools.utils import ToolGenerator
+from arklex.orchestrator.post_process import post_process_response
+from arklex.orchestrator.task_graph import TaskGraph
 from arklex.types import StreamType
 from arklex.utils.graph_state import (
-    ConvoMessage,
-    NodeInfo,
-    OrchestratorMessage,
-    MessageState,
-    PathNode,
-    StatusEnum,
-    LLMConfig,
     BotConfig,
-    Params,
-    ResourceRecord,
-    OrchestratorResp,
+    ConvoMessage,
+    LLMConfig,
+    MessageState,
+    NodeInfo,
     NodeTypeEnum,
+    OrchestratorMessage,
+    OrchestratorResp,
+    Params,
+    PathNode,
+    ResourceRecord,
+    StatusEnum,
 )
-
-
-from arklex.utils.utils import format_chat_history
+from arklex.utils.logging_utils import LogContext
 from arklex.utils.model_config import MODEL
 from arklex.utils.model_provider_config import PROVIDER_MAP
-from langchain_core.runnables import RunnableLambda
-from arklex.utils.logging_utils import LogContext
-
+from arklex.utils.utils import format_chat_history
 
 load_dotenv()
 log_context = LogContext(__name__)
@@ -146,6 +145,7 @@ class AgentOrg:
         self.env: Environment = env or Environment(
             tools=self.product_kwargs.get("tools", []),
             workers=self.product_kwargs.get("workers", []),
+            agents=self.product_kwargs.get("agents", []),
             slot_fill_api=self.product_kwargs.get("slot_fill_api", ""),
             planner_enabled=False,
         )

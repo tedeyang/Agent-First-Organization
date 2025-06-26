@@ -8,14 +8,16 @@ including LLM-based and reactive approaches, with capabilities for system attrib
 and profile-to-goal matching.
 """
 
-import random
-import requests
 import copy
-from typing import List, Dict, Any, Tuple, Union
-from arklex.evaluation.get_documents import load_docs
-from arklex.evaluation.chatgpt_utils import chatgpt_chatbot
+import random
+from typing import Any, Dict, List, Tuple, Union
+
+import requests
+
 from arklex.env.env import Environment
 from arklex.env.tools.tools import Tool
+from arklex.evaluation.chatgpt_utils import chatgpt_chatbot
+from arklex.evaluation.get_documents import load_docs
 from arklex.orchestrator.NLU.core.slot import SlotFiller
 from arklex.utils.logging_utils import LogContext
 
@@ -608,7 +610,11 @@ def get_label(attribute, config):
     User's goal: {goal}
     Tool_id:
     """
-    env = Environment(tools=config["tools"], workers=config["workers"])
+    env = Environment(
+        tools=config["tools"],
+        workers=config["workers"],
+        agents=config.get("agents", []),
+    )
     tool_list = []
     for tool in config["tools"]:
         tool_id = tool["id"]

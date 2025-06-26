@@ -1,15 +1,15 @@
 # Install required packages in the root directory: pip install -e .
 # Go to the parent folder of this file (shopify), then Run python -m unittest test.py to test the code in this file.
 
-import unittest
 import json
-from typing import Dict, List, Any, Optional
 import os
 import time
+import unittest
 import warnings
+from typing import Any, Dict, List, Optional
 
-from arklex.orchestrator.orchestrator import AgentOrg
 from arklex.env.env import Environment
+from arklex.orchestrator.orchestrator import AgentOrg
 
 # Wait this many seconds between tests to avoid token rate-limiting
 WAIT_TIME_BETWEEN_TESTS_SEC: Optional[int] = 5  # Set to None or 0 for no wait time
@@ -163,6 +163,7 @@ class Logic_Test(unittest.TestCase):
         self.env = Environment(
             tools=self.config.get("tools", []),
             workers=self.config.get("workers", []),
+            agents=self.config.get("agents", []),
             slotsfillapi=self.config["slotfillapi"],
             planner_enabled=True,
         )

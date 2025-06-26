@@ -1,12 +1,13 @@
 # Go to the parent folder of this file (hitl_server), then Run `pytest test_post_process.py` to test the code in this file.
 import io
 import json
-import os
 import logging
+import os
 from contextlib import redirect_stdout
 from typing import Any, Dict, List, Tuple
 
 import pytest
+
 from arklex.env.env import Environment
 from arklex.orchestrator.NLU.services.model_service import ModelService
 from run import get_api_bot_response
@@ -42,6 +43,7 @@ def config_and_env(
     env = Environment(
         tools=config.get("tools", []),
         workers=config.get("workers", []),
+        agents=config.get("agents", []),
         slot_fill_api=config["slotfillapi"],
         planner_enabled=True,
         model_service=model_service,
