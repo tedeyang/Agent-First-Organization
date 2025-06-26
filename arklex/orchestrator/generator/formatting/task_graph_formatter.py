@@ -56,6 +56,7 @@ class TaskGraphFormatter:
         edges: Optional[List[Any]] = None,
         allow_nested_graph: bool = True,
         model: Optional[Any] = None,
+        settings: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Initialize the TaskGraphFormatter.
 
@@ -80,6 +81,7 @@ class TaskGraphFormatter:
             edges (Optional[List[Any]]): List of edges
             allow_nested_graph (bool): Whether to allow nested graph generation
             model (Optional[Any]): Language model for intent generation
+            settings (Optional[Dict[str, Any]]): Additional configuration settings
         """
         self._role = role
         self._user_objective = user_objective
@@ -101,6 +103,7 @@ class TaskGraphFormatter:
         self._edges = edges
         self._allow_nested_graph = allow_nested_graph
         self._model = model
+        self._settings = settings
 
     def _find_worker_by_name(self, worker_name: str) -> Dict[str, str]:
         """Get worker info from name, with fallback mappings.
@@ -162,7 +165,8 @@ class TaskGraphFormatter:
                 target_node_id = None
                 for edge in edges:
                     if edge[0] == node_id:  # This edge starts from the NestedGraph node
-                        potential_target = edge[1]  # The target is the second element
+                        # The target is the second element
+                        potential_target = edge[1]
                         # Don't point to node "0" (start node)
                         if potential_target != "0":
                             target_node_id = potential_target
@@ -218,6 +222,7 @@ class TaskGraphFormatter:
             "nluapi": self._nluapi,
             "slotfillapi": self._slotfillapi,
             "reusable_tasks": reusable_tasks,
+            "settings": self._settings,
         }
 
         # Ensure nested graphs are connected correctly as sequential steps

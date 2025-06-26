@@ -10,7 +10,7 @@ from arklex.orchestrator.post_process import (
     _include_resource,
     RAG_NODES_STEPS,
 )
-from arklex.utils.graph_state import MessageState, Params, ResourceRecord
+from arklex.utils.graph_state import MessageState, Params, ResourceRecord, Metadata
 
 
 @pytest.fixture
@@ -24,6 +24,8 @@ def mock_message_state():
     state.trajectory = []
     state.bot_config = Mock()
     state.bot_config.llm_config = Mock()
+    state.metadata = Mock(spec=Metadata)
+    state.metadata.hitl = None
     return state
 
 
@@ -60,7 +62,7 @@ class TestPostProcessResponse:
                 return_value={"https://example.com", "https://test.com"},
             ),
         ):
-            result = post_process_response(mock_message_state, mock_params, True)
+            result = post_process_response(mock_message_state, mock_params, True, True)
 
             assert result == mock_message_state
             assert result.response == mock_message_state.response  # No changes
@@ -89,7 +91,7 @@ class TestPostProcessResponse:
                 return_value="Rephrased response",
             ),
         ):
-            result = post_process_response(mock_message_state, mock_params, True)
+            result = post_process_response(mock_message_state, mock_params, True, True)
 
             assert result == mock_message_state
             assert result.response == "Rephrased response"
@@ -121,7 +123,9 @@ class TestPostProcessResponse:
                 return_value="Rephrased response",
             ),
         ):
-            result = post_process_response(mock_message_state, mock_params, False)
+            result = post_process_response(
+                mock_message_state, mock_params, False, False
+            )
 
             assert result == mock_message_state
             assert result.response == "Rephrased response"
