@@ -367,11 +367,14 @@ def test_register_tool_exception_handling() -> None:
     """Test register_tool method with exception handling (lines 304-305)."""
     env = Environment(tools=[], workers=[])
 
-    # Mock the tools dictionary to raise an exception when accessed
-    with patch.object(env, "tools", side_effect=Exception("Registration error")):
-        # This should not raise an exception, it should be caught and logged
+    class RaisingDict(dict):
+        def __setitem__(self, key, value):
+            raise Exception("Registration error")
+
+    env.tools = RaisingDict()
+    with patch("arklex.env.env.log_context.error") as mock_log_error:
         env.register_tool("test_tool", {"name": "test"})
-        # The method should complete without raising an exception
+        mock_log_error.assert_called_once()
 
 
 def test_base_resource_initializer_init_tools_not_implemented() -> None:
