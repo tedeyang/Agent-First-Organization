@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Dict
 
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, mock_open
 
 from arklex.orchestrator.generator.docs.document_loader import DocumentLoader
 from arklex.orchestrator.generator.docs.document_processor import DocumentProcessor
@@ -753,6 +753,73 @@ class TestDocumentLoader:
             import os
 
             os.unlink(temp_path)
+
+    def test_load_task_document_html_fallback(self) -> None:
+        """Test load_task_document with HTML content when JSON parsing fails."""
+        loader = DocumentLoader(cache_dir=Path("/tmp"), validate_documents=False)
+
+        # Create HTML content that's not valid JSON
+        html_content = """
+        <html>
+            <head><title>Test Task Document</title></head>
+            <body>
+                <p>This is step 1 description</p>
+                <p>This is step 2 description</p>
+                <p>This is step 3 description</p>
+            </body>
+        </html>
+        """
+
+        with patch("builtins.open", mock_open(read_data=html_content)):
+            with patch("pathlib.Path.exists", return_value=True):
+                with patch("pathlib.Path.read_text", return_value=html_content):
+                    result = loader.load_task_document("test.html")
+
+                    # Check that the HTML was parsed correctly
+                    assert result["task_id"] == "html_task"
+                    assert result["name"] == "Test Task Document"
+                    assert result["description"] == "Document parsed from HTML"
+                    assert len(result["steps"]) == 3
+                    assert result["steps"][0]["step_id"] == 1
+                    assert (
+                        result["steps"][0]["description"]
+                        == "This is step 1 description"
+                    )
+                    assert result["steps"][1]["step_id"] == 2
+                    assert (
+                        result["steps"][1]["description"]
+                        == "This is step 2 description"
+                    )
+                    assert result["steps"][2]["step_id"] == 3
+                    assert (
+                        result["steps"][2]["description"]
+                        == "This is step 3 description"
+                    )
+
+    def test_load_task_document_html_fallback_no_title(self) -> None:
+        """Test load_task_document with HTML content without title."""
+        loader = DocumentLoader(cache_dir=Path("/tmp"), validate_documents=False)
+
+        # Create HTML content without title
+        html_content = """
+        <html>
+            <body>
+                <p>This is step 1 description</p>
+                <p>This is step 2 description</p>
+            </body>
+        </html>
+        """
+
+        with patch("builtins.open", mock_open(read_data=html_content)):
+            with patch("pathlib.Path.exists", return_value=True):
+                with patch("pathlib.Path.read_text", return_value=html_content):
+                    result = loader.load_task_document("test.html")
+
+                    # Check that the HTML was parsed correctly with default title
+                    assert result["task_id"] == "html_task"
+                    assert result["name"] == "HTML Document"
+                    assert result["description"] == "Document parsed from HTML"
+                    assert len(result["steps"]) == 2
 
 
 class TestDocumentProcessor:
