@@ -458,23 +458,3 @@ class Tool:
                 )
             )
         return format_slots
-
-    def get_openai_info(self, slots: list) -> Dict[str, Any]:
-        self.properties = {}
-        for slot in slots:
-            self.properties[slot["name"]] = {
-                k: v for k, v in slot.items() if k != "name" and k != "required"
-            }
-        required = [slot["name"] for slot in slots if slot.get("required", False)]
-        return {
-            "type": "function",
-            "function": {
-                "name": self.name,
-                "description": self.description,
-                "parameters": {
-                    "type": "object",
-                    "properties": self.properties,
-                    "required": required,
-                },
-            },
-        }
