@@ -317,9 +317,17 @@ class TestLogContextProperties:
         context = LogContext("test_logger")
         assert context.propagate is True
 
-        # Test setter
-        context.propagate = False
-        assert context.propagate is False
+    def test_log_context_propagate_setter(self) -> None:
+        """Test log context propagate setter property."""
+        log_context = LogContext("test_logger")
+
+        # Test setting propagate to True
+        log_context.propagate = True
+        assert log_context.log_context.propagate is True
+
+        # Test setting propagate to False
+        log_context.propagate = False
+        assert log_context.log_context.propagate is False
 
     def test_log_context_parent_property_with_parent(self) -> None:
         """Test LogContext parent property when parent exists."""
