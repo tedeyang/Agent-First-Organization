@@ -1565,6 +1565,266 @@ class TestGraphValidator:
         }
         assert not graph_validator.validate_graph(invalid_graph)
 
+    def test_validate_graph_with_invalid_edge_structure(self, graph_validator) -> None:
+        """Test graph validation with invalid edge structure (not a list or wrong length)."""
+        invalid_graph = {
+            "nodes": [
+                [
+                    "node1",
+                    {
+                        "resource": {"id": "node1", "name": "Node 1"},
+                        "attribute": {
+                            "value": "Description 1",
+                            "task": "Node 1",
+                            "directed": True,
+                        },
+                    },
+                ],
+                [
+                    "node2",
+                    {
+                        "resource": {"id": "node2", "name": "Node 2"},
+                        "attribute": {
+                            "value": "Description 2",
+                            "task": "Node 2",
+                            "directed": True,
+                        },
+                    },
+                ],
+            ],
+            "edges": [
+                "invalid_edge_not_list",  # Not a list
+                ["node1", "node2"],  # Wrong length (missing data)
+                ["node1", "node2", "data", "extra"],  # Too many elements
+            ],
+        }
+        assert not graph_validator.validate_graph(invalid_graph)
+
+    def test_validate_graph_with_invalid_edge_data(self, graph_validator) -> None:
+        """Test graph validation with invalid edge data (not a dictionary)."""
+        invalid_graph = {
+            "nodes": [
+                [
+                    "node1",
+                    {
+                        "resource": {"id": "node1", "name": "Node 1"},
+                        "attribute": {
+                            "value": "Description 1",
+                            "task": "Node 1",
+                            "directed": True,
+                        },
+                    },
+                ],
+                [
+                    "node2",
+                    {
+                        "resource": {"id": "node2", "name": "Node 2"},
+                        "attribute": {
+                            "value": "Description 2",
+                            "task": "Node 2",
+                            "directed": True,
+                        },
+                    },
+                ],
+            ],
+            "edges": [
+                ["node1", "node2", "not_a_dict"],  # Edge data is not a dictionary
+                ["node1", "node2", 123],  # Edge data is an integer
+                ["node1", "node2", ["list", "not", "dict"]],  # Edge data is a list
+            ],
+        }
+        assert not graph_validator.validate_graph(invalid_graph)
+
+    def test_validate_graph_with_missing_required_fields(self, graph_validator) -> None:
+        """Test graph validation with missing required fields."""
+        # Valid graph structure but missing required fields
+        invalid_graph = {
+            "nodes": [
+                [
+                    "node1",
+                    {
+                        "resource": {"id": "node1", "name": "Node 1"},
+                        "attribute": {
+                            "value": "Description 1",
+                            "task": "Node 1",
+                            "directed": True,
+                        },
+                    },
+                ],
+            ],
+            "edges": [],
+            # Missing: role, user_objective, builder_objective, domain, intro, task_docs, rag_docs, workers
+        }
+        assert not graph_validator.validate_graph(invalid_graph)
+
+    def test_validate_graph_with_partial_required_fields(self, graph_validator) -> None:
+        """Test graph validation with some required fields missing."""
+        invalid_graph = {
+            "nodes": [
+                [
+                    "node1",
+                    {
+                        "resource": {"id": "node1", "name": "Node 1"},
+                        "attribute": {
+                            "value": "Description 1",
+                            "task": "Node 1",
+                            "directed": True,
+                        },
+                    },
+                ],
+            ],
+            "edges": [],
+            "role": "test_role",
+            "user_objective": "test_objective",
+            # Missing: builder_objective, domain, intro, task_docs, rag_docs, workers
+        }
+        assert not graph_validator.validate_graph(invalid_graph)
+
+    def test_get_error_messages(self, graph_validator) -> None:
+        """Test getting error messages from the validator."""
+        # First, validate an invalid graph to generate errors
+        invalid_graph = {
+            "nodes": [
+                [
+                    "node1",
+                    {
+                        "resource": {"id": "node1", "name": "Node 1"},
+                        "attribute": {
+                            "value": "Description 1",
+                            "task": "Node 1",
+                            "directed": True,
+                        },
+                    },
+                ],
+            ],
+            "edges": [
+                ["node1", "nonexistent", "not_a_dict"],
+            ],
+        }
+
+        # Validate the graph (this will populate _errors)
+        graph_validator.validate_graph(invalid_graph)
+
+        # Get the error messages
+        error_messages = graph_validator.get_error_messages()
+
+        # Verify that error messages are returned
+        assert isinstance(error_messages, list)
+        assert len(error_messages) > 0
+
+        # Check for specific expected error messages
+        error_text = " ".join(error_messages)
+        assert "Edge target nonexistent not found in nodes" in error_text
+        assert "Edge data must be a dictionary" in error_text
+
+    def test_get_error_messages_empty(self, graph_validator) -> None:
+        """Test getting error messages when no validation has been performed."""
+        # Get error messages without any validation
+        error_messages = graph_validator.get_error_messages()
+
+        # Should return an empty list
+        assert isinstance(error_messages, list)
+        assert len(error_messages) == 0
+
+    def test_validate_graph_not_dict(self, graph_validator) -> None:
+        """Test graph validation when input is not a dictionary."""
+        # Test with different non-dict types
+        invalid_inputs = [
+            "not_a_dict",
+            123,
+            ["list", "not", "dict"],
+            None,
+            True,
+        ]
+
+        for invalid_input in invalid_inputs:
+            assert not graph_validator.validate_graph(invalid_input)
+            error_messages = graph_validator.get_error_messages()
+            assert "Graph must be a dictionary" in error_messages[0]
+
+    def test_validate_graph_nodes_not_list(self, graph_validator) -> None:
+        """Test graph validation when nodes is not a list."""
+        invalid_graph = {
+            "nodes": "not_a_list",
+            "edges": [],
+        }
+        assert not graph_validator.validate_graph(invalid_graph)
+        error_messages = graph_validator.get_error_messages()
+        assert "Nodes must be a list" in error_messages[0]
+
+    def test_validate_graph_edges_not_list(self, graph_validator) -> None:
+        """Test graph validation when edges is not a list."""
+        invalid_graph = {
+            "nodes": [],
+            "edges": "not_a_list",
+        }
+        assert not graph_validator.validate_graph(invalid_graph)
+        error_messages = graph_validator.get_error_messages()
+        assert "Edges must be a list" in error_messages[0]
+
+    def test_validate_graph_completely_valid(self, graph_validator) -> None:
+        """Test graph validation with a completely valid graph that passes all checks."""
+        # Create a graph that passes all validations
+        valid_graph = {
+            "nodes": [
+                [
+                    "node1",
+                    {
+                        "resource": {"id": "node1", "name": "Node 1"},
+                        "attribute": {
+                            "value": "Description 1",
+                            "task": "Node 1",
+                            "directed": True,
+                        },
+                    },
+                ],
+                [
+                    "node2",
+                    {
+                        "resource": {"id": "node2", "name": "Node 2"},
+                        "attribute": {
+                            "value": "Description 2",
+                            "task": "Node 2",
+                            "directed": True,
+                        },
+                    },
+                ],
+            ],
+            "edges": [
+                [
+                    "node1",
+                    "node2",
+                    {
+                        "intent": "dependency",
+                        "attribute": {
+                            "weight": 1.0,
+                            "pred": "dependency",
+                            "definition": "Task 2 depends on Task 1",
+                            "sample_utterances": [
+                                "I need to complete Task 1 before Task 2"
+                            ],
+                        },
+                    },
+                ],
+            ],
+            "role": "test_role",
+            "user_objective": "test_user_objective",
+            "builder_objective": "test_builder_objective",
+            "domain": "test_domain",
+            "intro": "test_intro",
+            "task_docs": ["doc1", "doc2"],
+            "rag_docs": ["rag1", "rag2"],
+            "workers": ["worker1", "worker2"],
+        }
+
+        # This should pass all validations and reach the return statement
+        result = graph_validator.validate_graph(valid_graph)
+        assert result is True
+
+        # Verify no error messages were generated
+        error_messages = graph_validator.get_error_messages()
+        assert len(error_messages) == 0
+
 
 def test_integration_formatting_pipeline() -> None:
     """Test the complete task graph formatting pipeline integration."""
