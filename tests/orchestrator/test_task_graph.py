@@ -1,20 +1,22 @@
+from contextlib import ExitStack
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from arklex.orchestrator.task_graph import TaskGraph, TaskGraphError
+
+from arklex.orchestrator.NLU.core.slot import SlotFiller
+from arklex.orchestrator.NLU.services.model_service import DummyModelService
 from arklex.orchestrator.orchestrator import NodeInfo, PathNode
+from arklex.orchestrator.task_graph import TaskGraph, TaskGraphError
 from arklex.utils.graph_state import (
     LLMConfig,
-    Params,
-    NodeInfo,
-    StatusEnum,
-    PathNode,
-    Taskgraph,
     Memory,
     Metadata,
+    NodeInfo,
+    Params,
+    PathNode,
+    StatusEnum,
+    Taskgraph,
 )
-from arklex.orchestrator.NLU.services.model_service import DummyModelService
-from arklex.orchestrator.NLU.core.slot import SlotFiller
-from contextlib import ExitStack
 
 
 @pytest.fixture
@@ -705,6 +707,13 @@ class TestTaskGraph:
         """Test handle_random_next_node with candidate samples (lines 619-621)."""
         # Add nodes with proper structure
         task_graph.graph.add_node(
+            "curr_node",
+            type="task",
+            resource={"name": "curr_node", "id": "curr_node"},
+            attribute={"node_specific_data": {}},
+        )
+
+        task_graph.graph.add_node(
             "next_node1",
             type="task",
             resource={"name": "next_node1", "id": "next_node1"},
@@ -737,6 +746,13 @@ class TestTaskGraph:
         """Test handle_random_next_node with existing nlu_records (lines 640)."""
         # Add node with proper structure
         task_graph.graph.add_node(
+            "curr_node",
+            type="task",
+            resource={"name": "curr_node", "id": "curr_node"},
+            attribute={"node_specific_data": {}},
+        )
+
+        task_graph.graph.add_node(
             "next_node1",
             type="task",
             resource={"name": "next_node1", "id": "next_node1"},
@@ -762,6 +778,12 @@ class TestTaskGraph:
     ) -> None:
         """Test handle_random_next_node without existing nlu_records (lines 640)."""
         # Add node with proper structure
+        task_graph.graph.add_node(
+            "curr_node",
+            type="task",
+            resource={"name": "curr_node", "id": "curr_node"},
+            attribute={"node_specific_data": {}},
+        )
         task_graph.graph.add_node(
             "next_node1",
             type="task",
@@ -1440,6 +1462,12 @@ class TestTaskGraph:
         """Test handle_random_next_node with candidates and NLU records (lines 582-628)."""
         # Add nodes with proper structure
         task_graph.graph.add_node(
+            "curr_node",
+            type="task",
+            resource={"name": "curr_node", "id": "curr_node"},
+            attribute={"node_specific_data": {}},
+        )
+        task_graph.graph.add_node(
             "next_node1",
             type="task",
             resource={"name": "next_node1", "id": "next_node1"},
@@ -1477,6 +1505,13 @@ class TestTaskGraph:
     ) -> None:
         """Test handle_random_next_node with candidates but no NLU records (lines 582-628)."""
         # Add nodes with proper structure
+        task_graph.graph.add_node(
+            "curr_node",
+            type="task",
+            resource={"name": "curr_node", "id": "curr_node"},
+            attribute={"node_specific_data": {}},
+        )
+
         task_graph.graph.add_node(
             "next_node1",
             type="task",

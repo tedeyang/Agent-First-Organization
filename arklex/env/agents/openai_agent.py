@@ -149,7 +149,7 @@ class OpenAIAgent(BaseAgent):
         self.llm = self.llm.bind_tools(self.tool_defs)
         self.prompt: str = kwargs.get("prompt", "")
         graph = self.action_graph.compile()
-        result: Dict[str, Any] = graph.invoke(msg_state)
+        result = graph.invoke(msg_state)
         return result
 
     def _load_tools(self, successors: list, predecessors: list, tools: list) -> None:

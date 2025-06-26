@@ -270,16 +270,19 @@ def test_environment_with_custom_resource_initializer() -> None:
     mock_initializer = Mock()
     mock_initializer.init_tools.return_value = {"tool1": {"name": "test_tool"}}
     mock_initializer.init_workers.return_value = {"worker1": {"name": "test_worker"}}
+    mock_initializer.init_agents.return_value = {"agent1": {"name": "test_agent"}}
     env = Environment(
         tools=[{"id": "tool1", "name": "test", "path": "test"}],
         workers=[{"id": "worker1", "name": "test", "path": "test"}],
-        agents=[],
+        agents=[{"id": "agent1", "name": "test", "path": "test"}],
         resource_initializer=mock_initializer,
     )
     assert env.tools == {"tool1": {"name": "test_tool"}}
     assert env.workers == {"worker1": {"name": "test_worker"}}
+    assert env.agents == {"agent1": {"name": "test_agent"}}
     mock_initializer.init_tools.assert_called_once()
     mock_initializer.init_workers.assert_called_once()
+    mock_initializer.init_agents.assert_called_once()
 
 
 def test_environment_with_planner_enabled() -> None:
@@ -288,7 +291,6 @@ def test_environment_with_planner_enabled() -> None:
         tools=[],
         workers=[],
         agents=[],
-        model_service=DummyModelService(),
         planner_enabled=True,
     )
     assert isinstance(env.planner, ReactPlanner)
@@ -309,7 +311,9 @@ def test_environment_with_custom_model_service() -> None:
 def test_initialize_slotfillapi_with_string() -> None:
     """Test slotfillapi initialization with string endpoint."""
     env = Environment(
-        tools=[], workers=[], agents=[], model_service=DummyModelService()
+        tools=[],
+        workers=[],
+        agents=[],
     )
     slotfiller = env.initialize_slotfillapi("http://test-api")
     assert isinstance(slotfiller, SlotFiller)
@@ -318,7 +322,9 @@ def test_initialize_slotfillapi_with_string() -> None:
 def test_initialize_slotfillapi_with_empty_string() -> None:
     """Test slotfillapi initialization with empty string."""
     env = Environment(
-        tools=[], workers=[], agents=[], model_service=DummyModelService()
+        tools=[],
+        workers=[],
+        agents=[],
     )
     slotfiller = env.initialize_slotfillapi("")
     assert isinstance(slotfiller, SlotFiller)
@@ -330,7 +336,6 @@ def test_initialize_slotfillapi_with_non_string() -> None:
         tools=[],
         workers=[],
         agents=[],
-        model_service=DummyModelService(),
     )
     slotfiller = env.initialize_slotfillapi(None)
     assert isinstance(slotfiller, SlotFiller)
