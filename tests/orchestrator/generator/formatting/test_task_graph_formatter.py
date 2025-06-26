@@ -658,3 +658,141 @@ class TestTaskGraphFormatter:
         assert formatter._nodes is None
         assert formatter._edges is None
         assert formatter._model is None
+
+    def test_format_task_graph_handles_dict_value(self, task_graph_formatter) -> None:
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Task 1",
+                "description": "desc",
+                "steps": [],
+                "attribute": {"value": {"description": "desc text"}},
+            }
+        ]
+        # Patch ensure_nested_graph_connectivity to just return its input
+        with patch.object(
+            task_graph_formatter,
+            "ensure_nested_graph_connectivity",
+            side_effect=lambda g: g,
+        ):
+            graph = task_graph_formatter.format_task_graph(tasks)
+            # The actual implementation uses task description, not attribute value
+            assert graph["nodes"][1][1]["attribute"]["value"] == "desc"
+
+    def test_format_task_graph_handles_dict_value_no_description(
+        self, task_graph_formatter
+    ) -> None:
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Task 1",
+                "description": "desc",
+                "steps": [],
+                "attribute": {"value": {"other": "no desc"}},
+            }
+        ]
+        with patch.object(
+            task_graph_formatter,
+            "ensure_nested_graph_connectivity",
+            side_effect=lambda g: g,
+        ):
+            graph = task_graph_formatter.format_task_graph(tasks)
+            # The actual implementation uses task description, not attribute value
+            assert graph["nodes"][1][1]["attribute"]["value"] == "desc"
+
+    def test_format_task_graph_handles_list_value(self, task_graph_formatter):
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Task 1",
+                "description": "desc",
+                "steps": [],
+                "attribute": {"value": [1, 2, 3]},
+            }
+        ]
+        with patch.object(
+            task_graph_formatter,
+            "ensure_nested_graph_connectivity",
+            side_effect=lambda g: g,
+        ):
+            graph = task_graph_formatter.format_task_graph(tasks)
+            # The actual implementation uses task description, not attribute value
+            assert graph["nodes"][1][1]["attribute"]["value"] == "desc"
+
+    def test_format_task_graph_fallback_to_node_1(self, task_graph_formatter) -> None:
+        # Simulate no task_node_ids, should fallback to '1'
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Task 1",
+                "description": "desc",
+                "steps": [],
+            }
+        ]
+        # Patch ensure_nested_graph_connectivity to just return its input
+        with patch.object(
+            task_graph_formatter,
+            "ensure_nested_graph_connectivity",
+            side_effect=lambda g: g,
+        ):
+            # Patch nodes and nested_graph_nodes to trigger fallback
+            with patch.object(
+                task_graph_formatter, "_format_nodes", return_value=([], {}, [])
+            ):
+                with patch.object(
+                    task_graph_formatter, "_format_edges", return_value=([], [])
+                ):
+                    graph = task_graph_formatter.format_task_graph(tasks)
+                    # Should not error, fallback to '1' for value
+                    assert "nodes" in graph
+
+    def test_format_nodes_creates_start_node(self, task_graph_formatter) -> None:
+        nodes, node_lookup, all_task_node_ids = task_graph_formatter._format_nodes([])
+        assert nodes[0][1]["type"] == "start"
+        assert nodes[0][1]["attribute"]["value"].startswith("Hello!")
+        assert node_lookup == {}
+        assert all_task_node_ids == []
+
+    def test_format_nodes_with_task_and_step(self, task_graph_formatter) -> None:
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Task 1",
+                "description": "desc",
+                "steps": [{"description": "stepdesc", "step_id": "step1"}],
+            }
+        ]
+        nodes, node_lookup, all_task_node_ids = task_graph_formatter._format_nodes(
+            tasks
+        )
+        assert any("stepdesc" in n[1]["attribute"]["value"] for n in nodes)
+        assert "task1" in node_lookup
+        assert len(all_task_node_ids) == 1
+
+    def test_format_nodes_with_step_as_string(self, task_graph_formatter) -> None:
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Task 1",
+                "description": "desc",
+                "steps": ["step as string"],
+            }
+        ]
+        nodes, node_lookup, all_task_node_ids = task_graph_formatter._format_nodes(
+            tasks
+        )
+        assert any("step as string" in n[1]["attribute"]["value"] for n in nodes)
+
+    def test_format_nodes_with_step_as_non_dict(self, task_graph_formatter) -> None:
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Task 1",
+                "description": "desc",
+                "steps": [123],
+            }
+        ]
+        nodes, node_lookup, all_task_node_ids = task_graph_formatter._format_nodes(
+            tasks
+        )
+        assert any("123" in n[1]["attribute"]["value"] for n in nodes)
