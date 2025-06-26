@@ -702,10 +702,14 @@ class TestChatGPTUtils:
                 {"content": "Test document"}
             ]
 
+            import builtins
+
+            real_import = builtins.__import__
+
             def mock_import(name, *args, **kwargs):
                 if name == "get_documents":
                     return mock_get_docs_module
-                return __import__(name, *args, **kwargs)
+                return real_import(name, *args, **kwargs)
 
             with patch("builtins.__import__", side_effect=mock_import):
                 with patch(
