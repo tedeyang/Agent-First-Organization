@@ -650,3 +650,35 @@ class TestLogContextLoggingMethods:
         context = get_test_context()
         context.critical("Critical message", {"crit_ctx": "crit_value"}, fatal=True)
         assert any("Critical message" in r.getMessage() for r in caplog.records)
+
+
+class TestLogContextInternalMethods:
+    """Test internal methods of LogContext class."""
+
+    def test_get_console_handler_default_format(self) -> None:
+        """Test _get_console_handler with default format."""
+        context = LogContext("test")
+        handler = context._get_console_handler()
+
+        assert isinstance(handler, logging.StreamHandler)
+        assert handler.formatter is not None
+        assert "%(levelname)s - %(message)s" in str(handler.formatter._fmt)
+
+    def test_get_console_handler_custom_format(self) -> None:
+        """Test _get_console_handler with custom format."""
+        context = LogContext("test")
+        custom_format = "%(name)s - %(levelname)s - %(message)s"
+        handler = context._get_console_handler(custom_format)
+
+        assert isinstance(handler, logging.StreamHandler)
+        assert handler.formatter is not None
+        assert custom_format in str(handler.formatter._fmt)
+
+    def test_get_console_handler_none_format(self) -> None:
+        """Test _get_console_handler with None format (should use default)."""
+        context = LogContext("test")
+        handler = context._get_console_handler(None)
+
+        assert isinstance(handler, logging.StreamHandler)
+        assert handler.formatter is not None
+        assert "%(levelname)s - %(message)s" in str(handler.formatter._fmt)
