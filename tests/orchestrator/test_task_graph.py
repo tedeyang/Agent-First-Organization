@@ -2377,3 +2377,48 @@ class TestTaskGraph:
         # next is not a list
         with pytest.raises(TaskGraphError):
             task_graph._validate_node({"id": "i", "type": "t", "next": "notalist"})
+
+    def test_jump_to_node_exception_branch(self, task_graph) -> None:
+        # Simulate an exception in jump_to_node by patching in_edges to raise
+        with patch.object(task_graph.graph, "in_edges", side_effect=Exception("fail")):
+            # This should handle the exception gracefully
+            with pytest.raises(Exception, match="fail"):
+                next_node, next_intent = task_graph.jump_to_node("intent", 0, "node1")
+
+    def test_handle_leaf_node_with_no_successors(self, task_graph, params) -> None:
+        # Should handle node with no successors
+        node = "end"
+        result, updated_params = task_graph.handle_leaf_node(node, params)
+        assert isinstance(result, str)
+
+    def test_handle_leaf_node_with_successors(self, task_graph, params) -> None:
+        # Should handle node with successors
+        node = "node1"
+        result, updated_params = task_graph.handle_leaf_node(node, params)
+        assert isinstance(result, str)
+
+    def test_handle_leaf_node_with_nested_graph(self, task_graph, params) -> None:
+        # Should handle node with nested_graph attribute
+        node = "node1"
+        task_graph.graph.nodes[node]["attribute"]["nested_graph"] = True
+        result, updated_params = task_graph.handle_leaf_node(node, params)
+        assert isinstance(result, str)
+        del task_graph.graph.nodes[node]["attribute"]["nested_graph"]
+
+    def test_validate_node_handles_missing_fields(self, task_graph) -> None:
+        # Should raise for missing id/type/attribute/next
+        node = {"resource": {}}
+        with pytest.raises(Exception):
+            task_graph._validate_node(node)
+
+    def test_validate_node_handles_all_error_branches(self, task_graph) -> None:
+        # Should raise for all error branches
+        node = {
+            "id": None,
+            "type": None,
+            "attribute": None,
+            "next": None,
+            "resource": {},
+        }
+        with pytest.raises(Exception):
+            task_graph._validate_node(node)
