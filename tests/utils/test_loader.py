@@ -996,8 +996,17 @@ class TestLoader:
             loader, "get_outsource_urls", return_value=["http://a.com", "http://b.com"]
         ):
             urls = [f"http://site{i}.com" for i in range(10)]
+
             # Patch time to avoid timeout
-            with patch("time.time", side_effect=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]):
+            def time_gen():
+                times = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+                for t in times:
+                    yield t
+                while True:
+                    yield times[-1]
+
+            time_iter = time_gen()
+            with patch("time.time", side_effect=lambda: next(time_iter)):
                 result = loader.get_all_urls("http://site0.com", max_num=3)
                 assert len(result) == 3
 
