@@ -9,6 +9,7 @@ from typing import Dict, List
 
 import pytest
 from unittest.mock import Mock
+from unittest.mock import MagicMock
 
 from arklex.orchestrator.generator.tasks.task_generator import (
     TaskGenerator,
@@ -338,6 +339,193 @@ class TestTaskGenerator:
         task_generator._build_hierarchy(tasks)
         assert all("level" in task for task in tasks)
 
+    def test_convert_to_task_definitions(self) -> None:
+        """Test _convert_to_task_definitions method."""
+        generator = TaskGenerator(
+            model=Mock(),
+            role="test_role",
+            user_objective="test_objective",
+            instructions="test_instructions",
+            documents="test_documents",
+        )
+
+        tasks_with_steps = [
+            {
+                "task": "Task 1",
+                "intent": "intent_1",
+                "steps": [
+                    {"task": "Step 1", "description": "First step"},
+                    {"task": "Step 2", "description": "Second step"},
+                ],
+                "dependencies": ["dep1"],
+                "required_resources": ["resource1"],
+                "estimated_duration": "1 hour",
+                "priority": 5,
+            },
+            {
+                "task": "Task 2",
+                "intent": "intent_2",
+                "steps": [{"task": "Step 3", "description": "Third step"}],
+                "dependencies": [],
+                "required_resources": [],
+                "estimated_duration": "30 minutes",
+                "priority": 3,
+            },
+        ]
+
+        task_definitions = generator._convert_to_task_definitions(tasks_with_steps)
+
+        assert len(task_definitions) == 2
+        assert task_definitions[0].task_id == "task_1"
+        assert task_definitions[0].name == "Task 1"
+        assert task_definitions[0].description == "intent_1"
+        assert len(task_definitions[0].steps) == 2
+        assert task_definitions[0].dependencies == ["dep1"]
+        assert task_definitions[0].required_resources == ["resource1"]
+        assert task_definitions[0].estimated_duration == "1 hour"
+        assert task_definitions[0].priority == 5
+
+        assert task_definitions[1].task_id == "task_2"
+        assert task_definitions[1].name == "Task 2"
+        assert task_definitions[1].description == "intent_2"
+        assert len(task_definitions[1].steps) == 1
+        assert task_definitions[1].dependencies == []
+        assert task_definitions[1].required_resources == []
+        assert task_definitions[1].estimated_duration == "30 minutes"
+        assert task_definitions[1].priority == 3
+
+    def test_process_objective_with_response_parsing(self) -> None:
+        """Test _process_objective with response parsing logic."""
+        mock_model = Mock()
+        mock_response = Mock()
+        mock_response.generations = [[Mock()]]
+        mock_response.generations[0][
+            0
+        ].text = '[{"task": "Task 1", "intent": "intent_1"}]'
+        mock_model.generate.return_value = mock_response
+
+        generator = TaskGenerator(
+            model=mock_model,
+            role="test_role",
+            user_objective="test_objective",
+            instructions="test_instructions",
+            documents="test_documents",
+        )
+
+        result = generator._process_objective(
+            objective="test_objective", intro="test_intro", docs="test_docs"
+        )
+
+        assert "tasks" in result
+        assert len(result["tasks"]) == 1
+        assert result["tasks"][0]["task"] == "Task 1"
+        assert result["tasks"][0]["intent"] == "intent_1"
+
+    def test_process_objective_with_message_content(self) -> None:
+        """Test _process_objective with message.content response format."""
+        mock_model = Mock()
+        mock_response = Mock()
+
+        class Message:
+            def __init__(self, content):
+                self.content = content
+
+        class Generation:
+            def __init__(self, message):
+                self.message = message
+
+        content_string = '[{"task": "Task 2", "intent": "intent_2"}]'
+        message = Message(content_string)
+        generation = Generation(message)
+        mock_response.generations = [[generation]]
+        mock_model.generate.return_value = mock_response
+
+        generator = TaskGenerator(
+            model=mock_model,
+            role="test_role",
+            user_objective="test_objective",
+            instructions="test_instructions",
+            documents="test_documents",
+        )
+
+        result = generator._process_objective(
+            objective="test_objective", intro="test_intro", docs="test_docs"
+        )
+
+        assert "tasks" in result
+        assert len(result["tasks"]) == 1
+        assert result["tasks"][0]["task"] == "Task 2"
+        assert result["tasks"][0]["intent"] == "intent_2"
+
+    def test_process_objective_with_dict_response(self) -> None:
+        """Test _process_objective with dict response format."""
+        mock_model = Mock()
+        mock_response = {"text": '[{"task": "Task 3", "intent": "intent_3"}]'}
+        mock_model.generate.return_value = mock_response
+
+        generator = TaskGenerator(
+            model=mock_model,
+            role="test_role",
+            user_objective="test_objective",
+            instructions="test_instructions",
+            documents="test_documents",
+        )
+
+        result = generator._process_objective(
+            objective="test_objective", intro="test_intro", docs="test_docs"
+        )
+
+        assert "tasks" in result
+        assert len(result["tasks"]) == 1
+        assert result["tasks"][0]["task"] == "Task 3"
+        assert result["tasks"][0]["intent"] == "intent_3"
+
+    def test_process_objective_with_content_dict_response(self) -> None:
+        """Test _process_objective with content dict response format."""
+        mock_model = Mock()
+        mock_response = {"content": '[{"task": "Task 4", "intent": "intent_4"}]'}
+        mock_model.generate.return_value = mock_response
+
+        generator = TaskGenerator(
+            model=mock_model,
+            role="test_role",
+            user_objective="test_objective",
+            instructions="test_instructions",
+            documents="test_documents",
+        )
+
+        result = generator._process_objective(
+            objective="test_objective", intro="test_intro", docs="test_docs"
+        )
+
+        assert "tasks" in result
+        assert len(result["tasks"]) == 1
+        assert result["tasks"][0]["task"] == "Task 4"
+        assert result["tasks"][0]["intent"] == "intent_4"
+
+    def test_process_objective_with_str_response(self) -> None:
+        """Test _process_objective with string response format."""
+        mock_model = Mock()
+        mock_response = '[{"task": "Task 5", "intent": "intent_5"}]'
+        mock_model.generate.return_value = mock_response
+
+        generator = TaskGenerator(
+            model=mock_model,
+            role="test_role",
+            user_objective="test_objective",
+            instructions="test_instructions",
+            documents="test_documents",
+        )
+
+        result = generator._process_objective(
+            objective="test_objective", intro="test_intro", docs="test_docs"
+        )
+
+        assert "tasks" in result
+        assert len(result["tasks"]) == 1
+        assert result["tasks"][0]["task"] == "Task 5"
+        assert result["tasks"][0]["intent"] == "intent_5"
+
 
 class TestBestPracticeManager:
     """Test BestPracticeManager core logic and validation."""
@@ -401,6 +589,102 @@ class TestBestPracticeManager:
         optimized = best_practice_manager._optimize_practices(dict_practices)
         assert isinstance(optimized, list)
         assert len(optimized) == 1
+
+    def test_generate_practice_definitions(self) -> None:
+        """Test _generate_practice_definitions method."""
+        mock_model = MagicMock()
+        manager = BestPracticeManager(
+            model=mock_model, role="test_role", user_objective="test_objective"
+        )
+
+        tasks = [
+            {
+                "name": "Task 1",
+                "steps": [{"description": "Step 1"}],
+                "priority": 5,
+                "category": "efficiency",
+            },
+            {
+                "name": "Task 2",
+                "steps": [{"description": "Step 2"}],
+                "priority": 3,
+                "category": "quality",
+            },
+        ]
+
+        practice_definitions = manager._generate_practice_definitions(tasks)
+
+        assert len(practice_definitions) == 2
+        assert practice_definitions[0].name == "Best Practice for Task 1"
+        assert practice_definitions[0].priority == 5
+        assert practice_definitions[0].category == "efficiency"
+        assert practice_definitions[1].name == "Best Practice for Task 2"
+        assert practice_definitions[1].priority == 3
+        assert practice_definitions[1].category == "quality"
+
+    def test_optimize_steps_with_invalid_description(self) -> None:
+        """Test _optimize_steps with invalid description."""
+        mock_model = MagicMock()
+        manager = BestPracticeManager(
+            model=mock_model, role="test_role", user_objective="test_objective"
+        )
+
+        steps = [
+            {"step_id": "step1", "description": None},
+            {"step_id": "step2", "description": 123},
+            {"step_id": "step3", "description": ""},
+            {"step_id": "step4", "description": "Valid description"},
+        ]
+
+        optimized_steps = manager._optimize_steps(steps)
+
+        assert len(optimized_steps) == 4
+        assert optimized_steps[0]["description"] == "Step 1"  # Default for None
+        assert optimized_steps[1]["description"] == "123"  # String conversion
+        assert optimized_steps[2]["description"] == "Step 3"  # Default for empty
+        assert optimized_steps[3]["description"] == "Valid description"  # Valid
+        assert optimized_steps[0]["step_id"] == "step1"
+        assert optimized_steps[1]["step_id"] == "step2"
+        assert optimized_steps[2]["step_id"] == "step3"
+        assert optimized_steps[3]["step_id"] == "step4"
+
+    def test_optimize_steps_with_missing_step_id(self) -> None:
+        """Test _optimize_steps with missing step_id."""
+        mock_model = MagicMock()
+        manager = BestPracticeManager(
+            model=mock_model, role="test_role", user_objective="test_objective"
+        )
+
+        steps = [
+            {"description": "Step 1"},  # Missing step_id
+            {"step_id": "step2", "description": "Step 2"},
+        ]
+
+        optimized_steps = manager._optimize_steps(steps)
+
+        assert len(optimized_steps) == 2
+        assert optimized_steps[0]["step_id"] == "step_1"  # Generated step_id
+        assert optimized_steps[1]["step_id"] == "step2"  # Existing step_id
+        assert optimized_steps[0]["description"] == "Step 1"
+        assert optimized_steps[1]["description"] == "Step 2"
+
+    def test_optimize_steps_with_missing_required_fields(self) -> None:
+        """Test _optimize_steps with missing required_fields."""
+        mock_model = MagicMock()
+        manager = BestPracticeManager(
+            model=mock_model, role="test_role", user_objective="test_objective"
+        )
+
+        steps = [
+            {"step_id": "step1", "description": "Step 1"}  # Missing required_fields
+        ]
+
+        optimized_steps = manager._optimize_steps(steps)
+
+        assert len(optimized_steps) == 1
+        assert optimized_steps[0]["step_id"] == "step1"
+        assert optimized_steps[0]["description"] == "Step 1"
+        assert optimized_steps[0]["required_fields"] == []  # Default empty list
 
 
 class TestReusableTaskManager:
