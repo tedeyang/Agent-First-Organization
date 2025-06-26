@@ -1273,13 +1273,13 @@ class TestLoader:
         """Test get_all_urls with exception in URL processing to cover line 564-568."""
         loader = Loader()
 
-        with patch.object(loader, "get_outsource_urls") as mock_get_outsource:
-            mock_get_outsource.side_effect = Exception("URL processing error")
+        with patch.object(
+            loader, "get_outsource_urls", side_effect=Exception("URL processing error")
+        ):
+            result = loader.get_all_urls("http://example.com", 5)
 
-            result = loader.get_all_urls("http://example.com", 10)
-
-            # Should handle exception gracefully and continue
-            assert isinstance(result, list)
+            # The base URL is always added to the list, even if processing fails
+            assert result == ["http://example.com"]
 
     def test_get_all_urls_with_new_urls_found(self) -> None:
         """Test get_all_urls with new URLs found to cover line 564-568."""
@@ -1472,14 +1472,194 @@ class TestLoader:
         assert result == []
 
     def test_to_crawled_local_objs_with_empty_list(self) -> None:
-        """Test to_crawled_local_objs with empty list to cover line 670."""
+        """Test to_crawled_local_objs with empty list."""
+        loader = Loader()
+        result = loader.to_crawled_local_objs([])
+        assert result == []
+
+    def test_selenium_crawling_driver_quit_exception_handling(self) -> None:
+        """Test selenium crawling with driver.quit() exception (lines 266-269)."""
+        loader = Loader()
+        url_objects = [DocObject("1", "http://example.com")]
+
+        with patch("selenium.webdriver.Chrome") as mock_driver:
+            mock_driver_instance = Mock()
+            mock_driver.return_value = mock_driver_instance
+            # Make driver.quit() raise an exception
+            mock_driver_instance.quit.side_effect = Exception("Driver quit error")
+            # Make the crawling fail by raising an exception during the process
+            mock_driver_instance.page_source = "<html><body>Content</body></html>"
+            mock_driver_instance.get.side_effect = Exception("Page load error")
+
+            with patch("time.sleep"):
+                with patch(
+                    "time.time", side_effect=[0, 1, 2, 3, 4, 5]
+                ):  # More time values for multiple calls
+                    result = loader._crawl_with_selenium(url_objects)
+
+                    # Should create an error document when crawling fails
+                    assert len(result) == 1
+                    assert result[0].is_error is True
+
+    def test_get_all_urls_exception_handling_in_url_processing(self) -> None:
+        """Test get_all_urls with exception in URL processing (line 555)."""
         loader = Loader()
 
-        with patch.object(loader, "crawl_file") as mock_crawl_file:
-            mock_crawl_file.return_value = CrawledObject(
-                "test_id", "test_source", "test_content"
-            )
+        with patch.object(
+            loader, "get_outsource_urls", side_effect=Exception("URL processing error")
+        ):
+            result = loader.get_all_urls("http://example.com", 5)
 
-            result = loader.to_crawled_local_objs([])
+            # The base URL is always added to the list, even if processing fails
+            assert result == ["http://example.com"]
 
-            assert result == []
+    def test_get_outsource_urls_link_processing_exception(self) -> None:
+        """Test get_outsource_urls with exception in link processing (lines 611-612)."""
+        loader = Loader()
+
+        class MockLink:
+            def get(self, attr):
+                if attr == "href":
+                    raise Exception("Link processing error")
+                return None
+
+        class MockSoup:
+            def find_all(self, tag):
+                return [MockLink()]
+
+        class MockResponse:
+            status_code = 200
+            text = "<html><a href='test'>link</a></html>"
+
+        with patch("requests.get", return_value=MockResponse()):
+            with patch("bs4.BeautifulSoup", return_value=MockSoup()):
+                with patch(
+                    "urllib.parse.urljoin", return_value="http://example.com/test"
+                ):
+                    with patch.object(
+                        loader, "_check_url", return_value=False
+                    ):  # Make _check_url return False
+                        result = loader.get_outsource_urls(
+                            "http://example.com", "http://example.com"
+                        )
+
+                        # Should return empty list when link processing fails
+                        assert result == []
+
+    def test_to_crawled_text_with_non_empty_list(self) -> None:
+        """Test to_crawled_text with non-empty list to cover loop body (lines 706-713)."""
+        loader = Loader()
+        text_list = ["text1", "text2", "text3"]
+
+        result = loader.to_crawled_text(text_list)
+
+        assert len(result) == 3
+        assert all(isinstance(obj, CrawledObject) for obj in result)
+        assert all(obj.source_type == SourceType.TEXT for obj in result)
+        assert all(obj.source == "text" for obj in result)
+        assert result[0].content == "text1"
+        assert result[1].content == "text2"
+        assert result[2].content == "text3"
+
+    def test_chunk_method_with_error_documents(self) -> None:
+        """Test chunk method with error documents to cover continue statements (lines 833, 835)."""
+        loader = Loader()
+
+        # Create documents with errors
+        error_doc1 = CrawledObject(
+            id="error1",
+            source="error_source1",
+            content=None,
+            is_error=True,
+            error_message="Test error",
+        )
+
+        error_doc2 = CrawledObject(
+            id="error2",
+            source="error_source2",
+            content="Some content",
+            is_error=True,
+            error_message="Another error",
+        )
+
+        doc_objs = [error_doc1, error_doc2]
+
+        result = loader.chunk(doc_objs)
+
+        # Should skip error documents and return empty list
+        assert result == []
+
+    def test_chunk_method_with_already_chunked_documents(self) -> None:
+        """Test chunk method with already chunked documents to cover continue statement (line 839)."""
+        loader = Loader()
+
+        # Create already chunked document
+        chunked_doc = CrawledObject(
+            id="chunked1",
+            source="chunked_source",
+            content="Some content",
+            is_chunk=True,
+        )
+
+        doc_objs = [chunked_doc]
+
+        result = loader.chunk(doc_objs)
+
+        # Chunked documents are added to docs list but not returned in final result
+        # The method returns langchain_docs, not the docs list
+        assert (
+            len(result) == 0
+        )  # No langchain docs created for already chunked documents
+
+    def test_chunk_method_with_none_content_documents(self) -> None:
+        """Test chunk method with None content documents to cover continue statement (line 841)."""
+        loader = Loader()
+
+        # Create document with None content
+        none_content_doc = CrawledObject(
+            id="none1", source="none_source", content=None, is_error=False
+        )
+
+        doc_objs = [none_content_doc]
+
+        result = loader.chunk(doc_objs)
+
+        # Should skip documents with None content and return empty list
+        assert result == []
+
+    def test_chunk_method_with_mixed_document_types(self) -> None:
+        """Test chunk method with mixed document types to cover all branches."""
+        loader = Loader()
+
+        # Create various types of documents
+        normal_doc = CrawledObject(
+            id="normal1",
+            source="normal_source",
+            content="This is a normal document with some content to chunk.",
+            is_error=False,
+            is_chunk=False,
+        )
+
+        error_doc = CrawledObject(
+            id="error1", source="error_source", content=None, is_error=True
+        )
+
+        chunked_doc = CrawledObject(
+            id="chunked1",
+            source="chunked_source",
+            content="Already chunked content",
+            is_chunk=True,
+        )
+
+        none_content_doc = CrawledObject(
+            id="none1", source="none_source", content=None, is_error=False
+        )
+
+        doc_objs = [normal_doc, error_doc, chunked_doc, none_content_doc]
+
+        result = loader.chunk(doc_objs)
+
+        # Should process normal doc and skip others
+        # Should skip error_doc, chunked_doc, and none_content_doc
+        assert len(result) == 1  # Only normal_doc gets processed into langchain docs
+        assert "normal document" in result[0].page_content
