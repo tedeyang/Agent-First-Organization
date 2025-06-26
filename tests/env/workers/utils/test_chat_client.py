@@ -11,6 +11,8 @@ import sys
 from unittest.mock import Mock, patch, AsyncMock, MagicMock
 from concurrent.futures import Future
 import runpy
+import subprocess
+import os
 
 from arklex.env.workers.utils.chat_client import ChatClient
 
@@ -734,72 +736,192 @@ class TestChatClient:
             # Verify format_logs was called
             assert isinstance(result, str)
 
-    def test_chat_client_command_line_parsing(self) -> None:
-        """Test ChatClient command line argument parsing."""
-        import sys
-        from unittest.mock import patch
+    def test_chat_client_cli_wo_mode_subprocess(self):
+        """Test CLI with write-only mode using subprocess."""
+        # Mock the network operations to avoid connection errors
+        with patch("asyncio.open_connection") as mock_conn:
+            mock_reader = AsyncMock()
+            mock_writer = AsyncMock()
+            mock_conn.return_value = (mock_reader, mock_writer)
 
-        test_args = [
-            "chat_client.py",
-            "--server-address",
-            "localhost",
-            "--server-port",
-            "9999",
-            "--name",
-            "TestUser",
-            "--timeout",
-            "50000",
-            "--debug",
-            "--mode",
-            "ro",
-            "--message",
-            "test message",
-        ]
+            # Mock input to avoid hanging
+            with patch("builtins.input", return_value="test_user"):
+                with patch(
+                    "sys.argv", ["chat_client.py", "--mode", "wo", "--message", "test"]
+                ):
+                    with patch("asyncio.run") as mock_run:
+                        # Import and run the module
+                        import sys
 
-        # Test argument parsing by importing and testing the parser directly
-        with patch.object(sys, "argv", test_args):
-            # Import the module to test argument parsing
-            import arklex.env.workers.utils.chat_client as chat_client_module
+                        module_name = "arklex.env.workers.utils.chat_client"
+                        if module_name in sys.modules:
+                            del sys.modules[module_name]
+                        runpy.run_module(module_name, run_name="__main__")
 
-            # Test that the module can be imported and has the expected attributes
-            assert hasattr(chat_client_module, "ChatClient")
+                        # Verify asyncio.run was called
+                        mock_run.assert_called_once()
 
-            # Test that argument parsing works by checking if the module loads without errors
-            # The actual argument parsing happens in the __main__ block when called
-            assert True  # If we get here, the module loaded successfully
+    def test_chat_client_cli_custom_arguments_subprocess(self):
+        """Test CLI with custom arguments using subprocess."""
+        with patch("asyncio.open_connection") as mock_conn:
+            mock_reader = AsyncMock()
+            mock_writer = AsyncMock()
+            mock_conn.return_value = (mock_reader, mock_writer)
 
-    def test_chat_client_command_line_defaults(self) -> None:
-        """Test ChatClient command line with default arguments."""
-        import sys
-        from unittest.mock import patch
+            with patch("builtins.input", return_value="test_user"):
+                with patch(
+                    "sys.argv",
+                    [
+                        "chat_client.py",
+                        "--server-address",
+                        "192.168.1.1",
+                        "--server-port",
+                        "9999",
+                        "--name",
+                        "CustomUser",
+                        "--timeout",
+                        "50000",
+                        "--debug",
+                        "--mode",
+                        "ro",
+                        "--message",
+                        "custom message",
+                    ],
+                ):
+                    with patch("asyncio.run") as mock_run:
+                        import sys
 
-        test_args = ["chat_client.py"]
+                        module_name = "arklex.env.workers.utils.chat_client"
+                        if module_name in sys.modules:
+                            del sys.modules[module_name]
+                        runpy.run_module(module_name, run_name="__main__")
+                        mock_run.assert_called_once()
 
-        # Test argument parsing by importing and testing the parser directly
-        with patch.object(sys, "argv", test_args):
-            # Import the module to test argument parsing
-            import arklex.env.workers.utils.chat_client as chat_client_module
+    def test_chat_client_cli_minimal_arguments_subprocess(self):
+        """Test CLI with minimal arguments using subprocess."""
+        with patch("asyncio.open_connection") as mock_conn:
+            mock_reader = AsyncMock()
+            mock_writer = AsyncMock()
+            mock_conn.return_value = (mock_reader, mock_writer)
 
-            # Test that the module can be imported and has the expected attributes
-            assert hasattr(chat_client_module, "ChatClient")
+            with patch("builtins.input", return_value="test_user"):
+                with patch("sys.argv", ["chat_client.py"]):
+                    with patch("asyncio.run") as mock_run:
+                        import sys
 
-            # Test that argument parsing works by checking if the module loads without errors
-            assert True  # If we get here, the module loaded successfully
+                        module_name = "arklex.env.workers.utils.chat_client"
+                        if module_name in sys.modules:
+                            del sys.modules[module_name]
+                        runpy.run_module(module_name, run_name="__main__")
+                        mock_run.assert_called_once()
 
-    def test_chat_client_command_line_wo_mode(self) -> None:
-        """Test ChatClient command line with write-only mode."""
-        import sys
-        from unittest.mock import patch
+    def test_chat_client_cli_message_only_subprocess(self):
+        """Test CLI with message argument only using subprocess."""
+        with patch("asyncio.open_connection") as mock_conn:
+            mock_reader = AsyncMock()
+            mock_writer = AsyncMock()
+            mock_conn.return_value = (mock_reader, mock_writer)
 
-        test_args = ["chat_client.py", "--mode", "wo", "--message", "test"]
+            with patch("builtins.input", return_value="test_user"):
+                with patch("sys.argv", ["chat_client.py", "--message", "hello world"]):
+                    with patch("asyncio.run") as mock_run:
+                        import sys
 
-        # Test argument parsing by importing and testing the parser directly
-        with patch.object(sys, "argv", test_args):
-            # Import the module to test argument parsing
-            import arklex.env.workers.utils.chat_client as chat_client_module
+                        module_name = "arklex.env.workers.utils.chat_client"
+                        if module_name in sys.modules:
+                            del sys.modules[module_name]
+                        runpy.run_module(module_name, run_name="__main__")
+                        mock_run.assert_called_once()
 
-            # Test that the module can be imported and has the expected attributes
-            assert hasattr(chat_client_module, "ChatClient")
+    def test_chat_client_cli_debug_mode_subprocess(self):
+        """Test CLI with debug mode enabled using subprocess."""
+        with patch("asyncio.open_connection") as mock_conn:
+            mock_reader = AsyncMock()
+            mock_writer = AsyncMock()
+            mock_conn.return_value = (mock_reader, mock_writer)
 
-            # Test that argument parsing works by checking if the module loads without errors
-            assert True  # If we get here, the module loaded successfully
+            with patch("builtins.input", return_value="test_user"):
+                with patch("sys.argv", ["chat_client.py", "--debug"]):
+                    with patch("asyncio.run") as mock_run:
+                        import sys
+
+                        module_name = "arklex.env.workers.utils.chat_client"
+                        if module_name in sys.modules:
+                            del sys.modules[module_name]
+                        runpy.run_module(module_name, run_name="__main__")
+                        mock_run.assert_called_once()
+
+    def test_chat_client_cli_read_only_mode_subprocess(self):
+        """Test CLI with read-only mode using subprocess."""
+        with patch("asyncio.open_connection") as mock_conn:
+            mock_reader = AsyncMock()
+            mock_writer = AsyncMock()
+            mock_conn.return_value = (mock_reader, mock_writer)
+
+            with patch("builtins.input", return_value="test_user"):
+                with patch(
+                    "sys.argv",
+                    ["chat_client.py", "--mode", "ro", "--message", "test message"],
+                ):
+                    with patch("asyncio.run") as mock_run:
+                        import sys
+
+                        module_name = "arklex.env.workers.utils.chat_client"
+                        if module_name in sys.modules:
+                            del sys.modules[module_name]
+                        runpy.run_module(module_name, run_name="__main__")
+                        mock_run.assert_called_once()
+
+    def test_chat_client_cli_connect_mode_subprocess(self):
+        """Test CLI with connect mode using subprocess."""
+        with patch("asyncio.open_connection") as mock_conn:
+            mock_reader = AsyncMock()
+            mock_writer = AsyncMock()
+            mock_conn.return_value = (mock_reader, mock_writer)
+
+            with patch("builtins.input", return_value="test_user"):
+                with patch("sys.argv", ["chat_client.py", "--mode", "c"]):
+                    with patch("asyncio.run") as mock_run:
+                        import sys
+
+                        module_name = "arklex.env.workers.utils.chat_client"
+                        if module_name in sys.modules:
+                            del sys.modules[module_name]
+                        runpy.run_module(module_name, run_name="__main__")
+                        mock_run.assert_called_once()
+
+    def test_chat_client_cli_all_optional_arguments_subprocess(self):
+        """Test CLI with all optional arguments using subprocess."""
+        with patch("asyncio.open_connection") as mock_conn:
+            mock_reader = AsyncMock()
+            mock_writer = AsyncMock()
+            mock_conn.return_value = (mock_reader, mock_writer)
+
+            with patch("builtins.input", return_value="test_user"):
+                with patch(
+                    "sys.argv",
+                    [
+                        "chat_client.py",
+                        "--server-address",
+                        "10.0.0.1",
+                        "--server-port",
+                        "12345",
+                        "--name",
+                        "TestUser",
+                        "--timeout",
+                        "30000",
+                        "--debug",
+                        "--mode",
+                        "wo",
+                        "--message",
+                        "final test message",
+                    ],
+                ):
+                    with patch("asyncio.run") as mock_run:
+                        import sys
+
+                        module_name = "arklex.env.workers.utils.chat_client"
+                        if module_name in sys.modules:
+                            del sys.modules[module_name]
+                        runpy.run_module(module_name, run_name="__main__")
+                        mock_run.assert_called_once()
