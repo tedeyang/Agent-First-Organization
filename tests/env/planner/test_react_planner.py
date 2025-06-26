@@ -668,6 +668,332 @@ class TestReactPlanner:
         assert NUM_STEPS_TO_NUM_RETRIEVALS(5) == 8
         assert NUM_STEPS_TO_NUM_RETRIEVALS(10) == 13
 
+    def test_get_planning_trajectory_summary_with_anthropic_provider(
+        self,
+        react_planner,
+        mock_message_state,
+        mock_msg_history,
+    ) -> None:
+        """Test _get_planning_trajectory_summary with anthropic provider to cover line 381-382."""
+        react_planner.llm_provider = "anthropic"
+
+        with patch(
+            "arklex.env.planner.react_planner.PLANNER_SUMMARIZE_TRAJECTORY_PROMPT"
+        ) as mock_prompt:
+            mock_prompt.text = "Test prompt"
+
+            with patch(
+                "arklex.env.planner.react_planner.PromptTemplate"
+            ) as mock_prompt_template:
+                mock_template_instance = Mock()
+                mock_template_instance.format.return_value = "formatted_prompt"
+                mock_prompt_template.from_template.return_value = mock_template_instance
+
+                with patch.object(react_planner, "llm") as mock_llm:
+                    mock_response = Mock()
+                    mock_response.content = "Test response"
+                    mock_llm.invoke.return_value = mock_response
+
+                    with patch(
+                        "arklex.env.planner.react_planner.aimessage_to_dict"
+                    ) as mock_aimessage_to_dict:
+                        mock_aimessage_to_dict.return_value = {
+                            "content": "Test response"
+                        }
+
+                        result = react_planner._get_planning_trajectory_summary(
+                            mock_message_state, mock_msg_history
+                        )
+
+                        assert result == "Test response"
+
+                        # Verify that messages were formatted correctly for anthropic
+                        mock_llm.invoke.assert_called_once()
+                        call_args = mock_llm.invoke.call_args[0][0]
+                        assert len(call_args) == 2
+                        assert call_args[0]["role"] == "system"
+                        assert call_args[1]["role"] == "user"
+
+    def test_get_planning_trajectory_summary_with_exception(
+        self,
+        react_planner,
+        mock_message_state,
+        mock_msg_history,
+    ) -> None:
+        """Test _get_planning_trajectory_summary with exception handling to cover line 424-425."""
+        with patch(
+            "arklex.env.planner.react_planner.PLANNER_SUMMARIZE_TRAJECTORY_PROMPT"
+        ) as mock_prompt:
+            mock_prompt.text = "Test prompt"
+
+            with patch(
+                "arklex.env.planner.react_planner.PromptTemplate"
+            ) as mock_prompt_template:
+                mock_template_instance = Mock()
+                mock_template_instance.format.return_value = "formatted_prompt"
+                mock_prompt_template.from_template.return_value = mock_template_instance
+
+                with patch.object(react_planner, "llm") as mock_llm:
+                    mock_llm.invoke.side_effect = Exception("LLM Error")
+
+                    with pytest.raises(Exception):
+                        react_planner._get_planning_trajectory_summary(
+                            mock_message_state, mock_msg_history
+                        )
+
+    def test_retrieve_resource_signatures_with_user_message_and_task(
+        self, react_planner
+    ) -> None:
+        """Test _retrieve_resource_signatures with user message and task to cover line 580."""
+        user_message = "Test user message"
+        task = "Test task"
+
+        # Mock the retriever attribute
+        react_planner.retriever = Mock()
+        mock_vectorstore = Mock()
+        mock_vectorstore.similarity_search_with_score.return_value = [
+            (Mock(metadata={"resource_name": "test_resource"}), 0.8)
+        ]
+        react_planner.retriever.vectorstore = mock_vectorstore
+
+        # Initialize guaranteed_retrieval_docs attribute
+        react_planner.guaranteed_retrieval_docs = []
+
+        with patch.object(
+            react_planner, "_parse_trajectory_summary_to_steps"
+        ) as mock_parse:
+            mock_parse.return_value = ["step1", "step2"]
+
+            result = react_planner._retrieve_resource_signatures(
+                1, "test summary", user_message, task
+            )
+
+            assert len(result) == 1
+            mock_vectorstore.similarity_search_with_score.assert_called_once()
+
+    def test_retrieve_resource_signatures_with_guaranteed_retrieval_docs(
+        self, react_planner
+    ) -> None:
+        """Test _retrieve_resource_signatures with guaranteed retrieval docs to cover line 674."""
+        # Mock guaranteed retrieval docs
+        guaranteed_doc = Mock()
+        guaranteed_doc.metadata = {"resource_name": "guaranteed_resource"}
+        react_planner.guaranteed_retrieval_docs = [guaranteed_doc]
+
+        # Mock the retriever attribute
+        react_planner.retriever = Mock()
+        mock_vectorstore = Mock()
+        # Return empty list to test guaranteed doc addition
+        mock_vectorstore.similarity_search_with_score.return_value = []
+        react_planner.retriever.vectorstore = mock_vectorstore
+
+        with patch.object(
+            react_planner, "_parse_trajectory_summary_to_steps"
+        ) as mock_parse:
+            mock_parse.return_value = []
+
+            result = react_planner._retrieve_resource_signatures(1, "test summary")
+
+            # Should include the guaranteed doc
+            assert len(result) == 1
+            assert result[0] == guaranteed_doc
+
+    def test_retrieve_resource_signatures_with_duplicate_guaranteed_docs(
+        self, react_planner
+    ) -> None:
+        """Test _retrieve_resource_signatures with duplicate guaranteed docs to cover line 674."""
+        # Mock guaranteed retrieval docs
+        guaranteed_doc = Mock()
+        guaranteed_doc.metadata = {"resource_name": "guaranteed_resource"}
+        react_planner.guaranteed_retrieval_docs = [guaranteed_doc]
+
+        # Mock the retriever attribute
+        react_planner.retriever = Mock()
+        mock_vectorstore = Mock()
+        # Return a doc with the same resource name
+        retrieved_doc = Mock()
+        retrieved_doc.metadata = {"resource_name": "guaranteed_resource"}
+        mock_vectorstore.similarity_search_with_score.return_value = [
+            (retrieved_doc, 0.8)
+        ]
+        react_planner.retriever.vectorstore = mock_vectorstore
+
+        with patch.object(
+            react_planner, "_parse_trajectory_summary_to_steps"
+        ) as mock_parse:
+            mock_parse.return_value = []
+
+            result = react_planner._retrieve_resource_signatures(1, "test summary")
+
+            # Should not duplicate the guaranteed doc
+            assert len(result) == 1
+            assert result[0] == retrieved_doc
+
+    def test_plan_with_empty_signature_docs(
+        self, react_planner, mock_message_state, mock_msg_history
+    ) -> None:
+        """Test plan method with empty signature docs to cover line 626."""
+        with patch.object(
+            react_planner, "_get_planning_trajectory_summary"
+        ) as mock_get_summary:
+            mock_get_summary.return_value = "Test summary"
+
+            with patch.object(
+                react_planner, "_get_num_resource_retrievals"
+            ) as mock_get_num:
+                mock_get_num.return_value = 5
+
+                with patch.object(
+                    react_planner, "_retrieve_resource_signatures"
+                ) as mock_retrieve:
+                    mock_retrieve.return_value = []  # Empty signature docs
+
+                    with patch(
+                        "arklex.env.planner.react_planner.PLANNER_REACT_INSTRUCTION_ZERO_SHOT"
+                    ) as mock_prompt:
+                        with patch(
+                            "arklex.env.planner.react_planner.PromptTemplate"
+                        ) as mock_prompt_template:
+                            mock_template_instance = Mock()
+                            mock_template_instance.format.return_value = (
+                                "formatted_prompt"
+                            )
+                            mock_prompt_template.from_template.return_value = (
+                                mock_template_instance
+                            )
+
+                            with patch.object(react_planner, "llm") as mock_llm:
+                                mock_response = Mock()
+                                mock_response.content = "Test response"
+                                mock_llm.invoke.return_value = mock_response
+
+                                with patch(
+                                    "arklex.env.planner.react_planner.aimessage_to_dict"
+                                ) as mock_aimessage_to_dict:
+                                    mock_aimessage_to_dict.return_value = {
+                                        "content": "Test response"
+                                    }
+
+                                    with patch.object(
+                                        react_planner, "_parse_response_action_to_json"
+                                    ) as mock_parse:
+                                        mock_parse.return_value = {
+                                            "name": RESPOND_ACTION_NAME,
+                                            "arguments": {"content": "response"},
+                                        }
+
+                                        with patch.object(
+                                            react_planner, "message_to_actions"
+                                        ) as mock_message_to_actions:
+                                            mock_message_to_actions.return_value = [
+                                                Action(
+                                                    name=RESPOND_ACTION_NAME,
+                                                    kwargs={"content": "response"},
+                                                )
+                                            ]
+
+                                            with patch.object(
+                                                react_planner, "step"
+                                            ) as mock_step:
+                                                mock_step.return_value = EnvResponse(
+                                                    observation="test observation"
+                                                )
+
+                                                result = react_planner.plan(
+                                                    mock_message_state, mock_msg_history
+                                                )
+
+                                                assert len(result) == 3
+                                                assert isinstance(result[0], list)
+                                                assert isinstance(result[1], str)
+                                                assert isinstance(
+                                                    result[2], str
+                                                )  # The third element is actually a string, not EnvResponse
+
+    def test_plan_with_use_few_shot_prompt(
+        self, react_planner, mock_message_state, mock_msg_history
+    ) -> None:
+        """Test plan method with USE_FEW_SHOT_REACT_PROMPT to cover line 626."""
+        with patch("arklex.env.planner.react_planner.USE_FEW_SHOT_REACT_PROMPT", True):
+            with patch.object(
+                react_planner, "_get_planning_trajectory_summary"
+            ) as mock_get_summary:
+                mock_get_summary.return_value = "Test summary"
+
+                with patch.object(
+                    react_planner, "_get_num_resource_retrievals"
+                ) as mock_get_num:
+                    mock_get_num.return_value = 5
+
+                    with patch.object(
+                        react_planner, "_retrieve_resource_signatures"
+                    ) as mock_retrieve:
+                        mock_retrieve.return_value = []
+
+                        with patch(
+                            "arklex.env.planner.react_planner.PLANNER_REACT_INSTRUCTION_FEW_SHOT"
+                        ) as mock_prompt:
+                            with patch(
+                                "arklex.env.planner.react_planner.PromptTemplate"
+                            ) as mock_prompt_template:
+                                mock_template_instance = Mock()
+                                mock_template_instance.format.return_value = (
+                                    "formatted_prompt"
+                                )
+                                mock_prompt_template.from_template.return_value = (
+                                    mock_template_instance
+                                )
+
+                                with patch.object(react_planner, "llm") as mock_llm:
+                                    mock_response = Mock()
+                                    mock_response.content = "Test response"
+                                    mock_llm.invoke.return_value = mock_response
+
+                                    with patch(
+                                        "arklex.env.planner.react_planner.aimessage_to_dict"
+                                    ) as mock_aimessage_to_dict:
+                                        mock_aimessage_to_dict.return_value = {
+                                            "content": "Test response"
+                                        }
+
+                                        with patch.object(
+                                            react_planner,
+                                            "_parse_response_action_to_json",
+                                        ) as mock_parse:
+                                            mock_parse.return_value = {
+                                                "name": RESPOND_ACTION_NAME,
+                                                "arguments": {"content": "response"},
+                                            }
+
+                                            with patch.object(
+                                                react_planner, "message_to_actions"
+                                            ) as mock_message_to_actions:
+                                                mock_message_to_actions.return_value = [
+                                                    Action(
+                                                        name=RESPOND_ACTION_NAME,
+                                                        kwargs={"content": "response"},
+                                                    )
+                                                ]
+
+                                                with patch.object(
+                                                    react_planner, "step"
+                                                ) as mock_step:
+                                                    mock_step.return_value = EnvResponse(
+                                                        observation="test observation"
+                                                    )
+
+                                                    result = react_planner.plan(
+                                                        mock_message_state,
+                                                        mock_msg_history,
+                                                    )
+
+                                                    assert len(result) == 3
+                                                    assert isinstance(result[0], list)
+                                                    assert isinstance(result[1], str)
+                                                    assert isinstance(
+                                                        result[2], str
+                                                    )  # The third element is actually a string, not EnvResponse
+
 
 class TestReactPlannerIntegration:
     """Integration tests for ReactPlanner."""
