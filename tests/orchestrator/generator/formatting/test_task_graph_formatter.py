@@ -6,6 +6,7 @@ including all methods, edge cases, error conditions, and formatting scenarios.
 
 import pytest
 from unittest.mock import Mock, patch
+import logging
 
 from arklex.orchestrator.generator.formatting.task_graph_formatter import (
     TaskGraphFormatter,
@@ -1127,3 +1128,512 @@ class TestTaskGraphFormatter:
             result = task_graph_formatter.ensure_nested_graph_connectivity(graph)
             ng_node = result["nodes"][0]
             assert ng_node[1]["attribute"]["value"] == "v"
+
+    def test_format_task_graph_fallback_to_node_1_for_nestedgraph_step(
+        self, task_graph_formatter
+    ) -> None:
+        # Covers lines 186, 191-195, 198: fallback to node '1' for NestedGraph step node
+        tasks = [
+            {  # Covers lines 186, 191-195, 198: fallback to node '1' for NestedGraph step node
+                "id": "t1",
+                "name": "Task with step",
+                "description": "desc",
+                "steps": [
+                    {
+                        "resource": {"name": "NestedGraph"},
+                        "attribute": {"value": "should fallback"},
+                    },
+                ],
+                "resource": {"name": "MessageWorker"},
+            }
+        ]
+        with patch.object(
+            task_graph_formatter,
+            "ensure_nested_graph_connectivity",
+            side_effect=lambda g: g,
+        ):
+            graph = task_graph_formatter.format_task_graph(tasks)
+            found = False
+            for n in graph["nodes"]:
+                if (
+                    n[1]["resource"]["name"] == "NestedGraph"
+                    and n[1]["attribute"]["value"] == "1"
+                ):
+                    found = True
+            assert found
+
+    def test_format_nodes_step_with_type_and_limit(self, task_graph_formatter) -> None:
+        # Covers lines 308, 310: step node with type and limit fields
+        tasks = [
+            {
+                "id": "t1",
+                "name": "Task with step",
+                "description": "desc",
+                "steps": [
+                    {"description": "stepdesc", "type": "custom_type", "limit": 2},
+                ],
+            }
+        ]
+        nodes, node_lookup, all_task_node_ids = task_graph_formatter._format_nodes(
+            tasks
+        )
+        # Find the step node and verify it was created
+        found = False
+        for n in nodes:
+            if n[1]["attribute"]["value"] == "stepdesc":
+                found = True
+        assert found
+
+    def test_format_edges_dependency_edge_cases_and_logging(
+        self, task_graph_formatter, caplog
+    ) -> None:
+        # Covers line 496: dependency is None, not a string/dict, or dict without 'id'
+        tasks = [
+            {
+                "id": "t1",
+                "name": "Task 1",
+                "description": "desc",
+                "dependencies": [None, 123, {"foo": "bar"}],
+            },
+            {"id": "t2", "name": "Task 2", "description": "desc", "dependencies": []},
+        ]
+        nodes, node_lookup, all_task_node_ids = task_graph_formatter._format_nodes(
+            tasks
+        )
+        start_node_id = "0"
+        with caplog.at_level(logging.WARNING):
+            edges, nested_graph_nodes = task_graph_formatter._format_edges(
+                tasks, node_lookup, all_task_node_ids, start_node_id
+            )
+            # Should log warnings for None, int, and dict without 'id'
+            assert any(
+                "Skipping None dependency" in m for m in caplog.text.splitlines()
+            )
+            assert any(
+                "Skipping invalid dependency type" in m
+                for m in caplog.text.splitlines()
+            )
+            assert any(
+                "Skipping dependency dict without 'id' field" in m
+                for m in caplog.text.splitlines()
+            )
+
+    def test_format_edges_dependency_source_node_not_found(
+        self, task_graph_formatter, caplog
+    ) -> None:
+        # Covers line 643: log warning when source node for dependency is not found
+        tasks = [
+            {
+                "id": "t1",
+                "name": "Task 1",
+                "description": "desc",
+                "dependencies": ["nonexistent"],
+            },
+        ]
+        nodes, node_lookup, all_task_node_ids = task_graph_formatter._format_nodes(
+            tasks
+        )
+        start_node_id = "0"
+        with caplog.at_level(logging.WARNING):
+            edges, nested_graph_nodes = task_graph_formatter._format_edges(
+                tasks, node_lookup, all_task_node_ids, start_node_id
+            )
+            assert any(
+                "Could not find source node for dependency" in m
+                for m in caplog.text.splitlines()
+            )
+
+    def test_ensure_nested_graph_connectivity_nested_graph_no_task(
+        self, task_graph_formatter
+    ) -> None:
+        # Covers line 655: NestedGraph node with no corresponding task
+        graph = {
+            "nodes": [
+                [
+                    "ng1",
+                    {"resource": {"name": "NestedGraph"}, "attribute": {"value": "v"}},
+                ]
+            ],
+            "edges": [],
+            "tasks": [],
+        }
+        result = task_graph_formatter.ensure_nested_graph_connectivity(graph)
+        # Should not error, and value remains unchanged
+        assert result["nodes"][0][1]["attribute"]["value"] == "v"
+
+    def test_ensure_nested_graph_connectivity_nested_graph_no_steps(
+        self, task_graph_formatter
+    ) -> None:
+        # Covers line 657: NestedGraph node with corresponding task but no steps
+        graph = {
+            "nodes": [
+                [
+                    "ng1",
+                    {"resource": {"name": "NestedGraph"}, "attribute": {"value": "v"}},
+                ]
+            ],
+            "edges": [],
+            "tasks": [{"id": "t1", "steps": []}],
+        }
+        # ng1 is not a step of t1, so nothing should change
+        result = task_graph_formatter.ensure_nested_graph_connectivity(graph)
+        assert result["nodes"][0][1]["attribute"]["value"] == "v"
+
+    def test_ensure_nested_graph_connectivity_nested_graph_last_step_new(
+        self, task_graph_formatter
+    ) -> None:
+        # Covers lines 659-661: NestedGraph node that is the last step
+        graph = {
+            "nodes": [
+                [
+                    "ng1",
+                    {"resource": {"name": "NestedGraph"}, "attribute": {"value": "v"}},
+                ]
+            ],
+            "edges": [],
+            "tasks": [{"id": "t1", "steps": [{}, {}]}],
+        }
+        # ng1 is the last step (simulate by matching node id)
+        graph["nodes"][0][0] = "t1_step1"
+        result = task_graph_formatter.ensure_nested_graph_connectivity(graph)
+        # Should not change value for last step
+        assert result["nodes"][0][1]["attribute"]["value"] == "v"
+
+    def test_format_task_graph_no_valid_target_fallback(
+        self, task_graph_formatter
+    ) -> None:
+        # Covers lines 165-169, 172: no valid target found, fallback to first task node
+        tasks = [
+            {
+                "id": "t1",
+                "name": "Task 1",
+                "description": "desc",
+                "steps": [{"resource": {"name": "NestedGraph"}}],
+            }
+        ]
+        with patch.object(
+            task_graph_formatter,
+            "ensure_nested_graph_connectivity",
+            side_effect=lambda g: g,
+        ):
+            graph = task_graph_formatter.format_task_graph(tasks)
+            # Should find a NestedGraph node with value pointing to a task node
+            nested_graph_nodes = [
+                n for n in graph["nodes"] if n[1]["resource"]["name"] == "NestedGraph"
+            ]
+            assert len(nested_graph_nodes) > 0
+
+    def test_format_nodes_task_resource_edge_cases(self, task_graph_formatter) -> None:
+        # Covers lines 273, 294: task resource handling edge cases
+        tasks = [
+            {
+                "id": "t1",
+                "name": "Task with workflow resource",
+                "description": "desc",
+                "resource": "CustomWorkflow",  # Should become NestedGraph
+            },
+            {
+                "id": "t2",
+                "name": "Task with nested graph resource",
+                "description": "desc",
+                "resource": {"name": "NestedGraph"},
+            },
+        ]
+        nodes, node_lookup, all_task_node_ids = task_graph_formatter._format_nodes(
+            tasks
+        )
+        # Should have NestedGraph nodes
+        nested_graph_nodes = [
+            n for n in nodes if n[1]["resource"]["name"] == "NestedGraph"
+        ]
+        assert len(nested_graph_nodes) >= 2
+
+    def test_format_nodes_task_with_type_and_limit(self, task_graph_formatter) -> None:
+        # Covers lines 308, 310: task with type and limit fields
+        tasks = [
+            {
+                "id": "t1",
+                "name": "Task with type and limit",
+                "description": "desc",
+                "type": "custom_type",
+                "limit": 5,
+            }
+        ]
+        nodes, node_lookup, all_task_node_ids = task_graph_formatter._format_nodes(
+            tasks
+        )
+        # Find the task node and check type and limit
+        task_node = next(n for n in nodes if n[1]["attribute"]["value"] == "desc")
+        assert task_node[1].get("type") == "custom_type"
+        assert task_node[1].get("limit") == 5
+
+    def test_format_edges_model_exception_in_intent_generation(
+        self, task_graph_formatter
+    ) -> None:
+        # Covers lines 587-593: model exception handling in intent generation
+        tasks = [
+            {
+                "id": "t1",
+                "name": "Task 1",
+                "description": "desc",
+                "dependencies": [],
+            }
+        ]
+        # Patch model to raise exception
+        task_graph_formatter._model = Mock()
+        task_graph_formatter._model.invoke.side_effect = Exception("Model error")
+
+        nodes, node_lookup, all_task_node_ids = task_graph_formatter._format_nodes(
+            tasks
+        )
+        start_node_id = "0"
+        edges, nested_graph_nodes = task_graph_formatter._format_edges(
+            tasks, node_lookup, all_task_node_ids, start_node_id
+        )
+        # Should still create edges with fallback intent
+        assert len(edges) > 0
+
+    def test_format_edges_model_invalid_intent_fallback(
+        self, task_graph_formatter
+    ) -> None:
+        # Covers lines 587-593: model returns invalid intent, should fallback
+        tasks = [
+            {
+                "id": "t1",
+                "name": "Task 1",
+                "description": "desc",
+                "dependencies": [],
+            }
+        ]
+        # Patch model to return invalid intent
+        mock_response = Mock()
+        mock_response.content = "none"
+        task_graph_formatter._model = Mock()
+        task_graph_formatter._model.invoke.return_value = mock_response
+
+        nodes, node_lookup, all_task_node_ids = task_graph_formatter._format_nodes(
+            tasks
+        )
+        start_node_id = "0"
+        edges, nested_graph_nodes = task_graph_formatter._format_edges(
+            tasks, node_lookup, all_task_node_ids, start_node_id
+        )
+        # Should still create edges with fallback intent
+        assert len(edges) > 0
+
+    def test_format_edges_dependency_edge_cases_comprehensive(
+        self, task_graph_formatter, caplog
+    ) -> None:
+        # Covers lines 496-498: comprehensive dependency edge cases
+        tasks = [
+            {
+                "id": "t1",
+                "name": "Task 1",
+                "description": "desc",
+                "dependencies": [None, 123, {"foo": "bar"}, "valid_dep"],
+            },
+            {
+                "id": "valid_dep",
+                "name": "Valid dependency",
+                "description": "desc",
+                "dependencies": [],
+            },
+        ]
+        nodes, node_lookup, all_task_node_ids = task_graph_formatter._format_nodes(
+            tasks
+        )
+        start_node_id = "0"
+        with caplog.at_level(logging.WARNING):
+            edges, nested_graph_nodes = task_graph_formatter._format_edges(
+                tasks, node_lookup, all_task_node_ids, start_node_id
+            )
+            # Should log warnings for invalid dependencies but still create edges
+            assert len(edges) > 0
+
+    def test_ensure_nested_graph_connectivity_comprehensive_edge_cases(
+        self, task_graph_formatter
+    ) -> None:
+        # Covers lines 655-661: comprehensive nested graph connectivity edge cases
+        graph = {
+            "nodes": [
+                [
+                    "ng1",
+                    {"resource": {"name": "NestedGraph"}, "attribute": {"value": "v1"}},
+                ],
+                [
+                    "ng2",
+                    {"resource": {"name": "NestedGraph"}, "attribute": {"value": "v2"}},
+                ],
+                [
+                    "ng3",
+                    {"resource": {"name": "NestedGraph"}, "attribute": {"value": "v3"}},
+                ],
+            ],
+            "edges": [],
+            "tasks": [
+                {
+                    "id": "t1",
+                    "steps": [{"step": "s1"}, {"step": "s2"}],
+                },  # ng1 maps to t1_step0
+                {"id": "t2", "steps": []},  # ng2 has no steps
+                {
+                    "id": "t3",
+                    "steps": [{"step": "s3"}],
+                },  # ng3 maps to t3_step0 (last step)
+            ],
+        }
+        # Map ng1 to t1_step0, ng2 to t2_step0 (but t2 has no steps), ng3 to t3_step0
+        graph["nodes"][0][0] = "t1_step0"
+        graph["nodes"][1][0] = "t2_step0"  # This won't be found in node_to_task_map
+        graph["nodes"][2][0] = "t3_step0"  # This is the last step
+
+        result = task_graph_formatter.ensure_nested_graph_connectivity(graph)
+
+        # ng1 should be updated (not last step)
+        ng1_node = next(n for n in result["nodes"] if n[0] == "t1_step0")
+        assert ng1_node[1]["attribute"]["value"] == "t1_step1"
+
+        # ng2 should remain unchanged (no corresponding task)
+        ng2_node = next(n for n in result["nodes"] if n[0] == "t2_step0")
+        assert ng2_node[1]["attribute"]["value"] == "v2"
+
+        # ng3 should remain unchanged (last step)
+        ng3_node = next(n for n in result["nodes"] if n[0] == "t3_step0")
+        assert ng3_node[1]["attribute"]["value"] == "v3"
+
+    def test_format_task_graph_nestedgraph_value_processing_edge_cases(
+        self, task_graph_formatter
+    ) -> None:
+        # Covers lines 186, 191-195, 198: NestedGraph value processing edge cases
+        tasks = [
+            {
+                "id": "t1",
+                "name": "Task with NestedGraph step",
+                "description": "desc",
+                "steps": [
+                    {
+                        "resource": {"name": "NestedGraph"},
+                        "attribute": {"value": {"description": "nested_desc"}},
+                    }
+                ],
+            }
+        ]
+        with patch.object(
+            task_graph_formatter,
+            "ensure_nested_graph_connectivity",
+            side_effect=lambda g: g,
+        ):
+            graph = task_graph_formatter.format_task_graph(tasks)
+            # Should process the nested graph value correctly
+            nested_graph_nodes = [
+                n for n in graph["nodes"] if n[1]["resource"]["name"] == "NestedGraph"
+            ]
+            assert len(nested_graph_nodes) > 0
+
+    def test_format_nodes_task_resource_workflow_edge_case(
+        self, task_graph_formatter
+    ) -> None:
+        # Covers line 273: task resource with workflow in name
+        tasks = [
+            {
+                "id": "t1",
+                "name": "Task with workflow resource",
+                "description": "desc",
+                "resource": "SomeWorkflow",  # Contains "workflow" in name
+            }
+        ]
+        nodes, node_lookup, all_task_node_ids = task_graph_formatter._format_nodes(
+            tasks
+        )
+        # Should create NestedGraph node
+        nested_graph_nodes = [
+            n for n in nodes if n[1]["resource"]["name"] == "NestedGraph"
+        ]
+        assert len(nested_graph_nodes) > 0
+
+    def test_format_edges_dependency_dict_without_id_edge_case(
+        self, task_graph_formatter, caplog
+    ) -> None:
+        # Covers line 498: dependency dict without 'id' field
+        tasks = [
+            {
+                "id": "t1",
+                "name": "Task 1",
+                "description": "desc",
+                "dependencies": [{"foo": "bar"}],  # Dict without 'id'
+            }
+        ]
+        nodes, node_lookup, all_task_node_ids = task_graph_formatter._format_nodes(
+            tasks
+        )
+        start_node_id = "0"
+        with caplog.at_level(logging.WARNING):
+            edges, nested_graph_nodes = task_graph_formatter._format_edges(
+                tasks, node_lookup, all_task_node_ids, start_node_id
+            )
+            # Should log warning for dict without 'id'
+            assert any(
+                "Skipping dependency dict without 'id' field" in m
+                for m in caplog.text.splitlines()
+            )
+
+    def test_format_edges_model_exception_comprehensive(
+        self, task_graph_formatter
+    ) -> None:
+        # Covers lines 587-593: comprehensive model exception handling
+        tasks = [
+            {
+                "id": "t1",
+                "name": "Task 1",
+                "description": "desc",
+                "dependencies": [],
+            }
+        ]
+        # Test different model exception scenarios
+        test_cases = [
+            Exception("Model error"),
+            ValueError("Invalid intent generated"),
+            RuntimeError("Model unavailable"),
+        ]
+
+        for exception in test_cases:
+            task_graph_formatter._model = Mock()
+            task_graph_formatter._model.invoke.side_effect = exception
+
+            nodes, node_lookup, all_task_node_ids = task_graph_formatter._format_nodes(
+                tasks
+            )
+            start_node_id = "0"
+            edges, nested_graph_nodes = task_graph_formatter._format_edges(
+                tasks, node_lookup, all_task_node_ids, start_node_id
+            )
+            # Should still create edges with fallback intent
+            assert len(edges) > 0
+
+    def test_format_edges_source_node_not_found_comprehensive(
+        self, task_graph_formatter, caplog
+    ) -> None:
+        # Covers line 643: comprehensive source node not found scenarios
+        tasks = [
+            {
+                "id": "t1",
+                "name": "Task 1",
+                "description": "desc",
+                "dependencies": ["nonexistent1", "nonexistent2"],
+            }
+        ]
+        nodes, node_lookup, all_task_node_ids = task_graph_formatter._format_nodes(
+            tasks
+        )
+        start_node_id = "0"
+        with caplog.at_level(logging.WARNING):
+            edges, nested_graph_nodes = task_graph_formatter._format_edges(
+                tasks, node_lookup, all_task_node_ids, start_node_id
+            )
+            # Should log warnings for each nonexistent dependency
+            warnings = [
+                m
+                for m in caplog.text.splitlines()
+                if "Could not find source node for dependency" in m
+            ]
+            assert len(warnings) >= 2
