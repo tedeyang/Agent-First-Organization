@@ -11,21 +11,20 @@ and profile-to-goal matching.
 import random
 import requests
 import copy
-from typing import List, Dict, Any, Tuple, Optional, Union
+from typing import List, Dict, Any, Tuple, Union
 from arklex.evaluation.get_documents import load_docs
 from arklex.evaluation.chatgpt_utils import chatgpt_chatbot
-from arklex.env.env import Env
-from arklex.orchestrator.NLU.nlu import SlotFilling
+from arklex.env.env import Environment
 from arklex.env.tools.tools import Tool
 from arklex.orchestrator.NLU.core.slot import SlotFiller
-from arklex.utils.slot import Slot
+from arklex.utils.logging_utils import LogContext
 
 ATTR_TO_PROFILE: str = "Convert the following list user attributes in to a text description of a customer profile for the following company:\n{company_summary}\nThe user attributes are here:\n{user_attr}"
 ADAPT_GOAL: str = "Assume you are planning to speak to a chatbot with the following goal in mind:\n{goal}\nUsing the company information below, re-write this goal into one that is more specific to the company and align with your profile. The new goal should be more specific either relevent to your profile or the company's details. Here is a summary of the company:\n{company_summary}\n{doc}\n{user_profile}"
 ADD_ATTRIBUTES: str = "Your job is to add attributes to a customer profile. Here is an example of an existing profile with the categories on the left and the attributes on the right:\n{user_profile}\nSuggest three attributes for the following category:\n{category}\nThese attributes should be specific values that are relevant to the category and apply to potential customers of the company. You should return a comma separated list of attributes without any descriptions of the attributes. Generated the attributes based on a summary of the company and the company webpage and what kind of customers the compnay is likely targeting. Here is the summary fo the company:\n{company_summary}\nHere is the webpage:\n{company_doc}"
 ADD_ATTRIBUTES_WO_DOC: str = "Your job is to add attributes to a customer profile. Here is an example of an existing profile with the categories on the left and the attributes on the right:\n{user_profile}\nSuggest three attributes for the following category:\n{category}\nThese attributes should be specific values that are relevant to the category and apply to potential customers of the company. You should return a comma separated list of attributes without any descriptions of the attributes. Generated the attributes based on a summary of the company and what kind of customers the compnay is likely targeting. Here is the summary fo the company:\n{company_summary}"
 
-logger = logging.getLogger(__name__)
+log_context = LogContext(__name__)
 
 
 def build_profile(
@@ -133,9 +132,7 @@ def build_profile(
                     random_index: int = random.choice(range(len(user_profiles[key])))
                     user_profile[key] = user_profiles[key][random_index]
             # based on the user's profile, select the attribute
-            strategy: str = (
-                "react"  ## TODO: temporary strategy, need to set in the config later
-            )
+            strategy: str = "react"  # TODO: Move strategy configuration to config file
             attributes, matched_attribute_to_goal = pick_attributes(
                 user_profile,
                 augmented_attributes,
@@ -253,23 +250,41 @@ Goal:
 
 
 def find_matched_attribute(
-    goal, user_profile_str, strategy="react", client=None
-) -> str:
-    """Find the matched attribute for a given goal from the user's profile.
+    goal: str,
+    user_profile_or_attributes: Union[str, Dict[str, Any]],
+    strategy: str = "react",
+    client: Any = None,
+) -> Union[str, Dict[str, Any]]:
+    """Find the matched attribute for a given goal.
 
-    This function attempts to identify the most relevant attribute category and its
-    corresponding values from the user's profile that align with the specified goal.
+    This function can work in two modes:
+    1. When user_profile_or_attributes is a string: Uses LLM to find the most relevant
+       attribute from the user's profile that aligns with the specified goal.
+    2. When user_profile_or_attributes is a dict: Creates a simple dictionary mapping
+       the goal to the provided attributes.
 
     Args:
         goal (str): The user's goal that needs to be achieved.
-        user_profile_str (str): A string representation of the user's full attributes.
+        user_profile_or_attributes (Union[str, Dict[str, Any]]): Either a string
+            representation of the user's full attributes or a dictionary of selected attributes.
         strategy (str, optional): The strategy to use for finding the matched attribute.
-            Defaults to "react".
+            Only used when user_profile_or_attributes is a string. Defaults to "react".
         client (Any, optional): Client for LLM interaction. Defaults to None.
 
     Returns:
-        str: The matched attribute value that is most relevant to the goal.
+        Union[str, Dict[str, Any]]: Either the matched attribute value (string) or
+            a dictionary mapping goal to attributes.
     """
+
+    # If user_profile_or_attributes is a dictionary, use simple dict mode
+    if isinstance(user_profile_or_attributes, dict):
+        matched_attribute_to_goal: Dict[str, Any] = {}
+        matched_attribute_to_goal["goal"] = goal
+        matched_attribute_to_goal["matched_attribute"] = user_profile_or_attributes
+        return matched_attribute_to_goal
+
+    # Otherwise, use LLM-based mode with the string profile
+    user_profile_str = user_profile_or_attributes
 
     if strategy == "react":
         FIND_MATCHED_ATTRIBUTE_PROMPT = """Given the following goal, please find the most relevant attribute category and its corresponding values(it can come from the user's information, product information or other user's persona) from the full attributes that user need to provide to the assistant in order to let the assistant achieve the goal. First, generate a thought about the reason why you pick this attribute category and its corresponding values. Then, generate the final decided one attribute value. Please only return single attribute value.
@@ -281,7 +296,7 @@ Full attributes:
 user_info: {{'id': 'gid://shopify/Customer/8740759797990', 'firstName': 'Yunan', 'lastName': 'Lu', 'email': 'yl4021@columbia.edu', 'phone': None, 'createdAt': '2025-03-23T02:47:38Z', 'updatedAt': '2025-03-29T21:01:02Z', 'numberOfOrders': '0', 'orders': {{'edges': []}}, 'amountSpent': {{'amount': '0.0', 'currencyCode': 'USD'}}, 'lastOrder': None, 'addresses': []}}
 current_webpage: Product ID: gid://shopify/Product/8970006790374
 Title: Pink Unicorn Boys & Girls Baseball Hat with Adjustable Buckle (One Size Fits Most)
-Description: 𝐄𝐘𝐄-𝐂𝐀𝐓𝐂𝐇𝐈𝐍𝐆 – The Awhale Girl's Unicorn Baseball Hat stands out with a 3D design and graphics packed with a vibrant pink color and tons of personality. Your kid will not want to take it off! Add some magic to your child's wardrobe with this adorable baseball cap! 𝐏𝐄𝐑𝐅𝐄𝐂𝐓 𝐅𝐈𝐓 – Made for all girl's hair types, our hat contains 6 embroidered eyelets and a full back opening for those messy buns and ponytails. Designed to fit children ages 2-12, the adjustable buckle can be tweaked in seconds for toddlers or tweens! 𝐇𝐈𝐆𝐇-𝐐𝐔𝐀𝐋𝐈𝐓𝐘 – Made with Premium cotton, our girl's unicorn baseball hat stays stunning with machine-washable cotton twill and durable stitching that preserves the colors and personality of the hat. 𝐀𝐋𝐋-𝐃𝐀𝐘 𝐔𝐒𝐄 – Made with breathable material, our unicorn baseball hat is comfortable for outdoor activities like running, baseball, tennis, and golf but also perfect for casual wear at school, the park, or on a playdate! 𝐀𝐖𝐇𝐀𝐋𝐄 𝐁𝐑𝐀𝐍𝐃 – Welcome to AWHALE, where our designers are obsessed with combining High-Quality Materials and Chic Design to bring joy and laughter to boys and girls. Your child will love wearing our stylish outfits, and as everyone knows, there is nothing more adorable than a happy and fashionable child!
+Description: 𝐄𝐘𝐄-𝐂𝐀𝐓𝐂𝐇𝐈𝐍𝐆 – The Awhale Girl's Unicorn Baseball Hat stands out with a 3D design and graphics packed with a vibrant pink color and tons of personality. Your kid will not want to take it off! Add some magic to your child's wardrobe with this adorable baseball cap! 𝐏𝐄𝐑𝐅𝐄𝐂𝐓 𝐅𝐈𝐓 – Made for all girl's hair types, our hat contains 6 embroidered eyelets and a full back opening for those messy buns and ponytails. Designed to fit children ages 2-12, the adjustable buckle can be tweaked in seconds for toddlers or tweens! 𝐇𝐈𝐆𝐇-𝐐𝐔𝐀𝐋𝐈𝐓𝐘 – Made with Premium cotton, our girl's unicorn baseball hat stays stunning with machine-washable cotton twill and durable stitching that preserves the colors and personality of the hat. 𝐀𝐋𝐋-𝐃𝐀𝐘 𝐔𝐒𝐄 – Made with breathable material, our unicorn baseball hat is comfortable for outdoor activities like running, baseball, tennis, and golf but also perfect for casual wear at school, the park, or on a playdate! 𝐀𝐖𝐇𝐀𝐋𝐄 𝐁𝐀𝐍𝐃 – Welcome to AWHALE, where our designers are obsessed with combining High-Quality Materials and Chic Design to bring joy and laughter to boys and girls. Your child will love wearing our stylish outfits, and as everyone knows, there is nothing more adorable than a happy and fashionable child!
 Total Inventory: 546
 Options: [{{'name': 'Title', 'values': ['Default Title']}}]
 The following are several variants of the product:
@@ -458,7 +473,7 @@ def pick_attributes_react(
 
     # Find the matched attribute to goal
     matched_attribute_to_goal = find_matched_attribute(
-        selected_attributes, goal, client
+        goal, selected_attributes, client
     )
 
     return selected_attributes, matched_attribute_to_goal
@@ -498,30 +513,11 @@ def pick_attributes_random(
         selected_attributes[category] = random.choice(values)
 
     # Find the matched attribute to goal
-    matched_attribute_to_goal = find_matched_attribute(selected_attributes, goal, None)
+    matched_attribute_to_goal = find_matched_attribute(
+        goal, selected_attributes, client=None
+    )
 
     return selected_attributes, matched_attribute_to_goal
-
-
-def find_matched_attribute(
-    attributes: Dict[str, Any], goal: str, client: Any
-) -> Dict[str, Any]:
-    """
-    Find the matched attribute to goal.
-
-    Args:
-        attributes (dict): The selected attributes.
-        goal (str): The selected goal.
-        client (Any): The client to use for the strategy.
-
-    Returns:
-        dict: The matched attribute to goal.
-    """
-    matched_attribute_to_goal: Dict[str, Any] = {}
-    matched_attribute_to_goal["goal"] = goal
-    matched_attribute_to_goal["matched_attribute"] = attributes
-
-    return matched_attribute_to_goal
 
 
 def adapt_goal(goal: str, config: Dict[str, Any], doc: str, user_profile: str) -> str:
@@ -612,7 +608,7 @@ def get_label(attribute, config):
     User's goal: {goal}
     Tool_id:
     """
-    env = Env(tools=config["tools"], workers=config["workers"])
+    env = Environment(tools=config["tools"], workers=config["workers"])
     tool_list = []
     for tool in config["tools"]:
         tool_id = tool["id"]
@@ -680,7 +676,7 @@ def get_label(attribute, config):
                 }
             ]
             break
-        except Exception as e:
+        except Exception:
             attempt += 1
 
     return label, valid

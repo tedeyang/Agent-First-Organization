@@ -18,7 +18,7 @@ from arklex.env.tools.shopify.utils_slots import (
     ShopifyGetOrderDetailsSlots,
     ShopifyOutputs,
 )
-from arklex.exceptions import ToolExecutionError
+from arklex.utils.exceptions import ToolExecutionError
 from arklex.env.tools.shopify._exception_prompt import ShopifyExceptionPrompt
 import inspect
 
@@ -141,7 +141,8 @@ def get_order_details(
                     )
                 response_text += "\n"
         return response_text
-    except Exception as e:
+    except Exception:
         raise ToolExecutionError(
-            func_name, ShopifyExceptionPrompt.ORDERS_NOT_FOUND_PROMPT
+            func_name,
+            extra_message=ShopifyExceptionPrompt.ORDERS_NOT_FOUND_PROMPT,
         )

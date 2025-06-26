@@ -19,7 +19,7 @@ from arklex.env.tools.shopify.utils_slots import (
 )
 from arklex.env.tools.shopify.utils_cart import *
 from arklex.env.tools.shopify.utils_nav import *
-from arklex.exceptions import ToolExecutionError
+from arklex.utils.exceptions import ToolExecutionError
 from arklex.env.tools.tools import register_tool
 from arklex.env.tools.shopify._exception_prompt import ShopifyExceptionPrompt
 
@@ -77,7 +77,8 @@ def cart_add_items(cart_id: str, product_variant_ids: List[str], **kwargs: Any) 
         cart_data = response.json()
         if "errors" in cart_data:
             raise ToolExecutionError(
-                func_name, ShopifyExceptionPrompt.CART_ADD_ITEMS_ERROR_PROMPT
+                func_name,
+                extra_message=ShopifyExceptionPrompt.CART_ADD_ITEMS_ERROR_PROMPT,
             )
         else:
             return "Items are successfully added to the shopping cart. " + json.dumps(
@@ -85,5 +86,6 @@ def cart_add_items(cart_id: str, product_variant_ids: List[str], **kwargs: Any) 
             )
     else:
         raise ToolExecutionError(
-            func_name, ShopifyExceptionPrompt.CART_ADD_ITEMS_ERROR_PROMPT
+            func_name,
+            extra_message=ShopifyExceptionPrompt.CART_ADD_ITEMS_ERROR_PROMPT,
         )

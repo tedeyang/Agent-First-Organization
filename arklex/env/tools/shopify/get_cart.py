@@ -10,16 +10,16 @@ This file contains the code for retrieving cart information from Shopify.
 from typing import Any, Dict
 import requests
 import inspect
-import logging
+from arklex.utils.logging_utils import LogContext
 
 from arklex.env.tools.shopify.utils_slots import ShopifyGetCartSlots, ShopifyOutputs
 from arklex.env.tools.shopify.utils_cart import *
 from arklex.env.tools.shopify.utils_nav import *
 from arklex.env.tools.tools import register_tool
-from arklex.exceptions import ToolExecutionError
+from arklex.utils.exceptions import ToolExecutionError
 from arklex.env.tools.shopify._exception_prompt import ShopifyExceptionPrompt
 
-logger = logging.getLogger(__name__)
+log_context = LogContext(__name__)
 
 description = "Get cart information"
 slots = ShopifyGetCartSlots.get_all_slots()
@@ -97,7 +97,8 @@ def get_cart(cart_id: str, **kwargs: Any) -> str:
         cart_data = response["data"]["cart"]
         if not cart_data:
             raise ToolExecutionError(
-                func_name, ShopifyExceptionPrompt.CART_NOT_FOUND_ERROR_PROMPT
+                func_name,
+                extra_message=ShopifyExceptionPrompt.CART_NOT_FOUND_ERROR_PROMPT,
             )
         response_text = ""
         response_text += f"Checkout URL: {cart_data['checkoutUrl']}\n"
@@ -110,5 +111,6 @@ def get_cart(cart_id: str, **kwargs: Any) -> str:
         return response_text
     else:
         raise ToolExecutionError(
-            func_name, ShopifyExceptionPrompt.CART_NOT_FOUND_ERROR_PROMPT
+            func_name,
+            extra_message=ShopifyExceptionPrompt.CART_NOT_FOUND_ERROR_PROMPT,
         )

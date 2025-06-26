@@ -9,9 +9,9 @@ This file contains the code for retrieving product information from Shopify.
 
 import json
 from typing import Any, List
-import logging
 import inspect
 import shopify
+from arklex.utils.logging_utils import LogContext
 
 # general GraphQL navigation utilities
 from arklex.env.tools.shopify.utils_nav import *
@@ -20,10 +20,10 @@ from arklex.env.tools.shopify.utils import authorify_admin
 # ADMIN
 from arklex.env.tools.shopify.utils_slots import ShopifyGetProductsSlots, ShopifyOutputs
 from arklex.env.tools.tools import register_tool
-from arklex.exceptions import ToolExecutionError
+from arklex.utils.exceptions import ToolExecutionError
 from arklex.env.tools.shopify._exception_prompt import ShopifyExceptionPrompt
 
-logger = logging.getLogger(__name__)
+log_context = LogContext(__name__)
 
 description = (
     "Get the inventory information and description details of multiple products."
@@ -100,7 +100,8 @@ def get_products(product_ids: List[str], **kwargs: Any) -> str:
             response = result["nodes"]
             if len(response) == 0:
                 raise ToolExecutionError(
-                    func_name, ShopifyExceptionPrompt.PRODUCTS_NOT_FOUND_PROMPT
+                    func_name,
+                    extra_message=ShopifyExceptionPrompt.PRODUCTS_NOT_FOUND_PROMPT,
                 )
             response_text = ""
             for product in response:
@@ -116,7 +117,8 @@ def get_products(product_ids: List[str], **kwargs: Any) -> str:
                     response_text += f"Variant name: {variant.get('displayName', 'None')}, Variant ID: {variant.get('id', 'None')}, Price: {variant.get('price', 'None')}, Inventory Quantity: {variant.get('inventoryQuantity', 'None')}\n"
                 response_text += "\n"
             return response_text
-    except Exception as e:
+    except Exception:
         raise ToolExecutionError(
-            func_name, ShopifyExceptionPrompt.PRODUCTS_NOT_FOUND_PROMPT
+            func_name,
+            extra_message=ShopifyExceptionPrompt.PRODUCTS_NOT_FOUND_PROMPT,
         )

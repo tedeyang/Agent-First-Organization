@@ -5,11 +5,11 @@ worker initialization, tool management, and slot filling integration.
 """
 
 import importlib
-import logging
 import os
 import uuid
 from functools import partial
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Callable, Dict, List, Optional, Union, Tuple
 
 from arklex.env.agents.agent import BaseAgent
 from arklex.env.planner.react_planner import DefaultPlanner, ReactPlanner
@@ -17,8 +17,14 @@ from arklex.env.tools.tools import Tool
 from arklex.env.workers.worker import BaseWorker
 from arklex.orchestrator.NLU.core.slot import SlotFiller
 from arklex.utils.graph_state import MessageState, NodeInfo, Params
+from arklex.utils.logging_utils import LogContext
+from arklex.orchestrator.NLU.services.model_service import (
+    DummyModelService,
+    ModelService,
+)
+from arklex.orchestrator.NLU.services.api_service import APIClientService
 
-logger: logging.Logger = logging.getLogger(__name__)
+log_context = LogContext(__name__)
 
 
 class BaseResourceInitializer:
@@ -94,8 +100,7 @@ class DefaultResourceInitializer(BaseResourceInitializer):
                     "fixed_args": tool.get("fixed_args", {}),
                 }
             except Exception as e:
-                logger.error(f"Tool {name} is not registered, error: {e}")
-                continue
+                log_context.error(f"Tool {name} is not registered, error: {e}")
         return tool_registry
 
     @staticmethod
@@ -124,8 +129,7 @@ class DefaultResourceInitializer(BaseResourceInitializer):
                     "execute": partial(func, **worker.get("fixed_args", {})),
                 }
             except Exception as e:
-                logger.error(f"Worker {name} is not registered, error: {e}")
-                continue
+                log_context.error(f"Worker {name} is not registered, error: {e}")
         return worker_registry
 
     @staticmethod
@@ -174,6 +178,7 @@ class Environment:
         slotsfillapi: str = "",
         resource_initializer: Optional[BaseResourceInitializer] = None,
         planner_enabled: bool = False,
+        model_service: Optional[ModelService] = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the environment.
@@ -184,6 +189,7 @@ class Environment:
             slotsfillapi: API endpoint for slot filling
             resource_initializer: Resource initializer instance
             planner_enabled: Whether planning is enabled
+            model_service: Model service for intent detection and slot filling
         """
         # Accept slot_fill_api as an alias for slotsfillapi for compatibility with tests
         if "slot_fill_api" in kwargs and not slotsfillapi:
@@ -205,6 +211,15 @@ class Environment:
             id: resource["name"]
             for id, resource in {**self.tools, **self.workers, **self.agents}.items()
         }
+        self.model_service = model_service or DummyModelService(
+            {
+                "model_name": "dummy",
+                "api_key": "dummy",
+                "endpoint": "http://dummy",
+                "model_type_or_path": "dummy-path",
+                "llm_provider": "dummy",
+            }
+        )
         self.slotfillapi: SlotFiller = self.initialize_slotfillapi(slotsfillapi)
         if planner_enabled:
             self.planner: Union[ReactPlanner, DefaultPlanner] = ReactPlanner(
@@ -225,11 +240,11 @@ class Environment:
         Returns:
             SlotFiller: Initialized slot filler instance, either API-based or local model-based.
         """
-        if not isinstance(slotsfillapi, str) or not slotsfillapi:
-            logger.warning("Using local model-based slot filling")
-            return SlotFiller(None)
-        logger.info(f"Initializing SlotFiller with API URL: {slotsfillapi}")
-        return SlotFiller(slotsfillapi)
+        if isinstance(slotsfillapi, str) and slotsfillapi:
+            api_service = APIClientService(base_url=slotsfillapi)
+            return SlotFiller(model_service=self.model_service, api_service=api_service)
+        else:
+            return SlotFiller(model_service=self.model_service)
 
     def step(
         self, id: str, message_state: MessageState, params: Params, node_info: NodeInfo
@@ -247,7 +262,7 @@ class Environment:
         """
         response_state: MessageState
         if id in self.tools:
-            logger.info(f"{self.tools[id]['name']} tool selected")
+            log_context.info(f"{self.tools[id]['name']} tool selected")
             tool: Tool = self.tools[id]["execute"]()
             tool.init_slotfiller(self.slotfillapi)
             combined_args: Dict[str, Any] = {
@@ -264,7 +279,7 @@ class Environment:
             )
 
         elif id in self.workers:
-            logger.info(f"{self.workers[id]['name']} worker selected")
+            log_context.info(f"{self.workers[id]['name']} worker selected")
             worker: BaseWorker = self.workers[id]["execute"]()
             if hasattr(worker, "init_slotfilling"):
                 worker.init_slotfilling(self.slotfillapi)
@@ -315,7 +330,7 @@ class Environment:
                 response_state.status
             )
         else:
-            logger.info("planner selected")
+            log_context.info("planner selected")
             action: str
             response_state: MessageState
             msg_history: List[Dict[str, Any]]
@@ -323,5 +338,21 @@ class Environment:
                 message_state, params.memory.function_calling_trajectory
             )
 
-        logger.info(f"Response state from {id}: {response_state}")
+        log_context.info(f"Response state from {id}: {response_state}")
         return response_state, params
+
+    def register_tool(self, name: str, tool: Any) -> None:
+        """Register a tool in the environment.
+
+        Args:
+            name: Name of the tool
+            tool: Tool instance
+
+        Raises:
+            EnvironmentError: If tool registration fails
+        """
+        try:
+            self.tools[name] = tool
+            log_context.info(f"{self.tools[name]['name']} tool selected")
+        except Exception as e:
+            log_context.error(f"Tool {name} is not registered, error: {e}")

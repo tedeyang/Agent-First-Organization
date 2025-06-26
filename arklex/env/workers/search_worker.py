@@ -6,19 +6,17 @@ results. The worker uses a state graph to manage the workflow of search operatio
 response generation, integrating with the framework's tool generation system.
 """
 
-import logging
 from typing import Any, Dict
 
 from langgraph.graph import StateGraph, START
-
 
 from arklex.env.workers.worker import BaseWorker, register_worker
 from arklex.utils.graph_state import MessageState
 from arklex.env.tools.utils import ToolGenerator
 from arklex.env.tools.RAG.search import SearchEngine
+from arklex.utils.logging_utils import LogContext
 
-
-logger = logging.getLogger(__name__)
+log_context = LogContext(__name__)
 
 
 @register_worker

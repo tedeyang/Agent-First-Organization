@@ -1,4 +1,3 @@
-import logging
 import json
 from typing import Any, Dict, List, Optional, Literal, Tuple
 from pydantic import BaseModel
@@ -11,6 +10,7 @@ from langchain.prompts import PromptTemplate
 from langchain_core.documents import Document
 from langchain_community.vectorstores.faiss import FAISS
 from langchain_openai import OpenAIEmbeddings
+from arklex.utils.logging_utils import LogContext
 
 from arklex.utils.graph_state import MessageState, LLMConfig
 from arklex.utils.model_config import MODEL
@@ -25,9 +25,10 @@ from arklex.orchestrator.prompts import (
     PLANNER_REACT_INSTRUCTION_FEW_SHOT,
     PLANNER_SUMMARIZE_TRAJECTORY_PROMPT,
 )
+from arklex.utils.logging_utils import LogContext
 
 
-logger: logging.Logger = logging.getLogger(__name__)
+log_context = LogContext(__name__)
 
 # If False, use shorter version of planner ReAct instruction without few-shot example(s)
 USE_FEW_SHOT_REACT_PROMPT: bool = True
@@ -79,7 +80,7 @@ RESPOND_ACTION_RESOURCE: PlannerResource = PlannerResource(
     returns={},
 )
 
-logger: logging.Logger = logging.getLogger(__name__)
+log_context = LogContext(__name__) 
 
 # Default LLM Config used on planner initialization, overwritten by
 # updated llm config info with planner.set_llm_config (invoked in
@@ -365,7 +366,7 @@ class ReactPlanner(DefaultPlanner):
                 "task": task,
             }
         )
-        logger.info(
+        log_context.info(
             f"Planner trajectory summarization system prompt: {system_prompt.text}"
         )
 
@@ -420,11 +421,11 @@ class ReactPlanner(DefaultPlanner):
             else:
                 n_retrievals: int = NUM_STEPS_TO_NUM_RETRIEVALS(n_steps)
 
-        except Exception as e:
+        except Exception:
             valid_summary = False
 
         if not valid_summary:
-            logger.info(
+            log_context.info(
                 f"Failed to parse planning trajectory summary into valid list of steps: '{summary}'..."
                 + f" Using MIN_NUM_RETRIEVALS = {MIN_NUM_RETRIEVALS}"
             )
@@ -491,13 +492,13 @@ class ReactPlanner(DefaultPlanner):
         Parse model response to planner ReAct instruction to extract tool/worker info as JSON.
         """
         action_str: str = response.split("Action:\n")[-1]
-        logger.info(f"planner action_str: {action_str}")
+        log_context.info(f"planner action_str: {action_str}")
 
         # Attempt to parse action as JSON object
         try:
             return json.loads(action_str)
         except json.JSONDecodeError as e:
-            logger.info(
+            log_context.info(
                 f'Failed to parse action in planner ReAct response as JSON object: "{action_str}"...'
                 + " Returning response text as respond action."
             )
@@ -541,7 +542,7 @@ class ReactPlanner(DefaultPlanner):
         trajectory_summary: str = self._get_planning_trajectory_summary(
             state, msg_history
         )
-        logger.info(
+        log_context.info(
             f"planning trajectory summary response in planner:\n{trajectory_summary}"
         )
         n_retrievals: int = self._get_num_resource_retrievals(trajectory_summary)
@@ -554,7 +555,7 @@ class ReactPlanner(DefaultPlanner):
         resource_names: List[str] = [
             doc.metadata["resource_name"] for doc in signature_docs
         ]
-        logger.info(
+        log_context.info(
             f"Planner retrieved {actual_n_retrievals} signatures for the following resources (tools/workers): {resource_names}"
         )
 
@@ -597,14 +598,14 @@ class ReactPlanner(DefaultPlanner):
             res: Any = self.llm.invoke(messages)
             message: Dict[str, Any] = aimessage_to_dict(res)
             response_text: str = message["content"]
-            logger.info(f"response text in planner: {response_text}")
+            log_context.info(f"response text in planner: {response_text}")
             json_response: Dict[str, Any] = self._parse_response_action_to_json(
                 response_text
             )
-            logger.info(f"JSON response in planner: {json_response}")
+            log_context.info(f"JSON response in planner: {json_response}")
             actions: List[Action] = self.message_to_actions(json_response)
 
-            logger.info(f"actions in planner: {actions}")
+            log_context.info(f"actions in planner: {actions}")
 
             # Execute actions
             for action in actions:
@@ -645,6 +646,8 @@ class ReactPlanner(DefaultPlanner):
                     messages.extend(new_messages)
                     msg_history.extend(new_messages)
 
+        # If we reach here, we've exhausted max_num_steps without finding RESPOND_ACTION
+        # Return the last action and response
         return msg_history, action.name, env_response.observation
 
     def step(self, action: Action, msg_state: MessageState) -> EnvResponse:
@@ -663,16 +666,16 @@ class ReactPlanner(DefaultPlanner):
                     **calling_tool["fixed_args"],
                 }
                 observation: Any = calling_tool["execute"]().func(**combined_kwargs)
-                logger.info(
+                log_context.info(
                     f"planner calling tool {action.name} with kwargs {combined_kwargs}"
                 )
                 if not isinstance(observation, str):
                     # Convert to string if not already
                     observation = str(observation)
-                logger.info(f"tool call response: {str(observation)}")
+                log_context.info(f"tool call response: {str(observation)}")
 
             except Exception as e:
-                logger.error(traceback.format_exc())
+                log_context.error(traceback.format_exc())
                 observation = f"Error: {e}"
 
         # workers_map indexed by worker name
@@ -685,7 +688,7 @@ class ReactPlanner(DefaultPlanner):
                     observation = str(observation)
 
             except Exception as e:
-                logger.error(traceback.format_exc())
+                log_context.error(traceback.format_exc())
                 observation = f"Error: {e}"
 
         else:
