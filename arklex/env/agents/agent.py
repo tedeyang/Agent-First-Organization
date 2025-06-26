@@ -4,8 +4,9 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional, Type, TypeVar
 
 from arklex.utils.graph_state import MessageState, StatusEnum
+from arklex.utils.logging_utils import LogContext
 
-logger = logging.getLogger(__name__)
+log_context = LogContext(__name__)
 
 T = TypeVar("T")
 
@@ -94,7 +95,7 @@ class BaseAgent(ABC):
             )
             return response_state
         except Exception as e:
-            logger.error(traceback.format_exc())
+            log_context.error(traceback.format_exc())
             return msg_state
 
     def complete_state(self, msg_state: MessageState, **kwargs: Any) -> MessageState:
@@ -105,10 +106,10 @@ class BaseAgent(ABC):
         try:
             if msg_state.status == StatusEnum.INCOMPLETE:
                 msg_state.status = StatusEnum.COMPLETE
-            logger.info(f"Ending agent {self.name} with status {msg_state.status}")
+            log_context.info(f"Ending agent {self.name} with status {msg_state.status}")
         except Exception as e:
-            logger.error(f"Error when ending agent : {traceback.format_exc()}")
+            log_context.error(f"Error when ending agent : {traceback.format_exc()}")
             msg_state.status = StatusEnum.INCOMPLETE
             msg_state.response = str(e)
-            logger.error(f"Agent {self.name} ended with error: {e}")
+            log_context.error(f"Agent {self.name} ended with error: {e}")
         return msg_state
