@@ -926,51 +926,682 @@ class TestReactPlanner:
     def test_plan_with_use_few_shot_prompt(
         self, react_planner, mock_message_state, mock_msg_history, patched_sample_config
     ) -> None:
-        """Test plan method with USE_FEW_SHOT_REACT_PROMPT."""
-        config = patched_sample_config
-        mock_llm = config["mock_llm"]
-        mock_response = Mock()
-        mock_response.content = "Test response"
-        mock_llm.invoke.return_value = mock_response
-        config["mock_aimessage_to_dict"].return_value = {"content": "Test response"}
-        react_planner.llm = mock_llm
-        react_planner.llm_provider = "openai"
-        react_planner.system_role = "system"
-        react_planner.resource_rag_docs_created = True
-
-        with (
-            patch("arklex.env.planner.react_planner.USE_FEW_SHOT_REACT_PROMPT", True),
-            patch.object(
+        """Test plan method with USE_FEW_SHOT_REACT_PROMPT enabled."""
+        with patch("arklex.env.planner.react_planner.USE_FEW_SHOT_REACT_PROMPT", True):
+            with patch.object(
                 react_planner, "_get_planning_trajectory_summary"
-            ) as mock_get_summary,
-            patch.object(react_planner, "_get_num_resource_retrievals") as mock_get_num,
-            patch.object(
-                react_planner, "_retrieve_resource_signatures"
-            ) as mock_retrieve,
-            patch.object(react_planner, "_parse_response_action_to_json") as mock_parse,
-            patch.object(
-                react_planner, "message_to_actions"
-            ) as mock_message_to_actions,
-            patch.object(react_planner, "step") as mock_step,
-        ):
-            mock_get_summary.return_value = "Test summary"
-            mock_get_num.return_value = 5
-            mock_retrieve.return_value = []
-            mock_parse.return_value = {
-                "name": RESPOND_ACTION_NAME,
-                "arguments": {"content": "response"},
-            }
-            mock_message_to_actions.return_value = [
-                Action(name=RESPOND_ACTION_NAME, kwargs={"content": "response"})
-            ]
-            mock_step.return_value = EnvResponse(observation="test observation")
+            ) as mock_summary:
+                with patch.object(
+                    react_planner, "_get_num_resource_retrievals"
+                ) as mock_retrievals:
+                    with patch.object(
+                        react_planner, "_retrieve_resource_signatures"
+                    ) as mock_retrieve:
+                        with patch.object(react_planner, "llm") as mock_llm:
+                            with patch(
+                                "arklex.env.planner.react_planner.PromptTemplate"
+                            ) as mock_prompt_template:
+                                with patch(
+                                    "arklex.env.planner.react_planner.aimessage_to_dict"
+                                ) as mock_aimessage:
+                                    with patch.object(
+                                        react_planner, "_parse_response_action_to_json"
+                                    ) as mock_parse:
+                                        with patch.object(
+                                            react_planner, "message_to_actions"
+                                        ) as mock_actions:
+                                            with patch.object(
+                                                react_planner, "step"
+                                            ) as mock_step:
+                                                # Setup mocks
+                                                mock_summary.return_value = (
+                                                    "Test summary"
+                                                )
+                                                mock_retrievals.return_value = 3
+                                                mock_retrieve.return_value = [
+                                                    Mock(
+                                                        metadata={
+                                                            "resource_name": "test_resource",
+                                                            "json_signature": {},
+                                                        }
+                                                    )
+                                                ]
 
-            result = react_planner.plan(mock_message_state, mock_msg_history)
+                                                mock_prompt_instance = Mock()
+                                                mock_prompt_instance.invoke.return_value = Mock(
+                                                    text="System prompt"
+                                                )
+                                                mock_prompt_template.from_template.return_value = mock_prompt_instance
 
-            assert len(result) == 3
-            assert isinstance(result[0], list)
-            assert isinstance(result[1], str)
-            assert isinstance(result[2], str)
+                                                mock_llm.invoke.return_value = Mock()
+                                                mock_aimessage.return_value = {
+                                                    "content": "Test response"
+                                                }
+                                                mock_parse.return_value = {
+                                                    "name": "test_tool",
+                                                    "arguments": {},
+                                                }
+                                                mock_actions.return_value = [
+                                                    Action(name="test_tool", kwargs={})
+                                                ]
+                                                mock_step.return_value = EnvResponse(
+                                                    observation="tool result"
+                                                )
+
+                                                # Execute
+                                                result = react_planner.plan(
+                                                    mock_message_state, mock_msg_history
+                                                )
+
+                                                # Verify
+                                                assert mock_prompt_template.from_template.called
+                                                assert result[1] == "test_tool"
+
+    def test_get_num_resource_retrievals_valid_summary_with_steps(
+        self, react_planner
+    ) -> None:
+        """Test _get_num_resource_retrievals with valid summary that contains steps."""
+        # Test the else branch where valid_summary is True and n_steps is successfully parsed
+        summary = "1. First step\n2. Second step\n3. Third step"
+
+        with patch.object(
+            react_planner, "_parse_trajectory_summary_to_steps"
+        ) as mock_parse:
+            mock_parse.return_value = ["First step", "Second step", "Third step"]
+
+            result = react_planner._get_num_resource_retrievals(summary)
+
+            # Should return the calculated number based on steps
+            expected_retrievals = NUM_STEPS_TO_NUM_RETRIEVALS(3)
+            expected_retrievals = min(
+                max(expected_retrievals, MIN_NUM_RETRIEVALS), MAX_NUM_RETRIEVALS
+            )
+            assert result == expected_retrievals
+
+    def test_plan_method_with_tool_action_and_max_steps_exhausted(
+        self, react_planner, mock_message_state, mock_msg_history, patched_sample_config
+    ) -> None:
+        """Test plan method when max_num_steps is exhausted without finding RESPOND_ACTION."""
+        with patch.object(
+            react_planner, "_get_planning_trajectory_summary"
+        ) as mock_summary:
+            with patch.object(
+                react_planner, "_get_num_resource_retrievals"
+            ) as mock_retrievals:
+                with patch.object(
+                    react_planner, "_retrieve_resource_signatures"
+                ) as mock_retrieve:
+                    with patch.object(react_planner, "llm") as mock_llm:
+                        with patch(
+                            "arklex.env.planner.react_planner.PromptTemplate"
+                        ) as mock_prompt_template:
+                            with patch(
+                                "arklex.env.planner.react_planner.aimessage_to_dict"
+                            ) as mock_aimessage:
+                                with patch.object(
+                                    react_planner, "_parse_response_action_to_json"
+                                ) as mock_parse:
+                                    with patch.object(
+                                        react_planner, "message_to_actions"
+                                    ) as mock_actions:
+                                        with patch.object(
+                                            react_planner, "step"
+                                        ) as mock_step:
+                                            with patch(
+                                                "arklex.env.planner.react_planner.uuid"
+                                            ) as mock_uuid:
+                                                # Setup mocks
+                                                mock_summary.return_value = (
+                                                    "Test summary"
+                                                )
+                                                mock_retrievals.return_value = 3
+                                                mock_retrieve.return_value = [
+                                                    Mock(
+                                                        metadata={
+                                                            "resource_name": "test_resource",
+                                                            "json_signature": {},
+                                                        }
+                                                    )
+                                                ]
+
+                                                mock_prompt_instance = Mock()
+                                                mock_prompt_instance.invoke.return_value = Mock(
+                                                    text="System prompt"
+                                                )
+                                                mock_prompt_template.from_template.return_value = mock_prompt_instance
+
+                                                # Mock LLM to return non-RESPOND_ACTION for max_num_steps iterations
+                                                mock_llm.invoke.return_value = Mock()
+                                                mock_aimessage.return_value = {
+                                                    "content": "Test response"
+                                                }
+                                                mock_parse.return_value = {
+                                                    "name": "test_tool",
+                                                    "arguments": {},
+                                                }
+                                                mock_actions.return_value = [
+                                                    Action(name="test_tool", kwargs={})
+                                                ]
+                                                mock_step.return_value = EnvResponse(
+                                                    observation="tool result"
+                                                )
+                                                mock_uuid.uuid4.return_value = (
+                                                    "test-uuid"
+                                                )
+
+                                                # Execute with max_num_steps=1 to ensure exhaustion
+                                                result = react_planner.plan(
+                                                    mock_message_state,
+                                                    mock_msg_history,
+                                                    max_num_steps=1,
+                                                )
+
+                                                # Should return the last action and response when max steps exhausted
+                                                assert result[1] == "test_tool"
+                                                assert result[2] == "tool result"
+
+    def test_step_unknown_action(self, react_planner, mock_message_state) -> None:
+        """Test step method with unknown action (covers the else branch)."""
+        # Create an action that doesn't exist in tools_map or workers_map
+        unknown_action = Action(name="unknown_action", kwargs={})
+
+        # Mock name2id to return None for unknown action
+        react_planner.name2id = {"test_tool": 1, "test_worker": 2}
+
+        result = react_planner.step(unknown_action, mock_message_state)
+
+        # Should return error message for unknown action
+        assert result.observation == "Unknown action unknown_action"
+
+    def test_plan_method_tool_call_simulation(
+        self, react_planner, mock_message_state, mock_msg_history, patched_sample_config
+    ) -> None:
+        """Test plan method with tool action to cover the tool call simulation branch."""
+        with patch.object(
+            react_planner, "_get_planning_trajectory_summary"
+        ) as mock_summary:
+            with patch.object(
+                react_planner, "_get_num_resource_retrievals"
+            ) as mock_retrievals:
+                with patch.object(
+                    react_planner, "_retrieve_resource_signatures"
+                ) as mock_retrieve:
+                    with patch.object(react_planner, "llm") as mock_llm:
+                        with patch(
+                            "arklex.env.planner.react_planner.PromptTemplate"
+                        ) as mock_prompt_template:
+                            with patch(
+                                "arklex.env.planner.react_planner.aimessage_to_dict"
+                            ) as mock_aimessage:
+                                with patch.object(
+                                    react_planner, "_parse_response_action_to_json"
+                                ) as mock_parse:
+                                    with patch.object(
+                                        react_planner, "message_to_actions"
+                                    ) as mock_actions:
+                                        with patch.object(
+                                            react_planner, "step"
+                                        ) as mock_step:
+                                            with patch(
+                                                "arklex.env.planner.react_planner.uuid"
+                                            ) as mock_uuid:
+                                                with patch(
+                                                    "arklex.env.planner.react_planner.json"
+                                                ) as mock_json:
+                                                    # Setup mocks
+                                                    mock_summary.return_value = (
+                                                        "Test summary"
+                                                    )
+                                                    mock_retrievals.return_value = 3
+                                                    mock_retrieve.return_value = [
+                                                        Mock(
+                                                            metadata={
+                                                                "resource_name": "test_resource",
+                                                                "json_signature": {},
+                                                            }
+                                                        )
+                                                    ]
+
+                                                    mock_prompt_instance = Mock()
+                                                    mock_prompt_instance.invoke.return_value = Mock(
+                                                        text="System prompt"
+                                                    )
+                                                    mock_prompt_template.from_template.return_value = mock_prompt_instance
+
+                                                    mock_llm.invoke.return_value = (
+                                                        Mock()
+                                                    )
+                                                    mock_aimessage.return_value = {
+                                                        "content": "Test response"
+                                                    }
+                                                    mock_parse.return_value = {
+                                                        "name": "test_tool",
+                                                        "arguments": {"param": "value"},
+                                                    }
+                                                    mock_actions.return_value = [
+                                                        Action(
+                                                            name="test_tool",
+                                                            kwargs={"param": "value"},
+                                                        )
+                                                    ]
+                                                    mock_step.return_value = (
+                                                        EnvResponse(
+                                                            observation="tool result"
+                                                        )
+                                                    )
+                                                    mock_uuid.uuid4.return_value = (
+                                                        "test-uuid"
+                                                    )
+                                                    mock_json.dumps.return_value = (
+                                                        '{"param": "value"}'
+                                                    )
+
+                                                    # Execute with max_num_steps=1 to ensure we hit the tool call simulation
+                                                    result = react_planner.plan(
+                                                        mock_message_state,
+                                                        mock_msg_history,
+                                                        max_num_steps=1,
+                                                    )
+
+                                                    # Verify that tool call simulation was executed
+                                                    assert mock_json.dumps.called
+                                                    assert result[1] == "test_tool"
+                                                    assert result[2] == "tool result"
+
+    def test_plan_method_with_multiple_steps_and_respond_action(
+        self, react_planner, mock_message_state, mock_msg_history, patched_sample_config
+    ) -> None:
+        """Test plan method with multiple steps where the second action is RESPOND_ACTION."""
+        with patch.object(
+            react_planner, "_get_planning_trajectory_summary"
+        ) as mock_summary:
+            with patch.object(
+                react_planner, "_get_num_resource_retrievals"
+            ) as mock_retrievals:
+                with patch.object(
+                    react_planner, "_retrieve_resource_signatures"
+                ) as mock_retrieve:
+                    with patch.object(react_planner, "llm") as mock_llm:
+                        with patch(
+                            "arklex.env.planner.react_planner.PromptTemplate"
+                        ) as mock_prompt_template:
+                            with patch(
+                                "arklex.env.planner.react_planner.aimessage_to_dict"
+                            ) as mock_aimessage:
+                                with patch.object(
+                                    react_planner, "_parse_response_action_to_json"
+                                ) as mock_parse:
+                                    with patch.object(
+                                        react_planner, "message_to_actions"
+                                    ) as mock_actions:
+                                        with patch.object(
+                                            react_planner, "step"
+                                        ) as mock_step:
+                                            with patch(
+                                                "arklex.env.planner.react_planner.uuid"
+                                            ) as mock_uuid:
+                                                with patch(
+                                                    "arklex.env.planner.react_planner.json"
+                                                ) as mock_json:
+                                                    # Setup mocks
+                                                    mock_summary.return_value = (
+                                                        "Test summary"
+                                                    )
+                                                    mock_retrievals.return_value = 3
+                                                    mock_retrieve.return_value = [
+                                                        Mock(
+                                                            metadata={
+                                                                "resource_name": "test_resource",
+                                                                "json_signature": {},
+                                                            }
+                                                        )
+                                                    ]
+
+                                                    mock_prompt_instance = Mock()
+                                                    mock_prompt_instance.invoke.return_value = Mock(
+                                                        text="System prompt"
+                                                    )
+                                                    mock_prompt_template.from_template.return_value = mock_prompt_instance
+
+                                                    # First call returns tool action, second call returns respond action
+                                                    mock_llm.invoke.side_effect = [
+                                                        Mock(),
+                                                        Mock(),
+                                                    ]
+                                                    mock_aimessage.side_effect = [
+                                                        {"content": "First response"},
+                                                        {"content": "Second response"},
+                                                    ]
+                                                    mock_parse.side_effect = [
+                                                        {
+                                                            "name": "test_tool",
+                                                            "arguments": {
+                                                                "param": "value"
+                                                            },
+                                                        },
+                                                        {
+                                                            "name": RESPOND_ACTION_NAME,
+                                                            "arguments": {
+                                                                "content": "Final response"
+                                                            },
+                                                        },
+                                                    ]
+                                                    mock_actions.side_effect = [
+                                                        [
+                                                            Action(
+                                                                name="test_tool",
+                                                                kwargs={
+                                                                    "param": "value"
+                                                                },
+                                                            )
+                                                        ],
+                                                        [
+                                                            Action(
+                                                                name=RESPOND_ACTION_NAME,
+                                                                kwargs={
+                                                                    "content": "Final response"
+                                                                },
+                                                            )
+                                                        ],
+                                                    ]
+                                                    mock_step.side_effect = [
+                                                        EnvResponse(
+                                                            observation="tool result"
+                                                        ),
+                                                        EnvResponse(
+                                                            observation="Final response"
+                                                        ),
+                                                    ]
+                                                    mock_uuid.uuid4.return_value = (
+                                                        "test-uuid"
+                                                    )
+                                                    mock_json.dumps.return_value = (
+                                                        '{"param": "value"}'
+                                                    )
+
+                                                    # Execute
+                                                    result = react_planner.plan(
+                                                        mock_message_state,
+                                                        mock_msg_history,
+                                                        max_num_steps=2,
+                                                    )
+
+                                                    # Should return on the second iteration when RESPOND_ACTION is found
+                                                    assert (
+                                                        result[1] == RESPOND_ACTION_NAME
+                                                    )
+                                                    assert result[2] == "Final response"
+                                                    assert (
+                                                        mock_llm.invoke.call_count == 2
+                                                    )
+
+    def test_default_planner_set_llm_config_and_build_resource_library(
+        self, mock_tools_map, mock_workers_map, mock_name2id, mock_llm_config
+    ) -> None:
+        """Test DefaultPlanner's set_llm_config_and_build_resource_library method."""
+        default_planner = DefaultPlanner(mock_tools_map, mock_workers_map, mock_name2id)
+
+        # This should not raise any exceptions and should set the llm_config
+        default_planner.set_llm_config_and_build_resource_library(mock_llm_config)
+
+        assert default_planner.llm_config == mock_llm_config
+
+    def test_get_num_resource_retrievals_valid_summary_with_steps_else_branch(
+        self, react_planner
+    ) -> None:
+        """Test _get_num_resource_retrievals with valid summary that successfully parses steps."""
+        # Test the else branch where valid_summary is True and n_steps is successfully parsed
+        summary = "1. First step\n2. Second step\n3. Third step"
+
+        with patch.object(
+            react_planner, "_parse_trajectory_summary_to_steps"
+        ) as mock_parse:
+            # Mock to return a valid list of steps
+            mock_parse.return_value = ["First step", "Second step", "Third step"]
+
+            result = react_planner._get_num_resource_retrievals(summary)
+
+            # Should return the calculated number based on steps
+            expected_retrievals = NUM_STEPS_TO_NUM_RETRIEVALS(3)
+            expected_retrievals = min(
+                max(expected_retrievals, MIN_NUM_RETRIEVALS), MAX_NUM_RETRIEVALS
+            )
+            assert result == expected_retrievals
+
+    def test_plan_method_tool_call_simulation_branch(
+        self, react_planner, mock_message_state, mock_msg_history, patched_sample_config
+    ) -> None:
+        """Test plan method with tool action to cover the tool call simulation branch (line 580)."""
+        with patch.object(
+            react_planner, "_get_planning_trajectory_summary"
+        ) as mock_summary:
+            with patch.object(
+                react_planner, "_get_num_resource_retrievals"
+            ) as mock_retrievals:
+                with patch.object(
+                    react_planner, "_retrieve_resource_signatures"
+                ) as mock_retrieve:
+                    with patch.object(react_planner, "llm") as mock_llm:
+                        with patch(
+                            "arklex.env.planner.react_planner.PromptTemplate"
+                        ) as mock_prompt_template:
+                            with patch(
+                                "arklex.env.planner.react_planner.aimessage_to_dict"
+                            ) as mock_aimessage:
+                                with patch.object(
+                                    react_planner, "_parse_response_action_to_json"
+                                ) as mock_parse:
+                                    with patch.object(
+                                        react_planner, "message_to_actions"
+                                    ) as mock_actions:
+                                        with patch.object(
+                                            react_planner, "step"
+                                        ) as mock_step:
+                                            with patch(
+                                                "arklex.env.planner.react_planner.uuid"
+                                            ) as mock_uuid:
+                                                with patch(
+                                                    "arklex.env.planner.react_planner.json"
+                                                ) as mock_json:
+                                                    # Setup mocks
+                                                    mock_summary.return_value = (
+                                                        "Test summary"
+                                                    )
+                                                    mock_retrievals.return_value = 3
+                                                    mock_retrieve.return_value = [
+                                                        Mock(
+                                                            metadata={
+                                                                "resource_name": "test_resource",
+                                                                "json_signature": {},
+                                                            }
+                                                        )
+                                                    ]
+
+                                                    mock_prompt_instance = Mock()
+                                                    mock_prompt_instance.invoke.return_value = Mock(
+                                                        text="System prompt"
+                                                    )
+                                                    mock_prompt_template.from_template.return_value = mock_prompt_instance
+
+                                                    mock_llm.invoke.return_value = (
+                                                        Mock()
+                                                    )
+                                                    mock_aimessage.return_value = {
+                                                        "content": "Test response"
+                                                    }
+                                                    mock_parse.return_value = {
+                                                        "name": "test_tool",
+                                                        "arguments": {"param": "value"},
+                                                    }
+                                                    mock_actions.return_value = [
+                                                        Action(
+                                                            name="test_tool",
+                                                            kwargs={"param": "value"},
+                                                        )
+                                                    ]
+                                                    mock_step.return_value = (
+                                                        EnvResponse(
+                                                            observation="tool result"
+                                                        )
+                                                    )
+                                                    mock_uuid.uuid4.return_value = (
+                                                        "test-uuid"
+                                                    )
+                                                    mock_json.dumps.return_value = (
+                                                        '{"param": "value"}'
+                                                    )
+
+                                                    # Execute with max_num_steps=1 to ensure we hit the tool call simulation
+                                                    result = react_planner.plan(
+                                                        mock_message_state,
+                                                        mock_msg_history,
+                                                        max_num_steps=1,
+                                                    )
+
+                                                    # Verify that tool call simulation was executed
+                                                    assert mock_json.dumps.called
+                                                    assert result[1] == "test_tool"
+                                                    assert result[2] == "tool result"
+
+    def test_step_unknown_action_branch(
+        self, react_planner, mock_message_state
+    ) -> None:
+        """Test step method with unknown action to cover the else branch (line 674)."""
+        # Create an action that doesn't exist in tools_map or workers_map
+        unknown_action = Action(name="unknown_action", kwargs={})
+
+        # Mock name2id to return None for unknown action
+        react_planner.name2id = {"test_tool": 1, "test_worker": 2}
+
+        result = react_planner.step(unknown_action, mock_message_state)
+
+        # Should return error message for unknown action
+        assert result.observation == "Unknown action unknown_action"
+
+    def test_plan_method_max_steps_exhausted_branch(
+        self, react_planner, mock_message_state, mock_msg_history, patched_sample_config
+    ) -> None:
+        """Test plan method when max_num_steps is exhausted to cover the final return branch (line 688)."""
+        with patch.object(
+            react_planner, "_get_planning_trajectory_summary"
+        ) as mock_summary:
+            with patch.object(
+                react_planner, "_get_num_resource_retrievals"
+            ) as mock_retrievals:
+                with patch.object(
+                    react_planner, "_retrieve_resource_signatures"
+                ) as mock_retrieve:
+                    with patch.object(react_planner, "llm") as mock_llm:
+                        with patch(
+                            "arklex.env.planner.react_planner.PromptTemplate"
+                        ) as mock_prompt_template:
+                            with patch(
+                                "arklex.env.planner.react_planner.aimessage_to_dict"
+                            ) as mock_aimessage:
+                                with patch.object(
+                                    react_planner, "_parse_response_action_to_json"
+                                ) as mock_parse:
+                                    with patch.object(
+                                        react_planner, "message_to_actions"
+                                    ) as mock_actions:
+                                        with patch.object(
+                                            react_planner, "step"
+                                        ) as mock_step:
+                                            with patch(
+                                                "arklex.env.planner.react_planner.uuid"
+                                            ) as mock_uuid:
+                                                with patch(
+                                                    "arklex.env.planner.react_planner.json"
+                                                ) as mock_json:
+                                                    # Setup mocks
+                                                    mock_summary.return_value = (
+                                                        "Test summary"
+                                                    )
+                                                    mock_retrievals.return_value = 3
+                                                    mock_retrieve.return_value = [
+                                                        Mock(
+                                                            metadata={
+                                                                "resource_name": "test_resource",
+                                                                "json_signature": {},
+                                                            }
+                                                        )
+                                                    ]
+
+                                                    mock_prompt_instance = Mock()
+                                                    mock_prompt_instance.invoke.return_value = Mock(
+                                                        text="System prompt"
+                                                    )
+                                                    mock_prompt_template.from_template.return_value = mock_prompt_instance
+
+                                                    # Mock LLM to return non-RESPOND_ACTION for max_num_steps iterations
+                                                    mock_llm.invoke.return_value = (
+                                                        Mock()
+                                                    )
+                                                    mock_aimessage.return_value = {
+                                                        "content": "Test response"
+                                                    }
+                                                    mock_parse.return_value = {
+                                                        "name": "test_tool",
+                                                        "arguments": {},
+                                                    }
+                                                    mock_actions.return_value = [
+                                                        Action(
+                                                            name="test_tool", kwargs={}
+                                                        )
+                                                    ]
+                                                    mock_step.return_value = (
+                                                        EnvResponse(
+                                                            observation="tool result"
+                                                        )
+                                                    )
+                                                    mock_uuid.uuid4.return_value = (
+                                                        "test-uuid"
+                                                    )
+                                                    mock_json.dumps.return_value = "{}"
+
+                                                    # Execute with max_num_steps=1 to ensure exhaustion
+                                                    result = react_planner.plan(
+                                                        mock_message_state,
+                                                        mock_msg_history,
+                                                        max_num_steps=1,
+                                                    )
+
+                                                    # Should return the last action and response when max steps exhausted
+                                                    assert result[1] == "test_tool"
+                                                    assert result[2] == "tool result"
+
+    def test_aimessage_to_dict_function(self) -> None:
+        """Test the aimessage_to_dict function to cover lines 709-715."""
+        from arklex.env.planner.react_planner import aimessage_to_dict
+        from langchain_core.messages import AIMessage, HumanMessage
+
+        # Test with AIMessage
+        ai_message = AIMessage(content="Test AI response")
+        result = aimessage_to_dict(ai_message)
+
+        assert result["content"] == "Test AI response"
+        assert result["role"] == "assistant"
+        assert result["function_call"] is None
+        assert result["tool_calls"] is None
+
+        # Test with HumanMessage (non-AIMessage)
+        human_message = HumanMessage(content="Test human message")
+        result = aimessage_to_dict(human_message)
+
+        assert result["content"] == "Test human message"
+        assert result["role"] == "user"
+        assert result["function_call"] is None
+        assert result["tool_calls"] is None
+
+        # Test with Mock object (non-AIMessage)
+        mock_message = Mock()
+        mock_message.content = "Test mock message"
+        result = aimessage_to_dict(mock_message)
+
+        assert result["content"] == "Test mock message"
+        assert result["role"] == "user"
+        assert result["function_call"] is None
+        assert result["tool_calls"] is None
 
 
 class TestReactPlannerIntegration:
