@@ -958,3 +958,88 @@ class TestTaskGenerator:
             result = task_generator.add_provided_tasks(user_tasks, "intro")
 
             assert result == []
+
+    def test_process_objective_handles_dict_content(
+        self, patched_model_generate
+    ) -> None:
+        gen = patched_model_generate["generator"]
+        patched_model_generate["mock_generate"].return_value = {
+            "content": '[{"task": "t"}]'
+        }
+        result = gen._process_objective("obj", "intro", "docs")
+        assert "tasks" in result
+
+    def test_process_objective_handles_non_json_response(
+        self, patched_model_generate
+    ) -> None:
+        gen = patched_model_generate["generator"]
+        patched_model_generate["mock_generate"].return_value = {"text": "no json here"}
+        result = gen._process_objective("obj", "intro", "docs")
+        assert result["tasks"] == []
+
+    def test_process_objective_handles_json_decode_error(
+        self, patched_model_generate
+    ) -> None:
+        gen = patched_model_generate["generator"]
+        patched_model_generate["mock_generate"].return_value = {
+            "text": "[not valid json]"
+        }
+        result = gen._process_objective("obj", "intro", "docs")
+        assert result["tasks"] == []
+
+    def test_generate_high_level_tasks_handles_string_response(
+        self, patched_model_invoke
+    ) -> None:
+        gen = patched_model_invoke["generator"]
+        patched_model_invoke["mock_invoke"].return_value = '[{"task": "t"}]'
+        result = gen._generate_high_level_tasks("intro")
+        assert isinstance(result, list)
+
+    def test_generate_high_level_tasks_handles_invalid_json(
+        self, patched_model_invoke
+    ) -> None:
+        gen = patched_model_invoke["generator"]
+        patched_model_invoke["mock_invoke"].return_value = "not a json list"
+        result = gen._generate_high_level_tasks("intro")
+        assert result == []
+
+    def test_generate_high_level_tasks_handles_exception(
+        self, patched_model_invoke
+    ) -> None:
+        gen = patched_model_invoke["generator"]
+        patched_model_invoke["mock_invoke"].side_effect = Exception("fail")
+        result = gen._generate_high_level_tasks("intro")
+        assert result == []
+
+    def test_generate_task_steps_original_handles_invalid_json(
+        self, patched_model_invoke
+    ) -> None:
+        gen = patched_model_invoke["generator"]
+        patched_model_invoke["mock_invoke"].return_value = "not a json list"
+        result = gen._generate_task_steps_original("task", "intent")
+        assert isinstance(result, list)
+        assert "task" in result[0]
+
+    def test_generate_task_steps_original_handles_exception(
+        self, patched_model_invoke
+    ) -> None:
+        gen = patched_model_invoke["generator"]
+        patched_model_invoke["mock_invoke"].side_effect = Exception("fail")
+        result = gen._generate_task_steps_original("task", "intent")
+        assert isinstance(result, list)
+        assert "task" in result[0]
+
+    def test_validate_tasks_handles_non_dict_step(self, task_generator) -> None:
+        tasks = [
+            {
+                "name": "task1",
+                "description": "desc",
+                "steps": [123],
+            }
+        ]
+        result = task_generator._validate_tasks(tasks)
+        assert isinstance(result, list)
+
+    def test_convert_to_task_definitions_handles_empty(self, task_generator) -> None:
+        result = task_generator._convert_to_task_definitions([])
+        assert result == []

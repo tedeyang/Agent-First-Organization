@@ -519,7 +519,24 @@ class TaskGraphFormatter:
                 else:
                     # This handles dependencies between tasks.
                     for dep in dependencies:
-                        dep_id = dep if isinstance(dep, str) else dep.get("id")
+                        # Handle edge cases where dependency is None or not a string/dict
+                        if dep is None:
+                            log_context.warning("Skipping None dependency")
+                            continue
+                        elif isinstance(dep, str):
+                            dep_id = dep
+                        elif isinstance(dep, dict):
+                            dep_id = dep.get("id")
+                            if dep_id is None:
+                                log_context.warning(
+                                    "Skipping dependency dict without 'id' field"
+                                )
+                                continue
+                        else:
+                            log_context.warning(
+                                f"Skipping invalid dependency type: {type(dep)}"
+                            )
+                            continue
 
                         # Find the source task from the list of tasks
                         source_task = next(
