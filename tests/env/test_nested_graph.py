@@ -609,22 +609,18 @@ class TestNestedGraph:
         assert result_node is not None
         assert result_node.node_id == "node2"
 
-    def test_get_nested_graph_component_node_is_leaf_func_returns_non_boolean(
-        self,
-    ) -> None:
-        """Test get_nested_graph_component_node when is_leaf_func returns non-boolean."""
-        # Setup
+    def test_get_nested_graph_component_node_empty_path_triggers_none(self) -> None:
+        """Test get_nested_graph_component_node returns None when path is empty."""
         params = Params()
-        params.taskgraph.path = [PathNode(node_id="node1")]
+        params.taskgraph.path = []
+        params.taskgraph.node_status = {}
 
-        def is_leaf_func(node_id: str) -> str:  # Returns string instead of bool
-            return "not_a_boolean"
+        def is_leaf_func(node_id: str) -> bool:
+            return True
 
-        # Execute
         result_node, result_params = NestedGraph.get_nested_graph_component_node(
             params, is_leaf_func
         )
 
-        # Assert - Should work (Python treats non-empty strings as True)
-        assert result_node is not None
-        assert result_node.node_id == "node1"
+        assert result_node is None
+        assert result_params == params
