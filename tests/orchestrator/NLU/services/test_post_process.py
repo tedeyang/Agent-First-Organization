@@ -1000,6 +1000,7 @@ class TestShouldTriggerHandoff:
         mock_message_state.response = "I don't know the answer"
         mock_message_state.bot_config.llm_config.llm_provider = "unknown_provider"
         mock_message_state.bot_config.llm_config.model_type_or_path = "gpt-3.5-turbo"
+
         with patch(
             "arklex.orchestrator.post_process.PROVIDER_MAP"
         ) as mock_provider_map:
@@ -1011,10 +1012,11 @@ class TestShouldTriggerHandoff:
                 "arklex.orchestrator.post_process.ChatOpenAI"
             ) as mock_chat_openai:
                 mock_llm = Mock()
-                mock_llm.__or__ = Mock(return_value=Mock())
-                mock_chain = Mock()
-                mock_chain.invoke.return_value = "YES"
-                mock_llm.__or__.return_value = mock_chain
                 mock_chat_openai.return_value = mock_llm
-                result = should_trigger_handoff(mock_message_state)
-                assert result is True
+                # Patch the invoke method on RunnableSequence to always return 'YES'
+                with patch(
+                    "langchain_core.runnables.base.RunnableSequence.invoke",
+                    return_value="YES",
+                ):
+                    result = should_trigger_handoff(mock_message_state)
+                    assert result is True
