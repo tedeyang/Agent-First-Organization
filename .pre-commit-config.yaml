@@ -3,5 +3,5 @@ repos:
     rev: v0.11.12
     hooks:
       - id: ruff
-        args: [--force-exclude]
+        args: [--fix]
       - id: ruff-format
