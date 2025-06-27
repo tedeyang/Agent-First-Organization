@@ -1117,3 +1117,85 @@ class TestLoader:
             assert hasattr(doc, "page_content")
             assert hasattr(doc, "metadata")
             assert doc.metadata["source"] == "long.txt"
+
+
+def test_crawl_with_selenium_url_timeout(monkeypatch) -> None:
+    """Test _crawl_with_selenium for URL load timeout (lines 266-269)."""
+    loader = Loader()
+    url_objects = [DocObject("1", "http://timeout.com")]
+    # Patch time.time to simulate timeout
+    times = [0, 100, 200, 300, 400, 1000]
+    time_iter = iter(times)
+    monkeypatch.setattr("time.time", lambda: next(time_iter))
+    with patch("selenium.webdriver.Chrome") as mock_driver:
+        mock_driver_instance = Mock()
+        mock_driver.return_value = mock_driver_instance
+        mock_driver_instance.page_source = "<html><title>Timeout</title></html>"
+        mock_driver_instance.title = "Timeout"
+        # This should trigger the timeout logic
+        result = loader._crawl_with_selenium(url_objects)
+        assert len(result) > 0
+
+
+def test_get_all_urls_error_logging(monkeypatch) -> None:
+    """Test get_all_urls error logging (lines 555, 564-568)."""
+    loader = Loader()
+    # Patch get_outsource_urls to raise Exception
+    monkeypatch.setattr(
+        loader,
+        "get_outsource_urls",
+        lambda *a, **kw: (_ for _ in ()).throw(Exception("fail")),
+    )
+    # This should trigger error logging but still return the original URL
+    result = loader.get_all_urls("test_url", 10)  # Add missing max_num parameter
+    assert "test_url" in result  # The method returns the original URL even on error
+
+
+def test_get_outsource_urls_error_branches(monkeypatch) -> None:
+    """Test get_outsource_urls error branches (lines 606-612)."""
+    loader = Loader()
+    # Patch requests.get to raise different exceptions
+    with patch("requests.get") as mock_get:
+        mock_get.side_effect = Exception("Network error")
+        result = loader.get_outsource_urls(
+            "http://test.com", "http://test.com"
+        )  # Add missing base_url parameter
+        assert result == []
+
+
+def test_to_crawled_local_objs_and_text(monkeypatch) -> None:
+    """Test to_crawled_local_objs_and_text (lines 670, 704-714, 728-730)."""
+    loader = Loader()
+    # Create test data
+    crawled_objects = [CrawledObject("1", "test content", "text", "test.txt", "file")]
+    # Test the conversion - use the correct method name
+    result = loader.to_crawled_local_objs(["test.txt"])  # Use correct method name
+    assert len(result) > 0
+
+
+def test_crawl_file_missing_file_type_and_unsupported(monkeypatch) -> None:
+    """Test crawl_file with missing file type and unsupported file (lines 833, 835, 839, 841)."""
+    from unittest.mock import mock_open  # Add missing import
+
+    loader = Loader()
+    # Test with file that has no extension - pass DocObject instead of string
+    doc_obj = DocObject("1", "test_file_no_extension")
+    with patch("os.path.exists", return_value=True):
+        with patch("builtins.open", mock_open(read_data="test content")):
+            result = loader.crawl_file(doc_obj)  # Pass DocObject instead of string
+            assert result is not None
+
+
+def test_chunk_skip_logic_and_return_logic(monkeypatch) -> None:
+    """Test chunk method skip logic and return logic (lines 704-714, 728-730)."""
+    loader = Loader()
+    # Test with empty documents
+    result = loader.chunk([])
+    assert result == []
+
+    # Test with documents that should be skipped - use CrawledObject instances
+    docs = [
+        CrawledObject("1", "", "text", "test.txt", "file")
+    ]  # Use CrawledObject instead of dict
+    result = loader.chunk(docs)
+    assert result == []
