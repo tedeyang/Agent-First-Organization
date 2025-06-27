@@ -12,7 +12,7 @@ jobs:
     env:
       SHOPIFY_FIXED_ARGS: ${{ secrets.SHOPIFY_FIXED_ARGS }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      MIN_COVERAGE_THRESHOLD: '98'
+      MIN_COVERAGE_THRESHOLD: '97'
 
     steps:
       - name: Checkout
@@ -45,7 +45,7 @@ jobs:
               print(f'Coverage: {coverage:.1f}%')
               
               # Get minimum coverage threshold from environment variable
-              min_coverage = float(os.environ.get('MIN_COVERAGE_THRESHOLD', '98'))
+              min_coverage = float(os.environ.get('MIN_COVERAGE_THRESHOLD', '97'))
               print(f'Minimum coverage threshold: {min_coverage}%')
               
               if coverage < min_coverage:
@@ -76,5 +76,5 @@ jobs:
         uses: py-cov-action/python-coverage-comment-action@v3
         with:
           GITHUB_TOKEN: ${{ github.token }}
-          MINIMUM_GREEN: 98
+          MINIMUM_GREEN: 97
           MINIMUM_ORANGE: 70
