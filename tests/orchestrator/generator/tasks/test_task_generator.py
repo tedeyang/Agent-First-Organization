@@ -1623,7 +1623,7 @@ class TestTaskGenerator:
                 "intent": "Intent",
                 "description": "desc",
                 # no 'name' field - this should be added by the method
-                "steps": [{"task": "step1", "description": "desc for step1"}],
+                # no 'steps' field - this will trigger step generation and name addition
             }
         ]
         with patch.object(
@@ -1642,7 +1642,7 @@ class TestTaskGenerator:
                 "task": "TaskDefTest",
                 "intent": "Intent",
                 "description": "desc",
-                "steps": [{"task": "step1", "description": "desc for step1"}],
+                # no 'steps' field - this will trigger step generation
             }
         ]
         with patch.object(
@@ -1662,7 +1662,7 @@ class TestTaskGenerator:
                 "task": "ValidTask",
                 "intent": "Intent",
                 "description": "desc",
-                "steps": [{"task": "step1", "description": "desc for step1"}],
+                # no 'steps' field - this will trigger step generation
             }
         ]
         with (
@@ -1676,13 +1676,12 @@ class TestTaskGenerator:
             result = task_generator.add_provided_tasks(user_tasks, "intro")
             assert len(result) > 0
             assert any(t["name"] == "ValidTask" for t in result)
-        # Invalid task (missing description in step)
+        # Invalid task (missing description)
         user_tasks_invalid = [
             {
                 "task": "InvalidTask",
                 "intent": "Intent",
-                "description": "desc",
-                "steps": [{"task": "step1"}],  # No description
+                # no 'description' field - this should cause validation to fail
             }
         ]
         with (
