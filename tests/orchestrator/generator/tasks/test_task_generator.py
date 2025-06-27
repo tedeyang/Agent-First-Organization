@@ -1613,3 +1613,110 @@ class TestTaskGenerator:
                 task_generator._process_objective(
                     "test objective", "test intro", "test docs"
                 )
+
+    def test_add_provided_tasks_adds_name_if_missing(
+        self, task_generator: TaskGenerator
+    ) -> None:
+        user_tasks = [
+            {
+                "task": "Task Without Name",
+                "intent": "Intent",
+                "description": "desc",  # Add description to pass validation
+                # no 'name' field - this should be added by the method
+                "steps": [{"task": "step1"}],
+            }
+        ]
+        with patch.object(
+            task_generator, "_check_task_breakdown_original"
+        ) as mock_check:
+            mock_check.return_value = False
+            result = task_generator.add_provided_tasks(user_tasks, "intro")
+            # The task should have been processed and have a name added
+            assert len(result) > 0
+            assert result[0]["name"] == "Task Without Name"
+
+    def test_add_provided_tasks_task_definition_creation(
+        self, task_generator: TaskGenerator
+    ) -> None:
+        user_tasks = [
+            {
+                "task": "TaskDefTest",
+                "intent": "Intent",
+                "description": "desc",  # Add description to pass validation
+                "steps": [{"task": "step1"}],
+            }
+        ]
+        with patch.object(
+            task_generator, "_check_task_breakdown_original"
+        ) as mock_check:
+            mock_check.return_value = False
+            result = task_generator.add_provided_tasks(user_tasks, "intro")
+            assert len(result) > 0
+            assert any(t["name"] == "TaskDefTest" for t in result)
+
+    def test_add_provided_tasks_validation_branches(
+        self, task_generator: TaskGenerator
+    ) -> None:
+        # Valid task
+        user_tasks = [
+            {
+                "task": "ValidTask",
+                "intent": "Intent",
+                "description": "desc",  # Add description to pass validation
+                "steps": [{"task": "step1"}],
+            }
+        ]
+        with (
+            patch.object(
+                task_generator, "_check_task_breakdown_original"
+            ) as mock_check,
+            patch.object(task_generator, "_validate_task_definition") as mock_validate,
+        ):
+            mock_check.return_value = False
+            mock_validate.return_value = True
+            result = task_generator.add_provided_tasks(user_tasks, "intro")
+            assert len(result) > 0
+            assert any(t["name"] == "ValidTask" for t in result)
+        # Invalid task
+        with (
+            patch.object(
+                task_generator, "_check_task_breakdown_original"
+            ) as mock_check,
+            patch.object(task_generator, "_validate_task_definition") as mock_validate,
+        ):
+            mock_check.return_value = False
+            mock_validate.return_value = False
+            result = task_generator.add_provided_tasks(user_tasks, "intro")
+            assert result == []
+
+    def test_generate_high_level_tasks_existing_tasks_str(
+        self, task_generator: TaskGenerator
+    ) -> None:
+        with patch.object(task_generator.model, "invoke") as mock_invoke:
+            mock_invoke.return_value.content = '[{"task": "t", "intent": "i"}]'
+            existing_tasks = [{"task": "existing", "intent": "test"}]
+            result = task_generator._generate_high_level_tasks("intro", existing_tasks)
+            assert isinstance(result, list)
+
+    def test_build_hierarchy_warns_on_missing_id(
+        self, task_generator: TaskGenerator
+    ) -> None:
+        tasks = [{"name": "noid", "steps": [], "dependencies": []}]
+        # Fix the mocking approach - patch the log_context directly
+        with patch(
+            "arklex.orchestrator.generator.tasks.task_generator.log_context"
+        ) as mock_log:
+            task_generator._build_hierarchy(tasks)
+            assert mock_log.warning.called
+
+    def test_build_hierarchy_sorts_by_level(
+        self, task_generator: TaskGenerator
+    ) -> None:
+        tasks = [
+            {"id": "t1", "name": "A", "steps": [], "dependencies": [], "level": 2},
+            {"id": "t2", "name": "B", "steps": [], "dependencies": [], "level": 1},
+            {"id": "t3", "name": "C", "steps": [], "dependencies": [], "level": 0},
+        ]
+        task_generator._build_hierarchy(tasks)
+        # Check that tasks are sorted by level (ascending)
+        assert tasks[0]["level"] <= tasks[1]["level"] <= tasks[2]["level"]
