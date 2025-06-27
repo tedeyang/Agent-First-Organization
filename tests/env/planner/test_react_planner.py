@@ -1,9 +1,8 @@
 """Tests for ReactPlanner module."""
 
 import pytest
-import json
-from unittest.mock import Mock, patch, AsyncMock, MagicMock
-from typing import Dict, Any, List, Tuple
+from unittest.mock import Mock, patch, MagicMock
+from typing import Dict, Any, List
 
 from arklex.env.planner.react_planner import (
     ReactPlanner,
@@ -887,6 +886,145 @@ class TestReactPlanner:
         mock_message.content = "Test content"
         result = aimessage_to_dict(mock_message)
         assert result["content"] == "Test content"
+
+    def test_parse_trajectory_summary_to_steps_with_invalid_json(self) -> None:
+        """Test _parse_trajectory_summary_to_steps with invalid JSON (covers lines 424-425)."""
+        planner = ReactPlanner({}, {}, {})
+
+        # Test with invalid JSON that should trigger the exception handling
+        invalid_summary = "This is not a valid JSON list"
+
+        result = planner._parse_trajectory_summary_to_steps(invalid_summary)
+
+        # Should return the original text when JSON parsing fails
+        assert result == [invalid_summary]
+
+    def test_retrieve_resource_signatures_with_empty_steps(self) -> None:
+        """Test _retrieve_resource_signatures when steps list is empty (covers line 458)."""
+        planner = ReactPlanner({}, {}, {})
+
+        # Add the missing attribute
+        planner.guaranteed_retrieval_docs = []
+
+        # Mock the retriever and other dependencies
+        with patch.object(
+            planner, "_parse_trajectory_summary_to_steps", return_value=[]
+        ):
+            with patch.object(planner, "retriever", create=True) as mock_retriever:
+                mock_retriever.vectorstore.similarity_search_with_score.return_value = []
+
+                result = planner._retrieve_resource_signatures(
+                    n_retrievals=5,
+                    trajectory_summary="test summary",
+                    user_message="test message",
+                    task="test task",
+                )
+
+                # Should use the original trajectory_summary when steps is empty
+                assert isinstance(result, list)
+
+    def test_retrieve_resource_signatures_with_steps(self) -> None:
+        """Test _retrieve_resource_signatures when steps list has content (covers line 460)."""
+        planner = ReactPlanner({}, {}, {})
+
+        # Add the missing attribute
+        planner.guaranteed_retrieval_docs = []
+
+        # Mock the retriever and other dependencies
+        with patch.object(
+            planner,
+            "_parse_trajectory_summary_to_steps",
+            return_value=["step1", "step2"],
+        ):
+            with patch.object(planner, "retriever", create=True) as mock_retriever:
+                mock_retriever.vectorstore.similarity_search_with_score.return_value = []
+
+                result = planner._retrieve_resource_signatures(
+                    n_retrievals=5,
+                    trajectory_summary="test summary",
+                    user_message="test message",
+                    task="test task",
+                )
+
+                # Should join steps with space when steps list is not empty
+                assert isinstance(result, list)
+
+    def test_plan_max_steps_exhausted(self) -> None:
+        planner = ReactPlanner({}, {}, {})
+
+        # Mock all the dependencies
+        with patch.object(
+            planner, "_get_planning_trajectory_summary", return_value="test summary"
+        ):
+            with patch.object(planner, "_get_num_resource_retrievals", return_value=3):
+                with patch.object(
+                    planner, "_retrieve_resource_signatures", return_value=[]
+                ):
+                    with patch.object(planner, "llm") as mock_llm:
+                        # Mock the LLM to return non-RESPOND_ACTION responses
+                        mock_response = Mock()
+                        mock_response.content = (
+                            'Action:\n{"name": "test_action", "arguments": {}}'
+                        )
+                        mock_llm.invoke.return_value = mock_response
+
+                        # Mock the step method to return a non-RESPOND_ACTION response
+                        with patch.object(planner, "step") as mock_step:
+                            mock_step.return_value = Mock(
+                                observation="test observation"
+                            )
+
+                            # Mock message_to_actions to return non-RESPOND_ACTION
+                            with patch.object(
+                                planner, "message_to_actions"
+                            ) as mock_actions:
+                                mock_action = Mock()
+                                mock_action.name = "test_action"
+                                mock_action.kwargs = {}
+                                mock_actions.return_value = [mock_action]
+
+                                # Mock _parse_response_action_to_json
+                                with patch.object(
+                                    planner,
+                                    "_parse_response_action_to_json",
+                                    return_value={"name": "test_action"},
+                                ):
+                                    # Mock aimessage_to_dict
+                                    with patch(
+                                        "arklex.env.planner.react_planner.aimessage_to_dict",
+                                        return_value={"content": "test"},
+                                    ):
+                                        result = planner.plan(
+                                            state=Mock(),
+                                            msg_history=[],
+                                            max_num_steps=1,  # Only one step to trigger exhaustion
+                                        )
+
+                                        # Should return the last action and response when max steps exhausted
+                                        assert len(result) == 3
+                                        assert result[1] == "test_action"
+
+    def test_step_unknown_action(self) -> None:
+        planner = ReactPlanner({}, {}, {})
+
+        action = Action(name="unknown_action", kwargs={})
+        msg_state = Mock()
+
+        result = planner.step(action, msg_state)
+
+        # Should return error message for unknown action
+        assert "Unknown action" in result.observation
+
+    def test_step_respond_action(self) -> None:
+        planner = ReactPlanner({}, {}, {})
+
+        action = Action(name="respond", kwargs={"content": "test response"})
+        msg_state = Mock()
+
+        result = planner.step(action, msg_state)
+
+        # Should return the content as observation
+        assert result.observation == "test response"
 
 
 class TestReactPlannerIntegration:
