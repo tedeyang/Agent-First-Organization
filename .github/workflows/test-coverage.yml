@@ -5,10 +5,17 @@ on:
     types: [labeled]
 
 jobs:
-  test-resources:
-    # Only run on PRs targeting main labeled with 'run-coverage-tests'
+  test:
+    name: run tests and display coverage
+
     if: github.base_ref == 'main' && github.event.label.name == 'run-coverage-tests'
+
     runs-on: ubuntu-latest
+
+    permissions:
+      pull-requests: write
+      contents: write
+
     env:
       SHOPIFY_FIXED_ARGS: ${{ secrets.SHOPIFY_FIXED_ARGS }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
