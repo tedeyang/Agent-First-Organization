@@ -2572,15 +2572,13 @@ class TestTaskGraph:
         with patch.object(task_graph.intent_detector, "predict_intent") as mock_predict:
             mock_predict.return_value = {"pred_intent": "test_intent", "candidates": []}
 
-            # Mock the graph to have no incoming edges for the current node
+            # Mock the graph in_edges to return a dummy edge with an intent
             with patch.object(task_graph.graph, "in_edges") as mock_in_edges:
-                # Return a dummy edge with an intent so fallback branch works
+                # Patch in_edges to return a dummy edge with an intent so fallback branch works
                 mock_in_edges.return_value = [("from", "no_incoming", "dummy_intent")]
-
                 result_node, result_intent = task_graph.jump_to_node(
                     "test_intent", 0, "no_incoming"
                 )
-
                 # Should return current node and the dummy intent when no incoming edges
                 assert result_node == "no_incoming"
                 assert result_intent == "dummy_intent"
@@ -2603,13 +2601,13 @@ class TestTaskGraph:
         # Mock the model service to return a response that doesn't match available intents
         with patch.object(task_graph.intent_detector, "predict_intent") as mock_predict:
             mock_predict.return_value = {
-                "pred_intent": "unknown_intent",
+                "pred_intent": "different_intent",
                 "candidates": [],
             }
 
             curr_local_intents = {"test_intent": [{"target_node": "next_node"}]}
 
-            result_found, result_output, result_params = (
+            result_found, result_node, result_params = (
                 task_graph.local_intent_prediction(
                     "test_node", params, curr_local_intents
                 )
@@ -2617,3 +2615,82 @@ class TestTaskGraph:
 
             # Should return False when pred_intent not found in available intents
             assert result_found is False
+
+    def test_handle_leaf_node_not_leaf_early_return(self, task_graph, params) -> None:
+        """Test handle_leaf_node early return when not a leaf (covers line 630)."""
+        # Add a non-leaf node
+        task_graph.graph.add_node(
+            "non_leaf",
+            type="task",
+            resource={"name": "test", "id": "test"},
+            attribute={},
+        )
+        task_graph.graph.add_edge(
+            "non_leaf", "child_node", intent="test_intent", attribute={"weight": 1.0}
+        )
+
+        result_node, result_params = task_graph.handle_leaf_node("non_leaf", params)
+
+        # Should return the current node when it's not a leaf
+        assert result_node == "non_leaf"
+
+    def test_get_node_final_fallback(self, task_graph, params) -> None:
+        """Test get_node final fallback when no other conditions are met (covers line 808)."""
+        # Add a node with no local intents and no global intent switch
+        task_graph.graph.add_node(
+            "test_node",
+            type="task",
+            resource={"name": "test", "id": "test"},
+            attribute={},
+        )
+
+        # Mock all the prediction methods to return False
+        with patch.object(
+            task_graph,
+            "global_intent_prediction",
+            return_value=(False, None, {}, params),
+        ):
+            with patch.object(
+                task_graph, "handle_random_next_node", return_value=(False, {}, params)
+            ):
+                with patch.object(
+                    task_graph,
+                    "local_intent_prediction",
+                    return_value=(False, {}, params),
+                ):
+                    with patch.object(
+                        task_graph, "handle_unknown_intent"
+                    ) as mock_unknown:
+                        mock_unknown.return_value = (Mock(), params)
+
+                        inputs = {
+                            "text": "test message",
+                            "chat_history_str": "",
+                            "parameters": params,
+                            "allow_global_intent_switch": False,
+                        }
+
+                        result_node, result_params = task_graph.get_node(inputs)
+
+                        # Should call handle_unknown_intent as final fallback
+                        mock_unknown.assert_called_once()
+
+    def test_validate_node_all_error_branches(self, task_graph) -> None:
+        """Test _validate_node with all error branches (covers line 808)."""
+        # Test with non-dict node
+        with pytest.raises(TaskGraphError, match="Node must be a dictionary"):
+            task_graph._validate_node("not_a_dict")
+
+        # Test with node missing 'id'
+        with pytest.raises(TaskGraphError, match="Node must have an id"):
+            task_graph._validate_node({"type": "task"})
+
+        # Test with node missing 'type'
+        with pytest.raises(TaskGraphError, match="Node must have a type"):
+            task_graph._validate_node({"id": "test"})
+
+        # Test with invalid 'next' field
+        with pytest.raises(TaskGraphError, match="Node next must be a list"):
+            task_graph._validate_node(
+                {"id": "test", "type": "task", "next": "not_a_list"}
+            )
