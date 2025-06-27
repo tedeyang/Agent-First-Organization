@@ -459,7 +459,7 @@ class TestSimulateFirstPassConvos:
         # Setup
         model_api = "test_api"
         model_params = {"param1": "value1"}
-        synthetic_data_params = {"num_convos": 2}
+        synthetic_data_params = {"num_convos": 2, "num_goals": 3}
         config = {
             "task": "first_pass",
             "output_dir": "test_dir",
@@ -467,6 +467,18 @@ class TestSimulateFirstPassConvos:
             "workers": {},
             "tools": {},
             "client": Mock(),
+            "documents_dir": "test_docs",
+            "custom_profile": False,
+            "system_inputs": False,
+            "company_summary": "Test company summary",
+            "user_attributes": {
+                "goal": {"values": ["goal1", "goal2", "goal3"]},
+                "system_attributes": {
+                    "attr1": {"values": ["val1", "val2"]},
+                    "attr2": {"values": ["val3", "val4"]},
+                },
+                "user_profiles": {"profile1": {"values": ["p1"]}},
+            },
         }
 
         mock_generate_conversations.return_value = [{"convo": "test"}]
