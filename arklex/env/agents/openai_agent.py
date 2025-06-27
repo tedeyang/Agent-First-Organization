@@ -91,11 +91,16 @@ class OpenAIAgent(BaseAgent):
             else:
                 input_prompt = self.prompt
 
-            state.function_calling_trajectory.append(
-                SystemMessage(
-                    content=input_prompt,
-                ).model_dump()
-            )
+            if not any(
+                message.get("content") == input_prompt
+                for message in state.function_calling_trajectory
+            ):
+                log_context.info(
+                    "Adding input prompt to the function calling trajectory."
+                )
+                state.function_calling_trajectory.append(
+                    SystemMessage(content=input_prompt).model_dump()
+                )
 
         log_context.info(f"\nagent messages: {state.function_calling_trajectory}")
 

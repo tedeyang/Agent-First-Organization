@@ -6,13 +6,14 @@ This module implements a tool for checking the availability of representatives u
 
 import json
 from datetime import datetime
-from typing import Dict, Any, List, Optional, Tuple, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import hubspot
 import pytz
 from hubspot import HubSpot
 
 from arklex.env.tools.hubspot.utils import authenticate_hubspot
+from arklex.env.tools.tools import register_tool
 from arklex.utils.logging_utils import LogContext
 
 log_context = LogContext(__name__)
