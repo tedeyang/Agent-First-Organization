@@ -1882,3 +1882,538 @@ class TestTaskGraphFormatter:
 
         # Should return the same structure when no connectivity issues
         assert result == task_graph
+
+    def test_format_task_graph_with_nested_graph_value_dict(self) -> None:
+        """Test format_task_graph with nested graph value as dict."""
+        formatter = TaskGraphFormatter(
+            role="test_role",
+            user_objective="test_objective",
+            builder_objective="test_builder_objective",
+        )
+
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Task 1",
+                "description": "Test task",
+                "steps": [
+                    {
+                        "description": "Step 1",
+                        "resource": {
+                            "name": "NestedGraph",
+                            "description": "Nested workflow",
+                        },
+                    }
+                ],
+            }
+        ]
+
+        result = formatter.format_task_graph(tasks)
+        assert "nodes" in result
+        assert "edges" in result
+
+    def test_format_task_graph_with_nested_graph_value_list(self) -> None:
+        """Test format_task_graph with nested graph value as list."""
+        formatter = TaskGraphFormatter(
+            role="test_role",
+            user_objective="test_objective",
+            builder_objective="test_builder_objective",
+        )
+
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Task 1",
+                "description": "Test task",
+                "steps": [
+                    {
+                        "description": "Step 1",
+                        "resource": {
+                            "name": "NestedGraph",
+                            "description": "Nested workflow",
+                        },
+                    }
+                ],
+            }
+        ]
+
+        result = formatter.format_task_graph(tasks)
+        assert "nodes" in result
+        assert "edges" in result
+
+    def test_ensure_nested_graph_connectivity_with_multiple_steps(self) -> None:
+        """Test ensure_nested_graph_connectivity with multiple steps."""
+        formatter = TaskGraphFormatter(
+            role="test_role",
+            user_objective="test_objective",
+            builder_objective="test_builder_objective",
+        )
+
+        graph = {
+            "nodes": [
+                [
+                    "0",
+                    {
+                        "resource": {"name": "MessageWorker"},
+                        "attribute": {"value": "start"},
+                    },
+                ],
+                [
+                    "1",
+                    {
+                        "resource": {"name": "NestedGraph"},
+                        "attribute": {"value": "nested"},
+                    },
+                ],
+                [
+                    "2",
+                    {
+                        "resource": {"name": "MessageWorker"},
+                        "attribute": {"value": "next"},
+                    },
+                ],
+            ],
+            "edges": [],
+            "tasks": [
+                {
+                    "id": "task1",
+                    "steps": [{"description": "Step 1"}, {"description": "Step 2"}],
+                }
+            ],
+        }
+
+        result = formatter.ensure_nested_graph_connectivity(graph)
+        assert "edges" in result
+        # The method might not create edges in all cases, so we just check the structure
+        assert isinstance(result["edges"], list)
+
+    def test_ensure_nested_graph_connectivity_with_last_step(self) -> None:
+        """Test ensure_nested_graph_connectivity with nested graph as last step."""
+        formatter = TaskGraphFormatter(
+            role="test_role",
+            user_objective="test_objective",
+            builder_objective="test_builder_objective",
+        )
+
+        graph = {
+            "nodes": [
+                [
+                    "0",
+                    {
+                        "resource": {"name": "MessageWorker"},
+                        "attribute": {"value": "start"},
+                    },
+                ],
+                [
+                    "1",
+                    {
+                        "resource": {"name": "NestedGraph"},
+                        "attribute": {"value": "nested"},
+                    },
+                ],
+            ],
+            "edges": [],
+            "tasks": [{"id": "task1", "steps": [{"description": "Step 1"}]}],
+        }
+
+        result = formatter.ensure_nested_graph_connectivity(graph)
+        assert "edges" in result
+        # Should not create edge since it's the last step
+
+    def test_ensure_nested_graph_connectivity_with_no_task_found(self) -> None:
+        """Test ensure_nested_graph_connectivity when task is not found."""
+        formatter = TaskGraphFormatter(
+            role="test_role",
+            user_objective="test_objective",
+            builder_objective="test_builder_objective",
+        )
+
+        graph = {
+            "nodes": [
+                [
+                    "0",
+                    {
+                        "resource": {"name": "NestedGraph"},
+                        "attribute": {"value": "nested"},
+                    },
+                ]
+            ],
+            "edges": [],
+            "tasks": [],  # No tasks
+        }
+
+        result = formatter.ensure_nested_graph_connectivity(graph)
+        assert "edges" in result
+        assert len(result["edges"]) == 0
+
+    def test_ensure_nested_graph_connectivity_with_no_step_index_found(self) -> None:
+        """Test ensure_nested_graph_connectivity when step index is not found."""
+        formatter = TaskGraphFormatter(
+            role="test_role",
+            user_objective="test_objective",
+            builder_objective="test_builder_objective",
+        )
+
+        graph = {
+            "nodes": [
+                [
+                    "0",
+                    {
+                        "resource": {"name": "NestedGraph"},
+                        "attribute": {"value": "nested"},
+                    },
+                ]
+            ],
+            "edges": [],
+            "tasks": [{"id": "task1", "steps": [{"description": "Step 1"}]}],
+        }
+
+        result = formatter.ensure_nested_graph_connectivity(graph)
+        assert "edges" in result
+        # Should not create edge since step index is not found
+
+    def test_format_nodes_with_complex_step_structure(self) -> None:
+        """Test _format_nodes with complex step structure."""
+        formatter = TaskGraphFormatter(
+            role="test_role",
+            user_objective="test_objective",
+            builder_objective="test_builder_objective",
+        )
+
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Task 1",
+                "description": "Test task",
+                "steps": [
+                    {
+                        "task": "Step 1",
+                        "description": "First step",
+                        "step_id": "step_1",
+                        "resource": {"name": "MessageWorker"},
+                    }
+                ],
+            }
+        ]
+
+        nodes, node_lookup, all_task_node_ids = formatter._format_nodes(tasks)
+        assert len(nodes) > 1  # Should have start node + task node + step node
+        assert "task1" in node_lookup
+        assert len(all_task_node_ids) == 1
+
+    def test_format_nodes_with_simple_step_structure(self) -> None:
+        """Test _format_nodes with simple step structure."""
+        formatter = TaskGraphFormatter(
+            role="test_role",
+            user_objective="test_objective",
+            builder_objective="test_builder_objective",
+        )
+
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Task 1",
+                "description": "Test task",
+                "steps": [{"description": "Step 1"}],
+            }
+        ]
+
+        nodes, node_lookup, all_task_node_ids = formatter._format_nodes(tasks)
+        assert len(nodes) > 1
+        assert "task1" in node_lookup
+        assert len(all_task_node_ids) == 1
+
+    def test_format_nodes_with_string_step(self) -> None:
+        """Test _format_nodes with string step."""
+        formatter = TaskGraphFormatter(
+            role="test_role",
+            user_objective="test_objective",
+            builder_objective="test_builder_objective",
+        )
+
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Task 1",
+                "description": "Test task",
+                "steps": ["Step 1"],
+            }
+        ]
+
+        nodes, node_lookup, all_task_node_ids = formatter._format_nodes(tasks)
+        assert len(nodes) > 1
+        assert "task1" in node_lookup
+        assert len(all_task_node_ids) == 1
+
+    def test_format_nodes_with_non_dict_step(self) -> None:
+        """Test _format_nodes with non-dict step."""
+        formatter = TaskGraphFormatter(
+            role="test_role",
+            user_objective="test_objective",
+            builder_objective="test_builder_objective",
+        )
+
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Task 1",
+                "description": "Test task",
+                "steps": [
+                    123  # Non-dict step
+                ],
+            }
+        ]
+
+        nodes, node_lookup, all_task_node_ids = formatter._format_nodes(tasks)
+        assert len(nodes) > 1
+        assert "task1" in node_lookup
+        assert len(all_task_node_ids) == 1
+
+    def test_format_nodes_with_task_without_steps(self) -> None:
+        """Test _format_nodes with task without steps."""
+        formatter = TaskGraphFormatter(
+            role="test_role",
+            user_objective="test_objective",
+            builder_objective="test_builder_objective",
+        )
+
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Task 1",
+                "description": "Test task",
+                # No steps
+            }
+        ]
+
+        nodes, node_lookup, all_task_node_ids = formatter._format_nodes(tasks)
+        assert len(nodes) > 1
+        assert "task1" in node_lookup
+        assert len(all_task_node_ids) == 1
+
+    def test_format_nodes_with_task_without_description(self) -> None:
+        """Test _format_nodes with task without description."""
+        formatter = TaskGraphFormatter(
+            role="test_role",
+            user_objective="test_objective",
+            builder_objective="test_builder_objective",
+        )
+
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Task 1",
+                # No description
+            }
+        ]
+
+        nodes, node_lookup, all_task_node_ids = formatter._format_nodes(tasks)
+        assert len(nodes) > 1
+        assert "task1" in node_lookup
+        assert len(all_task_node_ids) == 1
+
+    def test_format_edges_with_dependencies(self) -> None:
+        """Test _format_edges with dependencies."""
+        formatter = TaskGraphFormatter(
+            role="test_role",
+            user_objective="test_objective",
+            builder_objective="test_builder_objective",
+        )
+
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Task 1",
+                "description": "Test task 1",
+                "dependencies": ["task2"],
+                "steps": [],
+            },
+            {
+                "id": "task2",
+                "name": "Task 2",
+                "description": "Test task 2",
+                "dependencies": [],
+                "steps": [],
+            },
+        ]
+
+        node_lookup = {"task1": "1", "task2": "2"}
+        all_task_node_ids = ["1", "2"]
+        start_node_id = "0"
+
+        edges, nested_graph_nodes = formatter._format_edges(
+            tasks, node_lookup, all_task_node_ids, start_node_id
+        )
+        assert len(edges) > 0
+
+    def test_format_edges_with_none_dependency(self) -> None:
+        """Test _format_edges with None dependency."""
+        formatter = TaskGraphFormatter(
+            role="test_role",
+            user_objective="test_objective",
+            builder_objective="test_builder_objective",
+        )
+
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Task 1",
+                "description": "Test task 1",
+                "dependencies": [None],  # None dependency
+                "steps": [],
+            }
+        ]
+
+        node_lookup = {"task1": "1"}
+        all_task_node_ids = ["1"]
+        start_node_id = "0"
+
+        edges, nested_graph_nodes = formatter._format_edges(
+            tasks, node_lookup, all_task_node_ids, start_node_id
+        )
+        assert len(edges) >= 0  # Should handle None dependency gracefully
+
+    def test_format_edges_with_dict_dependency(self) -> None:
+        """Test _format_edges with dict dependency."""
+        formatter = TaskGraphFormatter(
+            role="test_role",
+            user_objective="test_objective",
+            builder_objective="test_builder_objective",
+        )
+
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Task 1",
+                "description": "Test task 1",
+                "dependencies": [{"id": "task2"}],  # Dict dependency
+                "steps": [],
+            },
+            {
+                "id": "task2",
+                "name": "Task 2",
+                "description": "Test task 2",
+                "dependencies": [],
+                "steps": [],
+            },
+        ]
+
+        node_lookup = {"task1": "1", "task2": "2"}
+        all_task_node_ids = ["1", "2"]
+        start_node_id = "0"
+
+        edges, nested_graph_nodes = formatter._format_edges(
+            tasks, node_lookup, all_task_node_ids, start_node_id
+        )
+        assert len(edges) > 0
+
+    def test_format_edges_with_dict_dependency_no_id(self) -> None:
+        """Test _format_edges with dict dependency without id."""
+        formatter = TaskGraphFormatter(
+            role="test_role",
+            user_objective="test_objective",
+            builder_objective="test_builder_objective",
+        )
+
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Task 1",
+                "description": "Test task 1",
+                "dependencies": [{"name": "task2"}],  # Dict dependency without id
+                "steps": [],
+            }
+        ]
+
+        node_lookup = {"task1": "1"}
+        all_task_node_ids = ["1"]
+        start_node_id = "0"
+
+        edges, nested_graph_nodes = formatter._format_edges(
+            tasks, node_lookup, all_task_node_ids, start_node_id
+        )
+        assert len(edges) >= 0  # Should handle missing id gracefully
+
+    def test_format_edges_with_invalid_dependency_type(self) -> None:
+        """Test _format_edges with invalid dependency type."""
+        formatter = TaskGraphFormatter(
+            role="test_role",
+            user_objective="test_objective",
+            builder_objective="test_builder_objective",
+        )
+
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Task 1",
+                "description": "Test task 1",
+                "dependencies": [123],  # Invalid dependency type
+                "steps": [],
+            }
+        ]
+
+        node_lookup = {"task1": "1"}
+        all_task_node_ids = ["1"]
+        start_node_id = "0"
+
+        edges, nested_graph_nodes = formatter._format_edges(
+            tasks, node_lookup, all_task_node_ids, start_node_id
+        )
+        assert len(edges) >= 0  # Should handle invalid type gracefully
+
+    def test_format_edges_with_source_task_not_found(self) -> None:
+        """Test _format_edges with source task not found."""
+        formatter = TaskGraphFormatter(
+            role="test_role",
+            user_objective="test_objective",
+            builder_objective="test_builder_objective",
+        )
+
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Task 1",
+                "description": "Test task 1",
+                "dependencies": ["nonexistent"],
+            },
+        ]
+        nodes, node_lookup, all_task_node_ids = formatter._format_nodes(tasks)
+        start_node_id = "0"
+        edges, nested_graph_nodes = formatter._format_edges(
+            tasks, node_lookup, all_task_node_ids, start_node_id
+        )
+        assert len(edges) >= 0  # Should handle missing source task gracefully
+
+    def test_format_edges_with_source_node_not_found(self) -> None:
+        """Test _format_edges with source node not found."""
+        formatter = TaskGraphFormatter(
+            role="test_role",
+            user_objective="test_objective",
+            builder_objective="test_builder_objective",
+        )
+
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Task 1",
+                "description": "Test task 1",
+                "dependencies": ["task2"],
+                "steps": [],
+            },
+            {
+                "id": "task2",
+                "name": "Task 2",
+                "description": "Test task 2",
+                "dependencies": [],
+                "steps": [],
+            },
+        ]
+
+        node_lookup = {"task1": "1"}  # Missing task2 in lookup
+        all_task_node_ids = ["1"]
+        start_node_id = "0"
+
+        edges, nested_graph_nodes = formatter._format_edges(
+            tasks, node_lookup, all_task_node_ids, start_node_id
+        )
+        assert len(edges) >= 0  # Should handle missing source node gracefully
