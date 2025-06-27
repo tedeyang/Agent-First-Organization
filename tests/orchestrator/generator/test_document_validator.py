@@ -5,6 +5,7 @@ including structure, required fields, consistency, and error reporting.
 """
 
 import pytest
+
 from arklex.orchestrator.generator.docs.document_validator import DocumentValidator
 
 

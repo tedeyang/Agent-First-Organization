@@ -1,13 +1,14 @@
 # Copyright Sierra
 
 import json
-from typing import Any, Dict
+from typing import Any
+
 from benchmark.tau_bench.envs.tool import Tool
 
 
 class SearchOnestopFlight(Tool):
     @staticmethod
-    def invoke(data: Dict[str, Any], origin: str, destination: str, date: str) -> str:
+    def invoke(data: dict[str, Any], origin: str, destination: str, date: str) -> str:
         flights = data["flights"]
         results = []
         for flight1 in flights.values():
@@ -46,7 +47,7 @@ class SearchOnestopFlight(Tool):
         return json.dumps(results)
 
     @staticmethod
-    def get_info() -> Dict[str, Any]:
+    def get_info() -> dict[str, Any]:
         return {
             "type": "function",
             "function": {

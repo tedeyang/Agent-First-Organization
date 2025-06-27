@@ -1,10 +1,12 @@
 """End call tool for Twilio integration."""
 
-import time
 import threading
+import time
 from typing import Any
-from arklex.env.tools.tools import register_tool
+
 from twilio.rest import Client as TwilioClient
+
+from arklex.env.tools.tools import register_tool
 from arklex.utils.logging_utils import LogContext
 
 log_context = LogContext(__name__)
@@ -31,7 +33,7 @@ def _end_call_thread(
             f"Ending call with call_sid: {call_sid}. Waiting for response to be played"
         )
         response_played_event.wait(timeout=100)
-        log_context.info(f"Response played. Ending call")
+        log_context.info("Response played. Ending call")
         call = twilio_client.calls(call_sid).update(status="completed")
         log_context.info(f"Call end response: {call}")
     except Exception as e:

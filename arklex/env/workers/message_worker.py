@@ -7,7 +7,7 @@ both streaming and non-streaming response generation, with functionality for han
 message flows and direct responses.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 from langchain.prompts import PromptTemplate
 from langchain_core.language_models import BaseChatModel
@@ -20,8 +20,8 @@ from arklex.env.tools.utils import trace
 from arklex.env.workers.worker import BaseWorker, register_worker
 from arklex.types import EventType, StreamType
 from arklex.utils.graph_state import MessageState
-from arklex.utils.model_provider_config import PROVIDER_MAP
 from arklex.utils.logging_utils import LogContext
+from arklex.utils.model_provider_config import PROVIDER_MAP
 
 log_context = LogContext(__name__)
 
@@ -33,7 +33,7 @@ class MessageWorker(BaseWorker):
     def __init__(self) -> None:
         super().__init__()
         self.action_graph: StateGraph = self._create_action_graph()
-        self.llm: Optional[BaseChatModel] = None
+        self.llm: BaseChatModel | None = None
 
     def generator(self, state: MessageState) -> MessageState:
         # get the input message
@@ -45,14 +45,14 @@ class MessageWorker(BaseWorker):
         orch_msg_content: str = (
             "None" if not orchestrator_message.message else orchestrator_message.message
         )
-        orch_msg_attr: Dict[str, Any] = orchestrator_message.attribute
+        orch_msg_attr: dict[str, Any] = orchestrator_message.attribute
         direct_response: bool = orch_msg_attr.get("direct_response", False)
         if direct_response:
             state.message_flow = ""
             state.response = orch_msg_content
             return state
 
-        prompts: Dict[str, str] = load_prompts(state.bot_config)
+        prompts: dict[str, str] = load_prompts(state.bot_config)
         if message_flow and message_flow != "\n":
             prompt: PromptTemplate = PromptTemplate.from_template(
                 prompts["message_flow_generator_prompt"]
@@ -95,14 +95,14 @@ class MessageWorker(BaseWorker):
         orch_msg_content: str = (
             "None" if not orchestrator_message.message else orchestrator_message.message
         )
-        orch_msg_attr: Dict[str, Any] = orchestrator_message.attribute
+        orch_msg_attr: dict[str, Any] = orchestrator_message.attribute
         direct_response: bool = orch_msg_attr.get("direct_response", False)
         if direct_response:
             state.message_flow = ""
             state.response = orch_msg_content
             return state
 
-        prompts: Dict[str, str] = load_prompts(state.bot_config)
+        prompts: dict[str, str] = load_prompts(state.bot_config)
         if message_flow and message_flow != "\n":
             prompt: PromptTemplate = PromptTemplate.from_template(
                 prompts["message_flow_generator_prompt"]
@@ -219,10 +219,10 @@ class MessageWorker(BaseWorker):
         workflow.add_conditional_edges(START, self.choose_generator)
         return workflow
 
-    def _execute(self, msg_state: MessageState, **kwargs: Any) -> Dict[str, Any]:
+    def _execute(self, msg_state: MessageState, **kwargs: Any) -> dict[str, Any]:
         self.llm = PROVIDER_MAP.get(
             msg_state.bot_config.llm_config.llm_provider, ChatOpenAI
         )(model=msg_state.bot_config.llm_config.model_type_or_path)
         graph = self.action_graph.compile()
-        result: Dict[str, Any] = graph.invoke(msg_state)
+        result: dict[str, Any] = graph.invoke(msg_state)
         return result

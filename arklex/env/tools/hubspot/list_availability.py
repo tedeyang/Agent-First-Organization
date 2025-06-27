@@ -1,7 +1,9 @@
 from datetime import datetime
+from typing import Any
+
 import pytz
 from hubspot import HubSpot
-from typing import Any
+
 from arklex.env.tools.tools import register_tool
 from arklex.utils.logging_utils import LogContext
 

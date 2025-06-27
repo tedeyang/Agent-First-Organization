@@ -283,7 +283,7 @@ class CompletionModel(GeneralModel):
         if "classification" not in res:
             raise ModelError(f"Invalid response from model: {res}")
         choice = res["classification"]
-        if choice not in decode_map.keys():
+        if choice not in decode_map:
             key = try_classify_recover(s=choice, decode_map=decode_map)
             if key is not None:
                 return decode_map[key]

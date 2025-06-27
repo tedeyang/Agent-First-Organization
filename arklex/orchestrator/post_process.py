@@ -1,14 +1,14 @@
 import re
 from typing import Any
 
+from langchain.prompts import PromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain_openai import ChatOpenAI
+
 from arklex.env.prompts import load_prompts
 from arklex.utils.graph_state import MessageState, Params, ResourceRecord
-from arklex.utils.model_provider_config import PROVIDER_MAP
 from arklex.utils.logging_utils import LogContext
-
-from langchain.prompts import PromptTemplate
-from langchain_openai import ChatOpenAI
-from langchain_core.output_parsers import StrOutputParser
+from arklex.utils.model_provider_config import PROVIDER_MAP
 
 log_context = LogContext(__name__)
 
@@ -172,7 +172,7 @@ def _live_chat_verifier(message_state: MessageState, params: Params) -> None:
     # check for relevance of the user's question
     if not _is_question_relevant(params):
         log_context.info(
-            f"User's question is not relevant. Skipping live chat initiation."
+            "User's question is not relevant. Skipping live chat initiation."
         )
         return
 

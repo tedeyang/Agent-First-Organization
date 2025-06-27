@@ -5,13 +5,13 @@ This module provides test resources for testing the Arklex framework.
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Type
+from typing import Any
 
 import pytest
 
-from tests.utils.utils_workers import MCWorkerOrchestrator, MsgWorkerOrchestrator
-from tests.utils.utils_tools import ShopifyToolOrchestrator
 from tests.utils.test_config import CaseConfig
+from tests.utils.utils_tools import ShopifyToolOrchestrator
+from tests.utils.utils_workers import MCWorkerOrchestrator, MsgWorkerOrchestrator
 
 
 # Register custom markers
@@ -22,7 +22,7 @@ def pytest_configure(config):
 
 
 # Type aliases for better readability
-OrchestratorType = Type[Any]
+OrchestratorType = type[Any]
 
 
 class CaseConfig:
@@ -66,7 +66,7 @@ class CaseConfig:
 
 
 # Test case configuration for different orchestrator types
-TEST_CASES: List[CaseConfig] = [
+TEST_CASES: list[CaseConfig] = [
     CaseConfig(
         MCWorkerOrchestrator,
         "mc_worker_taskgraph.json",
@@ -85,7 +85,7 @@ TEST_CASES: List[CaseConfig] = [
 ]
 
 
-def load_test_cases(test_cases_path: Path) -> List[Dict[str, Any]]:
+def load_test_cases(test_cases_path: Path) -> list[dict[str, Any]]:
     """Load test cases from a JSON file.
 
     Args:
@@ -98,7 +98,7 @@ def load_test_cases(test_cases_path: Path) -> List[Dict[str, Any]]:
         pytest.fail: If the file cannot be loaded or parsed.
     """
     try:
-        with open(test_cases_path, "r") as f:
+        with open(test_cases_path) as f:
             return json.load(f)
     except FileNotFoundError:
         pytest.fail(f"Test cases file not found: {test_cases_path}", pytrace=True)

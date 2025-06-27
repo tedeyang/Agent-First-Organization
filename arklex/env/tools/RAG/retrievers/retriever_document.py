@@ -10,13 +10,13 @@ embedding generation, and conversion between different document formats for vect
 
 import json
 from enum import Enum
-from typing import List, Dict
-from openai import OpenAI
-from arklex.utils.logging_utils import LogContext
 
 import tiktoken
-from arklex.utils.mysql import mysql_pool
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from openai import OpenAI
+
+from arklex.utils.logging_utils import LogContext
+from arklex.utils.mysql import mysql_pool
 
 DEFAULT_CHUNK_ENCODING = "cl100k_base"
 
@@ -94,7 +94,7 @@ class RetrieverDocument:
         self.timestamp = int(timestamp)
         self.bot_uid = bot_uid
 
-    def chunk(self, chunk_encoding=DEFAULT_CHUNK_ENCODING) -> List["RetrieverDocument"]:
+    def chunk(self, chunk_encoding=DEFAULT_CHUNK_ENCODING) -> list["RetrieverDocument"]:
         if self.is_chunked:
             raise ValueError("Document is already chunked")
         elif self.qa_doc_type == RetrieverDocumentType.FAQ:
@@ -143,7 +143,7 @@ class RetrieverDocument:
             "bot_uid": self.bot_uid,
         }
 
-    def to_milvus_schema_dict_and_embed(self) -> Dict:
+    def to_milvus_schema_dict_and_embed(self) -> dict:
         # check if values exists
         if (
             self.id is None
@@ -238,11 +238,11 @@ class RetrieverDocument:
     @classmethod
     def chunked_retriever_docs_from_db_docs(
         cls,
-        db_docs: List[dict],
+        db_docs: list[dict],
         doc_type: RetrieverDocumentType,
         bot_uid: str,
-    ) -> List["RetrieverDocument"]:
-        chunked_db_docs: List[RetrieverDocument] = []
+    ) -> list["RetrieverDocument"]:
+        chunked_db_docs: list[RetrieverDocument] = []
         for doc in db_docs:
             doc_id = doc["id"]
             metadata = doc["metadata"]
@@ -261,7 +261,7 @@ class RetrieverDocument:
     @classmethod
     def load_all_chunked_docs_from_mysql(
         cls, bot_id: str, version: str
-    ) -> List["RetrieverDocument"]:
+    ) -> list["RetrieverDocument"]:
         faq_db_docs = mysql_pool.fetchall(
             "SELECT id, content, metadata, unix_timestamp(updated_at) as timestamp FROM qa_doc_faq WHERE qa_bot_id=%s and qa_bot_version=%s;",
             (bot_id, version),

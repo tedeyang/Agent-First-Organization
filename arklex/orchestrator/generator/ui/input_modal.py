@@ -5,9 +5,10 @@ It includes input validation and callback handling for user interactions.
 """
 
 from textual.app import ComposeResult
-from textual.widgets import Input, Button, Static
-from textual.containers import Vertical, Horizontal
+from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
+from textual.widgets import Button, Input, Static
+
 from arklex.utils.logging_utils import LogContext
 
 log_context = LogContext(__name__)

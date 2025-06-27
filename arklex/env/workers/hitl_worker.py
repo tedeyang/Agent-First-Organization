@@ -4,14 +4,14 @@ This module provides functionality for human-in-the-loop interactions, including
 slot filling and verification with human oversight.
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
-from langgraph.graph import StateGraph, START
+from langgraph.graph import START, StateGraph
 
+from arklex.env.workers.utils.chat_client import ChatClient
 from arklex.env.workers.worker import BaseWorker, register_worker
 from arklex.orchestrator.NLU.core.slot import SlotFiller
 from arklex.utils.graph_state import MessageState, StatusEnum
-from arklex.env.workers.utils.chat_client import ChatClient
 from arklex.utils.logging_utils import LogContext
 
 log_context = LogContext(__name__)
@@ -30,11 +30,11 @@ class HITLWorker(BaseWorker):
     """
 
     description: str = "This is a template for a HITL worker."
-    mode: Optional[str] = None
-    params: Optional[Dict[str, Any]] = None
-    verifier: List[str] = []
+    mode: str | None = None
+    params: dict[str, Any] | None = None
+    verifier: list[str] = []
 
-    slot_fill_api: Optional[SlotFiller] = None
+    slot_fill_api: SlotFiller | None = None
 
     def __init__(self, **kwargs: Any) -> None:
         # Initialize attributes from kwargs
@@ -47,7 +47,7 @@ class HITLWorker(BaseWorker):
         self.slot_fill_api = kwargs.get("slot_fill_api", self.slot_fill_api)
         self.action_graph: StateGraph = self._create_action_graph()
 
-    def verify_literal(self, state: MessageState) -> Tuple[bool, str]:
+    def verify_literal(self, state: MessageState) -> tuple[bool, str]:
         """Override this method to allow verification on the message, either orchestrator's message or user's message
         Case: user's message
         Before the bot generate the response for the user's query, the framework decide whether it need to call human for the help because the user directly request so
@@ -62,11 +62,11 @@ class HITLWorker(BaseWorker):
         """
         return True, ""
 
-    def verify_slots(self, message: Any) -> Tuple[bool, str]:
+    def verify_slots(self, message: Any) -> tuple[bool, str]:
         """Override this method to allow verification on the slots"""
         return True, ""
 
-    def verify(self, state: MessageState) -> Tuple[bool, str]:
+    def verify(self, state: MessageState) -> tuple[bool, str]:
         """Override this method to allow advanced verification on MessageState object"""
         need_hitl: bool
         message_literal: str
@@ -120,7 +120,7 @@ class HITLWorker(BaseWorker):
 
     def hitl(self, state: MessageState) -> str:
         """Human in the loop function"""
-        result: Optional[str] = None
+        result: str | None = None
         match self.mode:
             case "chat":
                 chat_result: MessageState = self.chat(state)
@@ -232,7 +232,7 @@ class HITLWorkerTestMC(HITLWorker):
 
     description: str = "Get confirmation from a real end user in purchasing"
     mode: str = "mc"
-    params: Dict[str, Any] = {
+    params: dict[str, Any] = {
         "intro": "Should the user continue with this purchase? (Y/N)",
         "max_retries": 5,
         "default": "User is not allowed to continue with the purchase",
@@ -274,7 +274,7 @@ class HITLWorkerChatFlag(HITLWorker):
     description: str = "Human in the loop worker"
     mode: str = "chat"
 
-    def verify_literal(self, state: MessageState) -> Tuple[bool, str]:
+    def verify_literal(self, state: MessageState) -> tuple[bool, str]:
         """TODO: Implement orchestrator message handling for HITL worker
         This method is to check the message from the user, since in the NLU, we already determine that the user wants to chat with the human in the loop.
 
@@ -324,7 +324,7 @@ class HITLWorkerMCFlag(HITLWorker):
 
     description: str = "Get confirmation from a real end user in purchasing"
     mode: str = "mc"
-    params: Dict[str, Any] = {
+    params: dict[str, Any] = {
         "intro": "Should the user continue with this purchase? (Y/N)",
         "max_retries": 5,
         "default": "User is not allowed to continue with the purchase",
@@ -353,7 +353,7 @@ class HITLWorkerMCFlag(HITLWorker):
             state.status = StatusEnum.STAY
 
         else:
-            result: Optional[str] = self.params["choices"].get(
+            result: str | None = self.params["choices"].get(
                 state.user_message.message
             )  # not actually user message but system confirmation
 

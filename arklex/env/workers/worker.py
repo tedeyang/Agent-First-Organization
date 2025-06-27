@@ -6,18 +6,19 @@ handling, and state management. The module serves as a foundation for implementi
 workers that handle different types of tasks and operations within the system.
 """
 
-from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional, Type, TypeVar
-from arklex.utils.graph_state import MessageState, StatusEnum, ResourceRecord
-from arklex.utils.logging_utils import LogContext
 import traceback
+from abc import ABC, abstractmethod
+from typing import Any, TypeVar
+
+from arklex.utils.graph_state import MessageState, ResourceRecord, StatusEnum
+from arklex.utils.logging_utils import LogContext
 
 log_context = LogContext(__name__)
 
 T = TypeVar("T")
 
 
-def register_worker(cls: Type[T]) -> Type[T]:
+def register_worker(cls: type[T]) -> type[T]:
     """Register a worker class with the Arklex framework.
 
     This decorator registers a worker class and automatically sets its name
@@ -44,7 +45,7 @@ class BaseWorker(ABC):
         description (Optional[str]): Description of the worker's functionality.
     """
 
-    description: Optional[str] = None
+    description: str | None = None
 
     def __str__(self) -> str:
         """Get a string representation of the worker.
@@ -63,7 +64,7 @@ class BaseWorker(ABC):
         return f"{self.__class__.__name__}"
 
     @abstractmethod
-    def _execute(self, msg_state: MessageState, **kwargs: Any) -> Dict[str, Any]:
+    def _execute(self, msg_state: MessageState, **kwargs: Any) -> dict[str, Any]:
         """Execute the worker's core functionality.
 
         This abstract method must be implemented by concrete worker classes to
@@ -91,7 +92,7 @@ class BaseWorker(ABC):
             MessageState: The updated message state after execution.
         """
         try:
-            response_return: Dict[str, Any] = self._execute(msg_state, **kwargs)
+            response_return: dict[str, Any] = self._execute(msg_state, **kwargs)
             response_state: MessageState = MessageState.model_validate(response_return)
 
             # Create a new ResourceRecord for this execution

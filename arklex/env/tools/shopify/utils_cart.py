@@ -14,10 +14,9 @@ This file contains the code for operations related to shopping cart.
 
 import os
 
+from dotenv import load_dotenv
 
 from arklex.env.tools.shopify.utils import *
-
-from dotenv import load_dotenv
 
 load_dotenv()
 

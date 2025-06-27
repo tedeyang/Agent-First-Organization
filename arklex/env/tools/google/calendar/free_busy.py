@@ -1,8 +1,9 @@
 from datetime import datetime
-from googleapiclient.discovery import build
-from google.oauth2 import service_account
 from typing import Any
+
 import pytz
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
 
 from arklex.env.tools.google.calendar.utils import AUTH_ERROR
 from arklex.env.tools.tools import register_tool
@@ -19,18 +20,14 @@ slots = [
     {
         "name": "time_min",
         "type": "str",
-        "description": "The start of the time range to check for. It includes the hour, as the date alone is not sufficient. The format should be 'YYYY-MM-DDTHH:MM:SS'. Today is {today}.".format(
-            today=datetime.now().isoformat()
-        ),
+        "description": f"The start of the time range to check for. It includes the hour, as the date alone is not sufficient. The format should be 'YYYY-MM-DDTHH:MM:SS'. Today is {datetime.now().isoformat()}.",
         "prompt": "Please provide the minimum time to query the busy times",
         "required": True,
     },
     {
         "name": "time_max",
         "type": "str",
-        "description": "The end of the time range to check for. It includes the hour, as the date alone is not sufficient. The format should be 'YYYY-MM-DDTHH:MM:SS'. Today is {today}.".format(
-            today=datetime.now().isoformat()
-        ),
+        "description": f"The end of the time range to check for. It includes the hour, as the date alone is not sufficient. The format should be 'YYYY-MM-DDTHH:MM:SS'. Today is {datetime.now().isoformat()}.",
         "prompt": "Please provide the maximum time to query the busy times",
         "required": True,
     },

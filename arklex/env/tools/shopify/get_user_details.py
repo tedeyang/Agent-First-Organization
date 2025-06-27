@@ -20,15 +20,15 @@ Module Name: get_user_details
 This file contains the code for retrieving user details from Shopify.
 """
 
-from typing import Any, Dict, Tuple, Union
+from typing import Any
 
-from arklex.env.tools.tools import register_tool
+from arklex.env.tools.shopify.auth_utils import *
+from arklex.env.tools.shopify.utils import *
+from arklex.env.tools.shopify.utils_nav import *
 
 # Customer API
-from arklex.env.tools.shopify.utils_slots import ShopifySlots, ShopifyOutputs
-from arklex.env.tools.shopify.utils import *
-from arklex.env.tools.shopify.auth_utils import *
-from arklex.env.tools.shopify.utils_nav import *
+from arklex.env.tools.shopify.utils_slots import ShopifyOutputs, ShopifySlots
+from arklex.env.tools.tools import register_tool
 
 description = "Get the details of a user."
 slots = [ShopifySlots.REFRESH_TOKEN, *PAGEINFO_SLOTS]
@@ -41,7 +41,7 @@ errors = [USER_NOT_FOUND_ERROR]
 @register_tool(description, slots, outputs, lambda x: x not in errors)
 def get_user_details(
     refresh_token: str, **kwargs: Any
-) -> Union[Tuple[Dict[str, Any], Dict[str, Any]], str]:
+) -> tuple[dict[str, Any], dict[str, Any]] | str:
     """
     Retrieve detailed information about a user's profile and their orders.
 
@@ -111,18 +111,18 @@ def get_user_details(
             }}
         """
         try:
-            auth: Dict[str, str] = {"Authorization": get_access_token(refresh_token)}
+            auth: dict[str, str] = {"Authorization": get_access_token(refresh_token)}
         except:
             return AUTH_ERROR
 
         try:
-            response: Dict[str, Any] = make_query(
+            response: dict[str, Any] = make_query(
                 customer_url, body, {}, customer_headers | auth
             )["data"]["customer"]
         except Exception as e:
             return f"error: {e}"
 
-        pageInfo: Dict[str, Any] = response["orders"]["pageInfo"]
+        pageInfo: dict[str, Any] = response["orders"]["pageInfo"]
         return response, pageInfo
 
     except Exception:

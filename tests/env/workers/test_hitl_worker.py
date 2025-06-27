@@ -1,16 +1,18 @@
 """Tests for the HITL worker module."""
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
+
 from arklex.env.workers.hitl_worker import (
     HITLWorker,
-    HITLWorkerTestChat,
-    HITLWorkerTestMC,
     HITLWorkerChatFlag,
     HITLWorkerMCFlag,
+    HITLWorkerTestChat,
+    HITLWorkerTestMC,
 )
-from arklex.utils.graph_state import MessageState, StatusEnum, Metadata
 from arklex.orchestrator.NLU.core.slot import SlotFiller
+from arklex.utils.graph_state import MessageState, Metadata, StatusEnum
 
 
 class TestHITLWorker:

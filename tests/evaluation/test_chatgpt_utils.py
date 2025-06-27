@@ -1,15 +1,16 @@
 """Tests for the chatgpt_utils module."""
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 
 from arklex.evaluation.chatgpt_utils import (
     chatgpt_chatbot,
-    query_chatbot,
     filter_convo,
     flip_hist,
-    format_chat_history_str,
     flip_hist_content_only,
+    format_chat_history_str,
+    query_chatbot,
 )
 
 
@@ -274,8 +275,9 @@ class TestChatGPTUtils:
         self, mock_anthropic: Mock, mock_openai: Mock
     ) -> None:
         """Test create_client returns OpenAI client when provider is openai."""
-        from arklex.evaluation.chatgpt_utils import create_client
         import os
+
+        from arklex.evaluation.chatgpt_utils import create_client
 
         os.environ["OPENAI_API_KEY"] = "test"
         client = create_client()
@@ -638,7 +640,8 @@ class TestChatGPTUtils:
     def test_main_function(self):
         import sys
         import types
-        from unittest.mock import patch, Mock
+        from unittest.mock import Mock, patch
+
         from arklex.evaluation import chatgpt_utils
 
         # Mock the get_documents module and its functions

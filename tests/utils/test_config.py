@@ -1,9 +1,9 @@
 """Test configuration utilities for the Arklex framework."""
 
-from typing import Any, Type
+from typing import Any
 
 # Type aliases for better readability
-OrchestratorType = Type[Any]
+OrchestratorType = type[Any]
 
 
 class CaseConfig:

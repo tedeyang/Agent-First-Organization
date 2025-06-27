@@ -5,7 +5,8 @@ including intent detection, slot filling, and tool execution.
 """
 
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any
+
 from arklex.utils.logging_utils import LogContext
 
 log_context = LogContext(__name__)
@@ -43,7 +44,7 @@ class Trace:
         type: TraceType,
         input: Any,
         output: Any,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         """Initialize the trace.
 

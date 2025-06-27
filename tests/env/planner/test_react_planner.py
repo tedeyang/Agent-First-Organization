@@ -1,33 +1,33 @@
 """Comprehensive tests for the ReactPlanner module."""
 
+from typing import Any
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
-import json
-from unittest.mock import Mock, patch, AsyncMock, MagicMock
-from typing import Dict, Any, List, Tuple
 
 from arklex.env.planner.react_planner import (
-    ReactPlanner,
-    DefaultPlanner,
-    Action,
-    EnvResponse,
-    PlannerResource,
+    MAX_NUM_RETRIEVALS,
+    MIN_NUM_RETRIEVALS,
+    NUM_STEPS_TO_NUM_RETRIEVALS,
     RESPOND_ACTION_NAME,
     RESPOND_ACTION_RESOURCE,
-    NUM_STEPS_TO_NUM_RETRIEVALS,
-    MIN_NUM_RETRIEVALS,
-    MAX_NUM_RETRIEVALS,
-)
-from arklex.utils.graph_state import (
-    MessageState,
-    LLMConfig,
-    ConvoMessage,
-    OrchestratorMessage,
+    Action,
+    DefaultPlanner,
+    EnvResponse,
+    PlannerResource,
+    ReactPlanner,
 )
 from arklex.types import StreamType
+from arklex.utils.graph_state import (
+    ConvoMessage,
+    LLMConfig,
+    MessageState,
+    OrchestratorMessage,
+)
 
 
 @pytest.fixture
-def mock_tools_map() -> Dict[str, Any]:
+def mock_tools_map() -> dict[str, Any]:
     """Create a mock tools map for testing."""
     return {
         1: {
@@ -59,7 +59,7 @@ def mock_tools_map() -> Dict[str, Any]:
 
 
 @pytest.fixture
-def mock_workers_map() -> Dict[str, Any]:
+def mock_workers_map() -> dict[str, Any]:
     """Create a mock workers map for testing."""
     return {
         "test_worker": {
@@ -78,7 +78,7 @@ def mock_workers_map() -> Dict[str, Any]:
 
 
 @pytest.fixture
-def mock_name2id() -> Dict[str, int]:
+def mock_name2id() -> dict[str, int]:
     """Create a mock name2id mapping for testing."""
     return {"test_tool": 1, "test_worker": 2, "MessageWorker": 3}
 
@@ -106,7 +106,7 @@ def mock_message_state() -> MessageState:
 
 
 @pytest.fixture
-def mock_msg_history() -> List[Dict[str, Any]]:
+def mock_msg_history() -> list[dict[str, Any]]:
     """Create a mock message history for testing."""
     return [
         {"role": "user", "content": "Hello"},

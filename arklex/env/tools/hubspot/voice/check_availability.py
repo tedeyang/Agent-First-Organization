@@ -1,10 +1,11 @@
 from datetime import datetime
+from typing import Any
+
 import pytz
 from hubspot import HubSpot
-from typing import Any
-from arklex.utils.logging_utils import LogContext
 
 from arklex.env.tools.tools import register_tool
+from arklex.utils.logging_utils import LogContext
 
 log_context = LogContext(__name__)
 
@@ -32,9 +33,7 @@ slots = [
         "name": "start_time",
         "type": "str",
         "required": True,
-        "description": "The start time that the meeting will take place. The meeting's start time includes the hour, as the date alone is not sufficient. The format should be 'YYYY-MM-DDTHH:MM:SS'. Today is {today}.".format(
-            today=datetime.now().isoformat()
-        ),
+        "description": f"The start time that the meeting will take place. The meeting's start time includes the hour, as the date alone is not sufficient. The format should be 'YYYY-MM-DDTHH:MM:SS'. Today is {datetime.now().isoformat()}.",
     },
 ]
 

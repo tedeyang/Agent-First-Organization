@@ -32,10 +32,9 @@ Usage:
             pass
 """
 
-from abc import ABC
-from abc import abstractmethod
 import pickle
-from typing import List, Any
+from abc import ABC, abstractmethod
+from typing import Any
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
@@ -80,7 +79,7 @@ class Loader(ABC):
             pickle.dump(data, f)
 
     @abstractmethod
-    def load(self, filepath: str) -> List[Document]:
+    def load(self, filepath: str) -> list[Document]:
         """Load documents from a file.
 
         This abstract method should be implemented by subclasses to load documents
@@ -101,7 +100,7 @@ class Loader(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def chunk(self, document_objs: List[Any]) -> List[Document]:
+    def chunk(self, document_objs: list[Any]) -> list[Document]:
         """Split documents into smaller chunks.
 
         This method splits documents into smaller, more manageable chunks while

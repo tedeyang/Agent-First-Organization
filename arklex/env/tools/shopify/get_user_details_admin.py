@@ -14,23 +14,22 @@ Module Name: get_user_details_admin
 This file contains the code for retrieving user details using the Shopify Admin API.
 """
 
-from typing import Any, Dict, Optional
-import json
 import inspect
+import json
+from typing import Any
 
-from arklex.env.tools.tools import register_tool
+# Admin API
+import shopify
 
+from arklex.env.tools.shopify._exception_prompt import ShopifyExceptionPrompt
+from arklex.env.tools.shopify.utils import authorify_admin
+from arklex.env.tools.shopify.utils_nav import *
 from arklex.env.tools.shopify.utils_slots import (
     ShopifyGetUserDetailsAdminSlots,
     ShopifyOutputs,
 )
-from arklex.env.tools.shopify.utils_nav import *
-from arklex.env.tools.shopify.utils import authorify_admin
-from arklex.env.tools.shopify._exception_prompt import ShopifyExceptionPrompt
+from arklex.env.tools.tools import register_tool
 from arklex.utils.exceptions import ToolExecutionError
-
-# Admin API
-import shopify
 
 description = "Get the details of a user with Admin API."
 slots = ShopifyGetUserDetailsAdminSlots.get_all_slots()
@@ -106,7 +105,7 @@ def get_user_details_admin(user_id: str, **kwargs: Any) -> str:
                     }}
                 }}
             """)
-            data: Optional[Dict[str, Any]] = json.loads(response)["data"]["customer"]
+            data: dict[str, Any] | None = json.loads(response)["data"]["customer"]
             if data:
                 return json.dumps(data)
             else:

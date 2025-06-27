@@ -1,11 +1,12 @@
 """Tests for the memory core module."""
 
-import pytest
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import AsyncMock, Mock, patch
+
 import numpy as np
+import pytest
 
 from arklex.memory.core import ShortTermMemory
-from arklex.utils.graph_state import ResourceRecord, LLMConfig
+from arklex.utils.graph_state import LLMConfig, ResourceRecord
 
 
 class TestShortTermMemory:
@@ -121,8 +122,9 @@ class TestShortTermMemory:
         self, mock_create_task, short_term_memory
     ) -> None:
         """Test _batch_get_embeddings method."""
-        import numpy as np
         import asyncio
+
+        import numpy as np
 
         texts = ["text1", "text2", "text3"]
 

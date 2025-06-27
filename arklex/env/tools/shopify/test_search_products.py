@@ -1,8 +1,10 @@
-import pytest
 import json
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
+
 from arklex.env.tools.shopify.search_products import search_products
-from arklex.utils.exceptions import ToolExecutionError, AuthenticationError
+from arklex.utils.exceptions import AuthenticationError, ToolExecutionError
 
 # Replace these with your real Shopify credentials for live testing
 SHOP_URL = "yourshop.myshopify.com"

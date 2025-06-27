@@ -3,8 +3,9 @@ import hashlib
 import inspect
 import threading
 from collections import defaultdict
+from collections.abc import Callable
 from multiprocessing import Lock
-from typing import Any, Callable, TypeVar, Dict, Tuple, Union
+from typing import Any, TypeVar
 
 from pydantic import BaseModel
 
@@ -12,9 +13,9 @@ T = TypeVar("T")
 
 USE_CACHE: bool = True
 _USE_CACHE_LOCK: Lock = Lock()  # type: ignore
-cache: Dict[str, Tuple[Union[T, Exception], threading.Event]] = {}
+cache: dict[str, tuple[T | Exception, threading.Event]] = {}
 lock: threading.Lock = threading.Lock()
-conditions: Dict[str, threading.Condition] = defaultdict(threading.Condition)
+conditions: dict[str, threading.Condition] = defaultdict(threading.Condition)
 
 
 def disable_cache() -> None:
@@ -44,14 +45,14 @@ def hash_item(item: Any) -> int:
 
 
 def hash_func_call(
-    func: Callable[..., Any], args: Tuple[Any, ...], kwargs: Dict[str, Any]
+    func: Callable[..., Any], args: tuple[Any, ...], kwargs: dict[str, Any]
 ) -> str:
     bound_args = inspect.signature(func).bind(*args, **kwargs)
     bound_args.apply_defaults()
     standardized_args = sorted(bound_args.arguments.items())
     arg_hash: int = hash_item(standardized_args)
     hashed_func: int = id(func)
-    call: Tuple[int, int] = (hashed_func, arg_hash)
+    call: tuple[int, int] = (hashed_func, arg_hash)
     return hashlib.md5(str(call).encode()).hexdigest()
 
 

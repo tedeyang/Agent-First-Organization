@@ -4,13 +4,14 @@ These tests verify the core functionality of the Generator class,
 including initialization, component integration, and error handling.
 """
 
-import pytest
-from unittest.mock import Mock, MagicMock, patch
-import tempfile
 import os
-from arklex.orchestrator.generator.core.generator import Generator
-from arklex.env.env import BaseResourceInitializer, DefaultResourceInitializer
+import tempfile
+from unittest.mock import MagicMock, Mock, patch
 
+import pytest
+
+from arklex.env.env import BaseResourceInitializer, DefaultResourceInitializer
+from arklex.orchestrator.generator.core.generator import Generator
 
 # --- Centralized Mock Fixtures ---
 
@@ -1192,7 +1193,7 @@ class TestGeneratorSaveTaskGraph:
             # Verify file content
             import json
 
-            with open(output_path, "r") as f:
+            with open(output_path) as f:
                 saved_content = json.load(f)
             assert saved_content == task_graph
 
@@ -1260,7 +1261,6 @@ class TestGeneratorSaveTaskGraph:
 
             # Create a task graph with non-serializable objects
             import functools
-            import collections.abc
 
             def test_function():
                 return "test"
@@ -1290,7 +1290,7 @@ class TestGeneratorSaveTaskGraph:
                 assert mock_log.debug.called
 
                 # Verify the file contains sanitized data
-                with open(result_path, "r") as f:
+                with open(result_path) as f:
                     import json
 
                     saved_data = json.load(f)
@@ -1331,7 +1331,7 @@ class TestGeneratorSaveTaskGraph:
             # Verify the file was created and contains all data
             assert os.path.exists(result_path)
 
-            with open(result_path, "r") as f:
+            with open(result_path) as f:
                 import json
 
                 saved_data = json.load(f)
@@ -2989,7 +2989,6 @@ class TestGeneratorSaveTaskGraph:
 
         # Create a task graph with complex objects
         import functools
-        import collections.abc
 
         def test_function():
             pass
@@ -3012,7 +3011,7 @@ class TestGeneratorSaveTaskGraph:
         assert os.path.exists(result_path)
 
         # Verify the file contains sanitized data
-        with open(result_path, "r") as f:
+        with open(result_path) as f:
             content = f.read()
             assert "partial_func" in content
             assert "callable_obj" in content
@@ -3044,7 +3043,7 @@ class TestGeneratorSaveTaskGraph:
         assert os.path.exists(result_path)
 
         # Verify the file contains all data types
-        with open(result_path, "r") as f:
+        with open(result_path) as f:
             content = f.read()
             assert '"string": "test"' in content
             assert '"integer": 123' in content

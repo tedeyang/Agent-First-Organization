@@ -7,20 +7,20 @@ Module Name: get_order_details
 This file contains the code for retrieving detailed order information from Shopify.
 """
 
+import inspect
 import json
-from typing import List, Any
+from typing import Any
 
 import shopify
 
-from arklex.env.tools.tools import register_tool
+from arklex.env.tools.shopify._exception_prompt import ShopifyExceptionPrompt
 from arklex.env.tools.shopify.utils import authorify_admin
 from arklex.env.tools.shopify.utils_slots import (
     ShopifyGetOrderDetailsSlots,
     ShopifyOutputs,
 )
+from arklex.env.tools.tools import register_tool
 from arklex.utils.exceptions import ToolExecutionError
-from arklex.env.tools.shopify._exception_prompt import ShopifyExceptionPrompt
-import inspect
 
 description = "Get the status and details of an order."
 slots = ShopifyGetOrderDetailsSlots.get_all_slots()
@@ -29,8 +29,8 @@ outputs = [ShopifyOutputs.ORDERS_DETAILS]
 
 @register_tool(description, slots, outputs)
 def get_order_details(
-    order_ids: List[str],
-    order_names: List[str],
+    order_ids: list[str],
+    order_names: list[str],
     user_id: str,
     limit: int = 10,
     **kwargs: Any,

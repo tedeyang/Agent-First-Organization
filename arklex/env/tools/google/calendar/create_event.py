@@ -1,28 +1,28 @@
 import inspect
-from datetime import datetime, timedelta
 import json
-from typing import List, Dict, Any
+from datetime import datetime, timedelta
+from typing import Any
 
-from googleapiclient.discovery import build
 from google.oauth2 import service_account
+from googleapiclient.discovery import build
 
-from arklex.env.tools.tools import register_tool
-from arklex.env.tools.google.calendar.utils import AUTH_ERROR
 from arklex.env.tools.google.calendar._exception_prompt import (
     GoogleCalendarExceptionPrompt,
 )
+from arklex.env.tools.google.calendar.utils import AUTH_ERROR
+from arklex.env.tools.tools import register_tool
+from arklex.types import StreamType
 from arklex.utils.exceptions import AuthenticationError, ToolExecutionError
 from arklex.utils.logging_utils import LogContext
-from arklex.types import StreamType
 
 log_context = LogContext(__name__)
 
 
 # Scopes required for accessing Google Calendar
-SCOPES: List[str] = ["https://www.googleapis.com/auth/calendar"]
+SCOPES: list[str] = ["https://www.googleapis.com/auth/calendar"]
 
 description: str = "Create the event in the Google Calendar."
-slots: List[Dict[str, Any]] = [
+slots: list[dict[str, Any]] = [
     {
         "name": "email",
         "type": "str",
@@ -54,9 +54,7 @@ slots: List[Dict[str, Any]] = [
     {
         "name": "start_time",
         "type": "str",
-        "description": "The start time that the meeting will take place. The meeting's start time includes the hour, as the date alone is not sufficient. The format should be 'YYYY-MM-DDTHH:MM:SS'. Today is {today}.".format(
-            today=datetime.now().isoformat()
-        ),
+        "description": f"The start time that the meeting will take place. The meeting's start time includes the hour, as the date alone is not sufficient. The format should be 'YYYY-MM-DDTHH:MM:SS'. Today is {datetime.now().isoformat()}.",
         "prompt": "Could you please provide the time when will you be available for the meeting?",
         "required": True,
     },
@@ -74,7 +72,7 @@ slots: List[Dict[str, Any]] = [
         "required": True,
     },
 ]
-outputs: List[Dict[str, Any]] = []
+outputs: list[dict[str, Any]] = []
 
 
 SUCCESS: str = "The event has been created successfully at {start_time}. The meeting invitation has been sent to {email}."
@@ -94,7 +92,7 @@ def create_event(
     func_name: str = inspect.currentframe().f_code.co_name
     # Authenticate using the service account
     try:
-        service_account_info: Dict[str, Any] = kwargs.get("service_account_info", {})
+        service_account_info: dict[str, Any] = kwargs.get("service_account_info", {})
         delegated_user: str = kwargs.get("delegated_user", "")
         credentials: service_account.Credentials = (
             service_account.Credentials.from_service_account_info(
@@ -132,7 +130,7 @@ def create_event(
         if kwargs.get("phone_no_to"):
             description += f"\nCustomer Phone number: {kwargs.get('phone_no_to')}"
 
-        final_event: Dict[str, Any] = {
+        final_event: dict[str, Any] = {
             "summary": f"{name}: {event_name}",
             "description": description,
             "start": {
@@ -151,7 +149,7 @@ def create_event(
             final_event["attendees"] = [{"email": email}]
 
         # Insert the event
-        event: Dict[str, Any] = (
+        event: dict[str, Any] = (
             service.events().insert(calendarId=calendar_id, body=final_event).execute()
         )
         log_context.info("Event created: %s" % (event.get("htmlLink")))

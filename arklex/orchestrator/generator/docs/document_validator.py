@@ -4,7 +4,7 @@ This module provides the DocumentValidator class that handles the validation
 of document structure, content, and consistency.
 """
 
-from typing import List, Dict, Any
+from typing import Any
 
 
 class DocumentValidator:
@@ -24,7 +24,7 @@ class DocumentValidator:
         self._required_fields = ["title", "sections"]
         self._section_fields = ["name", "content"]
 
-    def validate_structure(self, document: Dict[str, Any]) -> bool:
+    def validate_structure(self, document: dict[str, Any]) -> bool:
         """Validate document structure.
 
         Args:
@@ -48,7 +48,7 @@ class DocumentValidator:
 
         return True
 
-    def validate_required_fields(self, document: Dict[str, Any]) -> bool:
+    def validate_required_fields(self, document: dict[str, Any]) -> bool:
         """Validate required fields in document.
 
         Args:
@@ -68,7 +68,7 @@ class DocumentValidator:
 
         return True
 
-    def validate_consistency(self, document: Dict[str, Any]) -> bool:
+    def validate_consistency(self, document: dict[str, Any]) -> bool:
         """Validate document consistency.
 
         Args:
@@ -91,7 +91,7 @@ class DocumentValidator:
 
         return True
 
-    def get_error_messages(self, document: Dict[str, Any]) -> List[str]:
+    def get_error_messages(self, document: dict[str, Any]) -> list[str]:
         """Get validation error messages.
 
         Args:
@@ -116,7 +116,7 @@ class DocumentValidator:
 
         return errors
 
-    def _validate_section(self, section: Dict[str, Any]) -> bool:
+    def _validate_section(self, section: dict[str, Any]) -> bool:
         """Validate a document section.
 
         Args:

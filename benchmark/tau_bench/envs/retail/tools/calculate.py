@@ -1,12 +1,13 @@
 # Copyright Sierra
 
-from typing import Any, Dict
+from typing import Any
+
 from benchmark.tau_bench.envs.tool import Tool
 
 
 class Calculate(Tool):
     @staticmethod
-    def invoke(data: Dict[str, Any], expression: str) -> str:
+    def invoke(data: dict[str, Any], expression: str) -> str:
         if not all(char in "0123456789+-*/(). " for char in expression):
             raise Exception("Error: invalid characters in expression")
         try:
@@ -16,7 +17,7 @@ class Calculate(Tool):
             raise Exception(f"Error: {e}")
 
     @staticmethod
-    def get_info() -> Dict[str, Any]:
+    def get_info() -> dict[str, Any]:
         return {
             "type": "function",
             "function": {

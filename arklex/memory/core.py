@@ -11,27 +11,26 @@ and generating personalized intents from user interactions.
 
 import asyncio
 import re
-from typing import List, Tuple, Optional
 from functools import lru_cache
 
 import numpy as np
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from Levenshtein import ratio
 from sklearn.metrics.pairwise import cosine_similarity
 
-from arklex.memory.prompts import intro, final_examples, output_instructions
-from arklex.utils.graph_state import ResourceRecord, LLMConfig
+from arklex.memory.prompts import final_examples, intro, output_instructions
+from arklex.utils.graph_state import LLMConfig, ResourceRecord
 from arklex.utils.model_provider_config import (
-    PROVIDER_MAP,
-    PROVIDER_EMBEDDINGS,
     PROVIDER_EMBEDDING_MODELS,
+    PROVIDER_EMBEDDINGS,
+    PROVIDER_MAP,
 )
-from Levenshtein import ratio
 
 
 class ShortTermMemory:
     def __init__(
         self,
-        trajectory: List[List[ResourceRecord]],
+        trajectory: list[list[ResourceRecord]],
         chat_history: str,
         llm_config: LLMConfig,
     ):
@@ -104,7 +103,7 @@ class ShortTermMemory:
             ).reshape(1, -1)
         return self._embedding_cache[text]
 
-    async def _batch_get_embeddings(self, texts: List[str]) -> List[np.ndarray]:
+    async def _batch_get_embeddings(self, texts: list[str]) -> list[np.ndarray]:
         """Get embeddings for multiple texts in parallel.
 
         This function efficiently computes embeddings for multiple texts using
@@ -138,7 +137,7 @@ class ShortTermMemory:
         top_k: int = 3,
         threshold: float = 0.55,
         cosine_threshold: float = 0.7,
-    ) -> Tuple[bool, List[ResourceRecord]]:
+    ) -> tuple[bool, list[ResourceRecord]]:
         """Retrieve relevant records from memory based on a query.
 
         This function searches through the conversation trajectory to find records
@@ -267,7 +266,7 @@ class ShortTermMemory:
 
     def retrieve_intent(
         self, query: str, string_threshold: float = 0.4, cosine_threshold: float = 0.7
-    ) -> Tuple[bool, Optional[str]]:
+    ) -> tuple[bool, str | None]:
         """Retrieve the most relevant intent from memory based on a query.
 
         This function searches through the conversation trajectory to find the intent

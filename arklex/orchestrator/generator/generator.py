@@ -22,7 +22,7 @@ Usage:
 import argparse
 import json
 import logging
-from typing import Any, Dict
+from typing import Any
 
 from langchain_openai import ChatOpenAI
 
@@ -43,7 +43,7 @@ from .core import Generator
 
 # Make UI components optional to avoid dependency issues
 try:
-    from .ui import TaskEditorApp, InputModal
+    from .ui import InputModal, TaskEditorApp
 
     _UI_AVAILABLE = True
     _UI_EXPORTS = ["TaskEditorApp", "InputModal"]
@@ -63,10 +63,10 @@ __all__ = ["Generator", *_UI_EXPORTS]
 # - Graph formatting is in formatting/
 
 
-def load_config(file_path: str) -> Dict[str, Any]:
+def load_config(file_path: str) -> dict[str, Any]:
     """Load configuration from a JSON file."""
     try:
-        with open(file_path, "r") as f:
+        with open(file_path) as f:
             return json.load(f)
     except FileNotFoundError:
         log_context.error(f"Configuration file not found at {file_path}")

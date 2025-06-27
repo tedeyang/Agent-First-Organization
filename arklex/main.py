@@ -8,19 +8,20 @@ This module initializes the FastAPI application and configures:
 """
 
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
 
-from arklex.utils.logging_utils import LogContext
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+from arklex.middleware.logging_middleware import RequestLoggingMiddleware
 from arklex.utils.exceptions import (
     ArklexError,
     AuthenticationError,
-    ResourceNotFoundError,
     RateLimitError,
+    ResourceNotFoundError,
     RetryableError,
 )
-from arklex.middleware.logging_middleware import RequestLoggingMiddleware
+from arklex.utils.logging_utils import LogContext
 
 # Initialize logging with JSON formatting
 log_context = LogContext(__name__)
