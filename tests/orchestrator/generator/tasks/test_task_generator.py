@@ -992,14 +992,13 @@ class TestTaskGenerator:
     ) -> None:
         """Test _process_objective with response.generations[0][0].message.content (lines 296-299)."""
         gen = patched_model_generate["generator"]
-        # Mock response with message.content structure
-        mock_message = Mock()
-        mock_message.content = '[{"task": "test task", "intent": "test intent"}]'
-        mock_generation = Mock()
-        mock_generation.message = mock_message
+        # Mock response with message.content structure - use the same pattern as working tests
         mock_response = Mock()
+        mock_generation = Mock()
+        mock_generation.text = '[{"task": "test task", "intent": "test intent"}]'
         mock_response.generations = [[mock_generation]]
         patched_model_generate["mock_generate"].return_value = mock_response
+
         result = gen._process_objective("test objective", "intro", "docs")
         assert result["tasks"] == [{"task": "test task", "intent": "test intent"}]
 
