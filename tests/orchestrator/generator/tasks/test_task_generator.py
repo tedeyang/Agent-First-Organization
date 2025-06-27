@@ -244,7 +244,7 @@ class TestTaskGenerator:
         assert generator.role == role
         assert generator.user_objective == objective
         assert generator.instructions == instructions
-        assert generator.docs == docs
+        assert generator.documents == docs
 
     def test_generate_tasks_with_existing_tasks(
         self,
@@ -468,10 +468,8 @@ class TestTaskGenerator:
 
         result = config["generator"]._check_task_breakdown_original("task", "intro")
 
-        # The code returns a default step, not an empty list
-        assert result == [
-            {"task": "Execute task", "description": "Execute the task: task"}
-        ]
+        # The method returns a boolean, not a list
+        assert result is True
 
     def test_check_task_breakdown_original_with_exception(
         self, patched_model_invoke: dict[str, Any]
@@ -482,10 +480,8 @@ class TestTaskGenerator:
 
         result = config["generator"]._check_task_breakdown_original("task", "intro")
 
-        # The code returns a default step, not an empty list
-        assert result == [
-            {"task": "Execute task", "description": "Execute the task: task"}
-        ]
+        # The method returns a boolean, not a list
+        assert result is True
 
     def test_generate_task_steps_original(
         self, patched_model_invoke: dict[str, Any]
@@ -881,13 +877,14 @@ class TestTaskGenerator:
                 "name": "parent",
                 "description": "parent",
                 "steps": [{"task": "step"}],
-                "task_id": "parent",
+                "id": "parent",
             },
             {
                 "name": "child",
                 "description": "child",
                 "steps": [{"task": "step"}],
-                "task_id": "parent",
+                "id": "child",
+                "dependencies": ["parent"],
             },
         ]
 
@@ -958,7 +955,7 @@ class TestTaskGenerator:
                 "task": "Complex Task",
                 "intent": "Complex intent",
                 "description": "desc",
-                "steps": [{"task": "step1"}],
+                "name": "Complex Task",
             }
         ]
 
@@ -985,6 +982,7 @@ class TestTaskGenerator:
                 "task": "Test Task",
                 "intent": "Test intent",
                 "description": "desc",
+                "name": "Test Task",
                 "steps": [{"task": "step1"}],
             }
         ]
@@ -1014,6 +1012,7 @@ class TestTaskGenerator:
                 "task": "Test Task",
                 "intent": "Test intent",
                 "description": "desc",
+                "name": "Test Task",
                 "steps": [{"task": "step1"}],
                 "dependencies": ["dep1"],
                 "required_resources": ["res1"],
@@ -1041,6 +1040,7 @@ class TestTaskGenerator:
                 "task": "Test Task",
                 "intent": "Test intent",
                 "description": "desc",
+                "name": "Test Task",
                 "steps": [{"task": "step1"}],
             }
         ]
