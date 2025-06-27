@@ -5,8 +5,3 @@ repos:
       - id: ruff
         args: [--fix]
       - id: ruff-format
-        args: [--fix]
-      - id: ruff-lint
-        args: [--fix]
-      - id: ruff-lint-fix
-        args: [--fix]
