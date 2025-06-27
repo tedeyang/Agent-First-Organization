@@ -323,6 +323,30 @@ class TestBestPracticeManagerGenerateBestPractices:
 
         assert len(result) == 0
 
+    def test_generate_best_practices_fallback_when_no_json(
+        self, patched_model_invoke
+    ) -> None:
+        patched_model_invoke["mock_invoke"].return_value = {"text": "No JSON here"}
+        gen = patched_model_invoke["manager"]
+        result = gen.generate_best_practices([{"name": "test task"}])
+        assert result == []
+
+    def test_generate_best_practices_with_invalid_response(
+        self, patched_model_invoke
+    ) -> None:
+        patched_model_invoke["mock_invoke"].return_value = {
+            "text": "Invalid JSON response"
+        }
+        gen = patched_model_invoke["manager"]
+        result = gen.generate_best_practices([{"name": "test task"}])
+        assert result == []
+
+    def test_generate_best_practices_with_exception(self, patched_model_invoke) -> None:
+        patched_model_invoke["mock_invoke"].side_effect = Exception("Test error")
+        gen = patched_model_invoke["manager"]
+        result = gen.generate_best_practices([{"name": "test task"}])
+        assert result == []
+
 
 class TestBestPracticeManagerFinetuneBestPractice:
     """Test the finetune_best_practice method."""
@@ -653,6 +677,26 @@ class TestBestPracticeManagerValidatePractices:
         result = best_practice_manager._validate_practice_definition(practice_def)
 
         assert result is False
+
+    def test_validate_best_practices_fallback(self, patched_model_invoke) -> None:
+        patched_model_invoke["mock_invoke"].return_value = {"text": "Invalid response"}
+        gen = patched_model_invoke["manager"]
+        # Create a mock BestPractice object for testing
+        mock_practice = BestPractice(
+            practice_id="test1",
+            name="Test Practice",
+            description="Test description",
+            steps=[{"task": "test step"}],
+            rationale="Test rationale",
+            examples=[],
+            priority=3,
+            category="test",
+        )
+        result = gen._validate_practices([mock_practice])
+        # The practice should be valid and returned
+        assert len(result) == 1
+        assert result[0]["practice_id"] == "test1"
+        assert result[0]["name"] == "Test Practice"
 
 
 class TestBestPracticeManagerCategorizePractices:
