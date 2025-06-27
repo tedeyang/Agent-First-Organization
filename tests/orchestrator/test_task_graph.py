@@ -1,19 +1,21 @@
-import pytest
 from unittest.mock import Mock, patch
-from arklex.orchestrator.task_graph import TaskGraph, TaskGraphError
+
+import pytest
+
+from arklex.orchestrator.NLU.core.slot import SlotFiller
+from arklex.orchestrator.NLU.services.model_service import DummyModelService
 from arklex.orchestrator.orchestrator import NodeInfo, PathNode
+from arklex.orchestrator.task_graph import TaskGraph, TaskGraphError
 from arklex.utils.graph_state import (
     LLMConfig,
-    Params,
-    NodeInfo,
-    StatusEnum,
-    PathNode,
-    Taskgraph,
     Memory,
     Metadata,
+    NodeInfo,
+    Params,
+    PathNode,
+    StatusEnum,
+    Taskgraph,
 )
-from arklex.orchestrator.NLU.services.model_service import DummyModelService
-from arklex.orchestrator.NLU.core.slot import SlotFiller
 
 
 @pytest.fixture
@@ -2694,3 +2696,72 @@ class TestTaskGraph:
             task_graph._validate_node(
                 {"id": "test", "type": "task", "next": "not_a_list"}
             )
+
+    def test_jump_to_node_exception_branch(self, task_graph) -> None:
+        # Use an intent that doesn't exist in the intents dictionary to trigger the exception
+        next_node, next_intent = task_graph.jump_to_node(
+            "nonexistent_intent", 0, "start"
+        )
+        assert next_node == "start"
+        assert next_intent == "dummy"  # from dummy edge in dummy_config
+
+    def test_local_intent_prediction_found_branch(self, task_graph, params) -> None:
+        # Add a local intent edge
+        task_graph.graph.add_edge("start", "node1", intent="start")
+        curr_local_intents = {
+            "start": [
+                {"intent": "start", "source_node": "start", "target_node": "node1"}
+            ]
+        }
+        # Patch intent_detector to always return 'start'
+        task_graph.intent_detector.execute = lambda *a, **kw: "start"
+        found, node_info, new_params = task_graph.local_intent_prediction(
+            "start", params, curr_local_intents
+        )
+        assert found is True
+        assert node_info.node_id == "node1"
+
+    def test_local_intent_prediction_not_found_branch(self, task_graph, params) -> None:
+        # Patch intent_detector to return an intent not in curr_local_intents
+        curr_local_intents = {
+            "continue": [
+                {"intent": "continue", "source_node": "node1", "target_node": "node2"}
+            ]
+        }
+        task_graph.intent_detector.execute = lambda *a, **kw: "notfound"
+        found, node_info, new_params = task_graph.local_intent_prediction(
+            "node1", params, curr_local_intents
+        )
+        assert found is False
+        assert node_info == {}
+
+    def test_handle_leaf_node_sets_initial_node(self, task_graph, params) -> None:
+        # Make node2 a leaf and set initial_node
+        task_graph.initial_node = "start"
+        # Patch graph.successors to return empty for node2
+        task_graph.graph.add_node("node2")
+        task_graph.graph.successors = lambda n: [] if n == "node2" else ["dummy"]
+        curr_node, new_params = task_graph.handle_leaf_node("node2", params)
+        assert curr_node == "start"
+
+    def test_get_node_final_fallback_branch(self, task_graph, params) -> None:
+        # Patch methods to force all branches to fall through to final fallback
+        task_graph.get_current_node = lambda p: ("start", p)
+        task_graph.handle_multi_step_node = lambda n, p: (False, None, p)
+        task_graph.handle_leaf_node = lambda n, p: (n, p)
+        task_graph.get_available_global_intents = lambda p: {}
+        task_graph.update_node_limit = lambda p: p
+        task_graph.get_local_intent = lambda n, p: {}
+        task_graph.global_intent_prediction = lambda *a, **k: (False, None, {}, a[1])
+        task_graph.handle_incomplete_node = lambda n, p: (False, {}, p)
+        task_graph.handle_random_next_node = lambda n, p: (False, {}, p)
+        task_graph.local_intent_prediction = lambda n, p, c: (False, {}, p)
+        # Call get_node with allow_global_intent_switch True
+        inputs = {
+            "text": "irrelevant",
+            "chat_history_str": "",
+            "parameters": params,
+            "allow_global_intent_switch": True,
+        }
+        node_info, new_params = task_graph.get_node(inputs)
+        assert node_info.resource_id == "planner"  # from handle_unknown_intent
