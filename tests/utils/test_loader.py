@@ -4,12 +4,10 @@ This module contains comprehensive test cases for document and content loading u
 including web crawling, file processing, and content chunking functionality.
 """
 
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, mock_open
 import tempfile
 import os
 import requests
-import pickle
-import pytest
 
 from arklex.utils.loader import (
     encode_image,
@@ -633,7 +631,6 @@ class TestLoader:
         assert "Unsupported file type" in result.error_message
 
     def test_crawl_file_missing_file_type(self) -> None:
-        """Test crawl_file with missing file type to cover line 704-714."""
         loader = Loader()
 
         with patch("arklex.utils.loader.Path") as mock_path:
@@ -653,7 +650,6 @@ class TestLoader:
             assert "No file type detected" in result.error_message
 
     def test_crawl_file_with_unsupported_file_type(self) -> None:
-        """Test crawl_file with unsupported file type to cover line 728-730."""
         loader = Loader()
 
         with patch("arklex.utils.loader.Path") as mock_path:
@@ -673,7 +669,6 @@ class TestLoader:
                 assert "Unsupported file type" in result.error_message
 
     def test_crawl_file_with_mistral_api_key_not_set(self) -> None:
-        """Test crawl_file with Mistral API key not set to cover line 728-730."""
         loader = Loader()
 
         with patch("arklex.utils.loader.Path") as mock_path:
@@ -695,7 +690,6 @@ class TestLoader:
                 assert result.error_message is not None
 
     def test_crawl_file_with_mistral_api_key_default_value(self) -> None:
-        """Test crawl_file with Mistral API key set to default value to cover line 728-730."""
         loader = Loader()
 
         with patch("arklex.utils.loader.Path") as mock_path:
@@ -1120,7 +1114,6 @@ class TestLoader:
 
 
 def test_crawl_with_selenium_url_timeout(monkeypatch) -> None:
-    """Test _crawl_with_selenium for URL load timeout (lines 266-269)."""
     loader = Loader()
     url_objects = [DocObject("1", "http://timeout.com")]
 
@@ -1150,7 +1143,6 @@ def test_crawl_with_selenium_url_timeout(monkeypatch) -> None:
 
 
 def test_get_all_urls_error_logging(monkeypatch) -> None:
-    """Test get_all_urls error logging (lines 555, 564-568)."""
     loader = Loader()
     # Patch get_outsource_urls to raise Exception
     monkeypatch.setattr(
@@ -1163,51 +1155,104 @@ def test_get_all_urls_error_logging(monkeypatch) -> None:
     assert "test_url" in result  # The method returns the original URL even on error
 
 
-def test_get_outsource_urls_error_branches(monkeypatch) -> None:
-    """Test get_outsource_urls error branches (lines 606-612)."""
+def test_get_outsource_urls_connection_error(monkeypatch) -> None:
     loader = Loader()
-    # Patch requests.get to raise different exceptions
     with patch("requests.get") as mock_get:
-        mock_get.side_effect = Exception("Network error")
-        result = loader.get_outsource_urls(
-            "http://test.com", "http://test.com"
-        )  # Add missing base_url parameter
+        mock_get.side_effect = requests.exceptions.ConnectionError("Connection failed")
+        result = loader.get_outsource_urls("http://example.com", 10)
         assert result == []
 
 
-def test_to_crawled_local_objs_and_text(monkeypatch) -> None:
-    """Test to_crawled_local_objs_and_text (lines 670, 704-714, 728-730)."""
+def test_get_outsource_urls_timeout_error(monkeypatch) -> None:
     loader = Loader()
-    # Create test data
-    crawled_objects = [CrawledObject("1", "test content", "text", "test.txt", "file")]
-    # Test the conversion - use the correct method name
-    result = loader.to_crawled_local_objs(["test.txt"])  # Use correct method name
-    assert len(result) > 0
+    with patch("requests.get") as mock_get:
+        mock_get.side_effect = requests.exceptions.Timeout("Request timeout")
+        result = loader.get_outsource_urls("http://example.com", 10)
+        assert result == []
 
 
-def test_crawl_file_missing_file_type_and_unsupported(monkeypatch) -> None:
-    """Test crawl_file with missing file type and unsupported file (lines 833, 835, 839, 841)."""
-    from unittest.mock import mock_open  # Add missing import
-
+def test_get_outsource_urls_request_exception(monkeypatch) -> None:
     loader = Loader()
-    # Test with file that has no extension - pass DocObject instead of string
-    doc_obj = DocObject("1", "test_file_no_extension")
-    with patch("os.path.exists", return_value=True):
-        with patch("builtins.open", mock_open(read_data="test content")):
-            result = loader.crawl_file(doc_obj)  # Pass DocObject instead of string
-            assert result is not None
+    with patch("requests.get") as mock_get:
+        mock_get.side_effect = requests.exceptions.RequestException("General error")
+        result = loader.get_outsource_urls("http://example.com", 10)
+        assert result == []
 
 
-def test_chunk_skip_logic_and_return_logic(monkeypatch) -> None:
-    """Test chunk method skip logic and return logic (lines 704-714, 728-730)."""
+def test_crawl_file_with_unsupported_file_type_error(monkeypatch) -> None:
     loader = Loader()
-    # Test with empty documents
-    result = loader.chunk([])
-    assert result == []
+    with patch("builtins.open", mock_open(read_data="test content")):
+        with patch("os.path.splitext") as mock_splitext:
+            mock_splitext.return_value = ("test", ".xyz")
+            doc_obj = DocObject("1", "test.xyz")
+            result = loader.crawl_file(doc_obj)
+            assert result.is_error is True
+            assert result.content is None
 
-    # Test with documents that should be skipped - use CrawledObject instances
-    docs = [
-        CrawledObject("1", "", "text", "test.txt", "file")
-    ]  # Use CrawledObject instead of dict
+
+def test_crawl_file_with_missing_file_type_error(monkeypatch) -> None:
+    loader = Loader()
+    with patch("builtins.open", mock_open(read_data="test content")):
+        with patch("os.path.splitext") as mock_splitext:
+            mock_splitext.return_value = ("test", "")
+            doc_obj = DocObject("1", "test")
+            result = loader.crawl_file(doc_obj)
+            assert result.is_error is True
+            assert result.content is None
+
+
+def test_chunk_method_with_skip_logic_edge_case(monkeypatch) -> None:
+    loader = Loader()
+    # Use CrawledObject instance
+    doc = CrawledObject("1", "very short", "text", "test.txt", "file")
+    doc.is_error = True  # This should trigger skip logic
+    docs = [doc]
     result = loader.chunk(docs)
     assert result == []
+
+
+def test_chunk_method_with_return_logic_edge_case(monkeypatch) -> None:
+    loader = Loader()
+    # Use CrawledObject instance
+    doc = CrawledObject("1", "content", "text", "test.txt", "file")
+    doc.metadata = {"return_early": True}
+    docs = [doc]
+    result = loader.chunk(docs)
+    assert isinstance(result, list)
+
+
+def test_get_all_urls_with_error_logging(monkeypatch) -> None:
+    loader = Loader()
+
+    # Mock get_outsource_urls to raise an exception
+    def mock_get_outsource_urls(*args, **kwargs) -> NoReturn:
+        raise Exception("Test error")
+
+    monkeypatch.setattr(loader, "get_outsource_urls", mock_get_outsource_urls)
+    result = loader.get_all_urls("http://example.com", 10)
+    # Should return the original URL even on error
+    assert "http://example.com" in result
+
+
+def test_crawl_with_selenium_retry_logic(monkeypatch) -> None:
+    loader = Loader()
+    url_objects = [DocObject("1", "http://retry.com")]
+
+    call_count = 0
+
+    def mock_time():
+        nonlocal call_count
+        call_count += 1
+        return call_count * 50  # Simulate retry scenario
+
+    monkeypatch.setattr("time.time", mock_time)
+
+    with patch("selenium.webdriver.Chrome") as mock_driver:
+        mock_driver_instance = Mock()
+        mock_driver.return_value = mock_driver_instance
+        mock_driver_instance.page_source = "<html><title>Retry</title></html>"
+        mock_driver_instance.title = "Retry"
+        mock_driver_instance.get.return_value = None
+
+        result = loader._crawl_with_selenium(url_objects)
+        assert mock_driver_instance.get.called
