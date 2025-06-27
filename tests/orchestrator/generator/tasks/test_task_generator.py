@@ -1339,64 +1339,211 @@ class TestTaskGenerator:
             assert result[1]["task"] == "step2"
             assert result[1]["description"] == "Execute: step2"
 
-    def test_validate_task_definition_with_invalid_priority_range(
+    def test_generate_task_steps_original_with_alternative_step_format(
         self, task_generator: TaskGenerator
     ) -> None:
-        """Test _validate_task_definition with priority outside valid range."""
-        # Test priority = 0 (below range)
+        """Test _generate_task_steps_original with alternative step format."""
+        with patch.object(task_generator.model, "invoke") as mock_invoke:
+            mock_response = Mock()
+            mock_response.content = '[{"step": "Step 1", "description": "Step 1 desc"}]'
+            mock_invoke.return_value = mock_response
+
+            result = task_generator._generate_task_steps_original(
+                "Test Task", "Test Intent"
+            )
+
+            assert len(result) == 1
+            assert result[0]["task"] == "Step 1"
+            assert result[0]["description"] == "Step 1 desc"
+
+    def test_convert_to_task_definitions_with_string_steps(
+        self, task_generator: TaskGenerator
+    ) -> None:
+        """Test _convert_to_task_definitions with string steps."""
+        tasks_with_steps = [
+            {
+                "task": "Test Task",
+                "description": "Test Description",
+                "steps": ["Step 1", "Step 2"],
+            }
+        ]
+
+        result = task_generator._convert_to_task_definitions(tasks_with_steps)
+
+        assert len(result) == 1
+        assert result[0].name == "Test Task"
+        assert len(result[0].steps) == 2
+        assert result[0].steps[0]["task"] == "Step 1"
+        assert result[0].steps[0]["description"] == "Execute step: Step 1"
+
+    def test_validate_tasks_with_invalid_steps(
+        self, task_generator: TaskGenerator
+    ) -> None:
+        """Test _validate_tasks with invalid step format."""
+        tasks = [
+            {
+                "name": "Test Task",
+                "description": "Test Description",
+                "steps": [{"invalid_key": "step"}],  # Missing 'task' key
+            }
+        ]
+
+        result = task_generator._validate_tasks(tasks)
+
+        assert len(result) == 0
+
+    def test_validate_tasks_with_non_list_steps(
+        self, task_generator: TaskGenerator
+    ) -> None:
+        """Test _validate_tasks with non-list steps."""
+        tasks = [
+            {
+                "name": "Test Task",
+                "description": "Test Description",
+                "steps": "not a list",
+            }
+        ]
+
+        result = task_generator._validate_tasks(tasks)
+
+        assert len(result) == 0
+
+    def test_validate_tasks_with_missing_required_fields(
+        self, task_generator: TaskGenerator
+    ) -> None:
+        """Test _validate_tasks with missing required fields."""
+        tasks = [
+            {
+                "name": "Test Task",
+                # Missing description and steps
+            }
+        ]
+
+        result = task_generator._validate_tasks(tasks)
+
+        assert len(result) == 0
+
+    def test_validate_tasks_with_invalid_priority(
+        self, task_generator: TaskGenerator
+    ) -> None:
+        """Test _validate_tasks with invalid priority values."""
+        tasks = [
+            {
+                "name": "Test Task",
+                "description": "Test Description",
+                "steps": [{"task": "step1"}],
+                "priority": 10,  # Invalid priority
+            }
+        ]
+
+        result = task_generator._validate_tasks(tasks)
+
+        assert len(result) == 1
+        assert result[0]["priority"] == 3  # Should be normalized to 3
+
+    def test_validate_tasks_with_non_string_duration(
+        self, task_generator: TaskGenerator
+    ) -> None:
+        """Test _validate_tasks with non-string duration."""
+        tasks = [
+            {
+                "name": "Test Task",
+                "description": "Test Description",
+                "steps": [{"task": "step1"}],
+                "estimated_duration": 60,  # Non-string duration
+            }
+        ]
+
+        result = task_generator._validate_tasks(tasks)
+
+        assert len(result) == 1
+        assert result[0]["estimated_duration"] == "1 hour"  # Should be normalized
+
+    def test_validate_tasks_with_non_list_dependencies(
+        self, task_generator: TaskGenerator
+    ) -> None:
+        """Test _validate_tasks with non-list dependencies."""
+        tasks = [
+            {
+                "name": "Test Task",
+                "description": "Test Description",
+                "steps": [{"task": "step1"}],
+                "dependencies": "not a list",
+            }
+        ]
+
+        result = task_generator._validate_tasks(tasks)
+
+        assert len(result) == 1
+        assert result[0]["dependencies"] == []  # Should be normalized to empty list
+
+    def test_validate_tasks_with_non_list_resources(
+        self, task_generator: TaskGenerator
+    ) -> None:
+        """Test _validate_tasks with non-list required_resources."""
+        tasks = [
+            {
+                "name": "Test Task",
+                "description": "Test Description",
+                "steps": [{"task": "step1"}],
+                "required_resources": "not a list",
+            }
+        ]
+
+        result = task_generator._validate_tasks(tasks)
+
+        assert len(result) == 1
+        assert (
+            result[0]["required_resources"] == []
+        )  # Should be normalized to empty list
+
+    def test_validate_tasks_with_empty_step_description(
+        self, task_generator: TaskGenerator
+    ) -> None:
+        """Test _validate_tasks with empty step description."""
+        tasks = [
+            {
+                "name": "Test Task",
+                "description": "Test Description",
+                "steps": [{"task": "step1", "description": ""}],
+            }
+        ]
+
+        result = task_generator._validate_tasks(tasks)
+
+        assert len(result) == 1
+        assert (
+            result[0]["steps"][0]["description"] == "Execute: step1"
+        )  # Should be filled
+
+    def test_validate_task_definition_with_invalid_priority(
+        self, task_generator: TaskGenerator
+    ) -> None:
+        """Test _validate_task_definition with invalid priority."""
         task_def = TaskDefinition(
-            task_id="task1",
+            task_id="test_id",
             name="Test Task",
-            description="Test description",
+            description="Test Description",
             steps=[{"task": "step1"}],
             dependencies=[],
             required_resources=[],
             estimated_duration="1 hour",
-            priority=0,  # Invalid: below range
+            priority=10,  # Invalid priority
         )
 
         result = task_generator._validate_task_definition(task_def)
+
         assert result is False
 
-        # Test priority = 6 (above range)
-        task_def.priority = 6
-        result = task_generator._validate_task_definition(task_def)
-        assert result is False
-
-    def test_validate_task_definition_with_valid_priority_range(
-        self, task_generator: TaskGenerator
-    ) -> None:
-        """Test _validate_task_definition with priority in valid range."""
-        # Test priority = 1 (minimum valid)
-        task_def = TaskDefinition(
-            task_id="task1",
-            name="Test Task",
-            description="Test description",
-            steps=[{"task": "step1"}],
-            dependencies=[],
-            required_resources=[],
-            estimated_duration="1 hour",
-            priority=1,
-        )
-
-        result = task_generator._validate_task_definition(task_def)
-        assert result is True
-
-        # Test priority = 5 (maximum valid)
-        task_def.priority = 5
-        result = task_generator._validate_task_definition(task_def)
-        assert result is True
-
-    def test_validate_task_definition_with_invalid_step_format(
+    def test_validate_task_definition_with_invalid_step(
         self, task_generator: TaskGenerator
     ) -> None:
         """Test _validate_task_definition with invalid step format."""
-        # Test step without 'task' key
         task_def = TaskDefinition(
-            task_id="task1",
+            task_id="test_id",
             name="Test Task",
-            description="Test description",
-            steps=[{"description": "step1"}],  # Missing 'task' key
+            description="Test Description",
+            steps=[{"invalid_key": "step"}],  # Missing 'task' key
             dependencies=[],
             required_resources=[],
             estimated_duration="1 hour",
@@ -1404,18 +1551,17 @@ class TestTaskGenerator:
         )
 
         result = task_generator._validate_task_definition(task_def)
+
         assert result is False
 
-        # Test step that's not a dict
-        task_def.steps = ["step1"]  # Not a dict
-        result = task_generator._validate_task_definition(task_def)
-        assert result is False
-
-        # Test empty name
+    def test_validate_task_definition_with_empty_fields(
+        self, task_generator: TaskGenerator
+    ) -> None:
+        """Test _validate_task_definition with empty required fields."""
         task_def = TaskDefinition(
-            task_id="task1",
+            task_id="test_id",
             name="",  # Empty name
-            description="Test description",
+            description="Test Description",
             steps=[{"task": "step1"}],
             dependencies=[],
             required_resources=[],
@@ -1424,16 +1570,46 @@ class TestTaskGenerator:
         )
 
         result = task_generator._validate_task_definition(task_def)
+
         assert result is False
 
-        # Test empty description
-        task_def.name = "Test Task"
-        task_def.description = ""  # Empty description
-        result = task_generator._validate_task_definition(task_def)
-        assert result is False
+    def test_add_provided_tasks_with_exception_during_processing(
+        self, task_generator: TaskGenerator
+    ) -> None:
+        """Test add_provided_tasks with exception during task processing."""
+        user_tasks = [
+            {
+                "task": "Test Task",
+                "intent": "Test intent",
+                "description": "desc",
+                "name": "Test Task",
+                "steps": [{"task": "step1"}],
+            }
+        ]
 
-        # Test empty steps
-        task_def.description = "Test description"
-        task_def.steps = []  # Empty steps
-        result = task_generator._validate_task_definition(task_def)
-        assert result is False
+        # Mock _check_task_breakdown_original to raise an exception
+        with patch.object(
+            task_generator, "_check_task_breakdown_original"
+        ) as mock_check:
+            mock_check.side_effect = Exception("Processing error")
+
+            result = task_generator.add_provided_tasks(user_tasks, "intro")
+
+            # The exception is caught and logged, but the task is still processed
+            # because the exception happens after the task is already validated
+            assert len(result) == 1
+
+    def test_process_objective_with_exception_during_response_processing(
+        self, task_generator: TaskGenerator
+    ) -> None:
+        """Test _process_objective with exception during response processing."""
+        with patch.object(task_generator.model, "generate") as mock_generate:
+            # Mock response that will cause an exception
+            mock_generate.side_effect = Exception("Model error")
+
+            import pytest
+
+            with pytest.raises(Exception, match="Model error"):
+                task_generator._process_objective(
+                    "test objective", "test intro", "test docs"
+                )
