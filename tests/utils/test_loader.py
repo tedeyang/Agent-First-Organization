@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch, mock_open
 import tempfile
 import os
 import requests
-from pathlib import Path
+from typing import NoReturn, Generator, Any
 
 from arklex.utils.loader import (
     encode_image,
@@ -17,7 +17,6 @@ from arklex.utils.loader import (
     CrawledObject,
     Loader,
 )
-from typing import NoReturn
 
 
 class TestEncodeImage:
@@ -576,11 +575,11 @@ class TestLoader:
 
         # Patch requests.get to return a response with a link that raises exception
         class DummyLink:
-            def get(self, _):
+            def get(self, _: Any) -> NoReturn:
                 raise Exception("fail href")
 
         class DummySoup:
-            def find_all(self, _):
+            def find_all(self, _: Any) -> list[DummyLink]:
                 return [DummyLink()]
 
         class DummyResponse:
@@ -965,7 +964,7 @@ class TestLoader:
         url_objects = [DocObject("1", "http://example.com")]
 
         # Create a generator that provides enough time values
-        def time_gen():
+        def time_gen() -> Generator[int, None, None]:
             times = [0, 100]  # Start time and timeout time
             for t in times:
                 yield t
@@ -1216,7 +1215,659 @@ class TestLoader:
             # Should handle already visited URLs properly
             assert len(result) >= 0
 
-    # TODO: Add UI component tests when needed
     def test_ui_components_todo(self) -> None:
-        """TODO: Add tests for UI components when they are implemented."""
-        pass
+        """Test UI components TODO placeholder."""
+        # This is a placeholder test for UI components
+        assert True
+
+    def test_crawl_with_selenium_timeout_detection_with_retry(self) -> None:
+        """Test Selenium crawling with timeout detection and retry logic."""
+        loader = Loader()
+        url_objects = [DocObject("1", "http://example.com")]
+
+        with patch("selenium.webdriver.Chrome") as mock_driver:
+            mock_driver_instance = Mock()
+            mock_driver.return_value = mock_driver_instance
+
+            # Mock time.time to simulate timeout - provide more values for the entire method
+            time_values = [
+                1000.0,
+                1035.0,
+                1070.0,
+                1071.0,
+                1072.0,
+                1073.0,
+                1074.0,
+                1075.0,
+                1076.0,
+                1077.0,
+                1078.0,
+                1079.0,
+                1080.0,
+            ]
+            time_mock = Mock()
+            time_mock.side_effect = time_values
+
+            with patch("time.time", time_mock):
+                with patch("time.sleep"):
+                    with patch("arklex.utils.loader.log_context") as mock_log:
+                        result = loader._crawl_with_selenium(url_objects)
+                        assert len(result) == 1
+                        assert result[0].is_error
+
+    def test_get_outsource_urls_with_exception_in_link_processing(self) -> None:
+        """Test get_outsource_urls with exception in link processing."""
+        loader = Loader()
+
+        with patch("requests.get") as mock_get:
+            mock_response = Mock()
+            mock_response.status_code = 200
+            mock_response.text = "<html><a href='invalid://url'>Link</a></html>"
+            mock_get.return_value = mock_response
+
+            with patch("arklex.utils.loader.log_context") as mock_log:
+                result = loader.get_outsource_urls(
+                    "http://example.com", "http://example.com"
+                )
+                assert isinstance(result, list)
+
+    def test_check_url_with_various_edge_cases(self) -> None:
+        """Test _check_url method with various edge cases."""
+        loader = Loader()
+
+        # Test with file extensions that should be filtered out
+        assert not loader._check_url(
+            "http://example.com/file.pdf", "http://example.com"
+        )
+        assert not loader._check_url(
+            "http://example.com/image.jpg", "http://example.com"
+        )
+        assert not loader._check_url(
+            "http://example.com/doc.docx", "http://example.com"
+        )
+        assert not loader._check_url(
+            "http://example.com/data.xlsx", "http://example.com"
+        )
+        assert not loader._check_url(
+            "http://example.com/presentation.pptx", "http://example.com"
+        )
+        assert not loader._check_url(
+            "http://example.com/archive.zip", "http://example.com"
+        )
+        assert not loader._check_url(
+            "http://example.com/photo.jpeg", "http://example.com"
+        )
+
+        # Test with same URL as base URL
+        assert not loader._check_url("http://example.com", "http://example.com")
+
+        # Test with empty URL
+        assert not loader._check_url("", "http://example.com")
+
+        # Test with different domain
+        assert not loader._check_url("http://other.com/page", "http://example.com")
+
+    def test_crawl_file_with_mistral_api_and_image_processing(self) -> None:
+        """Test crawl_file with Mistral API for image processing."""
+        loader = Loader()
+        local_obj = DocObject("test_id", "test_image.jpg")
+
+        with patch("arklex.utils.loader.Path") as mock_path_class:
+            mock_path_instance = Mock()
+            mock_path_instance.suffix = ".jpg"
+            mock_path_instance.name = "test_image.jpg"
+            mock_path_class.return_value = mock_path_instance
+
+            with patch("builtins.open", mock_open(read_data=b"fake image data")):
+                with patch("arklex.utils.loader.encode_image") as mock_encode:
+                    mock_encode.return_value = "base64_encoded_image"
+
+                    with patch("arklex.utils.loader.MISTRAL_API_KEY", "test_key"):
+                        with patch("arklex.utils.loader.Mistral") as mock_mistral:
+                            mock_client = Mock()
+                            mock_mistral.return_value = mock_client
+
+                            mock_ocr_response = Mock()
+                            mock_page = Mock()
+                            mock_page.markdown = "Extracted text from image"
+                            mock_ocr_response.pages = [mock_page]
+                            mock_client.ocr.process.return_value = mock_ocr_response
+
+                            with patch("arklex.utils.loader.log_context") as mock_log:
+                                result = loader.crawl_file(local_obj)
+                                assert result.id == "test_id"
+                                assert result.content == "Extracted text from image"
+                                assert result.source_type == SourceType.FILE
+
+    def test_crawl_file_with_mistral_api_and_document_processing(self) -> None:
+        """Test crawl_file with Mistral API for document processing."""
+        loader = Loader()
+        local_obj = DocObject("test_id", "test_doc.pdf")
+
+        with patch("arklex.utils.loader.Path") as mock_path_class:
+            mock_path_instance = Mock()
+            mock_path_instance.suffix = ".pdf"
+            mock_path_instance.name = "test_doc.pdf"
+            mock_path_class.return_value = mock_path_instance
+
+            with patch("builtins.open", mock_open(read_data=b"fake pdf data")):
+                with patch("arklex.utils.loader.MISTRAL_API_KEY", "test_key"):
+                    with patch("arklex.utils.loader.Mistral") as mock_mistral:
+                        mock_client = Mock()
+                        mock_mistral.return_value = mock_client
+
+                        mock_upload_response = Mock()
+                        mock_upload_response.id = "file_id"
+                        mock_client.files.upload.return_value = mock_upload_response
+
+                        mock_signed_url_response = Mock()
+                        mock_signed_url_response.url = "signed_url"
+                        mock_client.files.get_signed_url.return_value = (
+                            mock_signed_url_response
+                        )
+
+                        mock_ocr_response = Mock()
+                        mock_page = Mock()
+                        mock_page.markdown = "Extracted text from PDF"
+                        mock_ocr_response.pages = [mock_page]
+                        mock_client.ocr.process.return_value = mock_ocr_response
+
+                        with patch("arklex.utils.loader.log_context") as mock_log:
+                            result = loader.crawl_file(local_obj)
+                            assert result.id == "test_id"
+                            assert result.content == "Extracted text from PDF"
+                            assert result.source_type == SourceType.FILE
+
+    def test_crawl_file_with_html_processing_and_title_extraction(self) -> None:
+        """Test crawl_file with HTML processing and title extraction."""
+        loader = Loader()
+        local_obj = DocObject("test_id", "test.html")
+
+        with patch("arklex.utils.loader.Path") as mock_path_class:
+            mock_path_instance = Mock()
+            mock_path_instance.suffix = ".html"
+            mock_path_instance.name = "test.html"
+            mock_path_class.return_value = mock_path_instance
+
+            html_content = """
+            <html>
+                <head><title>Test Page Title</title></head>
+                <body>
+                    <a href=\"http://example.com\">Link text</a>
+                    <p>Some content</p>
+                </body>
+            </html>
+            """
+
+            with patch("builtins.open", mock_open(read_data=html_content)):
+                # Use a real BeautifulSoup object for this test
+                from bs4 import BeautifulSoup
+
+                soup = BeautifulSoup(html_content, "html.parser")
+                with patch("arklex.utils.loader.BeautifulSoup", return_value=soup):
+                    result = loader.crawl_file(local_obj)
+                    assert result.id == "test_id"
+                    assert (
+                        "Link text http://example.com" in result.content
+                        or "Link text" in result.content
+                    )
+                    assert "Some content" in result.content
+                    assert result.source_type == SourceType.FILE
+                    assert result.metadata["title"] == "Test Page Title"
+
+    def test_chunk_method_with_langchain_docs_return(self) -> None:
+        """Test chunk method returning langchain documents."""
+        loader = Loader()
+
+        # Create test documents
+        doc1 = CrawledObject(
+            "1",
+            "source1",
+            "This is a test document with content that should be chunked into smaller pieces for better processing.",
+        )
+        doc2 = CrawledObject(
+            "2", "source2", "Another document with content.", is_error=True
+        )
+        doc3 = CrawledObject("3", "source3", "Third document.", is_chunk=True)
+
+        with patch(
+            "arklex.utils.loader.RecursiveCharacterTextSplitter"
+        ) as mock_splitter:
+            mock_splitter_instance = Mock()
+            mock_splitter.from_tiktoken_encoder.return_value = mock_splitter_instance
+            mock_splitter_instance.split_text.return_value = ["Chunk 1", "Chunk 2"]
+
+            with patch("arklex.utils.loader.log_context") as mock_log:
+                result = loader.chunk([doc1, doc2, doc3])
+
+                # Should return langchain documents
+                assert (
+                    len(result) == 2
+                )  # Only doc1 gets chunked, doc2 is skipped, doc3 is added as-is
+                assert hasattr(result[0], "page_content")
+                assert hasattr(result[0], "metadata")
+
+    def test_chunk_method_with_multiple_chunks_per_document(self) -> None:
+        """Test chunk method with multiple chunks per document."""
+        loader = Loader()
+
+        # Create a document that will be split into multiple chunks
+        doc = CrawledObject(
+            "1",
+            "source1",
+            "This is a very long document that will be split into multiple chunks for better processing and analysis.",
+        )
+
+        with patch(
+            "arklex.utils.loader.RecursiveCharacterTextSplitter"
+        ) as mock_splitter:
+            mock_splitter_instance = Mock()
+            mock_splitter.from_tiktoken_encoder.return_value = mock_splitter_instance
+            mock_splitter_instance.split_text.return_value = [
+                "First chunk",
+                "Second chunk",
+                "Third chunk",
+            ]
+
+            with patch("arklex.utils.loader.log_context") as mock_log:
+                result = loader.chunk([doc])
+
+                # Should return 3 langchain documents (one for each chunk)
+                assert len(result) == 3
+                assert result[0].page_content == "First chunk"
+                assert result[1].page_content == "Second chunk"
+                assert result[2].page_content == "Third chunk"
+                assert result[0].metadata["source"] == "source1"
+
+    def test_crawl_file_with_no_file_type(self) -> None:
+        """Test crawl_file with file that has no extension."""
+        loader = Loader()
+        local_obj = DocObject("test_id", "testfile")
+
+        with patch("arklex.utils.loader.Path") as mock_path_class:
+            mock_path_instance = Mock()
+            mock_path_instance.suffix = ""
+            mock_path_instance.name = "testfile"
+            mock_path_class.return_value = mock_path_instance
+
+            with patch("arklex.utils.loader.log_context") as mock_log:
+                result = loader.crawl_file(local_obj)
+                assert result.is_error
+                assert "No file type detected" in result.error_message
+
+    def test_crawl_file_with_unsupported_file_type(self) -> None:
+        """Test crawl_file with unsupported file type."""
+        loader = Loader()
+        local_obj = DocObject("test_id", "test.xyz")
+
+        with patch("arklex.utils.loader.Path") as mock_path_class:
+            mock_path_instance = Mock()
+            mock_path_instance.suffix = ".xyz"
+            mock_path_instance.name = "test.xyz"
+            mock_path_class.return_value = mock_path_instance
+
+            with patch("arklex.utils.loader.MISTRAL_API_KEY", None):
+                with patch("arklex.utils.loader.log_context") as mock_log:
+                    result = loader.crawl_file(local_obj)
+                    assert result.is_error
+                    assert "Unsupported file type" in result.error_message
+
+    def test_crawl_file_with_mistral_api_key_placeholder(self) -> None:
+        """Test crawl_file with Mistral API key set to placeholder value."""
+        loader = Loader()
+        local_obj = DocObject("test_id", "test.pdf")
+
+        with patch("arklex.utils.loader.Path") as mock_path_class:
+            mock_path_instance = Mock()
+            mock_path_instance.suffix = ".pdf"
+            mock_path_instance.name = "test.pdf"
+            mock_path_class.return_value = mock_path_instance
+
+            with patch("arklex.utils.loader.MISTRAL_API_KEY", "<your-mistral-api-key>"):
+                with patch("arklex.utils.loader.PyPDFLoader") as mock_pdf_loader:
+                    mock_loader_instance = Mock()
+                    mock_pdf_loader.return_value = mock_loader_instance
+
+                    mock_doc = Mock()
+                    mock_doc.to_json.return_value = {
+                        "kwargs": {"page_content": "PDF content"}
+                    }
+                    mock_loader_instance.load.return_value = [mock_doc]
+
+                    with patch("arklex.utils.loader.log_context") as mock_log:
+                        result = loader.crawl_file(local_obj)
+                        assert result.content == "PDF content"
+                        assert result.source_type == SourceType.FILE
+
+    def test_crawl_file_with_various_supported_formats(self) -> None:
+        """Test crawl_file with various supported file formats."""
+        loader = Loader()
+
+        # Test different file formats
+        formats = [
+            ("test.docx", "UnstructuredWordDocumentLoader"),
+            ("test.xlsx", "UnstructuredExcelLoader"),
+            ("test.txt", "TextLoader"),
+            ("test.md", "UnstructuredMarkdownLoader"),
+            ("test.pptx", "UnstructuredPowerPointLoader"),
+        ]
+
+        for filename, loader_class in formats:
+            local_obj = DocObject("test_id", filename)
+
+            with patch("arklex.utils.loader.Path") as mock_path_class:
+                mock_path_instance = Mock()
+                mock_path_instance.suffix = "." + filename.split(".")[1]
+                mock_path_instance.name = filename
+                mock_path_class.return_value = mock_path_instance
+
+                with patch(f"arklex.utils.loader.{loader_class}") as mock_loader_class:
+                    mock_loader_instance = Mock()
+                    mock_loader_class.return_value = mock_loader_instance
+
+                    mock_doc = Mock()
+                    mock_doc.to_json.return_value = {
+                        "kwargs": {"page_content": f"Content from {filename}"}
+                    }
+                    mock_loader_instance.load.return_value = [mock_doc]
+
+                    with patch("arklex.utils.loader.MISTRAL_API_KEY", None):
+                        with patch("arklex.utils.loader.log_context") as mock_log:
+                            result = loader.crawl_file(local_obj)
+                            assert result.content == f"Content from {filename}"
+                            assert result.source_type == SourceType.FILE
+
+    def test_crawl_file_with_loader_exception(self) -> None:
+        """Test crawl_file with exception during loader processing."""
+        loader = Loader()
+        local_obj = DocObject("test_id", "test.txt")
+
+        with patch("arklex.utils.loader.Path") as mock_path_class:
+            mock_path_instance = Mock()
+            mock_path_instance.suffix = ".txt"
+            mock_path_instance.name = "test.txt"
+            mock_path_class.return_value = mock_path_instance
+
+            with patch("arklex.utils.loader.MISTRAL_API_KEY", None):
+                with patch("arklex.utils.loader.TextLoader") as mock_loader_class:
+                    mock_loader_instance = Mock()
+                    mock_loader_class.return_value = mock_loader_instance
+                    mock_loader_instance.load.side_effect = Exception("Loader error")
+
+                    with patch("arklex.utils.loader.log_context") as mock_log:
+                        result = loader.crawl_file(local_obj)
+                        assert result.is_error
+                        assert result.error_message == "Loader error"
+                        assert result.content is None
+
+    def test_save_method_with_pickle(self) -> None:
+        """Test save method with pickle serialization."""
+        loader = Loader()
+        docs = [
+            CrawledObject("1", "source1", "content1"),
+            CrawledObject("2", "source2", "content2"),
+        ]
+
+        with patch("builtins.open", mock_open()) as mock_file:
+            with patch("pickle.dump") as mock_pickle:
+                loader.save("test.pkl", docs)
+                mock_pickle.assert_called_once_with(docs, mock_file())
+
+    def test_to_crawled_text_with_empty_list(self) -> None:
+        """Test to_crawled_text with empty list."""
+        loader = Loader()
+        result = loader.to_crawled_text([])
+        assert result == []
+
+    def test_to_crawled_text_with_multiple_texts(self) -> None:
+        """Test to_crawled_text with multiple text strings."""
+        loader = Loader()
+        texts = ["Text 1", "Text 2", "Text 3"]
+        result = loader.to_crawled_text(texts)
+
+        assert len(result) == 3
+        for i, doc in enumerate(result):
+            assert doc.content == f"Text {i + 1}"
+            assert doc.source == "text"
+            assert doc.source_type == SourceType.TEXT
+            assert doc.metadata == {}
+
+    def test_to_crawled_local_objs_with_empty_list(self) -> None:
+        """Test to_crawled_local_objs with empty list."""
+        loader = Loader()
+        result = loader.to_crawled_local_objs([])
+        assert result == []
+
+    def test_to_crawled_local_objs_with_multiple_files(self) -> None:
+        """Test to_crawled_local_objs with multiple files."""
+        loader = Loader()
+        files = ["file1.txt", "file2.txt"]
+
+        with patch.object(loader, "crawl_file") as mock_crawl_file:
+            mock_crawl_file.side_effect = [
+                CrawledObject("1", "file1.txt", "content1"),
+                CrawledObject("2", "file2.txt", "content2"),
+            ]
+
+            result = loader.to_crawled_local_objs(files)
+            assert len(result) == 2
+            assert result[0].content == "content1"
+            assert result[1].content == "content2"
+            assert mock_crawl_file.call_count == 2
+
+    def test_get_candidates_websites_with_empty_urls(self) -> None:
+        """Test get_candidates_websites with empty URLs list."""
+        loader = Loader()
+        result = loader.get_candidates_websites([], 5)
+        assert result == []
+
+    def test_get_candidates_websites_with_all_error_urls(self) -> None:
+        """Test get_candidates_websites with all error URLs."""
+        loader = Loader()
+        error_urls = [
+            CrawledObject("1", "source1", "content1", is_error=True),
+            CrawledObject("2", "source2", "content2", is_error=True),
+        ]
+        result = loader.get_candidates_websites(error_urls, 5)
+        assert result == []
+
+    def test_get_candidates_websites_with_no_content_references(self) -> None:
+        """Test get_candidates_websites with URLs that don't reference each other."""
+        loader = Loader()
+        urls = [
+            CrawledObject("1", "source1", "content about topic A"),
+            CrawledObject("2", "source2", "content about topic B"),
+        ]
+        result = loader.get_candidates_websites(urls, 5)
+        assert len(result) == 2  # Both URLs should be returned as they have no edges
+
+    def test_get_all_urls_with_successful_crawling(self) -> None:
+        """Test get_all_urls with successful crawling."""
+        loader = Loader()
+
+        with patch.object(loader, "get_outsource_urls") as mock_get_urls:
+            mock_get_urls.side_effect = [
+                ["http://example.com/page1", "http://example.com/page2"],
+                ["http://example.com/page3"],
+                [],
+            ]
+
+            # Provide enough time values for the entire method execution
+            time_values = [
+                1000.0,
+                1001.0,
+                1002.0,
+                1003.0,
+                1004.0,
+                1005.0,
+                1006.0,
+                1007.0,
+                1008.0,
+                1009.0,
+                1010.0,
+            ]
+            with patch("time.time", side_effect=time_values):
+                result = loader.get_all_urls("http://example.com", 10)
+                assert len(result) >= 3  # Should include base URL and discovered URLs
+
+    def test_get_all_urls_with_duplicate_url_discovery(self) -> None:
+        """Test get_all_urls with duplicate URL discovery."""
+        loader = Loader()
+
+        with patch.object(loader, "get_outsource_urls") as mock_get_urls:
+            # Return same URLs multiple times to test deduplication
+            mock_get_urls.return_value = [
+                "http://example.com/page1",
+                "http://example.com/page1",
+            ]
+
+            # Provide enough time values for the entire method execution
+            time_values = [
+                1000.0,
+                1001.0,
+                1002.0,
+                1003.0,
+                1004.0,
+                1005.0,
+                1006.0,
+                1007.0,
+                1008.0,
+                1009.0,
+                1010.0,
+                1011.0,
+                1012.0,
+                1013.0,
+                1014.0,
+                1015.0,
+            ]
+            with patch("time.time", side_effect=time_values):
+                result = loader.get_all_urls("http://example.com", 10)
+                # Should deduplicate URLs
+                assert len(set(result)) == len(result)
+
+    def test_crawl_urls_with_empty_url_objects(self) -> None:
+        """Test crawl_urls with empty URL objects list."""
+        loader = Loader()
+        result = loader.crawl_urls([])
+        assert result == []
+
+    def test_crawl_urls_with_single_url_object(self) -> None:
+        """Test crawl_urls with single URL object."""
+        loader = Loader()
+        url_objects = [DocObject("1", "http://example.com")]
+
+        with patch.object(loader, "_crawl_with_selenium") as mock_selenium:
+            mock_selenium.return_value = [
+                CrawledObject("1", "http://example.com", "content", is_error=False)
+            ]
+
+            result = loader.crawl_urls(url_objects)
+            assert len(result) == 1
+            assert not result[0].is_error
+
+    def test_crawl_urls_with_selenium_failure_and_requests_success(self) -> None:
+        """Test crawl_urls with Selenium failure but requests success."""
+        loader = Loader()
+        url_objects = [DocObject("1", "http://example.com")]
+
+        with patch.object(loader, "_crawl_with_selenium") as mock_selenium:
+            mock_selenium.return_value = [
+                CrawledObject("1", "http://example.com", "content", is_error=True)
+            ]
+
+            with patch.object(loader, "_crawl_with_requests") as mock_requests:
+                mock_requests.return_value = [
+                    CrawledObject("1", "http://example.com", "content", is_error=False)
+                ]
+
+                result = loader.crawl_urls(url_objects)
+                assert len(result) == 1
+                assert not result[0].is_error
+
+    def test_crawl_urls_with_all_methods_failing(self) -> None:
+        """Test crawl_urls with all crawling methods failing."""
+        loader = Loader()
+        url_objects = [DocObject("1", "http://example.com")]
+
+        with patch.object(loader, "_crawl_with_selenium") as mock_selenium:
+            mock_selenium.return_value = [
+                CrawledObject("1", "http://example.com", "content", is_error=True)
+            ]
+
+            with patch.object(loader, "_crawl_with_requests") as mock_requests:
+                mock_requests.return_value = [
+                    CrawledObject("1", "http://example.com", "content", is_error=True)
+                ]
+
+                with patch.object(
+                    loader, "_create_mock_content_from_urls"
+                ) as mock_mock:
+                    mock_mock.return_value = [
+                        CrawledObject(
+                            "1", "http://example.com", "mock content", is_error=False
+                        )
+                    ]
+
+                    result = loader.crawl_urls(url_objects)
+                    assert len(result) == 1
+                    assert not result[0].is_error
+                    assert result[0].content == "mock content"
+
+    def test_create_error_doc(self) -> None:
+        """Test _create_error_doc method."""
+        loader = Loader()
+        url_obj = DocObject("test_id", "http://example.com")
+        error_msg = "Test error message"
+
+        result = loader._create_error_doc(url_obj, error_msg)
+        assert result.id == "test_id"
+        assert result.source == "http://example.com"
+        assert result.is_error is True
+        assert result.error_message == "Test error message"
+        assert result.source_type == SourceType.WEB
+
+    def test_crawled_object_from_dict_with_all_fields(self) -> None:
+        """Test CrawledObject.from_dict with all fields populated."""
+        data = {
+            "id": "test_id",
+            "source": "test_source",
+            "content": "test_content",
+            "metadata": {"key": "value"},
+            "is_chunk": True,
+            "is_error": True,
+            "error_message": "test error",
+            "source_type": SourceType.FILE,
+        }
+
+        result = CrawledObject.from_dict(data)
+        assert result.id == "test_id"
+        assert result.source == "test_source"
+        assert result.content == "test_content"
+        assert result.metadata == {"key": "value"}
+        assert result.is_chunk is True
+        assert result.is_error is True
+        assert result.error_message == "test error"
+        assert result.source_type == SourceType.FILE
+
+    def test_crawled_object_to_dict_with_all_fields(self) -> None:
+        """Test CrawledObject.to_dict with all fields populated."""
+        crawled = CrawledObject(
+            "test_id",
+            "test_source",
+            "test_content",
+            {"key": "value"},
+            is_chunk=True,
+            is_error=True,
+            error_message="test error",
+            source_type=SourceType.FILE,
+        )
+
+        result = crawled.to_dict()
+        assert result["id"] == "test_id"
+        assert result["source"] == "test_source"
+        assert result["content"] == "test_content"
+        assert result["metadata"] == {"key": "value"}
+        assert result["is_chunk"] is True
+        assert result["is_error"] is True
+        assert result["error_message"] == "test error"
+        assert result["source_type"] == SourceType.FILE
