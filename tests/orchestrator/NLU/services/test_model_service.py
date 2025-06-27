@@ -5,25 +5,28 @@ classes, covering initialization, text processing, intent detection, slot fillin
 verification, and utility methods.
 """
 
-import json
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
-
 import pytest
+import json
+from unittest.mock import AsyncMock, MagicMock, patch
+from typing import Dict, Any, List
+
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from arklex.orchestrator.NLU.services.model_service import (
+    ModelService,
+    DummyModelService,
+)
 from arklex.orchestrator.NLU.core.base import (
     IntentResponse,
+    SlotResponse,
+    VerificationResponse,
 )
-from arklex.orchestrator.NLU.services.model_service import (
-    DummyModelService,
-    ModelService,
-)
-from arklex.utils.exceptions import ModelError, ValidationError
+from arklex.utils.exceptions import ValidationError, ModelError
+from arklex.utils.logging_utils import LOG_MESSAGES
 
 
 @pytest.fixture
-def model_config() -> dict[str, Any]:
+def model_config() -> Dict[str, Any]:
     """Fixture for model configuration."""
     return {
         "model_name": "gpt-4",
@@ -36,7 +39,7 @@ def model_config() -> dict[str, Any]:
 
 
 @pytest.fixture
-def dummy_config() -> dict[str, Any]:
+def dummy_config() -> Dict[str, Any]:
     """Fixture for dummy model configuration."""
     return {
         "model_name": "test_model",
@@ -48,7 +51,7 @@ def dummy_config() -> dict[str, Any]:
 
 
 @pytest.fixture
-def model_service(model_config: dict[str, Any]) -> ModelService:
+def model_service(model_config: Dict[str, Any]) -> ModelService:
     """Fixture for ModelService instance."""
     with patch(
         "arklex.orchestrator.NLU.services.model_service.ModelConfig.get_model_instance"
@@ -60,13 +63,13 @@ def model_service(model_config: dict[str, Any]) -> ModelService:
 
 
 @pytest.fixture
-def dummy_model_service(dummy_config: dict[str, Any]) -> DummyModelService:
+def dummy_model_service(dummy_config: Dict[str, Any]) -> DummyModelService:
     """Fixture for DummyModelService instance."""
     return DummyModelService(dummy_config)
 
 
 @pytest.fixture
-def sample_intents() -> dict[str, Any]:
+def sample_intents() -> Dict[str, Any]:
     """Fixture for sample intent definitions."""
     return {
         "greeting": {
@@ -81,7 +84,7 @@ def sample_intents() -> dict[str, Any]:
 
 
 @pytest.fixture
-def sample_slots() -> dict[str, Any]:
+def sample_slots() -> Dict[str, Any]:
     """Fixture for sample slot definitions."""
     return {
         "date": {"type": "date", "description": "Date for booking", "required": True},
@@ -90,7 +93,7 @@ def sample_slots() -> dict[str, Any]:
 
 
 @pytest.fixture
-def sample_verification_slots() -> dict[str, Any]:
+def sample_verification_slots() -> Dict[str, Any]:
     """Fixture for sample verification slot definitions."""
     return {
         "date": {"type": "date", "description": "Date for booking", "required": True},
@@ -102,7 +105,7 @@ class TestModelServiceInitialization:
     """Test cases for ModelService initialization and configuration validation."""
 
     def test_model_service_initialization_success(
-        self, model_config: dict[str, Any]
+        self, model_config: Dict[str, Any]
     ) -> None:
         """Test successful model service initialization with valid configuration."""
         with patch(
@@ -122,7 +125,7 @@ class TestModelServiceInitialization:
         assert "Missing required field" in str(exc_info.value)
 
     def test_model_service_initialization_dummy_config(
-        self, dummy_config: dict[str, Any]
+        self, dummy_config: Dict[str, Any]
     ) -> None:
         """Test model service initialization with dummy configuration."""
         with patch(
@@ -152,7 +155,7 @@ class TestModelServiceInitialization:
         with pytest.raises(ValidationError, match="Missing required field"):
             ModelService(incomplete_config)
 
-    def test_validate_config_missing_fields(self, model_config: dict[str, Any]) -> None:
+    def test_validate_config_missing_fields(self, model_config: Dict[str, Any]) -> None:
         """Test validate_config with missing required fields."""
         # Remove required fields
         invalid_config = model_config.copy()
@@ -164,7 +167,7 @@ class TestModelServiceInitialization:
             ModelService(invalid_config)
 
     def test_validate_config_missing_model_name(
-        self, model_config: dict[str, Any]
+        self, model_config: Dict[str, Any]
     ) -> None:
         """Test validate_config with missing model_name."""
         # Remove model_name
@@ -174,7 +177,7 @@ class TestModelServiceInitialization:
         with pytest.raises(ValidationError):
             ModelService(invalid_config)
 
-    def test_validate_config_with_defaults(self, model_config: dict[str, Any]) -> None:
+    def test_validate_config_with_defaults(self, model_config: Dict[str, Any]) -> None:
         """Test validate_config with default values."""
         # Remove optional fields to test defaults
         config_with_defaults = {
@@ -1740,7 +1743,7 @@ class TestModelServiceMissingCoverage:
 
     @pytest.fixture
     def model_service_with_mock_model(
-        self, model_config: dict[str, Any]
+        self, model_config: Dict[str, Any]
     ) -> ModelService:
         """Fixture for ModelService with mocked model."""
         with patch(
@@ -1972,7 +1975,7 @@ class TestModelServiceMissingCoverage:
         assert "required" in user_prompt
 
     def test_dummy_model_service_get_response_override(
-        self, dummy_config: dict[str, Any]
+        self, dummy_config: Dict[str, Any]
     ) -> None:
         """Test DummyModelService get_response override."""
         dummy_service = DummyModelService(dummy_config)
@@ -1983,7 +1986,7 @@ class TestModelServiceMissingCoverage:
         assert "test prompt" in result or "1) others" in result
 
     def test_initialize_model_with_exception(
-        self, model_config: dict[str, Any]
+        self, model_config: Dict[str, Any]
     ) -> None:
         """Test _initialize_model when ModelConfig.get_model_instance raises an exception."""
         with patch(
@@ -2172,7 +2175,7 @@ class TestModelServiceMissingCoverage:
         assert "enum" not in user_prompt.lower()
 
     def test_dummy_model_service_format_slot_input_override(
-        self, dummy_config: dict[str, Any]
+        self, dummy_config: Dict[str, Any]
     ) -> None:
         """Test DummyModelService format_slot_input override."""
         dummy_service = DummyModelService(dummy_config)
@@ -2186,7 +2189,7 @@ class TestModelServiceMissingCoverage:
         assert "test_slot" in user_prompt
 
     def test_dummy_model_service_process_slot_response_override(
-        self, dummy_config: dict[str, Any]
+        self, dummy_config: Dict[str, Any]
     ) -> None:
         """Test DummyModelService process_slot_response override."""
         dummy_service = DummyModelService(dummy_config)
@@ -2206,7 +2209,7 @@ class TestModelServiceMissingCoverage:
             assert result == [{"name": "test_slot", "value": "test_value"}]
 
     def test_dummy_model_service_format_verification_input_override(
-        self, dummy_config: dict[str, Any]
+        self, dummy_config: Dict[str, Any]
     ) -> None:
         """Test DummyModelService format_verification_input override."""
         dummy_service = DummyModelService(dummy_config)
@@ -2228,7 +2231,7 @@ class TestModelServiceMissingCoverage:
             assert result == "formatted verification input"
 
     def test_dummy_model_service_process_verification_response_override(
-        self, dummy_config: dict[str, Any]
+        self, dummy_config: Dict[str, Any]
     ) -> None:
         """Test DummyModelService process_verification_response override."""
         dummy_service = DummyModelService(dummy_config)

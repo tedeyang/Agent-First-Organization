@@ -4,11 +4,12 @@ This module provides comprehensive tests for the NodeFormatter class,
 covering formatting logic, validation, and edge cases.
 """
 
-from typing import Any
+from typing import Dict, Any
 
 import pytest
 
 from arklex.orchestrator.generator.formatting.node_formatter import NodeFormatter
+
 
 # --- Fixtures ---
 
@@ -20,7 +21,7 @@ def node_formatter() -> NodeFormatter:
 
 
 @pytest.fixture
-def sample_task() -> dict[str, Any]:
+def sample_task() -> Dict[str, Any]:
     """Create a sample task for testing."""
     return {
         "task_id": "task_001",
@@ -40,7 +41,7 @@ def sample_task() -> dict[str, Any]:
 
 
 @pytest.fixture
-def complex_task() -> dict[str, Any]:
+def complex_task() -> Dict[str, Any]:
     """Create a complex task with nested structures for testing."""
     return {
         "task_id": "complex_task_001",
@@ -75,7 +76,7 @@ def complex_task() -> dict[str, Any]:
 
 
 @pytest.fixture
-def minimal_task() -> dict[str, Any]:
+def minimal_task() -> Dict[str, Any]:
     """Create a minimal task with only required fields."""
     return {
         "task_id": "minimal_task",
@@ -84,7 +85,7 @@ def minimal_task() -> dict[str, Any]:
 
 
 @pytest.fixture
-def extended_task() -> dict[str, Any]:
+def extended_task() -> Dict[str, Any]:
     """Create a task with extra fields beyond standard ones."""
     return {
         "task_id": "extended_task",
@@ -99,7 +100,7 @@ def extended_task() -> dict[str, Any]:
 
 
 @pytest.fixture
-def valid_node() -> dict[str, Any]:
+def valid_node() -> Dict[str, Any]:
     """Create a valid node for testing."""
     return {
         "id": "node_001",
@@ -113,7 +114,7 @@ def valid_node() -> dict[str, Any]:
 
 
 @pytest.fixture
-def invalid_source() -> dict[str, Any]:
+def invalid_source() -> Dict[str, Any]:
     """Create an invalid source task (missing ID) for testing."""
     return {
         "name": "Invalid Source",
@@ -122,7 +123,7 @@ def invalid_source() -> dict[str, Any]:
 
 
 @pytest.fixture
-def invalid_target() -> dict[str, Any]:
+def invalid_target() -> Dict[str, Any]:
     """Create an invalid target task (missing ID) for testing."""
     return {
         "name": "Invalid Target",
@@ -153,7 +154,7 @@ class TestNodeFormatterFormatting:
     """Test node formatting functionality."""
 
     def test_format_node_basic(
-        self, node_formatter: NodeFormatter, sample_task: dict[str, Any]
+        self, node_formatter: NodeFormatter, sample_task: Dict[str, Any]
     ) -> None:
         """Should format a basic task node correctly."""
         result = node_formatter.format_node(sample_task, "node_id")
@@ -163,7 +164,7 @@ class TestNodeFormatterFormatting:
         assert "attribute" in result[1]
 
     def test_format_node_with_complex_steps(
-        self, node_formatter: NodeFormatter, complex_task: dict[str, Any]
+        self, node_formatter: NodeFormatter, complex_task: Dict[str, Any]
     ) -> None:
         """Should format node with complex step structures."""
         node_id = "node_001"
@@ -177,7 +178,7 @@ class TestNodeFormatterFormatting:
         assert result[1]["resource"]["name"] == complex_task["name"]
 
     def test_format_node_with_missing_fields(
-        self, node_formatter: NodeFormatter, minimal_task: dict[str, Any]
+        self, node_formatter: NodeFormatter, minimal_task: Dict[str, Any]
     ) -> None:
         """Should format node with missing optional fields."""
         node_id = "minimal_node"
@@ -191,7 +192,7 @@ class TestNodeFormatterFormatting:
         assert "type" not in result[1]
 
     def test_format_node_with_extra_fields(
-        self, node_formatter: NodeFormatter, extended_task: dict[str, Any]
+        self, node_formatter: NodeFormatter, extended_task: Dict[str, Any]
     ) -> None:
         """Should format node with extra fields beyond standard ones."""
         node_id = "extended_node"
@@ -216,7 +217,7 @@ class TestNodeFormatterFormatting:
         assert "attribute" in result[1]
 
     def test_format_node_data_with_complex_task(
-        self, node_formatter: NodeFormatter, complex_task: dict[str, Any]
+        self, node_formatter: NodeFormatter, complex_task: Dict[str, Any]
     ) -> None:
         """Should format node data with complex task structure."""
         result = node_formatter.format_node_data(complex_task)
@@ -230,7 +231,7 @@ class TestNodeFormatterFormatting:
         assert result["attribute"]["directed"] is True
 
     def test_format_node_data_with_minimal_task(
-        self, node_formatter: NodeFormatter, minimal_task: dict[str, Any]
+        self, node_formatter: NodeFormatter, minimal_task: Dict[str, Any]
     ) -> None:
         """Should format node data with minimal task data."""
         result = node_formatter.format_node_data(minimal_task)
@@ -270,7 +271,7 @@ class TestNodeFormatterFormatting:
         assert default_style["color"] == "#ffa500"  # Defaults to medium priority
 
     def test_format_node_style_structure(
-        self, node_formatter: NodeFormatter, sample_task: dict[str, Any]
+        self, node_formatter: NodeFormatter, sample_task: Dict[str, Any]
     ) -> None:
         """Should have complete structure in format_node_style output."""
         style = node_formatter.format_node_style(sample_task)
@@ -305,7 +306,7 @@ class TestNodeFormatterValidation:
     """Test node validation functionality."""
 
     def test_validate_node_with_complete_data(
-        self, node_formatter: NodeFormatter, valid_node: dict[str, Any]
+        self, node_formatter: NodeFormatter, valid_node: Dict[str, Any]
     ) -> None:
         """Should validate node with complete and valid node data."""
         assert node_formatter.validate_node(valid_node) is True

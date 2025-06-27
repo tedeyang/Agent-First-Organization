@@ -12,17 +12,17 @@ The tests cover:
 - Integration scenarios
 """
 
-from unittest.mock import MagicMock, Mock, patch
-
+from unittest.mock import Mock, patch, MagicMock
+from langchain_core.outputs import Generation
 from arklex.env.workers.message_worker import MessageWorker
-from arklex.types import StreamType
 from arklex.utils.graph_state import (
-    BotConfig,
-    ConvoMessage,
-    LLMConfig,
     MessageState,
+    BotConfig,
+    LLMConfig,
+    ConvoMessage,
     OrchestratorMessage,
 )
+from arklex.types import StreamType
 
 # Test configuration constants
 VALID_BOT_CONFIG: BotConfig = BotConfig(

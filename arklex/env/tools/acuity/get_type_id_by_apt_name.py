@@ -1,19 +1,18 @@
 import inspect
-from typing import Any
-
 import requests
 from requests.auth import HTTPBasicAuth
+from typing import Dict, Any, List, Optional
 
 from arklex.env.tools.acuity._exception_prompt import AcuityExceptionPrompt
-from arklex.env.tools.acuity.utils import authenticate_acuity
 from arklex.env.tools.tools import register_tool
+from arklex.env.tools.acuity.utils import authenticate_acuity
 from arklex.utils.exceptions import ToolExecutionError
 
 # Tool description for retrieving session type ID
 description: str = "Retrieve the list of all info sessions for users."
 
 # List of required parameters for the tool
-slots: list[dict[str, Any]] = [
+slots: List[Dict[str, Any]] = [
     {
         "name": "apt_name",
         "type": "str",
@@ -24,7 +23,7 @@ slots: list[dict[str, Any]] = [
 ]
 
 # List of output parameters for the tool
-outputs: list[dict[str, Any]] = [
+outputs: List[Dict[str, Any]] = [
     {
         "name": "apt_type_id",
         "type": "str",
@@ -34,7 +33,7 @@ outputs: list[dict[str, Any]] = [
 
 
 @register_tool(description, slots, outputs)
-def get_type_id_by_apt_name(apt_name: str, **kwargs: dict[str, Any]) -> str:
+def get_type_id_by_apt_name(apt_name: str, **kwargs: Dict[str, Any]) -> str:
     """
     Get the appointment type ID for a given session name.
 
@@ -60,8 +59,8 @@ def get_type_id_by_apt_name(apt_name: str, **kwargs: dict[str, Any]) -> str:
     )
 
     if response.status_code == 200:
-        data: list[dict[str, Any]] = response.json()
-        apt_type_id: int | None = next(
+        data: List[Dict[str, Any]] = response.json()
+        apt_type_id: Optional[int] = next(
             (item["id"] for item in data if item["name"].strip() == apt_name), None
         )
         response_str: str = f"The appointment type id is {apt_type_id}\n"

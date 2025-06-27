@@ -1,21 +1,20 @@
 """Tests for logging utilities."""
 
+import pytest
 import logging
 import string
+import asyncio
 from unittest.mock import Mock, patch
-
-import pytest
-import tenacity
-
-from arklex.utils.exceptions import ArklexError, RetryableError
 from arklex.utils.logging_utils import (
-    LOG_MESSAGES,
-    ContextFilter,
     LogContext,
-    RequestIdFilter,
     handle_exceptions,
     with_retry,
+    LOG_MESSAGES,
+    RequestIdFilter,
+    ContextFilter,
 )
+from arklex.utils.exceptions import ArklexError, RetryableError
+import tenacity
 
 
 # Helper to ensure log_context propagates and is at correct level for caplog

@@ -1,22 +1,24 @@
 """Tests for logging configuration."""
 
-import json
 import logging
 import os
-from collections.abc import Generator
-from pathlib import Path
-from unittest.mock import patch
-
 import pytest
+import json
+from pathlib import Path
+from typing import Generator
+from unittest.mock import patch, Mock
 
 from arklex.utils.logging_config import (
-    DEFAULT_LOG_LEVEL,
-    LOG_LEVELS,
-    MODULE_LOG_LEVELS,
-    ContextFilter,
+    setup_logging,
     JSONFormatter,
     RequestIdFilter,
-    setup_logging,
+    ContextFilter,
+    LOG_LEVELS,
+    MODULE_LOG_LEVELS,
+    DEFAULT_LOG_LEVEL,
+    DEFAULT_LOG_FORMAT,
+    MAX_BYTES,
+    BACKUP_COUNT,
 )
 
 log_context = logging.getLogger(__name__)

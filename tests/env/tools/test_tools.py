@@ -4,11 +4,13 @@ This module contains comprehensive test cases for the tools functionality,
 including Tool class creation, registration, and various parameter handling scenarios.
 """
 
-from typing import Any
-from unittest.mock import Mock, patch
+import pytest
+from unittest.mock import Mock, patch, MagicMock
+from typing import Dict, Any, List, Callable
 
-from arklex.env.tools.tools import Tool, register_tool
-from arklex.utils.exceptions import AuthenticationError, ToolExecutionError
+from arklex.env.tools.tools import register_tool, Tool
+from arklex.utils.exceptions import ToolExecutionError
+from arklex.utils.exceptions import AuthenticationError
 from arklex.utils.graph_state import MessageState
 
 
@@ -269,8 +271,8 @@ class TestTools:
         """
 
         def test_function(
-            param1: str, param2: list[str], param3: dict[str, Any]
-        ) -> dict[str, Any]:
+            param1: str, param2: List[str], param3: Dict[str, Any]
+        ) -> Dict[str, Any]:
             return {
                 "result": f"Processed {param1}",
                 "list_result": param2,

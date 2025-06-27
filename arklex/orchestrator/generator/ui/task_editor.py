@@ -4,13 +4,12 @@ This module provides the TaskEditor class that handles the UI for editing
 task definitions.
 """
 
-from typing import Any
+from typing import List, Dict, Any
+from arklex.utils.logging_utils import LogContext
 
 from textual.app import App, ComposeResult
-from textual.widgets import Label, Tree
+from textual.widgets import Tree, Label
 from textual.widgets.tree import TreeNode
-
-from arklex.utils.logging_utils import LogContext
 
 from .input_modal import InputModal
 
@@ -37,7 +36,7 @@ class TaskEditorApp(App):
         update_tasks(): Updates the tasks list from the tree structure
     """
 
-    def __init__(self, tasks: list[dict[str, Any]]) -> None:
+    def __init__(self, tasks: List[Dict[str, Any]]) -> None:
         """Initialize the TaskEditorApp instance.
 
         Args:
@@ -210,7 +209,7 @@ class TaskEditorApp(App):
         log_message = f"Updated Tasks: {self.tasks}"
         log_context.debug(log_message)
 
-    def run(self) -> list[dict[str, Any]]:
+    def run(self) -> List[Dict[str, Any]]:
         """Run the task editor app.
 
         Returns:

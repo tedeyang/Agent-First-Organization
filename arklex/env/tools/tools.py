@@ -4,21 +4,21 @@ This module provides functionality for managing tools, including
 initialization, execution, and slot filling integration.
 """
 
-import inspect
-import json
 import os
-import traceback
 import uuid
-from collections.abc import Callable
-from typing import Any
+import inspect
+import traceback
+import json
+from typing import Any, Callable, Dict, List, Optional
 
-from arklex.orchestrator.NLU.core.slot import SlotFiller
-from arklex.utils.exceptions import AuthenticationError, ToolExecutionError
 from arklex.utils.graph_state import MessageState, StatusEnum
-from arklex.utils.logging_utils import LogContext
 from arklex.utils.slot import Slot
+from arklex.orchestrator.NLU.core.slot import SlotFiller
 from arklex.utils.utils import format_chat_history
-
+from arklex.utils.exceptions import ToolExecutionError, AuthenticationError
+from arklex.utils.logging_utils import LogContext
+from arklex.orchestrator.NLU.services.model_service import ModelService
+from arklex.orchestrator.NLU.services.api_service import APIClientService
 log_context = LogContext(__name__)
 
 PYTHON_TO_JSON_SCHEMA = {
@@ -31,8 +31,8 @@ PYTHON_TO_JSON_SCHEMA = {
 
 def register_tool(
     desc: str,
-    slots: list[dict[str, Any]] = [],
-    outputs: list[str] = [],
+    slots: List[Dict[str, Any]] = [],
+    outputs: List[str] = [],
     isResponse: bool = False,
 ) -> Callable:
     """Register a tool with the Arklex framework.
@@ -94,8 +94,8 @@ class Tool:
         func: Callable,
         name: str,
         description: str,
-        slots: list[dict[str, Any]],
-        outputs: list[str],
+        slots: List[Dict[str, Any]],
+        outputs: List[str],
         isResponse: bool,
     ) -> None:
         """Initialize a new Tool instance.
@@ -111,17 +111,17 @@ class Tool:
         self.func: Callable = func
         self.name: str = name
         self.description: str = description
-        self.output: list[str] = outputs
-        self.slotfiller: SlotFiller | None = None
-        self.info: dict[str, Any] = self.get_info(slots)
-        self.slots: list[Slot] = [Slot.model_validate(slot) for slot in slots]
+        self.output: List[str] = outputs
+        self.slotfiller: Optional[SlotFiller] = None
+        self.info: Dict[str, Any] = self.get_info(slots)
+        self.slots: List[Slot] = [Slot.model_validate(slot) for slot in slots]
         self.isResponse: bool = isResponse
-        self.properties: dict[str, dict[str, Any]] = {}
-        self.llm_config: dict[str, Any] = {}
+        self.properties: Dict[str, Dict[str, Any]] = {}
+        self.llm_config: Dict[str, Any] = {}
         self.fixed_args = {}
         self.auth = {}
 
-    def get_info(self, slots: list[dict[str, Any]]) -> dict[str, Any]:
+    def get_info(self, slots: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Get tool information including parameters and requirements.
 
         This method processes the slot definitions to create a structured
@@ -140,7 +140,7 @@ class Tool:
                 for k, v in slot.items()
                 if k in ["type", "description", "prompt", "items"]
             }
-        required: list[str] = [
+        required: List[str] = [
             slot["name"] for slot in slots if slot.get("required", False)
         ]
         return {
@@ -164,9 +164,9 @@ class Tool:
         """
         self.slotfiller = slotfiller_api
 
-    def init_default_slots(self, default_slots: list[Slot]) -> None:
+    def init_default_slots(self, default_slots: List[Slot]) -> None:
         """Initializes the default slots as provided and returns a dictionary of slots which have been populated."""
-        populated_slots: dict[str:Any] = {}
+        populated_slots: Dict[str:Any] = {}
         for default_slot in default_slots:
             populated_slots[default_slot.name] = default_slot.value
             for slot in self.slots:
@@ -184,11 +184,11 @@ class Tool:
         Args:
             state (MessageState): The current message state.
         """
-        default_slots: list[Slot] = state.slots.get("default_slots", [])
+        default_slots: List[Slot] = state.slots.get("default_slots", [])
         log_context.info(f"Default slots are: {default_slots}")
         if not default_slots:
             return
-        response: dict[str, Any] = self.init_default_slots(default_slots)
+        response: Dict[str, Any] = self.init_default_slots(default_slots)
         state.function_calling_trajectory.append(
             {
                 "role": "tool",
@@ -225,7 +225,7 @@ class Tool:
         self._init_slots(state)
         # do slotfilling
         chat_history_str: str = format_chat_history(state.function_calling_trajectory)
-        slots: list[Slot] = self.slotfiller.fill_slots(
+        slots: List[Slot] = self.slotfiller.fill_slots(
             self.slots, chat_history_str, self.llm_config
         )
         log_context.info(f"{slots=}")
@@ -268,12 +268,12 @@ class Tool:
         if not missing_required:
             log_context.info("all required slots filled")
             # Get all slot values, including optional ones that have values
-            kwargs: dict[str, Any] = {}
+            kwargs: Dict[str, Any] = {}
             for slot in slots:
                 # Always include the slot value, even if None
                 kwargs[slot.name] = slot.value if slot.value is not None else ""
 
-            combined_kwargs: dict[str, Any] = {
+            combined_kwargs: Dict[str, Any] = {
                 **kwargs,
                 **fixed_args,
                 **self.llm_config,

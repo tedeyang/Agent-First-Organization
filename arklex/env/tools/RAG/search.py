@@ -6,18 +6,18 @@ class for executing searches and processing results. The module supports context
 query reformulation and result processing for integration with the RAG system.
 """
 
-from typing import Any
+from typing import List, Dict, Any
 
-from langchain.prompts import PromptTemplate
-from langchain_community.tools import TavilySearchResults
-from langchain_core.output_parsers import StrOutputParser
-from langchain_openai import ChatOpenAI
-
-from arklex.env.prompts import load_prompts
-from arklex.utils.exceptions import SearchError
-from arklex.utils.graph_state import LLMConfig, MessageState
-from arklex.utils.logging_utils import LogContext
 from arklex.utils.model_provider_config import PROVIDER_MAP
+from arklex.env.prompts import load_prompts
+from arklex.utils.graph_state import MessageState, LLMConfig
+from langchain.prompts import PromptTemplate
+from langchain_openai import ChatOpenAI
+from langchain_core.output_parsers import StrOutputParser
+from langchain_community.tools import TavilySearchResults
+from arklex.utils.logging_utils import LogContext
+from arklex.utils.exceptions import SearchError
+
 
 log_context = LogContext(__name__)
 
@@ -48,7 +48,7 @@ class TavilySearchExecutor:
             include_images=kwargs.get("include_images", False),
         )
 
-    def process_search_result(self, search_results: list[dict[str, Any]]) -> str:
+    def process_search_result(self, search_results: List[Dict[str, Any]]) -> str:
         search_text: str = ""
         for res in search_results:
             search_text += f"Source: {res['url']} \n"
@@ -56,7 +56,7 @@ class TavilySearchExecutor:
         return search_text
 
     def search(self, state: MessageState) -> str:
-        prompts: dict[str, str] = load_prompts(state.bot_config)
+        prompts: Dict[str, str] = load_prompts(state.bot_config)
         contextualize_q_prompt: PromptTemplate = PromptTemplate.from_template(
             prompts["retrieve_contextualize_q_prompt"]
         )
@@ -65,7 +65,7 @@ class TavilySearchExecutor:
             {"chat_history": state.user_message.history}
         )
         log_context.info(f"Reformulated input for search engine: {ret_input}")
-        search_results: list[dict[str, Any]] = self.search_tool.invoke(
+        search_results: List[Dict[str, Any]] = self.search_tool.invoke(
             {"query": ret_input}
         )
         text_results: str = self.process_search_result(search_results)
@@ -76,7 +76,7 @@ class TavilySearchExecutor:
     ) -> "TavilySearchExecutor":
         return TavilySearchExecutor(llm_config, **kwargs)
 
-    def search_documents(self, query: str, **kwargs: Any) -> list[dict[str, Any]]:
+    def search_documents(self, query: str, **kwargs: Any) -> List[Dict[str, Any]]:
         """Search for documents matching the query.
 
         Args:

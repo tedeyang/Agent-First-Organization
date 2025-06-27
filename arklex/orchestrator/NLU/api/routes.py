@@ -12,19 +12,17 @@ The module includes:
 - Error handling and logging
 """
 
-from typing import Any
-
-from fastapi import APIRouter, Depends, FastAPI, Response
-
+from typing import Dict, List, Any
+from fastapi import FastAPI, Response, APIRouter, Depends
+from arklex.utils.slot import Slot, Verification
+from arklex.orchestrator.NLU.services.model_service import ModelService
+from arklex.utils.logging_utils import LogContext, handle_exceptions, LOG_MESSAGES
+from arklex.utils.exceptions import ModelError, ValidationError
 from arklex.orchestrator.NLU.core.base import (
     IntentResponse,
     SlotResponse,
     VerificationResponse,
 )
-from arklex.orchestrator.NLU.services.model_service import ModelService
-from arklex.utils.exceptions import ModelError, ValidationError
-from arklex.utils.logging_utils import LOG_MESSAGES, LogContext, handle_exceptions
-from arklex.utils.slot import Slot, Verification
 
 log_context = LogContext(__name__)
 app = FastAPI()
@@ -134,7 +132,7 @@ async def fill_slots(
 @handle_exceptions()
 async def verify_slots(
     text: str,
-    slots: dict[str, Any],
+    slots: Dict[str, Any],
     model_service: ModelService = Depends(get_model_service),
 ) -> VerificationResponse:
     """Verify slots against input text.
@@ -166,10 +164,10 @@ async def verify_slots(
 @app.post("/nlu/predict")
 @handle_exceptions()
 def predict_intent(
-    data: dict[str, Any],
+    data: Dict[str, Any],
     res: Response,
     model_service: ModelService = Depends(get_model_service),
-) -> dict[str, str]:
+) -> Dict[str, str]:
     """Predict intent from input text.
 
     This endpoint processes a request to detect the intent from input text,
@@ -253,10 +251,10 @@ def predict_intent(
 @app.post("/slotfill/predict")
 @handle_exceptions()
 def predict_slots(
-    data: dict[str, Any],
+    data: Dict[str, Any],
     res: Response,
     model_service: ModelService = Depends(get_model_service),
-) -> list[Slot]:
+) -> List[Slot]:
     """Fill slots from input context.
 
     This endpoint processes a request to fill slots from input context,
@@ -338,7 +336,7 @@ def predict_slots(
 @app.post("/slotfill/verify")
 @handle_exceptions()
 def verify_slot(
-    data: dict[str, Any],
+    data: Dict[str, Any],
     res: Response,
     model_service: ModelService = Depends(get_model_service),
 ) -> Verification:

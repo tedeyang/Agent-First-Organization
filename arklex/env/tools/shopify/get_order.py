@@ -14,17 +14,17 @@ Module Name: get_order
 This file contains the code for retrieving order information from Shopify.
 """
 
-from typing import Any
+from typing import Any, Dict, Tuple, Union
 
-from arklex.env.tools.shopify.auth_utils import *
-from arklex.env.tools.shopify.utils import *
+from arklex.env.tools.tools import register_tool
 
 # general GraphQL navigation utilities
 from arklex.env.tools.shopify.utils_nav import *
 
 # Customer API
-from arklex.env.tools.shopify.utils_slots import ShopifyOutputs, ShopifySlots
-from arklex.env.tools.tools import register_tool
+from arklex.env.tools.shopify.utils_slots import ShopifySlots, ShopifyOutputs
+from arklex.env.tools.shopify.utils import *
+from arklex.env.tools.shopify.auth_utils import *
 
 description = "Get the status and details of an order."
 slots = [ShopifySlots.REFRESH_TOKEN, ShopifySlots.ORDER_ID, *PAGEINFO_SLOTS]
@@ -37,7 +37,7 @@ errors = [ORDERS_NOT_FOUND]
 @register_tool(description, slots, outputs, lambda x: x not in errors)
 def get_order(
     refresh_token: str, order_id: str, **kwargs: Any
-) -> tuple[dict[str, Any], dict[str, Any]] | str:
+) -> Union[Tuple[Dict[str, Any], Dict[str, Any]], str]:
     """
     Retrieve the status and details of a specific order.
 
@@ -86,18 +86,18 @@ def get_order(
             }}
         '''
         try:
-            auth: dict[str, str] = {"Authorization": get_access_token(refresh_token)}
+            auth: Dict[str, str] = {"Authorization": get_access_token(refresh_token)}
         except:
             return AUTH_ERROR
 
         try:
-            response: dict[str, Any] = make_query(
+            response: Dict[str, Any] = make_query(
                 customer_url, body, {}, customer_headers | auth
             )["data"]["order"]
         except Exception as e:
             return f"error: {e}"
 
-        pageInfo: dict[str, Any] = response["lineItems"]["pageInfo"]
+        pageInfo: Dict[str, Any] = response["lineItems"]["pageInfo"]
         return response, pageInfo
     except Exception:
         return ORDERS_NOT_FOUND

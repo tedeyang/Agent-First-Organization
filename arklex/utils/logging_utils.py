@@ -8,14 +8,12 @@ import asyncio
 import functools
 import logging
 import traceback
-from collections.abc import Callable
-from typing import Any, Optional
-
+from typing import Any, Callable, Dict, Optional, Type, Union
 from tenacity import (
     retry,
-    retry_if_exception_type,
     stop_after_attempt,
     wait_exponential,
+    retry_if_exception_type,
 )
 
 from arklex.utils.exceptions import ArklexError, RetryableError
@@ -61,7 +59,7 @@ LOG_MESSAGES = {
 class RequestIdFilter(logging.Filter):
     """Filter to add request ID to log records."""
 
-    def __init__(self, request_id: str | None = None) -> None:
+    def __init__(self, request_id: Optional[str] = None) -> None:
         """Initialize filter with request ID."""
         super().__init__()
         self.request_id = request_id
@@ -75,7 +73,7 @@ class RequestIdFilter(logging.Filter):
 class ContextFilter(logging.Filter):
     """Filter to add context to log records."""
 
-    def __init__(self, context: dict | None = None) -> None:
+    def __init__(self, context: Optional[dict] = None) -> None:
         """Initialize filter with context."""
         super().__init__()
         self.context = context or {}
@@ -92,9 +90,9 @@ class LogContext:
     def __init__(
         self,
         name: str,
-        level: str | None = None,
-        base_context: dict[str, Any] | None = None,
-        log_format: str | None = None,
+        level: Optional[str] = None,
+        base_context: Optional[Dict[str, Any]] = None,
+        log_format: Optional[str] = None,
     ):
         self.log_context = logging.getLogger(name)
         # Set the log level only if explicitly provided
@@ -144,7 +142,7 @@ class LogContext:
         return None
 
     def _get_console_handler(
-        self, log_format: str | None = None
+        self, log_format: Optional[str] = None
     ) -> logging.StreamHandler:
         handler = logging.StreamHandler()
         handler.setFormatter(
@@ -152,14 +150,14 @@ class LogContext:
         )
         return handler
 
-    def setLevel(self, level: str | int) -> None:
+    def setLevel(self, level: Union[str, int]) -> None:
         """Set the log level for the log_context."""
         if isinstance(level, str):
             self.log_context.setLevel(getattr(logging, level))
         else:
             self.log_context.setLevel(level)
 
-    def _merge_extra(self, context: dict[str, Any] | None, kwargs: dict) -> dict:
+    def _merge_extra(self, context: Optional[Dict[str, Any]], kwargs: dict) -> dict:
         # Merge context and any extra fields from kwargs into a single extra dict
         extra = {"context": context or {}}
         # Remove 'extra' from kwargs if present and is a dict
@@ -173,41 +171,41 @@ class LogContext:
         return extra
 
     def info(
-        self, message: str, context: dict[str, Any] | None = None, **kwargs: Any
+        self, message: str, context: Optional[Dict[str, Any]] = None, **kwargs: Any
     ) -> None:
         self.log_context.info(
             message, extra=self._merge_extra(context, kwargs), **kwargs
         )
 
     def debug(
-        self, message: str, context: dict[str, Any] | None = None, **kwargs: Any
+        self, message: str, context: Optional[Dict[str, Any]] = None, **kwargs: Any
     ) -> None:
         self.log_context.debug(
             message, extra=self._merge_extra(context, kwargs), **kwargs
         )
 
     def warning(
-        self, message: str, context: dict[str, Any] | None = None, **kwargs: Any
+        self, message: str, context: Optional[Dict[str, Any]] = None, **kwargs: Any
     ) -> None:
         self.log_context.warning(
             message, extra=self._merge_extra(context, kwargs), **kwargs
         )
 
     def error(
-        self, message: str, context: dict[str, Any] | None = None, **kwargs: Any
+        self, message: str, context: Optional[Dict[str, Any]] = None, **kwargs: Any
     ) -> None:
         self.log_context.error(
             message, extra=self._merge_extra(context, kwargs), **kwargs
         )
 
     def critical(
-        self, message: str, context: dict[str, Any] | None = None, **kwargs: Any
+        self, message: str, context: Optional[Dict[str, Any]] = None, **kwargs: Any
     ) -> None:
         self.log_context.critical(
             message, extra=self._merge_extra(context, kwargs), **kwargs
         )
 
-    def push_context(self, context: dict[str, Any]) -> None:
+    def push_context(self, context: Dict[str, Any]) -> None:
         pass
 
     def pop_context(self) -> None:
@@ -217,7 +215,7 @@ class LogContext:
 def handle_exceptions(
     *,
     reraise: bool = True,
-    default_error: type[ArklexError] = ArklexError,
+    default_error: Type[ArklexError] = ArklexError,
     log_level: str = "ERROR",
     include_stack_trace: bool = True,
 ) -> Callable:
@@ -315,7 +313,7 @@ def with_retry(
     max_attempts: int = 3,
     min_wait: int = 1,
     max_wait: int = 10,
-    retry_on: type[Exception] | None = None,
+    retry_on: Optional[Type[Exception]] = None,
     include_stack_trace: bool = True,
 ) -> Callable:
     """Decorator for retrying operations with exponential backoff.

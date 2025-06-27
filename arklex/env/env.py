@@ -7,21 +7,20 @@ worker initialization, tool management, and slot filling integration.
 import importlib
 import os
 import uuid
-from collections.abc import Callable
 from functools import partial
-from typing import Any
+from typing import Any, Callable, Dict, List, Optional, Union, Tuple
 
 from arklex.env.planner.react_planner import DefaultPlanner, ReactPlanner
 from arklex.env.tools.tools import Tool
 from arklex.env.workers.worker import BaseWorker
 from arklex.orchestrator.NLU.core.slot import SlotFiller
-from arklex.orchestrator.NLU.services.api_service import APIClientService
+from arklex.utils.graph_state import MessageState, NodeInfo, Params
+from arklex.utils.logging_utils import LogContext
 from arklex.orchestrator.NLU.services.model_service import (
     DummyModelService,
     ModelService,
 )
-from arklex.utils.graph_state import MessageState, NodeInfo, Params
-from arklex.utils.logging_utils import LogContext
+from arklex.orchestrator.NLU.services.api_service import APIClientService
 
 log_context = LogContext(__name__)
 
@@ -34,7 +33,7 @@ class BaseResourceInitializer:
     """
 
     @staticmethod
-    def init_tools(tools: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    def init_tools(tools: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
         """Initialize tools from configuration.
 
         Args:
@@ -49,7 +48,7 @@ class BaseResourceInitializer:
         raise NotImplementedError
 
     @staticmethod
-    def init_workers(workers: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    def init_workers(workers: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
         """Initialize workers from configuration.
 
         Args:
@@ -72,7 +71,7 @@ class DefaultResourceInitializer(BaseResourceInitializer):
     """
 
     @staticmethod
-    def init_tools(tools: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    def init_tools(tools: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
         """Initialize tools from configuration.
 
         Args:
@@ -81,7 +80,7 @@ class DefaultResourceInitializer(BaseResourceInitializer):
         Returns:
             Dictionary mapping tool IDs to their configurations
         """
-        tool_registry: dict[str, dict[str, Any]] = {}
+        tool_registry: Dict[str, Dict[str, Any]] = {}
         for tool in tools:
             tool_id: str = tool["id"]
             name: str = tool["name"]
@@ -103,7 +102,7 @@ class DefaultResourceInitializer(BaseResourceInitializer):
         return tool_registry
 
     @staticmethod
-    def init_workers(workers: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    def init_workers(workers: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
         """Initialize workers from configuration.
 
         Args:
@@ -112,7 +111,7 @@ class DefaultResourceInitializer(BaseResourceInitializer):
         Returns:
             Dictionary mapping worker IDs to their configurations
         """
-        worker_registry: dict[str, dict[str, Any]] = {}
+        worker_registry: Dict[str, Dict[str, Any]] = {}
         for worker in workers:
             worker_id: str = worker["id"]
             name: str = worker["name"]
@@ -141,12 +140,12 @@ class Environment:
 
     def __init__(
         self,
-        tools: list[dict[str, Any]],
-        workers: list[dict[str, Any]],
+        tools: List[Dict[str, Any]],
+        workers: List[Dict[str, Any]],
         slotsfillapi: str = "",
-        resource_initializer: BaseResourceInitializer | None = None,
+        resource_initializer: Optional[BaseResourceInitializer] = None,
         planner_enabled: bool = False,
-        model_service: ModelService | None = None,
+        model_service: Optional[ModelService] = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the environment.
@@ -164,15 +163,15 @@ class Environment:
             slotsfillapi = kwargs["slot_fill_api"]
         if resource_initializer is None:
             resource_initializer = DefaultResourceInitializer()
-        self.tools: dict[str, dict[str, Any]] = resource_initializer.init_tools(tools)
-        self.workers: dict[str, dict[str, Any]] = resource_initializer.init_workers(
+        self.tools: Dict[str, Dict[str, Any]] = resource_initializer.init_tools(tools)
+        self.workers: Dict[str, Dict[str, Any]] = resource_initializer.init_workers(
             workers
         )
-        self.name2id: dict[str, str] = {
+        self.name2id: Dict[str, str] = {
             resource["name"]: id
             for id, resource in {**self.tools, **self.workers}.items()
         }
-        self.id2name: dict[str, str] = {
+        self.id2name: Dict[str, str] = {
             id: resource["name"]
             for id, resource in {**self.tools, **self.workers}.items()
         }
@@ -187,11 +186,11 @@ class Environment:
         )
         self.slotfillapi: SlotFiller = self.initialize_slotfillapi(slotsfillapi)
         if planner_enabled:
-            self.planner: ReactPlanner | DefaultPlanner = ReactPlanner(
+            self.planner: Union[ReactPlanner, DefaultPlanner] = ReactPlanner(
                 tools_map=self.tools, workers_map=self.workers, name2id=self.name2id
             )
         else:
-            self.planner: ReactPlanner | DefaultPlanner = DefaultPlanner(
+            self.planner: Union[ReactPlanner, DefaultPlanner] = DefaultPlanner(
                 tools_map=self.tools, workers_map=self.workers, name2id=self.name2id
             )
 
@@ -213,7 +212,7 @@ class Environment:
 
     def step(
         self, id: str, message_state: MessageState, params: Params, node_info: NodeInfo
-    ) -> tuple[MessageState, Params]:
+    ) -> Tuple[MessageState, Params]:
         """Execute a step in the environment.
 
         Args:
@@ -230,7 +229,7 @@ class Environment:
             log_context.info(f"{self.tools[id]['name']} tool selected")
             tool: Tool = self.tools[id]["execute"]()
             tool.init_slotfiller(self.slotfillapi)
-            combined_args: dict[str, Any] = {
+            combined_args: Dict[str, Any] = {
                 **self.tools[id]["fixed_args"],
                 **(node_info.additional_args or {}),
             }
@@ -281,7 +280,7 @@ class Environment:
             log_context.info("planner selected")
             action: str
             response_state: MessageState
-            msg_history: list[dict[str, Any]]
+            msg_history: List[Dict[str, Any]]
             action, response_state, msg_history = self.planner.execute(
                 message_state, params.memory.function_calling_trajectory
             )

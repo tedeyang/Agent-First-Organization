@@ -1,14 +1,13 @@
 # Copyright Sierra
 
 import json
-from typing import Any
-
+from typing import Any, Dict
 from benchmark.tau_bench.envs.tool import Tool
 
 
 class ListAllAirports(Tool):
     @staticmethod
-    def invoke(data: dict[str, Any]) -> str:
+    def invoke(data: Dict[str, Any]) -> str:
         airports = [
             "SFO",
             "JFK",
@@ -53,12 +52,10 @@ class ListAllAirports(Tool):
             "Philadelphia",
             "LaGuardia",
         ]
-        return json.dumps(
-            {airport: city for airport, city in zip(airports, cities, strict=False)}
-        )
+        return json.dumps({airport: city for airport, city in zip(airports, cities)})
 
     @staticmethod
-    def get_info() -> dict[str, Any]:
+    def get_info() -> Dict[str, Any]:
         return {
             "type": "function",
             "function": {

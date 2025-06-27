@@ -8,28 +8,27 @@ Module Name: search_products
 This file contains the code for searching products in Shopify.
 """
 
-import inspect
 import json
-from typing import Any
-
 import shopify
-from langchain_openai import ChatOpenAI
-
-from arklex.env.tools.shopify._exception_prompt import ShopifyExceptionPrompt
-from arklex.env.tools.shopify.utils import authorify_admin
-from arklex.env.tools.shopify.utils_nav import *
+import inspect
+from typing import Any
 
 # general GraphQL navigation utilities
 from arklex.env.tools.shopify.utils_slots import (
-    ShopifyOutputs,
     ShopifySearchProductsSlots,
+    ShopifyOutputs,
 )
+from arklex.env.tools.shopify.utils_nav import *
+from arklex.env.tools.shopify.utils import authorify_admin
 
 # Admin API
 from arklex.env.tools.tools import register_tool
-from arklex.utils.exceptions import ToolExecutionError
-from arklex.utils.logging_utils import LogContext
+
 from arklex.utils.model_provider_config import PROVIDER_MAP
+from arklex.utils.exceptions import ToolExecutionError
+from langchain_openai import ChatOpenAI
+from arklex.env.tools.shopify._exception_prompt import ShopifyExceptionPrompt
+from arklex.utils.logging_utils import LogContext
 
 log_context = LogContext(__name__)
 

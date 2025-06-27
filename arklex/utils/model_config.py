@@ -28,10 +28,10 @@ Usage:
     }
 """
 
-from typing import Any
+from typing import Dict, Any
 
 # Default model configuration settings
-MODEL: dict[str, Any] = {
+MODEL: Dict[str, Any] = {
     "model_name": "gpt-4o",
     "model_type_or_path": "gpt-4o",
     "llm_provider": "openai",

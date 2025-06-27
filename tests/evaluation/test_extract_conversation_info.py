@@ -4,8 +4,7 @@ This module tests the conversation analysis utilities including edge counting,
 intent graph building, goal checking, and task completion metrics extraction.
 """
 
-from unittest.mock import MagicMock, patch
-
+from unittest.mock import patch, MagicMock
 import networkx as nx
 
 from arklex.evaluation import extract_conversation_info

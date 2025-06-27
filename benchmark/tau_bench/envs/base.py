@@ -1,28 +1,27 @@
 # Copyright Sierra
 
 import random
-from collections.abc import Callable
 from hashlib import sha256
-from typing import Any, Union
-
 from benchmark.tau_bench.envs.tool import Tool
-from benchmark.tau_bench.envs.user import UserStrategy, load_user
+from typing import Any, Callable, Dict, List, Type, Optional, Set, Union, Tuple
+
+from benchmark.tau_bench.envs.user import load_user, UserStrategy
 from benchmark.tau_bench.tau_types import (
-    RESPOND_ACTION_NAME,
     Action,
+    Task,
     EnvInfo,
     EnvResetResponse,
     EnvResponse,
-    RewardActionInfo,
-    RewardOutputInfo,
     RewardResult,
-    Task,
+    RewardOutputInfo,
+    RewardActionInfo,
+    RESPOND_ACTION_NAME,
 )
 
 ToHashable = Union[
-    str, int, float, dict[str, "ToHashable"], list["ToHashable"], set["ToHashable"]
+    str, int, float, Dict[str, "ToHashable"], List["ToHashable"], Set["ToHashable"]
 ]
-Hashable = Union[str, int, float, tuple["Hashable"], tuple[tuple[str, "Hashable"]]]
+Hashable = Union[str, int, float, Tuple["Hashable"], Tuple[Tuple[str, "Hashable"]]]
 
 
 def to_hashable(item: ToHashable) -> Hashable:
@@ -42,23 +41,23 @@ def consistent_hash(
     return sha256(str(value).encode("utf-8")).hexdigest()
 
 
-class Env:
+class Env(object):
     def __init__(
         self,
-        data_load_func: Callable[[], dict[str, Any]],
-        tools: list[type[Tool]],
-        tasks: list[Task],
+        data_load_func: Callable[[], Dict[str, Any]],
+        tools: List[Type[Tool]],
+        tasks: List[Task],
         wiki: str,
-        rules: list[str],
-        user_strategy: str | UserStrategy,
+        rules: List[str],
+        user_strategy: Union[str, UserStrategy],
         user_model: str,
-        user_provider: str | None = None,
-        task_index: int | None = None,
+        user_provider: Optional[str] = None,
+        task_index: Optional[int] = None,
     ) -> None:
         super().__init__()
         self.data_load_func = data_load_func
         self.data = data_load_func()
-        self.tools_map: dict[str, type[Tool]] = {
+        self.tools_map: Dict[str, Type[Tool]] = {
             tool.get_info()["function"]["name"]: tool for tool in tools
         }
         self.tools_info = [tool.get_info() for tool in tools]
@@ -74,9 +73,9 @@ class Env:
         self.user = load_user(
             user_strategy=user_strategy, model=user_model, provider=user_provider
         )
-        self.actions: list[Action] = []
+        self.actions: List[Action] = []
 
-    def reset(self, task_index: int | None = None) -> EnvResetResponse:
+    def reset(self, task_index: Optional[int] = None) -> EnvResetResponse:
         if task_index is None:
             task_index = random.randint(0, len(self.tasks))
         self.task_index = task_index

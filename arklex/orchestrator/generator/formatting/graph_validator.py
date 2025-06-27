@@ -10,7 +10,7 @@ Key Features:
 - Error handling and reporting
 """
 
-from typing import Any
+from typing import Any, Dict, List
 
 from arklex.utils.logging_utils import LogContext
 
@@ -29,9 +29,9 @@ class GraphValidator:
 
     def __init__(self) -> None:
         """Initialize the GraphValidator."""
-        self._errors: list[str] = []
+        self._errors: List[str] = []
 
-    def validate_graph(self, graph: dict[str, Any]) -> bool:
+    def validate_graph(self, graph: Dict[str, Any]) -> bool:
         """Validate a task graph.
 
         Args:
@@ -93,7 +93,7 @@ class GraphValidator:
 
         return len(self._errors) == 0
 
-    def get_error_messages(self) -> list[str]:
+    def get_error_messages(self) -> List[str]:
         """Get validation error messages.
 
         Returns:

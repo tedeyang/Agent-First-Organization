@@ -4,9 +4,8 @@ This module provides extensive test coverage for the BestPracticeManager class,
 including all methods, edge cases, error conditions, and the BestPractice dataclass.
 """
 
-from unittest.mock import Mock, patch
-
 import pytest
+from unittest.mock import Mock, patch
 
 from arklex.orchestrator.generator.tasks.best_practice_manager import (
     BestPractice,

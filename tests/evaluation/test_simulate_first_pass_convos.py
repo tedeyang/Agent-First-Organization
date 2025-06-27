@@ -5,20 +5,24 @@ functionality, including profile matching, conversation generation, goal complet
 checking, and parallel processing capabilities.
 """
 
-from unittest.mock import Mock, mock_open, patch
+from typing import Dict, Any, List, Tuple
+from unittest.mock import Mock, patch, mock_open
+
+import pytest
 
 from arklex.evaluation.simulate_first_pass_convos import (
+    get_relevant_vals,
+    count_matches,
+    join_messages,
+    create_convo_profile,
+    retrieve_convo,
+    get_example_convo,
+    retrieve_prompts,
     check_goal_completion,
     conversation,
-    count_matches,
-    create_convo_profile,
     generate_conversations,
-    get_example_convo,
-    get_relevant_vals,
-    join_messages,
-    retrieve_convo,
-    retrieve_prompts,
     simulate_conversations,
+    USER_DATA_KEYS,
 )
 
 
@@ -32,7 +36,7 @@ class TestSimulateFirstPassConvos:
     def test_get_relevant_vals(self) -> None:
         """Test get_relevant_vals function extracts correct attribute values."""
         # Setup
-        attr: dict[str, str] = {
+        attr: Dict[str, str] = {
             "goal": "test_goal",
             "product_experience_level": "beginner",
             "customer_type": "enterprise",
@@ -92,7 +96,7 @@ class TestSimulateFirstPassConvos:
     def test_join_messages(self) -> None:
         """Test join_messages function formats conversation correctly."""
         # Setup
-        messages: list[dict[str, str]] = [
+        messages: List[Dict[str, str]] = [
             {"role": "user", "content": "Hello"},
             {"role": "assistant", "content": "Hi there!"},
         ]
@@ -107,7 +111,7 @@ class TestSimulateFirstPassConvos:
     def test_join_messages_empty_list(self) -> None:
         """Test join_messages function with empty message list."""
         # Setup
-        messages: list[dict[str, str]] = []
+        messages: List[Dict[str, str]] = []
 
         # Execute
         result = join_messages(messages)
@@ -118,7 +122,7 @@ class TestSimulateFirstPassConvos:
     def test_join_messages_with_bot_follow_up(self) -> None:
         """Test join_messages function with bot_follow_up messages that should be skipped."""
         # Setup
-        messages: list[dict[str, str]] = [
+        messages: List[Dict[str, str]] = [
             {"role": "user", "content": "Hello"},
             {"role": "bot_follow_up", "content": "This should be skipped"},
             {"role": "assistant", "content": "Hi there!"},

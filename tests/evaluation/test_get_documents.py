@@ -4,7 +4,7 @@ This module tests the document loading utilities including domain information
 extraction, document loading with caching, and handling different document types.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch, MagicMock
 
 from arklex.evaluation import get_documents
 from arklex.utils.loader import CrawledObject, SourceType
@@ -99,7 +99,7 @@ class TestLoadDocs:
     ) -> None:
         """Test loading documents without cache for URL type."""
         mock_exists.return_value = False
-        from arklex.utils.loader import CrawledObject, Loader, SourceType
+        from arklex.utils.loader import Loader, CrawledObject, SourceType
 
         loader = Loader()
         with (

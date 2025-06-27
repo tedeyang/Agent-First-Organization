@@ -4,19 +4,19 @@ This module contains comprehensive test cases for document and content loading u
 including web crawling, file processing, and content chunking functionality.
 """
 
-import os
-import pickle
-import tempfile
 from unittest.mock import Mock, patch
-
+import tempfile
+import os
 import requests
+import pickle
+import pytest
 
 from arklex.utils.loader import (
-    CrawledObject,
-    DocObject,
-    Loader,
-    SourceType,
     encode_image,
+    SourceType,
+    DocObject,
+    CrawledObject,
+    Loader,
 )
 
 

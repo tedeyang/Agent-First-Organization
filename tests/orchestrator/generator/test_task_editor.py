@@ -40,11 +40,11 @@ MOCK_MODULES = [
 for mod in MOCK_MODULES:
     sys.modules[mod] = MagicMock()
 
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
-
 import pytest
-
+from unittest.mock import Mock, patch, AsyncMock, MagicMock
+from typing import Any, Dict, List
 from arklex.orchestrator.generator.ui.task_editor import TaskEditorApp
+
 
 # --- Fixtures for patching and sample data ---
 

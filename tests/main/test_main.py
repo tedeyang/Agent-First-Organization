@@ -1,16 +1,16 @@
 """Tests for the main application module."""
 
-import json
-from unittest.mock import Mock, patch
-
 import pytest
+from unittest.mock import Mock, patch, MagicMock
 from fastapi.testclient import TestClient
+from fastapi import Request
+import json
 
 from arklex.main import (
     app,
+    lifespan,
     arklex_exception_handler,
     global_exception_handler,
-    lifespan,
 )
 
 
@@ -288,6 +288,7 @@ class TestMainApplication:
         """Test that CORS middleware is configured."""
         # Check that CORS middleware is in the middleware stack
         middleware_types = [type(middleware) for middleware in app.user_middleware]
+        from fastapi.middleware.cors import CORSMiddleware
 
         # Check if any middleware is a CORS middleware
         has_cors = any(
@@ -329,6 +330,7 @@ class TestMainApplication:
         """Test that logging middleware is configured."""
         # Check that logging middleware is in the middleware stack
         middleware_types = [type(middleware) for middleware in app.user_middleware]
+        from arklex.middleware.logging_middleware import RequestLoggingMiddleware
 
         # Check if any middleware is a RequestLoggingMiddleware
         has_logging = any(

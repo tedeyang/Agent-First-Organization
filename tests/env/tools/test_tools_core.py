@@ -1,7 +1,7 @@
 """Comprehensive tests for arklex.env.tools.tools (Tool class and register_tool)."""
 
-from unittest.mock import Mock
-
+import pytest
+from unittest.mock import Mock, patch, MagicMock
 from arklex.env.tools import tools
 from arklex.env.tools.tools import Tool, register_tool
 

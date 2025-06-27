@@ -5,8 +5,10 @@ in tests to simulate LLM responses without requiring actual API calls.
 """
 
 import random
-from typing import Any
+from typing import Any, List, Optional
+
 from unittest.mock import Mock
+
 
 # --- Mock Classes ---
 
@@ -18,7 +20,7 @@ class MockLanguageModel:
     predefined responses based on the input prompts.
     """
 
-    def __init__(self, responses: dict | None = None) -> None:
+    def __init__(self, responses: Optional[dict] = None) -> None:
         """Initialize the mock model with predefined responses.
 
         Args:
@@ -28,7 +30,7 @@ class MockLanguageModel:
         self.call_count = 0
         self.last_prompt = None
 
-    def invoke(self, messages: list[Any]) -> Mock:
+    def invoke(self, messages: List[Any]) -> Mock:
         """Mock the invoke method of a language model.
 
         Args:
@@ -98,7 +100,7 @@ class MockLanguageModel:
 
         return response
 
-    def generate(self, messages: list[Any]) -> Mock:
+    def generate(self, messages: List[Any]) -> Mock:
         """Mock the generate method of a language model.
 
         Args:
@@ -150,7 +152,7 @@ class MockLanguageModelWithErrors:
         self.call_count = 0
         self.base_model = MockLanguageModel()
 
-    def invoke(self, messages: list[Any]) -> Mock:
+    def invoke(self, messages: List[Any]) -> Mock:
         """Mock the invoke method with potential errors.
 
         Args:
@@ -193,7 +195,7 @@ class MockLanguageModelWithErrors:
         # Return normal response if no error
         return self.base_model.invoke(messages)
 
-    def generate(self, messages: list[Any]) -> Mock:
+    def generate(self, messages: List[Any]) -> Mock:
         """Mock the generate method with potential errors.
 
         Args:
@@ -242,7 +244,7 @@ class MockLanguageModelWithCustomResponses:
         """
         self.responses[prompt_pattern] = response
 
-    def invoke(self, messages: list[Any]) -> Mock:
+    def invoke(self, messages: List[Any]) -> Mock:
         """Mock the invoke method with custom responses.
 
         Args:
@@ -278,7 +280,7 @@ class MockLanguageModelWithCustomResponses:
         mock_response.content = "Default custom response"
         return mock_response
 
-    def generate(self, messages: list[Any]) -> Mock:
+    def generate(self, messages: List[Any]) -> Mock:
         """Mock the generate method with custom responses.
 
         Args:

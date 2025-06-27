@@ -1,11 +1,9 @@
 """Send predefined SMS tool for Twilio integration."""
 
 from typing import Any
-
-from twilio.rest import Client as TwilioClient
-
-from arklex.env.tools.tools import register_tool
 from arklex.utils.logging_utils import LogContext
+from arklex.env.tools.tools import register_tool
+from twilio.rest import Client as TwilioClient
 
 log_context = LogContext(__name__)
 

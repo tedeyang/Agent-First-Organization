@@ -4,14 +4,14 @@ This module provides extensive test coverage for the TaskGenerator class,
 including all methods, edge cases, error conditions, and the TaskDefinition dataclass.
 """
 
+import pytest
 from unittest.mock import Mock, patch
 
-import pytest
-
 from arklex.orchestrator.generator.tasks.task_generator import (
-    TaskDefinition,
     TaskGenerator,
+    TaskDefinition,
 )
+
 
 # =============================================================================
 # FIXTURES - Core Test Data

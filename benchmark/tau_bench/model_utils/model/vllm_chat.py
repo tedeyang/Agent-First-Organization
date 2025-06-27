@@ -1,3 +1,5 @@
+from typing import Dict, List, Optional
+
 from benchmark.tau_bench.model_utils.api.datapoint import Datapoint
 from benchmark.tau_bench.model_utils.model.chat import ChatModel, Message
 from benchmark.tau_bench.model_utils.model.completion import (
@@ -7,7 +9,7 @@ from benchmark.tau_bench.model_utils.model.completion import (
 from benchmark.tau_bench.model_utils.model.general_model import wrap_temperature
 from benchmark.tau_bench.model_utils.model.utils import approx_num_tokens
 
-PRICE_PER_INPUT_TOKEN_MAP: dict[str, float] = {
+PRICE_PER_INPUT_TOKEN_MAP: Dict[str, float] = {
     "Qwen/Qwen2-0.5B-Instruct": 0.0,
     "Qwen/Qwen2-1.5B-Instruct": 0.0,
     "Qwen/Qwen2-7B-Instruct": 0.0,
@@ -20,7 +22,7 @@ PRICE_PER_INPUT_TOKEN_MAP: dict[str, float] = {
 INPUT_PRICE_PER_TOKEN_FALLBACK: float = 0.0
 
 # TODO: refine this
-CAPABILITY_SCORE_MAP: dict[str, float] = {
+CAPABILITY_SCORE_MAP: Dict[str, float] = {
     "Qwen/Qwen2-0.5B-Instruct": 0.05,
     "Qwen/Qwen2-1.5B-Instruct": 0.07,
     "Qwen/Qwen2-7B-Instruct": 0.2,
@@ -33,11 +35,11 @@ CAPABILITY_SCORE_MAP: dict[str, float] = {
 CAPABILITY_SCORE_FALLBACK: float = 0.3
 
 # TODO: implement
-LATENCY_MS_PER_OUTPUT_TOKEN_MAP: dict[str, float] = {}
+LATENCY_MS_PER_OUTPUT_TOKEN_MAP: Dict[str, float] = {}
 # TODO: implement
 LATENCY_MS_PER_OUTPUT_TOKEN_FALLBACK: float = 0.0
 
-MAX_CONTEXT_LENGTH_MAP: dict[str, int] = {
+MAX_CONTEXT_LENGTH_MAP: Dict[str, int] = {
     "Qwen/Qwen2-0.5B-Instruct": 32768,
     "Qwen/Qwen2-1.5B-Instruct": 32768,
     "Qwen/Qwen2-7B-Instruct": 131072,
@@ -57,10 +59,10 @@ class VLLMChatModel(ChatModel):
         base_url: str,
         api_key: str,
         temperature: float = 0.0,
-        price_per_input_token: float | None = None,
-        capability: float | None = None,
-        latency_ms_per_output_token: float | None = None,
-        max_context_length: int | None = None,
+        price_per_input_token: Optional[float] = None,
+        capability: Optional[float] = None,
+        latency_ms_per_output_token: Optional[float] = None,
+        max_context_length: Optional[int] = None,
     ) -> None:
         from openai import AsyncOpenAI, OpenAI
 
@@ -116,13 +118,13 @@ class VLLMChatModel(ChatModel):
 
     def generate_message(
         self,
-        messages: list[Message],
+        messages: List[Message],
         force_json: bool,
-        temperature: float | None = None,
+        temperature: Optional[float] = None,
     ) -> Message:
         if temperature is None:
             temperature = self.temperature
-        msgs: list[dict[str, str]] = self.build_generate_message_state(messages)
+        msgs: List[Dict[str, str]] = self.build_generate_message_state(messages)
         res = self.client.chat.completions.create(
             model=self.model,
             messages=msgs,

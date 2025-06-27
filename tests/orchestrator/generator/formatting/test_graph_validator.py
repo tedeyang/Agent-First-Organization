@@ -5,8 +5,10 @@ including all methods, edge cases, error conditions, and validation scenarios.
 """
 
 import pytest
+from unittest.mock import Mock, patch
 
 from arklex.orchestrator.generator.formatting.graph_validator import GraphValidator
+
 
 # =============================================================================
 # FIXTURES - Core Test Data

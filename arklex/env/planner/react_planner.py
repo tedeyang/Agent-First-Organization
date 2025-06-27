@@ -1,29 +1,32 @@
 import json
+from typing import Any, Dict, List, Optional, Literal, Tuple
+from pydantic import BaseModel
 import traceback
 import uuid
-from typing import Any, Literal
 
-from langchain.prompts import PromptTemplate
 from langchain.schema import AIMessage
-from langchain_community.vectorstores.faiss import FAISS
+from langchain_openai import ChatOpenAI
+from langchain.prompts import PromptTemplate
 from langchain_core.documents import Document
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from pydantic import BaseModel
-
-from arklex.orchestrator.prompts import (
-    PLANNER_REACT_INSTRUCTION_FEW_SHOT,
-    PLANNER_REACT_INSTRUCTION_ZERO_SHOT,
-    PLANNER_SUMMARIZE_TRAJECTORY_PROMPT,
-    RESPOND_ACTION_NAME,
-)
-from arklex.utils.graph_state import LLMConfig, MessageState
+from langchain_community.vectorstores.faiss import FAISS
+from langchain_openai import OpenAIEmbeddings
 from arklex.utils.logging_utils import LogContext
+
+from arklex.utils.graph_state import MessageState, LLMConfig
 from arklex.utils.model_config import MODEL
 from arklex.utils.model_provider_config import (
-    PROVIDER_EMBEDDING_MODELS,
-    PROVIDER_EMBEDDINGS,
     PROVIDER_MAP,
+    PROVIDER_EMBEDDINGS,
+    PROVIDER_EMBEDDING_MODELS,
 )
+from arklex.orchestrator.prompts import (
+    RESPOND_ACTION_NAME,
+    PLANNER_REACT_INSTRUCTION_ZERO_SHOT,
+    PLANNER_REACT_INSTRUCTION_FEW_SHOT,
+    PLANNER_SUMMARIZE_TRAJECTORY_PROMPT,
+)
+from arklex.utils.logging_utils import LogContext
+
 
 log_context = LogContext(__name__)
 
@@ -45,7 +48,7 @@ def NUM_STEPS_TO_NUM_RETRIEVALS(n_steps: int) -> int:
 
 class Action(BaseModel):
     name: str
-    kwargs: dict[str, Any]
+    kwargs: Dict[str, Any]
 
 
 class EnvResponse(BaseModel):
@@ -56,9 +59,9 @@ class PlannerResource(BaseModel):
     name: str
     type: Literal["tool", "worker"]
     description: str
-    parameters: list[dict[str, dict[str, str]]]
-    required: list[str]
-    returns: dict[str, Any]
+    parameters: List[Dict[str, Dict[str, str]]]
+    required: List[str]
+    returns: Dict[str, Any]
 
 
 RESPOND_ACTION_RESOURCE: PlannerResource = PlannerResource(
@@ -77,7 +80,7 @@ RESPOND_ACTION_RESOURCE: PlannerResource = PlannerResource(
     returns={},
 )
 
-log_context = LogContext(__name__)
+log_context = LogContext(__name__) 
 
 # Default LLM Config used on planner initialization, overwritten by
 # updated llm config info with planner.set_llm_config (invoked in
@@ -94,14 +97,14 @@ class DefaultPlanner:
 
     def __init__(
         self,
-        tools_map: dict[str, Any],
-        workers_map: dict[str, Any],
-        name2id: dict[str, int],
+        tools_map: Dict[str, Any],
+        workers_map: Dict[str, Any],
+        name2id: Dict[str, int],
     ) -> None:
-        self.tools_map: dict[str, Any] = tools_map
-        self.workers_map: dict[str, Any] = workers_map
-        self.name2id: dict[str, int] = name2id
-        self.all_resources_info: dict[str, Any] = {}
+        self.tools_map: Dict[str, Any] = tools_map
+        self.workers_map: Dict[str, Any] = workers_map
+        self.name2id: Dict[str, int] = name2id
+        self.all_resources_info: Dict[str, Any] = {}
         self.llm_config: LLMConfig = DEFAULT_LLM_CONFIG
 
     def set_llm_config_and_build_resource_library(self, llm_config: LLMConfig) -> None:
@@ -117,10 +120,10 @@ class DefaultPlanner:
         self.llm_config = llm_config
 
     def execute(
-        self, msg_state: MessageState, msg_history: list[dict[str, Any]]
-    ) -> tuple[dict[str, Any], MessageState, list[dict[str, Any]]]:
+        self, msg_state: MessageState, msg_history: List[Dict[str, Any]]
+    ) -> Tuple[Dict[str, Any], MessageState, List[Dict[str, Any]]]:
         # Return empty action alongside unaltered msg_state and msg_history
-        empty_action: dict[str, Any] = {
+        empty_action: Dict[str, Any] = {
             "name": RESPOND_ACTION_NAME,
             "kwargs": {"content": ""},
         }
@@ -132,14 +135,14 @@ class ReactPlanner(DefaultPlanner):
 
     def __init__(
         self,
-        tools_map: dict[str, Any],
-        workers_map: dict[str, Any],
-        name2id: dict[str, int],
+        tools_map: Dict[str, Any],
+        workers_map: Dict[str, Any],
+        name2id: Dict[str, int],
     ) -> None:
         super().__init__(tools_map, workers_map, name2id)
-        self.tools_map: dict[str, Any] = tools_map
-        self.workers_map: dict[str, Any] = workers_map
-        self.name2id: dict[str, int] = name2id
+        self.tools_map: Dict[str, Any] = tools_map
+        self.workers_map: Dict[str, Any] = workers_map
+        self.name2id: Dict[str, int] = name2id
 
         # Assume default model and model provider from model_config are used
         # until model and provider info is set explicitly by orchestrator
@@ -156,14 +159,14 @@ class ReactPlanner(DefaultPlanner):
         self.system_role: str = "user" if self.llm_provider == "gemini" else "system"
 
         # Store worker and tool info in single resources dict with standardized formatting
-        formatted_worker_info: dict[str, PlannerResource] = self._format_worker_info(
+        formatted_worker_info: Dict[str, PlannerResource] = self._format_worker_info(
             self.workers_map
         )
-        formatted_tool_info: dict[str, PlannerResource] = self._format_tool_info(
+        formatted_tool_info: Dict[str, PlannerResource] = self._format_tool_info(
             self.tools_map
         )
         # all_resources_info is Dict[str, PlannerResource]
-        self.all_resources_info: dict[str, PlannerResource] = {
+        self.all_resources_info: Dict[str, PlannerResource] = {
             **formatted_worker_info,
             **formatted_tool_info,
         }
@@ -195,7 +198,7 @@ class ReactPlanner(DefaultPlanner):
         self.system_role: str = "user" if self.llm_provider == "gemini" else "system"
 
         # Create documents containing tool/worker info
-        resource_docs: list[Document] = self._create_resource_rag_docs(
+        resource_docs: List[Document] = self._create_resource_rag_docs(
             self.all_resources_info
         )
 
@@ -214,22 +217,22 @@ class ReactPlanner(DefaultPlanner):
         # Ensure RESPOND_ACTION will always be included in list of retrieved resources if RAG is used for selecting
         # relevant tools/workers during planning (RESPOND_ACTION should always be available as a planner action, independent
         # of the expected planning trajectory)
-        respond_action_doc: list[Document] = [
+        respond_action_doc: List[Document] = [
             d
             for d in resource_docs
             if d.metadata["resource_name"] == RESPOND_ACTION_NAME
         ]
-        self.guaranteed_retrieval_docs: list[Document] = [respond_action_doc[0]]
+        self.guaranteed_retrieval_docs: List[Document] = [respond_action_doc[0]]
 
         self.resource_rag_docs_created = True
 
     def _format_worker_info(
-        self, workers_map: dict[str, Any]
-    ) -> dict[str, PlannerResource]:
+        self, workers_map: Dict[str, Any]
+    ) -> Dict[str, PlannerResource]:
         """
         Convert info on available workers to standardized format for planner ReAct prompt.
         """
-        formatted_worker_info: dict[str, PlannerResource] = {
+        formatted_worker_info: Dict[str, PlannerResource] = {
             worker_name: PlannerResource(
                 name=worker_name,
                 type="worker",
@@ -238,7 +241,7 @@ class ReactPlanner(DefaultPlanner):
                 required=[],
                 returns={},
             )
-            for worker_name in workers_map
+            for worker_name in workers_map.keys()
         }
 
         # NOTE: MessageWorker will be removed from list of resource available to planner to avoid
@@ -250,12 +253,12 @@ class ReactPlanner(DefaultPlanner):
         return formatted_worker_info
 
     def _format_tool_info(
-        self, tools_map: dict[str, Any]
-    ) -> dict[str, PlannerResource]:
+        self, tools_map: Dict[str, Any]
+    ) -> Dict[str, PlannerResource]:
         """
         Convert info on available tools to standardized format for planner ReAct prompt.
         """
-        formatted_tools_info: dict[str, PlannerResource] = {}
+        formatted_tools_info: Dict[str, PlannerResource] = {}
         for tool_id, tool in tools_map.items():
             # Handle both MockTool instances and regular tool dictionaries
             if hasattr(tool, "info"):
@@ -270,12 +273,12 @@ class ReactPlanner(DefaultPlanner):
                 tool_description: str = tool_info["function"]["description"]
 
                 # Get tool call parameters info and required parameters list
-                parameters: list[dict[str, dict[str, str]]] = []
-                _params: dict[str, dict[str, str]] = tool_info["function"][
+                parameters: List[Dict[str, Dict[str, str]]] = []
+                _params: Dict[str, Dict[str, str]] = tool_info["function"][
                     "parameters"
                 ]["properties"]
-                for param_name in _params:
-                    param: dict[str, dict[str, str]] = {
+                for param_name in _params.keys():
+                    param: Dict[str, Dict[str, str]] = {
                         param_name: {
                             k: v
                             for k, v in _params[param_name].items()
@@ -284,10 +287,10 @@ class ReactPlanner(DefaultPlanner):
                     }
                     parameters.append(param)
 
-                required: list[str] = tool_info["function"]["parameters"]["required"]
+                required: List[str] = tool_info["function"]["parameters"]["required"]
 
                 # Get tool call return values/types
-                return_values: dict[str, str] = {}
+                return_values: Dict[str, str] = {}
                 for return_value in tool_outputs:
                     output_name: str = return_value["name"]
                     return_values[output_name] = return_value["description"]
@@ -304,20 +307,20 @@ class ReactPlanner(DefaultPlanner):
         return formatted_tools_info
 
     def _create_resource_rag_docs(
-        self, all_resources_info: dict[str, PlannerResource]
-    ) -> list[Document]:
+        self, all_resources_info: Dict[str, PlannerResource]
+    ) -> List[Document]:
         """
         Given dict all_resources_info containing available tools and workers, return list of LangChain Documents
         containing resource info (one tool/worker per document) to save as vector store for RAG retrieval.
         """
-        resource_docs: list[Document] = []
+        resource_docs: List[Document] = []
 
         for resource_name in all_resources_info:
             resource: PlannerResource = all_resources_info[resource_name]
             resource_type: str = resource.type
-            json_signature: dict[str, Any] = resource.model_dump(mode="json")
+            json_signature: Dict[str, Any] = resource.model_dump(mode="json")
 
-            resource_metadata: dict[str, Any] = {
+            resource_metadata: Dict[str, Any] = {
                 "resource_name": resource_name,
                 "type": resource_type,
                 "json_signature": json_signature,
@@ -333,7 +336,7 @@ class ReactPlanner(DefaultPlanner):
         return resource_docs
 
     def _get_planning_trajectory_summary(
-        self, state: MessageState, msg_history: list[dict[str, Any]]
+        self, state: MessageState, msg_history: List[Dict[str, Any]]
     ) -> str:
         """
         Invoke model to get natural language summary of expected planning trajectory.
@@ -372,7 +375,7 @@ class ReactPlanner(DefaultPlanner):
         # contain a single user message with system instructions.
         # If model provider is Anthropic, messages can contain a system prompt, but must also
         # contain at least one user message.
-        messages: list[dict[str, Any]]
+        messages: List[Dict[str, Any]]
         if self.llm_provider.lower() in ["openai", "gemini"]:
             messages = [{"role": self.system_role, "content": system_prompt.text}]
         elif self.llm_provider.lower() == "anthropic":
@@ -383,17 +386,17 @@ class ReactPlanner(DefaultPlanner):
 
         # Invoke model to get response to ReAct instruction
         res: Any = self.llm.invoke(messages)
-        message: dict[str, Any] = aimessage_to_dict(res)
+        message: Dict[str, Any] = aimessage_to_dict(res)
         response_text: str = message["content"]
 
         return response_text
 
-    def _parse_trajectory_summary_to_steps(self, summary: str) -> list[str]:
+    def _parse_trajectory_summary_to_steps(self, summary: str) -> List[str]:
         """
         Given bulleted list representing expected planning trajectory summary, remove list
         formatting and return list of steps.
         """
-        steps: list[str] = [step.strip() for step in summary.split("- ")]
+        steps: List[str] = [step.strip() for step in summary.split("- ")]
         steps = [step for step in steps if len(step) > 0]
         return steps
 
@@ -410,7 +413,7 @@ class ReactPlanner(DefaultPlanner):
         # step count to determine num. retrievals
         valid_summary: bool = True
         try:
-            steps: list[str] = self._parse_trajectory_summary_to_steps(summary)
+            steps: List[str] = self._parse_trajectory_summary_to_steps(summary)
             n_steps: int = len(steps)
 
             if n_steps == 0:
@@ -437,9 +440,9 @@ class ReactPlanner(DefaultPlanner):
         self,
         n_retrievals: int,
         trajectory_summary: str,
-        user_message: str | None = None,
-        task: str | None = None,
-    ) -> list[Document]:
+        user_message: Optional[str] = None,
+        task: Optional[str] = None,
+    ) -> List[Document]:
         """
         Given an int representing number of resource signature docs to retrieve, a summary of the expected
         planning trajectory, and optionally a user message/query and a task description, retrieve the desired
@@ -457,18 +460,18 @@ class ReactPlanner(DefaultPlanner):
             query += f"Task: {task}\n"
         # Remove list formatting from trajectory summary (if summary is valid list)
         planning_steps: str = trajectory_summary
-        steps: list[str] = self._parse_trajectory_summary_to_steps(trajectory_summary)
+        steps: List[str] = self._parse_trajectory_summary_to_steps(trajectory_summary)
         if len(steps) > 0:
             planning_steps = " ".join(steps)
         query += f"Steps: {planning_steps}"
 
         # Retrieve relevant resource signatures
-        docs_and_scores: list[tuple[Document, float]] = (
+        docs_and_scores: List[Tuple[Document, float]] = (
             self.retriever.vectorstore.similarity_search_with_score(
                 query, k=n_retrievals
             )
         )
-        signature_docs: list[Document] = [doc[0] for doc in docs_and_scores]
+        signature_docs: List[Document] = [doc[0] for doc in docs_and_scores]
 
         # Ensure any and all resource signature docs in self.guaranteed_retrievals are included in list
         # of retrieved documents (e.g., document corresponding to RESPOND_ACTION since RESPOND_ACTION
@@ -476,7 +479,7 @@ class ReactPlanner(DefaultPlanner):
         # NOTE: This assumes all resource names are unique identifiers!
         for doc in self.guaranteed_retrieval_docs:
             guaranteed_resource_name: str = doc.metadata["resource_name"]
-            retrieved_resource_names: list[str] = [
+            retrieved_resource_names: List[str] = [
                 d.metadata["resource_name"] for d in signature_docs
             ]
             if guaranteed_resource_name not in retrieved_resource_names:
@@ -484,7 +487,7 @@ class ReactPlanner(DefaultPlanner):
 
         return signature_docs
 
-    def _parse_response_action_to_json(self, response: str) -> dict[str, Any]:
+    def _parse_response_action_to_json(self, response: str) -> Dict[str, Any]:
         """
         Parse model response to planner ReAct instruction to extract tool/worker info as JSON.
         """
@@ -494,7 +497,7 @@ class ReactPlanner(DefaultPlanner):
         # Attempt to parse action as JSON object
         try:
             return json.loads(action_str)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
             log_context.info(
                 f'Failed to parse action in planner ReAct response as JSON object: "{action_str}"...'
                 + " Returning response text as respond action."
@@ -503,13 +506,13 @@ class ReactPlanner(DefaultPlanner):
 
     def message_to_actions(
         self,
-        message: dict[str, Any],
-    ) -> list[Action]:
+        message: Dict[str, Any],
+    ) -> List[Action]:
         # Extract resource name and arguments from planner action
-        resource_name: str | None = message.get("name")
-        action_args: dict[str, Any] | None = message.get("arguments")
-        resource_id: int | None = self.name2id.get(resource_name, None)
-        arguments: dict[str, Any] | None = message.get("arguments")
+        resource_name: Optional[str] = message.get("name", None)
+        action_args: Optional[Dict[str, Any]] = message.get("arguments", None)
+        resource_id: Optional[int] = self.name2id.get(resource_name, None)
+        arguments: Optional[Dict[str, Any]] = message.get("arguments", None)
 
         # Ensure selected resource is a valid worker or tool
         if resource_id is not None and (
@@ -521,7 +524,7 @@ class ReactPlanner(DefaultPlanner):
         else:
             # Extract response message content from message["arguments"]["content"] or message["content"]
             # if former is unavailable (response is malformed) - content defaults to empty str
-            args: dict[str, Any] | None = message.get("arguments")
+            args: Optional[Dict[str, Any]] = message.get("arguments", None)
             content: str = message.get("content", "")
             if args:
                 content = args.get("content", content)
@@ -531,9 +534,9 @@ class ReactPlanner(DefaultPlanner):
     def plan(
         self,
         state: MessageState,
-        msg_history: list[dict[str, Any]],
+        msg_history: List[Dict[str, Any]],
         max_num_steps: int = 3,
-    ) -> tuple[list[dict[str, Any]], str, Any]:
+    ) -> Tuple[List[Dict[str, Any]], str, Any]:
         # Invoke model to get summary of planning trajectory to determine relevant resources
         # for which to retrieve more detailed info (from RAG documents)
         trajectory_summary: str = self._get_planning_trajectory_summary(
@@ -545,11 +548,11 @@ class ReactPlanner(DefaultPlanner):
         n_retrievals: int = self._get_num_resource_retrievals(trajectory_summary)
 
         # Retrieve signature documents for desired number of resources using trajectory summary as RAG query
-        signature_docs: list[Document] = self._retrieve_resource_signatures(
+        signature_docs: List[Document] = self._retrieve_resource_signatures(
             n_retrievals, trajectory_summary
         )
         actual_n_retrievals: int = len(signature_docs)
-        resource_names: list[str] = [
+        resource_names: List[str] = [
             doc.metadata["resource_name"] for doc in signature_docs
         ]
         log_context.info(
@@ -559,7 +562,7 @@ class ReactPlanner(DefaultPlanner):
         # Format signatures of retrieved resources to insert into ReAct instruction
         formatted_actions_str: str = "None"
         if len(signature_docs) > 0:
-            retrieved_actions: dict[str, dict[str, Any]] = {
+            retrieved_actions: Dict[str, Dict[str, Any]] = {
                 doc.metadata["resource_name"]: doc.metadata["json_signature"]
                 for doc in signature_docs
             }
@@ -585,7 +588,7 @@ class ReactPlanner(DefaultPlanner):
             }
         )
 
-        messages: list[dict[str, Any]] = [
+        messages: List[Dict[str, Any]] = [
             {"role": self.system_role, "content": input_prompt.text}
         ]
         messages.extend(msg_history)
@@ -593,14 +596,14 @@ class ReactPlanner(DefaultPlanner):
         for _ in range(max_num_steps):
             # Invoke model to get response to ReAct instruction
             res: Any = self.llm.invoke(messages)
-            message: dict[str, Any] = aimessage_to_dict(res)
+            message: Dict[str, Any] = aimessage_to_dict(res)
             response_text: str = message["content"]
             log_context.info(f"response text in planner: {response_text}")
-            json_response: dict[str, Any] = self._parse_response_action_to_json(
+            json_response: Dict[str, Any] = self._parse_response_action_to_json(
                 response_text
             )
             log_context.info(f"JSON response in planner: {json_response}")
-            actions: list[Action] = self.message_to_actions(json_response)
+            actions: List[Action] = self.message_to_actions(json_response)
 
             log_context.info(f"actions in planner: {actions}")
 
@@ -615,7 +618,7 @@ class ReactPlanner(DefaultPlanner):
                 else:
                     # Mimic tool call(s) in msg_history in absence of tools input parameter
                     call_id: str = str(uuid.uuid4())
-                    assistant_message: dict[str, Any] = {
+                    assistant_message: Dict[str, Any] = {
                         "role": "assistant",
                         "content": response_text,
                         "tool_calls": [
@@ -630,13 +633,13 @@ class ReactPlanner(DefaultPlanner):
                         ],
                         "function_call": None,
                     }
-                    resource_response: dict[str, Any] = {
+                    resource_response: Dict[str, Any] = {
                         "role": "tool",
                         "tool_call_id": call_id,
                         "name": action.name,
                         "content": env_response.observation,
                     }
-                    new_messages: list[dict[str, Any]] = [
+                    new_messages: List[Dict[str, Any]] = [
                         assistant_message,
                         resource_response,
                     ]
@@ -656,9 +659,9 @@ class ReactPlanner(DefaultPlanner):
         elif self.name2id.get(action.name, None) in self.tools_map:
             try:
                 resource_id: int = self.name2id[action.name]
-                calling_tool: dict[str, Any] = self.tools_map[resource_id]
-                kwargs: dict[str, Any] = action.kwargs
-                combined_kwargs: dict[str, Any] = {
+                calling_tool: Dict[str, Any] = self.tools_map[resource_id]
+                kwargs: Dict[str, Any] = action.kwargs
+                combined_kwargs: Dict[str, Any] = {
                     **kwargs,
                     **calling_tool["fixed_args"],
                 }
@@ -694,16 +697,16 @@ class ReactPlanner(DefaultPlanner):
         return EnvResponse(observation=observation)
 
     def execute(
-        self, msg_state: MessageState, msg_history: list[dict[str, Any]]
-    ) -> tuple[dict[str, Any], MessageState, list[dict[str, Any]]]:
+        self, msg_state: MessageState, msg_history: List[Dict[str, Any]]
+    ) -> Tuple[Dict[str, Any], MessageState, List[Dict[str, Any]]]:
         msg_history, action, response = self.plan(msg_state, msg_history)
         # msg_state["response"] = response
         msg_state.response = response
         return action, msg_state, msg_history
 
 
-def aimessage_to_dict(ai_message: Any) -> dict[str, Any]:
-    message_dict: dict[str, Any] = {
+def aimessage_to_dict(ai_message: Any) -> Dict[str, Any]:
+    message_dict: Dict[str, Any] = {
         "content": ai_message.content,
         "role": "assistant" if isinstance(ai_message, AIMessage) else "user",
         "function_call": None,

@@ -11,13 +11,12 @@ The module includes:
 - Integration with language models and APIs
 """
 
-from typing import Any
-
+from typing import Dict, List, Any, Optional
 from arklex.orchestrator.NLU.core.base import BaseNLU
-from arklex.orchestrator.NLU.services.api_service import APIClientService
 from arklex.orchestrator.NLU.services.model_service import ModelService
-from arklex.utils.exceptions import APIError, ValidationError
+from arklex.orchestrator.NLU.services.api_service import APIClientService
 from arklex.utils.logging_utils import LogContext, handle_exceptions
+from arklex.utils.exceptions import ValidationError, APIError
 
 log_context = LogContext(__name__)
 
@@ -44,7 +43,7 @@ class IntentDetector(BaseNLU):
     def __init__(
         self,
         model_service: ModelService,
-        api_service: APIClientService | None = None,
+        api_service: Optional[APIClientService] = None,
     ) -> None:
         """Initialize the intent detector.
 
@@ -85,9 +84,9 @@ class IntentDetector(BaseNLU):
     @handle_exceptions()
     def _detect_intent_local(
         self,
-        intents: dict[str, list[dict[str, Any]]],
+        intents: Dict[str, List[Dict[str, Any]]],
         chat_history_str: str,
-        model_config: dict[str, Any],
+        model_config: Dict[str, Any],
     ) -> str:
         """Detect intent using local model.
 
@@ -184,9 +183,9 @@ class IntentDetector(BaseNLU):
     def _detect_intent_remote(
         self,
         text: str,
-        intents: dict[str, list[dict[str, Any]]],
+        intents: Dict[str, List[Dict[str, Any]]],
         chat_history_str: str,
-        model_config: dict[str, Any],
+        model_config: Dict[str, Any],
     ) -> str:
         """Detect intent using remote API.
 
@@ -259,9 +258,9 @@ class IntentDetector(BaseNLU):
     def predict_intent(
         self,
         text: str,
-        intents: dict[str, list[dict[str, Any]]],
+        intents: Dict[str, List[Dict[str, Any]]],
         chat_history_str: str,
-        model_config: dict[str, Any],
+        model_config: Dict[str, Any],
     ) -> str:
         """Predict intent from input text.
 
@@ -325,9 +324,9 @@ class IntentDetector(BaseNLU):
     def execute(
         self,
         text: str,
-        intents: dict[str, list[dict[str, Any]]],
+        intents: Dict[str, List[Dict[str, Any]]],
         chat_history_str: str,
-        model_config: dict[str, Any],
+        model_config: Dict[str, Any],
     ) -> str:
         """Execute intent detection.
 

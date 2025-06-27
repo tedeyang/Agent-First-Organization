@@ -1,17 +1,20 @@
-from langchain.prompts import PromptTemplate
-from langchain_core.language_models import BaseChatModel
-from langchain_core.output_parsers import StrOutputParser
-from langchain_openai import ChatOpenAI
-from langgraph.graph import START, StateGraph
+from typing import Dict
 
-from arklex.env.prompts import load_prompts
-from arklex.env.tools.database.utils import DatabaseActions
-from arklex.env.tools.utils import ToolGenerator
+from langgraph.graph import StateGraph, START
+from langchain_openai import ChatOpenAI
+from langchain.prompts import PromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.language_models import BaseChatModel
+
 from arklex.env.workers.worker import BaseWorker, register_worker
-from arklex.utils.graph_state import MessageState
-from arklex.utils.logging_utils import LogContext
-from arklex.utils.model_config import MODEL
+from arklex.env.prompts import load_prompts
+from arklex.env.tools.utils import ToolGenerator
+from arklex.env.tools.database.utils import DatabaseActions
 from arklex.utils.utils import chunk_string
+from arklex.utils.graph_state import MessageState
+from arklex.utils.model_config import MODEL
+from arklex.utils.logging_utils import LogContext
+
 
 log_context = LogContext(__name__)
 
@@ -24,7 +27,7 @@ class DataBaseWorker(BaseWorker):
         self.llm: BaseChatModel = ChatOpenAI(
             model=MODEL["model_type_or_path"], timeout=30000
         )
-        self.actions: dict[str, str] = {
+        self.actions: Dict[str, str] = {
             "SearchShow": "Search for shows",
             "BookShow": "Book a show",
             "CheckBooking": "Check details of booked show(s)",
@@ -53,7 +56,7 @@ class DataBaseWorker(BaseWorker):
         )
         actions_name: str = ", ".join(self.actions.keys())
 
-        prompts: dict[str, str] = load_prompts(msg_state.bot_config)
+        prompts: Dict[str, str] = load_prompts(msg_state.bot_config)
         prompt: PromptTemplate = PromptTemplate.from_template(
             prompts["database_action_prompt"]
         )
@@ -79,7 +82,7 @@ class DataBaseWorker(BaseWorker):
                         f"Chosen action in the database worker: {action_name}"
                     )
                     return action_name
-            log_context.info("Base action chosen in the database worker: Others")
+            log_context.info(f"Base action chosen in the database worker: Others")
             return "Others"
         except Exception as e:
             log_context.error(

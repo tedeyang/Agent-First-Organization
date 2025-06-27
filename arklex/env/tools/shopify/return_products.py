@@ -7,22 +7,21 @@ Module Name: return_products
 This file contains the code for processing product returns in Shopify.
 """
 
-import inspect
 import json
-from typing import Any
-
 import shopify
-
-from arklex.env.tools.shopify._exception_prompt import ShopifyExceptionPrompt
+import inspect
+from typing import Any
 
 # general GraphQL navigation utilities
 from arklex.env.tools.shopify.utils import authorify_admin
 from arklex.env.tools.shopify.utils_slots import (
-    ShopifyOutputs,
     ShopifyReturnProductsSlots,
+    ShopifyOutputs,
 )
+
 from arklex.env.tools.tools import register_tool
 from arklex.utils.exceptions import ToolExecutionError
+from arklex.env.tools.shopify._exception_prompt import ShopifyExceptionPrompt
 from arklex.utils.logging_utils import LogContext
 
 log_context = LogContext(__name__)

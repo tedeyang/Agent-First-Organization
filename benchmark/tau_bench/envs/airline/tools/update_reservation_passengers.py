@@ -1,17 +1,16 @@
 # Copyright Sierra
 
 import json
-from typing import Any
-
+from typing import Any, Dict, List
 from benchmark.tau_bench.envs.tool import Tool
 
 
 class UpdateReservationPassengers(Tool):
     @staticmethod
     def invoke(
-        data: dict[str, Any],
+        data: Dict[str, Any],
         reservation_id: str,
-        passengers: list[dict[str, Any]],
+        passengers: List[Dict[str, Any]],
     ) -> str:
         reservations = data["reservations"]
         if reservation_id not in reservations:
@@ -23,7 +22,7 @@ class UpdateReservationPassengers(Tool):
         return json.dumps(reservation)
 
     @staticmethod
-    def get_info() -> dict[str, Any]:
+    def get_info() -> Dict[str, Any]:
         return {
             "type": "function",
             "function": {

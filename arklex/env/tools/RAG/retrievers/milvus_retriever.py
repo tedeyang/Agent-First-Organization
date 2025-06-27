@@ -15,18 +15,22 @@ document embedding, vector storage, and similarity search with metadata filterin
 # NOTE: Only support one tag for now
 ## TODO: get num_tokens for functions inside milvus_retriever.py and retriever_document.py (with classmethod RetrieverDocument.faq_retreiver_doc); influence token migrations
 
-import os
 import time
+import os
+from typing import List
+import numpy as np
 from collections import defaultdict
 from multiprocessing.pool import Pool
+from pymilvus import Collection, DataType, MilvusClient, connections
 
-import numpy as np
 from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_openai.chat_models import ChatOpenAI
-from pymilvus import Collection, DataType, MilvusClient, connections
 
 from arklex.env.prompts import load_prompts
+from arklex.utils.mysql import mysql_pool
+from arklex.utils.model_provider_config import PROVIDER_MAP
+from arklex.utils.graph_state import MessageState
 from arklex.env.tools.RAG.retrievers.retriever_document import (
     RetrieverDocument,
     RetrieverDocumentType,
@@ -35,10 +39,7 @@ from arklex.env.tools.RAG.retrievers.retriever_document import (
     embed_retriever_document,
 )
 from arklex.env.tools.utils import trace
-from arklex.utils.graph_state import MessageState
 from arklex.utils.logging_utils import LogContext
-from arklex.utils.model_provider_config import PROVIDER_MAP
-from arklex.utils.mysql import mysql_pool
 
 EMBED_DIMENSION = 1536
 MAX_TEXT_LENGTH = 65535
@@ -128,7 +129,7 @@ class MilvusRetriever:
         return res
 
     def add_documents_dicts(
-        self, documents: list[dict], collection_name: str, upsert: bool = False
+        self, documents: List[dict], collection_name: str, upsert: bool = False
     ):
         log_context.info(
             f"Celery sub task for adding {len(documents)} documents to collection: {collection_name}."
@@ -231,7 +232,7 @@ class MilvusRetriever:
         collection_name: str,
         bot_id: str,
         version: str,
-        documents: list[RetrieverDocument],
+        documents: List[RetrieverDocument],
         process_pool: Pool,
         upsert: bool = False,
     ):
@@ -278,7 +279,7 @@ class MilvusRetriever:
         collection_name: str,
         bot_id: str,
         version: str,
-        documents: list[RetrieverDocument],
+        documents: List[RetrieverDocument],
         upsert: bool = False,
     ):
         log_context.info(
@@ -320,7 +321,7 @@ class MilvusRetriever:
         query: str,
         tags: dict = {},
         top_k: int = 4,
-    ) -> list[RetrieverResult]:
+    ) -> List[RetrieverResult]:
         log_context.info(
             f"Retreiver search for query: {query} on collection {collection_name} for bot_id: {bot_id} version: {version}"
         )
@@ -341,7 +342,7 @@ class MilvusRetriever:
             output_fields=["qa_doc_id", "chunk_id", "qa_doc_type", "metadata", "text"],
         )
 
-        ret_results: list[RetrieverResult] = []
+        ret_results: List[RetrieverResult] = []
         for r in res[0]:
             log_context.info(f"Milvus search result: {r}")
             qa_doc_id = r["entity"]["qa_doc_id"]
@@ -370,7 +371,7 @@ class MilvusRetriever:
         bot_id: str,
         version: str,
         qa_doc_type: RetrieverDocumentType,
-    ) -> list[RetrieverDocument]:
+    ) -> List[RetrieverDocument]:
         connections.connect(
             uri=self.uri,
             token=self.token,
@@ -490,7 +491,7 @@ class MilvusRetriever:
         bot_id: str,
         version: str,
         qa_doc_type: RetrieverDocumentType,
-    ) -> list[dict]:
+    ) -> List[dict]:
         log_context.info(
             f"Getting all qa_doc_ids from collection '{collection_name}' for bot_id: {bot_id}, version: {version}"
         )
@@ -577,7 +578,7 @@ class MilvusRetriever:
         collection_name: str,
         bot_id: str,
         version: str,
-        vectors: list[dict],
+        vectors: List[dict],
         upsert: bool = False,
     ):
         log_context.info(
@@ -746,7 +747,7 @@ class MilvusRetrieverExecutor:
             model=bot_config.llm_config.model_type_or_path
         )
 
-    def generate_thought(self, retriever_results: list[RetrieverResult]) -> str:
+    def generate_thought(self, retriever_results: List[RetrieverResult]) -> str:
         # post process list of documents into str
         retrieved_str = ""
         for doc in retriever_results:
@@ -761,7 +762,7 @@ class MilvusRetrieverExecutor:
         similarity = np.exp(-(distance**2) / (2 * sigma**2)) * 100
         return round(float(similarity), 2)
 
-    def postprocess(self, retriever_results: list[RetrieverResult]):
+    def postprocess(self, retriever_results: List[RetrieverResult]):
         retriever_returns = []
         for doc in retriever_results:
             confidence_score = self._gaussian_similarity(doc.distance)
@@ -788,7 +789,7 @@ class MilvusRetrieverExecutor:
         ret_input = ret_input_chain.invoke({"chat_history": chat_history_str})
         rit = time.time() - st
 
-        ret_results: list[RetrieverResult] = []
+        ret_results: List[RetrieverResult] = []
         st = time.time()
         milvus_db = mysql_pool.fetchone(
             "SELECT collection_name FROM qa_bot WHERE id=%s AND version=%s",

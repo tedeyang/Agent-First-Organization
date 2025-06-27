@@ -5,15 +5,14 @@ This module implements a tool for retrieving the owner ID associated with a cont
 """
 
 import inspect
-from typing import Any
-
 import hubspot
 from hubspot.crm.objects.emails import ApiException
+from typing import Dict, Any, List
 
-from arklex.env.tools.hubspot._exception_prompt import HubspotExceptionPrompt
-from arklex.env.tools.hubspot.utils import authenticate_hubspot
 from arklex.env.tools.tools import register_tool
+from arklex.env.tools.hubspot.utils import authenticate_hubspot
 from arklex.utils.exceptions import ToolExecutionError
+from arklex.env.tools.hubspot._exception_prompt import HubspotExceptionPrompt
 from arklex.utils.logging_utils import LogContext
 
 log_context = LogContext(__name__)
@@ -22,7 +21,7 @@ log_context = LogContext(__name__)
 description: str = "Find the owner id in the contact. If owner id is found, the next step is using the extracted owner id to find the information of the owner. "
 
 # List of required parameters for the tool
-slots: list[dict[str, Any]] = [
+slots: List[Dict[str, Any]] = [
     {
         "name": "cus_cid",
         "type": "str",
@@ -34,7 +33,7 @@ slots: list[dict[str, Any]] = [
 ]
 
 # List of output parameters for the tool
-outputs: list[dict[str, Any]] = [
+outputs: List[Dict[str, Any]] = [
     {
         "name": "owner_id",
         "type": "int",
@@ -44,7 +43,7 @@ outputs: list[dict[str, Any]] = [
 
 
 @register_tool(description, slots, outputs)
-def find_owner_id_by_contact_id(cus_cid: str, **kwargs: dict[str, Any]) -> str:
+def find_owner_id_by_contact_id(cus_cid: str, **kwargs: Dict[str, Any]) -> str:
     """
     Find the owner ID for a given contact ID.
 
@@ -66,13 +65,13 @@ def find_owner_id_by_contact_id(cus_cid: str, **kwargs: dict[str, Any]) -> str:
     try:
         get_owner_id_response: Any = api_client.api_request(
             {
-                "path": f"/crm/v3/objects/contacts/{cus_cid}",
+                "path": "/crm/v3/objects/contacts/{}".format(cus_cid),
                 "method": "GET",
                 "headers": {"Content-Type": "application/json"},
                 "qs": {"properties": "hubspot_owner_id"},
             }
         )
-        get_owner_id_response: dict[str, Any] = get_owner_id_response.json()
+        get_owner_id_response: Dict[str, Any] = get_owner_id_response.json()
 
         owner_id: str = get_owner_id_response["properties"]["hubspot_owner_id"]
 

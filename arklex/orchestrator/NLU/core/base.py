@@ -11,8 +11,7 @@ The module defines two main abstract base classes:
 """
 
 from abc import ABC, abstractmethod
-from typing import Any
-
+from typing import Dict, List, Any
 from pydantic import BaseModel, Field
 
 
@@ -30,7 +29,7 @@ class IntentResponse(BaseModel):
 
     intent: str = Field(..., description="The predicted intent name")
     confidence: float = Field(..., description="Confidence score for the prediction")
-    metadata: dict[str, Any] = Field(
+    metadata: Dict[str, Any] = Field(
         default_factory=dict, description="Additional metadata about the prediction"
     )
 
@@ -53,7 +52,7 @@ class SlotResponse(BaseModel):
     confidence: float = Field(
         ..., description="Confidence score for the extraction/verification"
     )
-    metadata: dict[str, Any] = Field(
+    metadata: Dict[str, Any] = Field(
         default_factory=dict, description="Additional metadata about the slot"
     )
 
@@ -74,7 +73,7 @@ class VerificationResponse(BaseModel):
     slot: str = Field(..., description="The slot name")
     verified: bool = Field(..., description="Whether the slot value is verified")
     reason: str = Field(..., description="Reason for the verification result")
-    metadata: dict[str, Any] = Field(
+    metadata: Dict[str, Any] = Field(
         default_factory=dict, description="Additional metadata about the verification"
     )
 
@@ -101,9 +100,9 @@ class BaseNLU(ABC):
     def predict_intent(
         self,
         text: str,
-        intents: dict[str, list[dict[str, Any]]],
+        intents: Dict[str, List[Dict[str, Any]]],
         chat_history_str: str,
-        model_config: dict[str, Any],
+        model_config: Dict[str, Any],
     ) -> IntentResponse:
         """Predict intent from input text.
 
@@ -143,7 +142,7 @@ class BaseSlotFilling(ABC):
 
     @abstractmethod
     def verify_slot(
-        self, slot: dict[str, Any], chat_history_str: str, model_config: dict[str, Any]
+        self, slot: Dict[str, Any], chat_history_str: str, model_config: Dict[str, Any]
     ) -> tuple[bool, str]:
         """Verify if a slot value needs confirmation.
 
@@ -167,11 +166,11 @@ class BaseSlotFilling(ABC):
     @abstractmethod
     def fill_slots(
         self,
-        slots: list[dict[str, Any]],
+        slots: List[Dict[str, Any]],
         context: str,
-        model_config: dict[str, Any],
+        model_config: Dict[str, Any],
         type: str = "chat",
-    ) -> list[dict[str, Any]]:
+    ) -> List[Dict[str, Any]]:
         """Extract slot values from context.
 
         Analyzes the input context to extract values for the specified slots,

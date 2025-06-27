@@ -12,17 +12,19 @@ Module Name: chat_server
 This file contains the code for setting up a chat server that can accept connections from chat clients and broadcast messages to all connected clients.
 """
 
-import argparse
 import asyncio
 import json
 import sys
+from typing import Dict, List, Tuple
+
+import argparse
 
 
 class ChatServer:
     """Chat server class"""
 
     # dict of all current users
-    ALL_USERS: dict[str, tuple[asyncio.StreamReader, asyncio.StreamWriter]] = {}
+    ALL_USERS: Dict[str, Tuple[asyncio.StreamReader, asyncio.StreamWriter]] = {}
     SERVER_USER: str = "Server"
 
     def __init__(self, host_address: str, host_port: int) -> None:
@@ -48,7 +50,7 @@ class ChatServer:
         # enumerate all users and broadcast the message
 
         # create a task for each write to client
-        tasks: list[asyncio.Task] = [
+        tasks: List[asyncio.Task] = [
             asyncio.create_task(self.write_message(w, msg_bytes))
             for _, (_, w) in self.ALL_USERS.items()
         ]
@@ -110,7 +112,7 @@ class ChatServer:
                         continue
 
                     # convert to string
-                    data_json: dict[str, str] = json.loads("{" + data)
+                    data_json: Dict[str, str] = json.loads("{" + data)
                     name: str = data_json["name"]
                     line: str = data_json["message"].strip()
                     # check for exit

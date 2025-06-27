@@ -6,14 +6,12 @@ It manages HTTP communication, request formatting, and response handling
 for NLU operations including intent detection and slot filling.
 """
 
-from typing import Any
-
+from typing import Dict, Any, Optional, List, Tuple
 import httpx
-
-from arklex.orchestrator.NLU.utils.validators import validate_intent_response
-from arklex.utils.exceptions import APIError, ValidationError
-from arklex.utils.logging_utils import LogContext, handle_exceptions
 from arklex.utils.slot import Slot
+from arklex.orchestrator.NLU.utils.validators import validate_intent_response
+from arklex.utils.logging_utils import LogContext, handle_exceptions
+from arklex.utils.exceptions import APIError, ValidationError
 
 log_context = LogContext(__name__)
 
@@ -98,8 +96,8 @@ class APIClientService:
 
     @handle_exceptions()
     def _make_request(
-        self, endpoint: str, method: str, data: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
+        self, endpoint: str, method: str, data: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """Make HTTP request to the API.
 
         Sends an HTTP request to the specified endpoint and processes
@@ -187,9 +185,9 @@ class APIClientService:
     def predict_intent(
         self,
         text: str,
-        intents: dict[str, list[dict[str, Any]]],
+        intents: Dict[str, List[Dict[str, Any]]],
         chat_history_str: str,
-        model_config: dict[str, Any],
+        model_config: Dict[str, Any],
     ) -> str:
         """Predict intent from text.
 
@@ -241,8 +239,8 @@ class APIClientService:
 
     @handle_exceptions()
     def predict_slots(
-        self, text: str, slots: list[Slot], model_config: dict[str, Any]
-    ) -> list[Slot]:
+        self, text: str, slots: List[Slot], model_config: Dict[str, Any]
+    ) -> List[Slot]:
         """Predict slots from text.
 
         Sends a request to fill slots in the given text using the
@@ -287,8 +285,8 @@ class APIClientService:
 
     @handle_exceptions()
     def verify_slots(
-        self, text: str, slots: list[Slot], model_config: dict[str, Any]
-    ) -> tuple[bool, str]:
+        self, text: str, slots: List[Slot], model_config: Dict[str, Any]
+    ) -> Tuple[bool, str]:
         """Verify slots from text.
 
         Sends a request to verify the filled slots in the given text.

@@ -5,28 +5,30 @@ optimization strategies, nested workflows, and sophisticated resource allocation
 """
 
 import json
+from typing import Dict
 
 import pytest
 
-from arklex.orchestrator.generator.core.generator import Generator
 from arklex.orchestrator.generator.formatting.task_graph_formatter import (
     TaskGraphFormatter,
 )
+from arklex.orchestrator.generator.tasks.task_generator import TaskGenerator
 from arklex.orchestrator.generator.tasks.best_practice_manager import (
     BestPracticeManager,
 )
-from arklex.orchestrator.generator.tasks.task_generator import TaskGenerator
+from arklex.orchestrator.generator.core.generator import Generator
 from tests.orchestrator.generator.test_mock_models import (
-    MockLanguageModelWithCustomResponses,
-    create_mock_model_for_best_practices,
     create_mock_model_for_task_generation,
+    create_mock_model_for_best_practices,
+    MockLanguageModelWithCustomResponses,
 )
+
 
 # --- Fixtures ---
 
 
 @pytest.fixture
-def advanced_config() -> dict:
+def advanced_config() -> Dict:
     """Create advanced configuration for complex scenarios."""
     return {
         "role": "Advanced Customer Service Assistant",
@@ -98,7 +100,7 @@ def always_valid_mock_model() -> MockLanguageModelWithCustomResponses:
 
 
 @pytest.fixture
-def patched_advanced_config(advanced_config: dict) -> dict:
+def patched_advanced_config(advanced_config: Dict) -> Dict:
     """Create advanced config with tools patched to avoid import errors."""
     config = advanced_config.copy()
     config["tools"] = []
@@ -138,7 +140,7 @@ def ai_powered_mock_model() -> MockLanguageModelWithCustomResponses:
 
 
 @pytest.fixture
-def optimization_config() -> dict:
+def optimization_config() -> Dict:
     """Create configuration for optimization testing."""
     return {
         "role": "Optimization System",
@@ -199,7 +201,7 @@ class TestAdvancedTaskGeneration:
 
     def test_multi_layered_task_generation(
         self,
-        patched_advanced_config: dict,
+        patched_advanced_config: Dict,
         always_valid_mock_model: MockLanguageModelWithCustomResponses,
     ) -> None:
         """Test generation of multi-layered task hierarchies."""
@@ -220,7 +222,7 @@ class TestAdvancedTaskGeneration:
 
     def test_ai_powered_task_generation(
         self,
-        patched_advanced_config: dict,
+        patched_advanced_config: Dict,
         ai_powered_mock_model: MockLanguageModelWithCustomResponses,
     ) -> None:
         """Test AI-powered task generation with advanced features."""
@@ -239,7 +241,7 @@ class TestAdvancedTaskGeneration:
             any(keyword in name for keyword in ai_keywords) for name in task_names
         )
 
-    def test_complex_dependency_chains(self, advanced_config: dict) -> None:
+    def test_complex_dependency_chains(self, advanced_config: Dict) -> None:
         """Test complex dependency chain resolution."""
         formatter = TaskGraphFormatter(
             role=advanced_config["role"],
@@ -284,7 +286,7 @@ class TestAdvancedTaskGeneration:
 
     def test_adaptive_task_generation(
         self,
-        patched_advanced_config: dict,
+        patched_advanced_config: Dict,
         always_valid_mock_model: MockLanguageModelWithCustomResponses,
     ) -> None:
         """Test adaptive task generation with changing objectives."""
@@ -311,7 +313,7 @@ class TestAdvancedOptimization:
 
     def test_resource_optimization(
         self,
-        optimization_config: dict,
+        optimization_config: Dict,
         optimization_mock_model: MockLanguageModelWithCustomResponses,
     ) -> None:
         """Test resource optimization in practice generation."""
@@ -338,7 +340,7 @@ class TestAdvancedOptimization:
 
     def test_performance_optimization(
         self,
-        optimization_config: dict,
+        optimization_config: Dict,
         optimization_mock_model: MockLanguageModelWithCustomResponses,
     ) -> None:
         """Test performance optimization strategies."""
@@ -362,7 +364,7 @@ class TestAdvancedOptimization:
 
     def test_multi_objective_optimization(
         self,
-        optimization_config: dict,
+        optimization_config: Dict,
         optimization_mock_model: MockLanguageModelWithCustomResponses,
     ) -> None:
         """Test multi-objective optimization scenarios."""
@@ -388,7 +390,7 @@ class TestAdvancedOptimization:
 class TestNestedWorkflowScenarios:
     """Test nested workflow scenarios."""
 
-    def test_deep_nested_workflows(self, advanced_config: dict) -> None:
+    def test_deep_nested_workflows(self, advanced_config: Dict) -> None:
         """Test deeply nested workflow structures."""
         formatter = TaskGraphFormatter(
             role=advanced_config["role"],
@@ -412,7 +414,7 @@ class TestNestedWorkflowScenarios:
         assert "edges" in result
         assert len(result["nodes"]) > 0
 
-    def test_parallel_nested_workflows(self, advanced_config: dict) -> None:
+    def test_parallel_nested_workflows(self, advanced_config: Dict) -> None:
         """Test parallel nested workflow execution."""
         formatter = TaskGraphFormatter(
             role=advanced_config["role"],
@@ -446,7 +448,7 @@ class TestAdvancedIntegrationScenarios:
 
     def test_full_ai_pipeline_integration(
         self,
-        patched_advanced_config: dict,
+        patched_advanced_config: Dict,
         always_valid_mock_model: MockLanguageModelWithCustomResponses,
         ai_pipeline_mock_model: MockLanguageModelWithCustomResponses,
     ) -> None:
@@ -466,7 +468,7 @@ class TestAdvancedIntegrationScenarios:
 
     def test_scalable_architecture_integration(
         self,
-        patched_advanced_config: dict,
+        patched_advanced_config: Dict,
         always_valid_mock_model: MockLanguageModelWithCustomResponses,
     ) -> None:
         """Test scalable architecture integration."""
@@ -492,7 +494,7 @@ class TestAdvancedIntegrationScenarios:
 
     def test_real_time_processing_integration(
         self,
-        patched_advanced_config: dict,
+        patched_advanced_config: Dict,
         always_valid_mock_model: MockLanguageModelWithCustomResponses,
     ) -> None:
         """Test real-time processing integration."""

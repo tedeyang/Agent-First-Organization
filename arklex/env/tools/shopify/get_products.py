@@ -7,23 +7,21 @@ Module Name: get_products
 This file contains the code for retrieving product information from Shopify.
 """
 
-import inspect
 import json
-from typing import Any
-
+from typing import Any, List
+import inspect
 import shopify
-
-from arklex.env.tools.shopify._exception_prompt import ShopifyExceptionPrompt
-from arklex.env.tools.shopify.utils import authorify_admin
+from arklex.utils.logging_utils import LogContext
 
 # general GraphQL navigation utilities
 from arklex.env.tools.shopify.utils_nav import *
+from arklex.env.tools.shopify.utils import authorify_admin
 
 # ADMIN
 from arklex.env.tools.shopify.utils_slots import ShopifyGetProductsSlots, ShopifyOutputs
 from arklex.env.tools.tools import register_tool
 from arklex.utils.exceptions import ToolExecutionError
-from arklex.utils.logging_utils import LogContext
+from arklex.env.tools.shopify._exception_prompt import ShopifyExceptionPrompt
 
 log_context = LogContext(__name__)
 
@@ -35,7 +33,7 @@ outputs = [ShopifyOutputs.PRODUCTS_DETAILS, *PAGEINFO_OUTPUTS]
 
 
 @register_tool(description, slots, outputs)
-def get_products(product_ids: list[str], **kwargs: Any) -> str:
+def get_products(product_ids: List[str], **kwargs: Any) -> str:
     """
     Retrieve detailed information about multiple products from the Shopify store.
 

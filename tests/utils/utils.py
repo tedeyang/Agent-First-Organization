@@ -6,17 +6,16 @@ methods for initializing tests, executing conversations, and validating results,
 with support for custom validation through abstract methods.
 """
 
-import contextlib
 import json
 from abc import ABC, abstractmethod
-from collections.abc import Generator
-from typing import Any
+from typing import Any, Dict, List, Optional, Tuple, Generator
+import contextlib
 from unittest.mock import patch
 
 from arklex.env.env import Environment
-from arklex.orchestrator.NLU.core.slot import SlotFiller
-from arklex.orchestrator.NLU.services.model_service import DummyModelService
 from arklex.orchestrator.orchestrator import AgentOrg
+from arklex.orchestrator.NLU.services.model_service import DummyModelService
+from arklex.orchestrator.NLU.core.slot import SlotFiller
 
 
 class MockTool:
@@ -79,7 +78,7 @@ class MockResourceInitializer:
     """
 
     @staticmethod
-    def init_tools(tools: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    def init_tools(tools: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
         """Initialize mock tools from configuration.
 
         Args:
@@ -118,7 +117,7 @@ class MockResourceInitializer:
         return tools_map
 
     @staticmethod
-    def init_workers(workers: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    def init_workers(workers: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
         """Initialize mock workers from configuration.
 
         Args:
@@ -218,7 +217,7 @@ def mock_llm_invoke() -> Generator[None, None, None]:
 
 
 class MockOrchestrator(ABC):
-    def __init__(self, config_file_path: str, fixed_args: dict[str, Any] = {}) -> None:
+    def __init__(self, config_file_path: str, fixed_args: Dict[str, Any] = {}) -> None:
         """Initialize the mock orchestrator.
 
         Args:
@@ -228,15 +227,15 @@ class MockOrchestrator(ABC):
         """
         self.user_prefix: str = "user"
         self.assistant_prefix: str = "assistant"
-        config: dict[str, Any] = json.load(open(config_file_path))
+        config: Dict[str, Any] = json.load(open(config_file_path))
         if fixed_args:
             for tool in config["tools"]:
                 tool["fixed_args"].update(fixed_args)
-        self.config: dict[str, Any] = config
+        self.config: Dict[str, Any] = config
 
     def _get_test_response(
-        self, user_text: str, history: list[dict[str, str]], params: dict[str, Any]
-    ) -> dict[str, Any]:
+        self, user_text: str, history: List[Dict[str, str]], params: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Get a test response from the orchestrator.
 
         This function simulates a conversation by sending user text to the
@@ -251,13 +250,13 @@ class MockOrchestrator(ABC):
             Dict[str, Any]: The orchestrator's response containing the answer
                 and updated parameters.
         """
-        data: dict[str, Any] = {
+        data: Dict[str, Any] = {
             "text": user_text,
             "chat_history": history,
             "parameters": params,
         }
-        from arklex.orchestrator.task_graph import TaskGraph
         from tests.utils.utils import MockResourceInitializer
+        from arklex.orchestrator.task_graph import TaskGraph
 
         # Patch TaskGraph to always use DummyModelService for tests
         orig_taskgraph_init = TaskGraph.__init__
@@ -343,7 +342,7 @@ class MockOrchestrator(ABC):
 
         return result
 
-    def _initialize_test(self) -> tuple[list[dict[str, str]], dict[str, Any]]:
+    def _initialize_test(self) -> Tuple[List[Dict[str, str]], Dict[str, Any]]:
         """Initialize a test conversation.
 
         This function sets up the initial conversation state by creating an
@@ -354,9 +353,9 @@ class MockOrchestrator(ABC):
             Tuple[List[Dict[str, str]], Dict[str, Any]]: A tuple containing
                 the initial conversation history and parameters.
         """
-        history: list[dict[str, str]] = []
-        params: dict[str, Any] = {}
-        start_message: str | None = None
+        history: List[Dict[str, str]] = []
+        params: Dict[str, Any] = {}
+        start_message: Optional[str] = None
         for node in self.config["nodes"]:
             if node[1].get("type", "") == "start":
                 start_message = node[1]["attribute"]["value"]
@@ -371,10 +370,10 @@ class MockOrchestrator(ABC):
 
     def _execute_conversation(
         self,
-        test_case: dict[str, Any],
-        history: list[dict[str, str]],
-        params: dict[str, Any],
-    ) -> tuple[list[dict[str, str]], dict[str, Any]]:
+        test_case: Dict[str, Any],
+        history: List[Dict[str, str]],
+        params: Dict[str, Any],
+    ) -> Tuple[List[Dict[str, str]], Dict[str, Any]]:
         """Execute a test conversation.
 
         This function simulates a conversation by processing each user utterance
@@ -391,7 +390,7 @@ class MockOrchestrator(ABC):
                 the updated conversation history and parameters.
         """
         for i, user_text in enumerate(test_case["user_utterance"]):
-            result: dict[str, Any] = self._get_test_response(user_text, history, params)
+            result: Dict[str, Any] = self._get_test_response(user_text, history, params)
             answer: str = result["answer"]
             params = result["parameters"]
             history.append({"role": self.user_prefix, "content": user_text})
@@ -415,9 +414,9 @@ class MockOrchestrator(ABC):
     @abstractmethod
     def _validate_result(
         self,
-        test_case: dict[str, Any],
-        history: list[dict[str, str]],
-        params: dict[str, Any],
+        test_case: Dict[str, Any],
+        history: List[Dict[str, str]],
+        params: Dict[str, Any],
     ) -> None:
         """Validate the test results.
 
@@ -432,7 +431,7 @@ class MockOrchestrator(ABC):
         """
         # NOTE: change the assert to check the result
 
-    def run_single_test(self, test_case: dict[str, Any]) -> None:
+    def run_single_test(self, test_case: Dict[str, Any]) -> None:
         """Run a single test case.
 
         This function executes a test case by initializing the conversation,

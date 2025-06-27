@@ -8,18 +8,19 @@ This file contains the code for cancelling orders using the Shopify Admin API.
 """
 
 import json
-from typing import Any
+from typing import Any, Dict
 
 import shopify
-
-from arklex.env.tools.shopify.utils import authorify_admin
+from arklex.utils.logging_utils import LogContext
+from arklex.utils.exceptions import ShopifyError
 
 # general GraphQL navigation utilities
 from arklex.env.tools.shopify.utils_nav import *
+from arklex.env.tools.shopify.utils import authorify_admin
 from arklex.env.tools.shopify.utils_slots import ShopifyCancelOrderSlots, ShopifyOutputs
+
 from arklex.env.tools.tools import register_tool
-from arklex.utils.exceptions import ShopifyError, ToolExecutionError
-from arklex.utils.logging_utils import LogContext
+from arklex.utils.exceptions import ToolExecutionError
 
 log_context = LogContext(__name__)
 
@@ -29,7 +30,7 @@ outputs = [ShopifyOutputs.CANECEL_REQUEST_DETAILS]
 
 
 @register_tool(description, slots, outputs)
-def cancel_order(cancel_order_id: str, **kwargs: Any) -> dict[str, Any]:
+def cancel_order(cancel_order_id: str, **kwargs: Any) -> Dict[str, Any]:
     """
     Cancel an order in the Shopify store.
 

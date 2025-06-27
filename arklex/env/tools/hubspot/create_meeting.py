@@ -7,7 +7,7 @@ This module provides a tool implementation for scheduling meetings with customer
 import inspect
 import json
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 import hubspot
 import parsedatetime
@@ -26,7 +26,7 @@ log_context = LogContext(__name__)
 description: str = "Schedule a meeting for the existing customer with the specific representative. If you are not sure any information, please ask users to confirm in response."
 
 
-slots: list[dict[str, Any]] = [
+slots: List[Dict[str, Any]] = [
     {
         "name": "cus_fname",
         "type": "str",
@@ -93,7 +93,7 @@ slots: list[dict[str, Any]] = [
         "required": True,
     },
 ]
-outputs: list[dict[str, Any]] = [
+outputs: List[Dict[str, Any]] = [
     {
         "name": "meeting_confirmation_info",
         "type": "dict",
@@ -112,7 +112,7 @@ def create_meeting(
     duration: int,
     slug: str,
     time_zone: str,
-    **kwargs: dict[str, Any],
+    **kwargs: Dict[str, Any],
 ) -> str:
     """
     Schedule a meeting for a customer with a specific representative.
@@ -175,7 +175,7 @@ def create_meeting(
                 "qs": {"timezone": time_zone},
             }
         )
-        create_meeting_response: dict[str, Any] = create_meeting_response.json()
+        create_meeting_response: Dict[str, Any] = create_meeting_response.json()
         return json.dumps(create_meeting_response)
     except ApiException as e:
         log_context.info("Exception when scheduling a meeting: %s\n" % e)
@@ -186,8 +186,8 @@ def create_meeting(
 
 def parse_natural_date(
     date_str: str,
-    base_date: datetime | None = None,
-    timezone: str | None = None,
+    base_date: Optional[datetime] = None,
+    timezone: Optional[str] = None,
     date_input: bool = False,
 ) -> datetime:
     """

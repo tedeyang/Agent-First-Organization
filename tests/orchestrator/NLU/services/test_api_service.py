@@ -4,17 +4,15 @@ This module provides comprehensive test coverage for the APIClientService class,
 ensuring all functionality is properly tested including error handling and edge cases.
 """
 
-from unittest.mock import Mock, patch
-
-import httpx
 import pytest
-
+from unittest.mock import Mock, patch, MagicMock
+import httpx
 from arklex.orchestrator.NLU.services.api_service import (
+    APIClientService,
     DEFAULT_TIMEOUT,
     HTTP_METHOD_POST,
-    APIClientService,
 )
-from arklex.utils.exceptions import APIError, ValidationError
+from arklex.utils.exceptions import ValidationError, APIError
 from arklex.utils.slot import Slot
 
 

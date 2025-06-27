@@ -9,14 +9,14 @@ This module provides centralized logging configuration, including:
 - JSON logging support
 """
 
-import json
 import logging
 import logging.handlers
-import platform
+import json
 import socket
+import platform
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Optional, Dict, Any, Union
 
 # Constants
 DEFAULT_LOG_FORMAT = (
@@ -91,7 +91,7 @@ class RequestIdFilter(logging.Filter):
 class ContextFilter(logging.Filter):
     """Filter to add context information to log records."""
 
-    def __init__(self, context: dict[str, Any] | None = None) -> None:
+    def __init__(self, context: Optional[Dict[str, Any]] = None) -> None:
         """Initialize the filter.
 
         Args:
@@ -183,8 +183,8 @@ class JSONFormatter(logging.Formatter):
 
 
 def setup_logging(
-    log_dir: str | None = None,
-    log_level: str | int = DEFAULT_LOG_LEVEL,
+    log_dir: Optional[str] = None,
+    log_level: Union[str, int] = DEFAULT_LOG_LEVEL,
     log_format: str = DEFAULT_LOG_FORMAT,
     app_name: str = "arklex",
     use_json: bool = False,

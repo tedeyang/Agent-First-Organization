@@ -11,20 +11,21 @@ import json
 import logging
 import os
 import tempfile
-import time
 import zipfile
-from typing import Any
+import time
+from typing import Any, Dict, List, Optional, Set
 
 from dotenv import load_dotenv
+
 from langchain_openai import ChatOpenAI
 
-from arklex.env.tools.database.build_database import build_database
-from arklex.env.tools.RAG.build_rag import build_rag
-from arklex.orchestrator.generator.generator import Generator
-from arklex.utils.loader import Loader
 from arklex.utils.logging_utils import LogContext
+from arklex.orchestrator.generator.generator import Generator
+from arklex.env.tools.RAG.build_rag import build_rag
+from arklex.env.tools.database.build_database import build_database
 from arklex.utils.model_config import MODEL
 from arklex.utils.model_provider_config import PROVIDER_MAP
+from arklex.utils.loader import Loader
 
 log_context = LogContext(__name__)
 load_dotenv()
@@ -42,12 +43,12 @@ def generate_taskgraph(args: argparse.Namespace) -> None:
     model = PROVIDER_MAP.get(MODEL["llm_provider"], ChatOpenAI)(
         model=MODEL["model_type_or_path"], timeout=30000
     )
-    config: dict[str, Any] = json.load(open(args.config))
+    config: Dict[str, Any] = json.load(open(args.config))
     generator = Generator(config, model, args.output_dir)
     taskgraph = generator.generate()
     taskgraph_filepath: str = generator.save_task_graph(taskgraph)
     # Update the task graph with the API URLs
-    task_graph: dict[str, Any] = json.load(
+    task_graph: Dict[str, Any] = json.load(
         open(os.path.join(os.path.dirname(__file__), taskgraph_filepath))
     )
     task_graph["nluapi"] = ""
@@ -74,9 +75,9 @@ def init_worker(args: argparse.Namespace) -> None:
             - output_dir: Directory where worker data will be stored
     """
     # Load configuration from the specified file
-    config: dict[str, Any] = json.load(open(args.config))
-    workers: list[dict[str, Any]] = config["workers"]
-    worker_names: set[str] = set([worker["name"] for worker in workers])
+    config: Dict[str, Any] = json.load(open(args.config))
+    workers: List[Dict[str, Any]] = config["workers"]
+    worker_names: Set[str] = set([worker["name"] for worker in workers])
 
     # Initialize FaissRAGWorker if specified in configuration
     if "FaissRAGWorker" in worker_names:
@@ -99,8 +100,8 @@ def init_worker(args: argparse.Namespace) -> None:
 
 
 def load_documents(
-    config: dict[str, Any], document_dir: str | None = None
-) -> list[dict[str, str]]:
+    config: Dict[str, Any], document_dir: Optional[str] = None
+) -> List[Dict[str, str]]:
     """Load documents from various sources specified in the config.
 
     Args:
@@ -152,7 +153,9 @@ def load_documents(
                         elif doc_type_name == "file":
                             if os.path.isfile(source):
                                 if source.lower().endswith(".zip"):
-                                    log_context.info("    📦 Extracting ZIP archive...")
+                                    log_context.info(
+                                        f"    📦 Extracting ZIP archive..."
+                                    )
                                     with tempfile.TemporaryDirectory() as temp_dir:
                                         with zipfile.ZipFile(source, "r") as zip_ref:
                                             zip_ref.extractall(temp_dir)
@@ -170,17 +173,19 @@ def load_documents(
                                             f"    ✅ Extracted and processed {len(file_list)} files"
                                         )
                                 else:
-                                    log_context.info("    📄 Processing single file...")
+                                    log_context.info(
+                                        f"    📄 Processing single file..."
+                                    )
                                     all_docs.extend(
                                         loader.to_crawled_local_objs([source])
                                     )
                                     total_docs_processed += 1
                                     log_context.info(
-                                        "    ✅ File processed successfully"
+                                        f"    ✅ File processed successfully"
                                     )
                             elif os.path.isdir(source):
                                 log_context.info(
-                                    "    📁 Processing directory contents..."
+                                    f"    📁 Processing directory contents..."
                                 )
                                 file_list = [
                                     os.path.join(source, f) for f in os.listdir(source)
@@ -195,10 +200,10 @@ def load_documents(
                                     f"Source path '{source}' does not exist"
                                 )
                         elif doc_type_name == "text":
-                            log_context.info("    📝 Processing text content...")
+                            log_context.info(f"    📝 Processing text content...")
                             all_docs.extend(loader.to_crawled_text([source]))
                             total_docs_processed += 1
-                            log_context.info("    ✅ Text content processed")
+                            log_context.info(f"    ✅ Text content processed")
                         else:
                             raise ValueError(
                                 f"Unsupported document type: {doc_type_name}"
@@ -254,7 +259,7 @@ def main():
 
     # Load config
     log_context.info(f"📋 Loading configuration from {args.config}")
-    with open(args.config) as f:
+    with open(args.config, "r") as f:
         config = json.load(f)
 
     # Load documents

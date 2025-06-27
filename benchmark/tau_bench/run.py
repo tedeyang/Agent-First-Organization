@@ -13,24 +13,23 @@ The module includes:
 - Environment and agent management
 """
 
-import json
-import multiprocessing
 import os
+import json
 import random
 import traceback
-from concurrent.futures import ThreadPoolExecutor
 from math import comb
-from typing import Any
+import multiprocessing
+from typing import List, Dict, Any, Tuple
+from concurrent.futures import ThreadPoolExecutor
 
-from litellm import provider_list
-
-from benchmark.tau_bench.agents.base import Agent
 from benchmark.tau_bench.envs import get_env
-from benchmark.tau_bench.envs.user import UserStrategy
+from benchmark.tau_bench.agents.base import Agent
 from benchmark.tau_bench.tau_types import EnvRunResult, RunConfig
+from litellm import provider_list
+from benchmark.tau_bench.envs.user import UserStrategy
 
 
-def run(config: RunConfig) -> list[EnvRunResult]:
+def run(config: RunConfig) -> List[EnvRunResult]:
     """Run the TAU benchmark with the specified configuration.
 
     This function executes the benchmark tasks according to the provided configuration,
@@ -77,7 +76,7 @@ def run(config: RunConfig) -> list[EnvRunResult]:
         if config.end_index == -1
         else min(config.end_index, len(env.tasks))
     )
-    results: list[EnvRunResult] = []
+    results: List[EnvRunResult] = []
     lock: multiprocessing.Lock = multiprocessing.Lock()
     if config.task_ids and len(config.task_ids) > 0:
         print(f"Running tasks {config.task_ids} (checkpoint path: {ckpt_path})")
@@ -87,9 +86,9 @@ def run(config: RunConfig) -> list[EnvRunResult]:
         )
     for i in range(config.num_trials):
         if config.task_ids and len(config.task_ids) > 0:
-            idxs: list[int] = config.task_ids
+            idxs: List[int] = config.task_ids
         else:
-            idxs: list[int] = list(range(config.start_index, end_index))
+            idxs: List[int] = list(range(config.start_index, end_index))
         if config.shuffle:
             random.shuffle(idxs)
 
@@ -131,23 +130,23 @@ def run(config: RunConfig) -> list[EnvRunResult]:
             )
             print("-----")
             with lock:
-                data: list[Any] = []
+                data: List[Any] = []
                 with open(ckpt_path, "w") as f:
                     json.dump(data + [result.model_dump()], f, indent=2)
             return result
 
         with ThreadPoolExecutor(max_workers=config.max_concurrency) as executor:
-            res: list[EnvRunResult] = list(executor.map(_run, idxs))
+            res: List[EnvRunResult] = list(executor.map(_run, idxs))
             results.extend(res)
 
     avg_reward: float
-    pass_hat_ks: dict[int, float]
+    pass_hat_ks: Dict[int, float]
     avg_reward, pass_hat_ks = get_metrics(results)
     display_metrics(avg_reward, pass_hat_ks)
 
-    tasks_res: list[dict[str, Any]] = [result.model_dump() for result in results]
+    tasks_res: List[Dict[str, Any]] = [result.model_dump() for result in results]
     with open(ckpt_path, "w") as f:
-        tau_bench_evaluation: dict[str, Any] = {
+        tau_bench_evaluation: Dict[str, Any] = {
             "average_reward": avg_reward,
             "pass_k": pass_hat_ks,
             "task_results": tasks_res,
@@ -175,7 +174,7 @@ def agent_factory(config: RunConfig) -> Agent:
     return AgentFirstOrg(taskgraph_dir=config.taskgraph_dir)
 
 
-def get_metrics(results: list[EnvRunResult]) -> tuple[float, dict[int, float]]:
+def get_metrics(results: List[EnvRunResult]) -> Tuple[float, Dict[int, float]]:
     """Calculate performance metrics from benchmark results.
 
     This function calculates the average reward and pass^k metrics from the benchmark
@@ -195,16 +194,16 @@ def get_metrics(results: list[EnvRunResult]) -> tuple[float, dict[int, float]]:
         return (1 - 1e-6) <= reward <= (1 + 1e-6)
 
     num_trials: int = len(set([r.trial for r in results]))
-    rewards: list[float] = [r.reward for r in results]
+    rewards: List[float] = [r.reward for r in results]
     avg_reward: float = sum(rewards) / len(rewards)
     # c from https://arxiv.org/pdf/2406.12045
-    c_per_task_id: dict[int, int] = {}
+    c_per_task_id: Dict[int, int] = {}
     for result in results:
         if result.task_id not in c_per_task_id:
             c_per_task_id[result.task_id] = 1 if is_successful(result.reward) else 0
         else:
             c_per_task_id[result.task_id] += 1 if is_successful(result.reward) else 0
-    pass_hat_ks: dict[int, float] = {}
+    pass_hat_ks: Dict[int, float] = {}
     for k in range(1, num_trials + 1):
         sum_task_pass_hat_k: float = 0
         for c in c_per_task_id.values():
@@ -213,7 +212,7 @@ def get_metrics(results: list[EnvRunResult]) -> tuple[float, dict[int, float]]:
     return avg_reward, pass_hat_ks
 
 
-def display_metrics(avg_reward: float, pass_hat_ks: dict[int, float]) -> None:
+def display_metrics(avg_reward: float, pass_hat_ks: Dict[int, float]) -> None:
     """Display benchmark performance metrics.
 
     This function prints the average reward and pass^k metrics in a formatted way,

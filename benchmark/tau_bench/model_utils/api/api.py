@@ -15,8 +15,7 @@ The module includes:
 from __future__ import annotations
 
 import argparse
-from collections.abc import Callable
-from typing import Any, TypeVar
+from typing import Any, TypeVar, List, Optional, Union, Dict, Type, Callable
 
 from pydantic import BaseModel
 
@@ -57,7 +56,7 @@ from benchmark.tau_bench.model_utils.model.model import (
 T = TypeVar("T", bound=BaseModel)
 
 
-class API:
+class API(object):
     """API interface for model interactions.
 
     This class provides a unified interface for interacting with various language models,
@@ -78,19 +77,19 @@ class API:
         score_models (List[ScoreModel]): Models for scoring.
     """
 
-    wrappers_for_main_methods: list[Callable] = [log_call, cache_call_w_dedup]
+    wrappers_for_main_methods: List[Callable] = [log_call, cache_call_w_dedup]
 
     def __init__(
         self,
-        parse_models: list[ParseModel],
-        generate_models: list[GenerateModel],
-        parse_force_models: list[ParseForceModel],
-        score_models: list[ScoreModel],
-        classify_models: list[ClassifyModel],
-        binary_classify_models: list[BinaryClassifyModel] | None = None,
-        sampling_strategy: SamplingStrategy | None = None,
-        request_router: RequestRouter | None = None,
-        log_file: str | None = None,
+        parse_models: List[ParseModel],
+        generate_models: List[GenerateModel],
+        parse_force_models: List[ParseForceModel],
+        score_models: List[ScoreModel],
+        classify_models: List[ClassifyModel],
+        binary_classify_models: Optional[List[BinaryClassifyModel]] = None,
+        sampling_strategy: Optional[SamplingStrategy] = None,
+        request_router: Optional[RequestRouter] = None,
+        log_file: Optional[str] = None,
     ) -> None:
         """Initialize the API interface.
 
@@ -111,15 +110,15 @@ class API:
             request_router = default_request_router()
         self.sampling_strategy: SamplingStrategy = sampling_strategy
         self.request_router: RequestRouter = request_router
-        self._log_file: str | None = log_file
-        self.binary_classify_models: list[BinaryClassifyModel] | None = (
+        self._log_file: Optional[str] = log_file
+        self.binary_classify_models: Optional[List[BinaryClassifyModel]] = (
             binary_classify_models
         )
-        self.classify_models: list[ClassifyModel] = classify_models
-        self.parse_models: list[ParseModel] = parse_models
-        self.generate_models: list[GenerateModel] = generate_models
-        self.parse_force_models: list[ParseForceModel] = parse_force_models
-        self.score_models: list[ScoreModel] = score_models
+        self.classify_models: List[ClassifyModel] = classify_models
+        self.parse_models: List[ParseModel] = parse_models
+        self.generate_models: List[GenerateModel] = generate_models
+        self.parse_force_models: List[ParseForceModel] = parse_force_models
+        self.score_models: List[ScoreModel] = score_models
 
         self.__init_subclass__()
 
@@ -136,10 +135,10 @@ class API:
     def from_general_model(
         cls,
         model: GeneralModel,
-        sampling_strategy: SamplingStrategy | None = None,
-        request_router: RequestRouter | None = None,
-        log_file: str | None = None,
-    ) -> API:
+        sampling_strategy: Optional[SamplingStrategy] = None,
+        request_router: Optional[RequestRouter] = None,
+        log_file: Optional[str] = None,
+    ) -> "API":
         """Create an API instance from a general model.
 
         Args:
@@ -166,11 +165,11 @@ class API:
     @classmethod
     def from_general_models(
         cls,
-        models: list[GeneralModel],
-        sampling_strategy: SamplingStrategy | None = None,
-        request_router: RequestRouter | None = None,
-        log_file: str | None = None,
-    ) -> API:
+        models: List[GeneralModel],
+        sampling_strategy: Optional[SamplingStrategy] = None,
+        request_router: Optional[RequestRouter] = None,
+        log_file: Optional[str] = None,
+    ) -> "API":
         """Create an API instance from multiple general models.
 
         Args:
@@ -200,7 +199,7 @@ class API:
         )
 
     def set_default_binary_classify_models(
-        self, models: list[BinaryClassifyModel]
+        self, models: List[BinaryClassifyModel]
     ) -> None:
         """Set the default binary classification models.
 
@@ -214,7 +213,7 @@ class API:
             raise ValueError("Must provide at least one model")
         self.binary_classify_models = models
 
-    def set_default_classify_models(self, models: list[ClassifyModel]) -> None:
+    def set_default_classify_models(self, models: List[ClassifyModel]) -> None:
         """Set the default classification models.
 
         Args:
@@ -227,7 +226,7 @@ class API:
             raise ValueError("Must provide at least one model")
         self.classify_models = models
 
-    def set_default_parse_models(self, models: list[ParseModel]) -> None:
+    def set_default_parse_models(self, models: List[ParseModel]) -> None:
         """Set the default parsing models.
 
         Args:
@@ -240,7 +239,7 @@ class API:
             raise ValueError("Must provide at least one model")
         self.parse_models = models
 
-    def set_default_generate_models(self, models: list[GenerateModel]) -> None:
+    def set_default_generate_models(self, models: List[GenerateModel]) -> None:
         """Set the default generation models.
 
         Args:
@@ -253,7 +252,7 @@ class API:
             raise ValueError("Must provide at least one model")
         self.generate_models = models
 
-    def set_default_parse_force_models(self, models: list[ParseForceModel]) -> None:
+    def set_default_parse_force_models(self, models: List[ParseForceModel]) -> None:
         """Set the default forced parsing models.
 
         Args:
@@ -266,7 +265,7 @@ class API:
             raise ValueError("Must provide at least one model")
         self.parse_force_models = models
 
-    def set_default_score_models(self, models: list[ScoreModel]) -> None:
+    def set_default_score_models(self, models: List[ScoreModel]) -> None:
         """Set the default scoring models.
 
         Args:
@@ -299,7 +298,7 @@ class API:
 
     def _run_with_sampling_strategy(
         self,
-        models: list[AnyModel],
+        models: List[AnyModel],
         datapoint: Datapoint,
         sampling_strategy: SamplingStrategy,
     ) -> T:
@@ -318,7 +317,7 @@ class API:
         """
         assert len(models) > 0
 
-        def _run_datapoint(model: AnyModel, temp: float | None = None) -> T:
+        def _run_datapoint(model: AnyModel, temp: Optional[float] = None) -> T:
             if isinstance(datapoint, ClassifyDatapoint):
                 return model.classify(
                     instruction=datapoint.instruction,
@@ -383,7 +382,7 @@ class API:
 
     def _api_call(
         self,
-        models: list[AnyModel],
+        models: List[AnyModel],
         datapoint: Datapoint,
         sampling_strategy: SamplingStrategy,
     ) -> T:
@@ -408,11 +407,11 @@ class API:
         self,
         instruction: str,
         text: str,
-        options: list[str],
-        examples: list[ClassifyDatapoint] | None = None,
-        sampling_strategy: SamplingStrategy | None = None,
-        request_router: RequestRouter | None = None,
-        models: list[ClassifyModel] | None = None,
+        options: List[str],
+        examples: Optional[List[ClassifyDatapoint]] = None,
+        sampling_strategy: Optional[SamplingStrategy] = None,
+        request_router: Optional[RequestRouter] = None,
+        models: Optional[List[ClassifyModel]] = None,
     ) -> int:
         if models is None:
             models = self.classify_models
@@ -435,10 +434,10 @@ class API:
         self,
         instruction: str,
         text: str,
-        examples: list[BinaryClassifyDatapoint] | None = None,
-        sampling_strategy: SamplingStrategy | None = None,
-        request_router: RequestRouter | None = None,
-        models: list[BinaryClassifyModel] | None = None,
+        examples: Optional[List[BinaryClassifyDatapoint]] = None,
+        sampling_strategy: Optional[SamplingStrategy] = None,
+        request_router: Optional[RequestRouter] = None,
+        models: Optional[List[BinaryClassifyModel]] = None,
     ) -> bool:
         if models is None:
             models = self.binary_classify_models
@@ -459,12 +458,12 @@ class API:
     def parse(
         self,
         text: str,
-        typ: type[T] | dict[str, Any],
-        examples: list[ParseDatapoint] | None = None,
-        sampling_strategy: SamplingStrategy | None = None,
-        request_router: RequestRouter | None = None,
-        models: list[ParseModel] | None = None,
-    ) -> T | PartialObj | dict[str, Any]:
+        typ: Union[Type[T], Dict[str, Any]],
+        examples: Optional[List[ParseDatapoint]] = None,
+        sampling_strategy: Optional[SamplingStrategy] = None,
+        request_router: Optional[RequestRouter] = None,
+        models: Optional[List[ParseModel]] = None,
+    ) -> Union[T, PartialObj, Dict[str, Any]]:
         if models is None:
             models = self.parse_models
         if sampling_strategy is None:
@@ -485,10 +484,10 @@ class API:
         self,
         instruction: str,
         text: str,
-        examples: list[GenerateDatapoint] | None = None,
-        sampling_strategy: SamplingStrategy | None = None,
-        request_router: RequestRouter | None = None,
-        models: list[GenerateModel] | None = None,
+        examples: Optional[List[GenerateDatapoint]] = None,
+        sampling_strategy: Optional[SamplingStrategy] = None,
+        request_router: Optional[RequestRouter] = None,
+        models: Optional[List[GenerateModel]] = None,
     ) -> str:
         if models is None:
             models = self.generate_models
@@ -509,13 +508,13 @@ class API:
     def parse_force(
         self,
         instruction: str,
-        typ: type[T] | dict[str, Any],
-        text: str | None = None,
-        examples: list[ParseForceDatapoint] | None = None,
-        sampling_strategy: SamplingStrategy | None = None,
-        request_router: RequestRouter | None = None,
-        models: list[ParseForceModel] | None = None,
-    ) -> T | dict[str, Any]:
+        typ: Union[Type[T], Dict[str, Any]],
+        text: Optional[str] = None,
+        examples: Optional[List[ParseForceDatapoint]] = None,
+        sampling_strategy: Optional[SamplingStrategy] = None,
+        request_router: Optional[RequestRouter] = None,
+        models: Optional[List[ParseForceModel]] = None,
+    ) -> Union[T, Dict[str, Any]]:
         if models is None:
             models = self.parse_force_models
         if sampling_strategy is None:
@@ -539,10 +538,10 @@ class API:
         text: str,
         min: int,
         max: int,
-        examples: list[ScoreDatapoint] | None = None,
-        sampling_strategy: SamplingStrategy | None = None,
-        request_router: RequestRouter | None = None,
-        models: list[ScoreModel] | None = None,
+        examples: Optional[List[ScoreDatapoint]] = None,
+        sampling_strategy: Optional[SamplingStrategy] = None,
+        request_router: Optional[RequestRouter] = None,
+        models: Optional[List[ScoreModel]] = None,
     ) -> int:
         if models is None:
             models = self.score_models
@@ -564,9 +563,9 @@ class API:
 
 
 def default_api(
-    log_file: str | None = None,
-    sampling_strategy: SamplingStrategy | None = None,
-    request_router: RequestRouter | None = None,
+    log_file: Optional[str] = None,
+    sampling_strategy: Optional[SamplingStrategy] = None,
+    request_router: Optional[RequestRouter] = None,
 ) -> API:
     from benchmark.tau_bench.model_utils.model.claude import ClaudeModel
     from benchmark.tau_bench.model_utils.model.gpt import GPTModel
@@ -588,9 +587,9 @@ def default_api_from_args(args: argparse.Namespace) -> API:
 
 
 def default_quick_api(
-    log_file: str | None = None,
-    sampling_strategy: SamplingStrategy | None = None,
-    request_router: RequestRouter | None = None,
+    log_file: Optional[str] = None,
+    sampling_strategy: Optional[SamplingStrategy] = None,
+    request_router: Optional[RequestRouter] = None,
 ) -> API:
     from benchmark.tau_bench.model_utils.model.claude import ClaudeModel
 

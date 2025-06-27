@@ -1,11 +1,13 @@
 import functools
 import inspect
 import json
-from collections.abc import Callable
 from multiprocessing import Lock
 from typing import (
     Any,
+    Dict,
+    Callable,
     TypeVar,
+    Optional,
 )
 
 from pydantic import BaseModel
@@ -13,7 +15,7 @@ from pydantic import BaseModel
 from benchmark.tau_bench.model_utils.api.sample import SamplingStrategy
 from benchmark.tau_bench.model_utils.model.utils import optionalize_type
 
-log_files: dict[str, Lock] = {}  # type: ignore
+log_files: Dict[str, Lock] = {}  # type: ignore
 
 T = TypeVar("T")
 F = TypeVar("F", bound=Callable[..., Any])
@@ -50,18 +52,18 @@ def log_call(func: F) -> F:
     @functools.wraps(func)
     def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
         response: Any = func(self, *args, **kwargs)
-        log_file: str | None = getattr(self, "_log_file", None)
+        log_file: Optional[str] = getattr(self, "_log_file", None)
         if log_file is not None:
             if log_file not in log_files:
                 log_files[log_file] = Lock()
             sig: inspect.Signature = inspect.signature(func)
             bound_args: inspect.BoundArguments = sig.bind(self, *args, **kwargs)
             bound_args.apply_defaults()
-            all_args: dict[str, Any] = bound_args.arguments
+            all_args: Dict[str, Any] = bound_args.arguments
             all_args.pop("self", None)
 
             cls_name: str = self.__class__.__name__
-            log_entry: dict[str, Any] = {
+            log_entry: Dict[str, Any] = {
                 "cls_name": cls_name,
                 "method_name": func.__name__,
                 "kwargs": {

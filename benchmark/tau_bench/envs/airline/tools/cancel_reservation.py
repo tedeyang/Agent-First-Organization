@@ -1,15 +1,14 @@
 # Copyright Sierra
 
 import json
-from typing import Any
-
+from typing import Any, Dict
 from benchmark.tau_bench.envs.tool import Tool
 
 
 class CancelReservation(Tool):
     @staticmethod
     def invoke(
-        data: dict[str, Any],
+        data: Dict[str, Any],
         reservation_id: str,
     ) -> str:
         reservations = data["reservations"]
@@ -31,7 +30,7 @@ class CancelReservation(Tool):
         return json.dumps(reservation)
 
     @staticmethod
-    def get_info() -> dict[str, Any]:
+    def get_info() -> Dict[str, Any]:
         return {
             "type": "function",
             "function": {

@@ -4,14 +4,13 @@ HTTP request tool for external APIs in the Arklex framework.
 This module defines a tool for making HTTP requests to external APIs and handling responses. It is designed to be registered and used within the Arklex framework's tool system, providing a flexible interface for API integrations.
 """
 
-import inspect
-from typing import Any
-
 import requests
+import inspect
+from typing import Dict, Any, Union, List
 
 from arklex.env.tools.tools import register_tool
-from arklex.utils.exceptions import ToolExecutionError
 from arklex.utils.graph_state import HTTPParams
+from arklex.utils.exceptions import ToolExecutionError
 from arklex.utils.logging_utils import LogContext
 
 log_context = LogContext(__name__)
@@ -23,7 +22,7 @@ log_context = LogContext(__name__)
     outputs=["response"],
     isResponse=False,
 )
-def http_tool(**kwargs: dict[str, Any]) -> str:
+def http_tool(**kwargs: Dict[str, Any]) -> str:
     """Make an HTTP request and return the response"""
     func_name: str = inspect.currentframe().f_code.co_name
     try:
@@ -39,7 +38,7 @@ def http_tool(**kwargs: dict[str, Any]) -> str:
             params=params.params,
         )
         response.raise_for_status()
-        response_data: dict[str, Any] | list[Any] = response.json()
+        response_data: Union[Dict[str, Any], List[Any]] = response.json()
         log_context.info(
             f"Response from the {params.endpoint} for body: {params.body} and params: {params.params} is: {response_data}"
         )

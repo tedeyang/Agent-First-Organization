@@ -1,7 +1,6 @@
 import pytest
 from fastapi import FastAPI, Request
 from starlette.testclient import TestClient
-
 from arklex.middleware.logging_middleware import RequestLoggingMiddleware
 from arklex.utils.logging_utils import LogContext
 

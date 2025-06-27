@@ -4,16 +4,15 @@ This module contains comprehensive tests for the slot filling implementation,
 covering both local model-based and remote API-based approaches.
 """
 
-from typing import Any
-from unittest.mock import Mock, patch
-
 import pytest
+from unittest.mock import Mock, patch, MagicMock
+from typing import List, Dict, Any
 
 from arklex.orchestrator.NLU.core.slot import SlotFiller, create_slot_filler
-from arklex.orchestrator.NLU.services.api_service import APIClientService
 from arklex.orchestrator.NLU.services.model_service import ModelService
-from arklex.utils.exceptions import APIError, ModelError, ValidationError
+from arklex.orchestrator.NLU.services.api_service import APIClientService
 from arklex.utils.slot import Slot
+from arklex.utils.exceptions import ValidationError, ModelError, APIError
 
 
 @pytest.fixture
@@ -45,7 +44,7 @@ def mock_api_service() -> APIClientService:
 
 
 @pytest.fixture
-def sample_slots() -> list[Slot]:
+def sample_slots() -> List[Slot]:
     """Create sample slot objects for testing.
 
     Returns:
@@ -78,7 +77,7 @@ def sample_slots() -> list[Slot]:
 
 
 @pytest.fixture
-def model_config() -> dict[str, Any]:
+def model_config() -> Dict[str, Any]:
     """Create sample model configuration.
 
     Returns:
@@ -155,7 +154,7 @@ class TestSlotFillerFillSlotsLocal:
     """Test local slot filling functionality."""
 
     def test_fill_slots_local_success(
-        self, mock_model_service: ModelService, model_config: dict[str, Any]
+        self, mock_model_service: ModelService, model_config: Dict[str, Any]
     ) -> None:
         """Test successful local slot filling.
 
@@ -240,7 +239,7 @@ class TestSlotFillerFillSlotsLocal:
         mock_model_service.process_slot_response.assert_called_once()
 
     def test_fill_slots_local_process_response_error(
-        self, mock_model_service: ModelService, model_config: dict[str, Any]
+        self, mock_model_service: ModelService, model_config: Dict[str, Any]
     ) -> None:
         """Test local slot filling with processing error.
 
@@ -288,8 +287,8 @@ class TestSlotFillerFillSlotsRemote:
         self,
         mock_model_service: ModelService,
         mock_api_service: APIClientService,
-        sample_slots: list[Slot],
-        model_config: dict[str, Any],
+        sample_slots: List[Slot],
+        model_config: Dict[str, Any],
     ) -> None:
         """Test successful remote slot filling.
 
@@ -315,8 +314,8 @@ class TestSlotFillerFillSlotsRemote:
         self,
         mock_model_service: ModelService,
         mock_api_service: APIClientService,
-        sample_slots: list[Slot],
-        model_config: dict[str, Any],
+        sample_slots: List[Slot],
+        model_config: Dict[str, Any],
     ) -> None:
         """Test remote slot filling with custom type.
 
@@ -341,8 +340,8 @@ class TestSlotFillerFillSlotsRemote:
         self,
         mock_model_service: ModelService,
         mock_api_service: APIClientService,
-        sample_slots: list[Slot],
-        model_config: dict[str, Any],
+        sample_slots: List[Slot],
+        model_config: Dict[str, Any],
     ) -> None:
         """Test remote slot filling with API error.
 
@@ -368,7 +367,7 @@ class TestSlotFillerVerifySlotLocal:
     """Test local slot verification functionality."""
 
     def test_verify_slot_local_success(
-        self, mock_model_service: ModelService, model_config: dict[str, Any]
+        self, mock_model_service: ModelService, model_config: Dict[str, Any]
     ) -> None:
         """Test successful local slot verification.
 
@@ -403,7 +402,7 @@ class TestSlotFillerVerifySlotLocal:
         mock_model_service.process_verification_response.assert_called_once()
 
     def test_verify_slot_local_process_response_error(
-        self, mock_model_service: ModelService, model_config: dict[str, Any]
+        self, mock_model_service: ModelService, model_config: Dict[str, Any]
     ) -> None:
         """Test local slot verification with processing error.
 
@@ -436,7 +435,7 @@ class TestSlotFillerVerifySlotRemote:
         self,
         mock_model_service: ModelService,
         mock_api_service: APIClientService,
-        model_config: dict[str, Any],
+        model_config: Dict[str, Any],
     ) -> None:
         """Test successful remote slot verification.
 
@@ -461,7 +460,7 @@ class TestSlotFillerVerifySlotRemote:
         self,
         mock_model_service: ModelService,
         mock_api_service: APIClientService,
-        model_config: dict[str, Any],
+        model_config: Dict[str, Any],
     ) -> None:
         """Test remote slot verification with API error.
 
@@ -490,7 +489,7 @@ class TestSlotFillerVerifySlot:
         self,
         mock_model_service: ModelService,
         mock_api_service: APIClientService,
-        model_config: dict[str, Any],
+        model_config: Dict[str, Any],
     ) -> None:
         """Test verify_slot with API service available.
 
@@ -512,7 +511,7 @@ class TestSlotFillerVerifySlot:
         mock_api_service.verify_slots.assert_called_once()
 
     def test_verify_slot_without_api_service(
-        self, mock_model_service: ModelService, model_config: dict[str, Any]
+        self, mock_model_service: ModelService, model_config: Dict[str, Any]
     ) -> None:
         """Test verify_slot without API service (uses local).
 
@@ -554,8 +553,8 @@ class TestSlotFillerFillSlots:
         self,
         mock_model_service: ModelService,
         mock_api_service: APIClientService,
-        sample_slots: list[Slot],
-        model_config: dict[str, Any],
+        sample_slots: List[Slot],
+        model_config: Dict[str, Any],
     ) -> None:
         """Test fill_slots with API service available.
 
@@ -577,7 +576,7 @@ class TestSlotFillerFillSlots:
         mock_api_service.predict_slots.assert_called_once()
 
     def test_fill_slots_without_api_service(
-        self, mock_model_service: ModelService, model_config: dict[str, Any]
+        self, mock_model_service: ModelService, model_config: Dict[str, Any]
     ) -> None:
         """Test fill_slots without API service (uses local).
 
@@ -662,7 +661,7 @@ class TestSlotFillerFillSlots:
         mock_model_service.process_slot_response.assert_called_once()
 
     def test_fill_slots_with_custom_type(
-        self, mock_model_service: ModelService, model_config: dict[str, Any]
+        self, mock_model_service: ModelService, model_config: Dict[str, Any]
     ) -> None:
         """Test fill_slots with custom type parameter.
 
@@ -719,7 +718,7 @@ class TestSlotFillerFillSlots:
         )
 
     def test_fill_slots_remote_without_api_service(
-        self, mock_model_service: ModelService, model_config: dict[str, Any]
+        self, mock_model_service: ModelService, model_config: Dict[str, Any]
     ) -> None:
         """Test _fill_slots_remote when API service is not configured.
 
@@ -750,7 +749,7 @@ class TestSlotFillerFillSlots:
         assert "API service not configured" in str(exc_info.value)
 
     def test_verify_slot_remote_without_api_service(
-        self, mock_model_service: ModelService, model_config: dict[str, Any]
+        self, mock_model_service: ModelService, model_config: Dict[str, Any]
     ) -> None:
         """Test _verify_slot_remote when API service is not configured.
 
@@ -774,7 +773,7 @@ class TestSlotFillerFillSlots:
         assert "API service not configured" in str(exc_info.value)
 
     def test_verify_slot_exception_handling(
-        self, mock_model_service: ModelService, model_config: dict[str, Any]
+        self, mock_model_service: ModelService, model_config: Dict[str, Any]
     ) -> None:
         """Test verify_slot exception handling.
 
@@ -804,7 +803,7 @@ class TestSlotFillerFillSlots:
             assert "Operation failed in verify_slot" in str(exc_info.value)
 
     def test_fill_slots_exception_handling(
-        self, mock_model_service: ModelService, model_config: dict[str, Any]
+        self, mock_model_service: ModelService, model_config: Dict[str, Any]
     ) -> None:
         """Test fill_slots exception handling.
 

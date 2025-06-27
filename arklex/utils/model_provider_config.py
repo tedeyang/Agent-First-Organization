@@ -32,13 +32,14 @@ Usage:
     embeddings = embedding_class(model=embedding_model)
 """
 
-from typing import Any
-
+from typing import Dict, Type, Any, List
+from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_anthropic import ChatAnthropic
-from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
-from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
+from langchain_openai import OpenAIEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_huggingface import HuggingFaceEndpoint, ChatHuggingFace
 
 
 def get_huggingface_llm(model: str, **kwargs: Any) -> ChatHuggingFace:
@@ -79,7 +80,7 @@ class DummyLLM:
 
 
 # List of supported language model providers
-LLM_PROVIDERS: list[str] = [
+LLM_PROVIDERS: List[str] = [
     "openai",  # OpenAI's language models
     "gemini",  # Google's Gemini models
     "anthropic",  # Anthropic's Claude models
@@ -87,7 +88,7 @@ LLM_PROVIDERS: list[str] = [
 ]
 
 # Mapping of provider names to their LLM classes
-PROVIDER_MAP: dict[str, type] = {
+PROVIDER_MAP: Dict[str, Type] = {
     "anthropic": ChatAnthropic,  # Anthropic's Claude models
     "gemini": ChatGoogleGenerativeAI,  # Google's Gemini models
     "openai": ChatOpenAI,  # OpenAI's GPT models
@@ -96,7 +97,7 @@ PROVIDER_MAP: dict[str, type] = {
 }
 
 # Mapping of provider names to their embedding classes
-PROVIDER_EMBEDDINGS: dict[str, type] = {
+PROVIDER_EMBEDDINGS: Dict[str, Type] = {
     "anthropic": HuggingFaceEmbeddings,  # Anthropic uses HuggingFace embeddings
     "gemini": GoogleGenerativeAIEmbeddings,  # Google's Gemini embeddings
     "openai": OpenAIEmbeddings,  # OpenAI's embeddings
@@ -104,7 +105,7 @@ PROVIDER_EMBEDDINGS: dict[str, type] = {
 }
 
 # Mapping of provider names to their default embedding model identifiers
-PROVIDER_EMBEDDING_MODELS: dict[str, str] = {
+PROVIDER_EMBEDDING_MODELS: Dict[str, str] = {
     "anthropic": "sentence-transformers/sentence-t5-base",  # T5-based embeddings
     "gemini": "models/embedding-001",  # Gemini embeddings
     "openai": "text-embedding-ada-002",  # OpenAI's Ada embeddings

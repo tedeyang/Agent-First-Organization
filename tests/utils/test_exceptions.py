@@ -1,19 +1,17 @@
 """Tests for the custom exceptions module."""
 
-from typing import Any
-
 import pytest
-
+from typing import Dict, Any
 from arklex.utils.exceptions import (
-    APIError,
     ArklexError,
     AuthenticationError,
+    ValidationError,
+    APIError,
+    ModelError,
     ConfigurationError,
     DatabaseError,
-    ModelError,
-    RateLimitError,
     ResourceNotFoundError,
-    ValidationError,
+    RateLimitError,
 )
 
 
@@ -37,7 +35,7 @@ def test_arklex_error_with_code() -> None:
 
 def test_arklex_error_with_details() -> None:
     """Test creation of ArklexError with details."""
-    details: dict[str, Any] = {"field": "value"}
+    details: Dict[str, Any] = {"field": "value"}
     error = ArklexError("Test error", details=details)
     assert str(error) == "Test error (UNKNOWN_ERROR)"
     assert error.code is None
@@ -65,7 +63,7 @@ def test_validation_error() -> None:
 
 def test_validation_error_with_details() -> None:
     """Test creation of ValidationError with details."""
-    details: dict[str, Any] = {"field": "value"}
+    details: Dict[str, Any] = {"field": "value"}
     error = ValidationError("Invalid input", details=details)
     assert str(error) == "Invalid input (VALIDATION_ERROR)"
     assert error.code == "VALIDATION_ERROR"

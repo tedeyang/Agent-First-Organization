@@ -4,12 +4,10 @@ This module provides test configuration, fixtures, and mocks for testing the Ark
 """
 
 import os
-import sys
-from unittest.mock import MagicMock, patch
-
 import pytest
+from unittest.mock import patch, MagicMock
+import sys
 from fastapi.testclient import TestClient
-
 from arklex.main import app
 from arklex.utils.logging_config import setup_logging
 
@@ -75,9 +73,8 @@ def mock_openai_client():
     """Mock openai.OpenAI and openai.resources.embeddings.Embeddings.create for all tests."""
     # Only mock if we're in test mode
     if os.getenv("ARKLEX_TEST_ENV") == "local":
-        from unittest.mock import MagicMock, patch
-
         import openai
+        from unittest.mock import patch, MagicMock
 
         dummy_embedding = [0.0] * 1536
         dummy_response = MagicMock()
@@ -137,9 +134,8 @@ def mock_intent_detector_execute():
     """Mock IntentDetector.execute to always return a dummy intent for tests."""
     # Only mock if we're in test mode
     if os.getenv("ARKLEX_TEST_ENV") == "local":
-        from unittest.mock import patch
-
         from arklex.orchestrator.NLU.core.intent import IntentDetector
+        from unittest.mock import patch
 
         with patch.object(IntentDetector, "execute", return_value="others"):
             yield

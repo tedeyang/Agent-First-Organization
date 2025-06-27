@@ -1,10 +1,8 @@
-from unittest.mock import MagicMock, patch
-
 import pytest
-
+from unittest.mock import patch, MagicMock
 from arklex.orchestrator.NLU.core.intent import IntentDetector
 from arklex.orchestrator.NLU.services.model_service import ModelService
-from arklex.utils.exceptions import ModelError, ValidationError
+from arklex.utils.exceptions import ValidationError, ModelError
 
 
 @pytest.fixture

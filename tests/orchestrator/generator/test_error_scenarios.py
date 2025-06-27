@@ -10,15 +10,16 @@ import pytest
 from arklex.orchestrator.generator.formatting.task_graph_formatter import (
     TaskGraphFormatter,
 )
-from arklex.orchestrator.generator.prompts import PromptManager
+from arklex.orchestrator.generator.tasks.task_generator import TaskGenerator
 from arklex.orchestrator.generator.tasks.best_practice_manager import (
     BestPracticeManager,
 )
-from arklex.orchestrator.generator.tasks.task_generator import TaskGenerator
+from arklex.orchestrator.generator.prompts import PromptManager
 from tests.orchestrator.generator.test_mock_models import (
-    MockLanguageModelWithCustomResponses,
     MockLanguageModelWithErrors,
+    MockLanguageModelWithCustomResponses,
 )
+
 
 # --- Fixtures ---
 

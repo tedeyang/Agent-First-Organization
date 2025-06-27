@@ -1,12 +1,12 @@
 import inspect
-
 import requests
 from requests.auth import HTTPBasicAuth
 
-from arklex.env.tools.acuity._exception_prompt import AcuityExceptionPrompt
 from arklex.env.tools.acuity.utils import authenticate_acuity
 from arklex.env.tools.tools import register_tool
 from arklex.utils.exceptions import ToolExecutionError
+from arklex.env.tools.acuity._exception_prompt import AcuityExceptionPrompt
+
 
 description = "Get the available dates of the info session based on the specific month"
 slots = [

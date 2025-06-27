@@ -9,25 +9,26 @@ operations.
 
 import os
 import sqlite3
-import uuid
 from datetime import datetime
-from typing import Any
-
+import uuid
 import pandas as pd
-from langchain.prompts import PromptTemplate
-from langchain_core.output_parsers import StrOutputParser
-from langchain_openai import ChatOpenAI
+from typing import List, Dict, Any, Optional, Tuple
 
-from arklex.env.prompts import load_prompts
-from arklex.utils.graph_state import MessageState, Slot, SlotDetail, StatusEnum
-from arklex.utils.logging_utils import LogContext
-from arklex.utils.model_config import MODEL
+from langchain.prompts import PromptTemplate
+from langchain_openai import ChatOpenAI
+from langchain_core.output_parsers import StrOutputParser
+
 from arklex.utils.utils import chunk_string
+from arklex.utils.model_config import MODEL
+from arklex.utils.graph_state import Slot, SlotDetail, MessageState
+from arklex.env.prompts import load_prompts
+from arklex.utils.graph_state import StatusEnum
+from arklex.utils.logging_utils import LogContext
 
 log_context = LogContext(__name__)
 DBNAME: str = "show_booking_db.sqlite"
 USER_ID: str = "user_be6e1836-8fe9-4938-b2d0-48f810648e72"
-SLOTS: list[dict[str, str]] = [
+SLOTS: List[Dict[str, str]] = [
     {
         "name": "show_name",
         "type": "string",
@@ -74,14 +75,14 @@ class DatabaseActions:
             model=MODEL["model_type_or_path"], timeout=30000
         )
         self.user_id: str = user_id
-        self.slots: list[SlotDetail] = []
-        self.slot_prompts: list[str] = []
+        self.slots: List[SlotDetail] = []
+        self.slot_prompts: List[str] = []
 
     def log_in(self) -> bool:
         conn: sqlite3.Connection = sqlite3.connect(self.db_path)
         cursor: sqlite3.Cursor = conn.cursor()
         cursor.execute("SELECT 1 FROM user WHERE id = ?", (self.user_id,))
-        result: tuple[int, ...] | None = cursor.fetchone()
+        result: Optional[Tuple[int, ...]] = cursor.fetchone()
         if result is None:
             log_context.info(f"User {self.user_id} not found in the database.")
         else:
@@ -89,8 +90,8 @@ class DatabaseActions:
         return result is not None
 
     def init_slots(
-        self, slots: list[Slot], bot_config: dict[str, Any]
-    ) -> list[dict[str, str]]:
+        self, slots: List[Slot], bot_config: Dict[str, Any]
+    ) -> List[Dict[str, str]]:
         if not slots:
             slots = SLOTS
         self.slots = []
@@ -100,8 +101,8 @@ class DatabaseActions:
         for slot in slots:
             query: str = f"SELECT DISTINCT {slot['name']} FROM show"
             cursor.execute(query)
-            results: list[tuple[Any, ...]] = cursor.fetchall()
-            value_list: list[Any] = [result[0] for result in results]
+            results: List[Tuple[Any, ...]] = cursor.fetchall()
+            value_list: List[Any] = [result[0] for result in results]
             self.slots.append(self.verify_slot(slot, value_list, bot_config))
             if not self.slots[-1].confirmed:
                 self.slot_prompts.append(slot["prompt"])
@@ -110,10 +111,10 @@ class DatabaseActions:
         return SLOTS
 
     def verify_slot(
-        self, slot: Slot, value_list: list[Any], bot_config: dict[str, Any]
+        self, slot: Slot, value_list: List[Any], bot_config: Dict[str, Any]
     ) -> SlotDetail:
         slot_detail: SlotDetail = SlotDetail(**slot, verified_value="", confirmed=False)
-        prompts: dict[str, str] = load_prompts(bot_config)
+        prompts: Dict[str, str] = load_prompts(bot_config)
         prompt: PromptTemplate = PromptTemplate.from_template(
             prompts["database_slot_prompt"]
         )
@@ -128,7 +129,7 @@ class DatabaseActions:
                 "value_list": value_list,
             }
         )
-        chunked_prompt: list[str] = chunk_string(
+        chunked_prompt: List[str] = chunk_string(
             input_prompt.text, tokenizer=MODEL["tokenizer"], max_length=MODEL["context"]
         )
         log_context.info(f"Chunked prompt for verifying slot: {chunked_prompt}")
@@ -155,7 +156,7 @@ class DatabaseActions:
         conn: sqlite3.Connection = sqlite3.connect(self.db_path)
         cursor: sqlite3.Cursor = conn.cursor()
         query: str = "SELECT show_name, date, time, description, location, price FROM show WHERE 1 = 1"
-        params: list[Any] = []
+        params: List[Any] = []
         for slot in self.slots:
             if slot.confirmed:
                 query += f" AND {slot.name} = ?"
@@ -163,16 +164,16 @@ class DatabaseActions:
         query += " LIMIT 10"
         # Execute the query
         cursor.execute(query, params)
-        rows: list[tuple[Any, ...]] = cursor.fetchall()
+        rows: List[Tuple[Any, ...]] = cursor.fetchall()
         cursor.close()
         conn.close()
         if len(rows) == 0:
             msg_state.status = StatusEnum.INCOMPLETE
             msg_state.message_flow = NO_SHOW_MESSAGE
         else:
-            column_names: list[str] = [column[0] for column in cursor.description]
-            results: list[dict[str, Any]] = [
-                dict(zip(column_names, row, strict=False)) for row in rows
+            column_names: List[str] = [column[0] for column in cursor.description]
+            results: List[Dict[str, Any]] = [
+                dict(zip(column_names, row)) for row in rows
             ]
             results_df: pd.DataFrame = pd.DataFrame(results)
             msg_state.status = StatusEnum.COMPLETE
@@ -186,14 +187,14 @@ class DatabaseActions:
         conn: sqlite3.Connection = sqlite3.connect(self.db_path)
         cursor: sqlite3.Cursor = conn.cursor()
         query: str = "SELECT id, show_name, date, time, description, location, price FROM show WHERE 1 = 1"
-        params: list[Any] = []
+        params: List[Any] = []
         for slot in self.slots:
             if slot.confirmed:
                 query += f" AND {slot.name} = ?"
                 params.append(slot.verified_value)
         # Execute the query
         cursor.execute(query, params)
-        rows: list[tuple[Any, ...]] = cursor.fetchall()
+        rows: List[Tuple[Any, ...]] = cursor.fetchall()
         log_context.info(f"Rows found: {len(rows)}")
         # Check whether info is enough to book a show
         if len(rows) == 0:
@@ -206,8 +207,8 @@ class DatabaseActions:
             else:
                 msg_state.message_flow = MULTIPLE_SHOWS_MESSAGE
         else:
-            column_names: list[str] = [column[0] for column in cursor.description]
-            results: dict[str, Any] = dict(zip(column_names, rows[0], strict=False))
+            column_names: List[str] = [column[0] for column in cursor.description]
+            results: Dict[str, Any] = dict(zip(column_names, rows[0]))
             show_id: str = results["id"]
 
             # Insert a row into the booking table
@@ -241,15 +242,15 @@ class DatabaseActions:
             b.user_id = ?
         """
         cursor.execute(query, (self.user_id,))
-        rows: list[tuple[Any, ...]] = cursor.fetchall()
+        rows: List[Tuple[Any, ...]] = cursor.fetchall()
         cursor.close()
         conn.close()
         if len(rows) == 0:
             msg_state.message_flow = NO_BOOKING_MESSAGE
         else:
-            column_names: list[str] = [column[0] for column in cursor.description]
-            results: list[dict[str, Any]] = [
-                dict(zip(column_names, row, strict=False)) for row in rows
+            column_names: List[str] = [column[0] for column in cursor.description]
+            results: List[Dict[str, Any]] = [
+                dict(zip(column_names, row)) for row in rows
             ]
             results_df: pd.DataFrame = pd.DataFrame(results)
             msg_state.message_flow = "Booked shows are:\n" + results_df.to_string(
@@ -271,7 +272,7 @@ class DatabaseActions:
             b.user_id = ?
         """
         cursor.execute(query, (self.user_id,))
-        rows: list[tuple[Any, ...]] = cursor.fetchall()
+        rows: List[Tuple[Any, ...]] = cursor.fetchall()
         if len(rows) == 0:
             msg_state.status = StatusEnum.COMPLETE
             msg_state.message_flow = NO_BOOKING_MESSAGE
@@ -282,11 +283,11 @@ class DatabaseActions:
             else:
                 msg_state.message_flow = MULTIPLE_SHOWS_MESSAGE
         else:
-            column_names: list[str] = [column[0] for column in cursor.description]
-            results: list[dict[str, Any]] = [
-                dict(zip(column_names, row, strict=False)) for row in rows
+            column_names: List[str] = [column[0] for column in cursor.description]
+            results: List[Dict[str, Any]] = [
+                dict(zip(column_names, row)) for row in rows
             ]
-            show: dict[str, Any] = results[0]
+            show: Dict[str, Any] = results[0]
             # Delete a row from the booking table based on show_id
             cursor.execute(
                 """DELETE FROM booking WHERE show_id = ?

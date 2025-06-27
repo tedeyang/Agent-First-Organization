@@ -4,14 +4,14 @@ These tests simulate user interactions with the UI components
 to ensure they work correctly without requiring actual user input.
 """
 
-import sys
-from contextlib import ExitStack
-from unittest.mock import Mock, patch
-
 import pytest
+from unittest.mock import Mock, patch
+from contextlib import ExitStack
+import sys
 
-from arklex.orchestrator.generator.ui.input_modal import InputModal
 from arklex.orchestrator.generator.ui.task_editor import TaskEditorApp
+from arklex.orchestrator.generator.ui.input_modal import InputModal
+
 
 # --- Global patching fixtures for UI components ---
 

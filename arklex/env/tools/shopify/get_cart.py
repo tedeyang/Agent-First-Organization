@@ -7,18 +7,17 @@ Module Name: get_cart
 This file contains the code for retrieving cart information from Shopify.
 """
 
-import inspect
-from typing import Any
-
+from typing import Any, Dict
 import requests
+import inspect
+from arklex.utils.logging_utils import LogContext
 
-from arklex.env.tools.shopify._exception_prompt import ShopifyExceptionPrompt
+from arklex.env.tools.shopify.utils_slots import ShopifyGetCartSlots, ShopifyOutputs
 from arklex.env.tools.shopify.utils_cart import *
 from arklex.env.tools.shopify.utils_nav import *
-from arklex.env.tools.shopify.utils_slots import ShopifyGetCartSlots, ShopifyOutputs
 from arklex.env.tools.tools import register_tool
 from arklex.utils.exceptions import ToolExecutionError
-from arklex.utils.logging_utils import LogContext
+from arklex.env.tools.shopify._exception_prompt import ShopifyExceptionPrompt
 
 log_context = LogContext(__name__)
 
@@ -52,10 +51,10 @@ def get_cart(cart_id: str, **kwargs: Any) -> str:
         return nav[0]
     auth = authorify_storefront(kwargs)
 
-    variable: dict[str, str] = {
+    variable: Dict[str, str] = {
         "id": cart_id,
     }
-    headers: dict[str, str] = {
+    headers: Dict[str, str] = {
         "X-Shopify-Storefront-Access-Token": auth["storefront_token"]
     }
     query = f"""

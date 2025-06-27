@@ -5,9 +5,9 @@ including nested graph component node identification and path traversal.
 """
 
 from unittest.mock import Mock
-
 from arklex.env.nested_graph.nested_graph import NestedGraph
 from arklex.utils.graph_state import NodeInfo, Params, PathNode
+from unittest.mock import Mock
 
 
 class TestNestedGraph:

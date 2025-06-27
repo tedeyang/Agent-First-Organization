@@ -33,12 +33,13 @@ Usage:
 """
 
 import json
+from typing import List
 
 import shopify
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_core.documents import Document
 
 from arklex.utils.loaders.base import Loader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_core.documents import Document
 
 
 class ShopifyLoader(Loader):
@@ -66,7 +67,7 @@ class ShopifyLoader(Loader):
     def __init__(self) -> None:
         """Initialize the ShopifyLoader instance."""
 
-    def load(self) -> list[Document]:
+    def load(self) -> List[Document]:
         """Load product data from Shopify's GraphQL API.
 
         This function retrieves product information from Shopify's GraphQL API,
@@ -114,7 +115,7 @@ class ShopifyLoader(Loader):
             )
         return docs
 
-    def chunk(self, document_objs: list[Document]) -> list[Document]:
+    def chunk(self, document_objs: List[Document]) -> List[Document]:
         """Split product documents into smaller chunks.
 
         This function splits product documents into smaller, more manageable chunks

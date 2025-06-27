@@ -1,10 +1,9 @@
 """Milvus retriever tool."""
 
 from typing import Any
-
-from arklex.env.tools.RAG.retrievers.milvus_retriever import MilvusRetriever
-from arklex.env.tools.tools import register_tool
 from arklex.utils.logging_utils import LogContext
+from arklex.env.tools.tools import register_tool
+from arklex.env.tools.RAG.retrievers.milvus_retriever import MilvusRetriever
 
 log_context = LogContext(__name__)
 

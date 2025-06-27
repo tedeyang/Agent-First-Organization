@@ -5,7 +5,6 @@ ensuring all functionality is properly tested including all language variants an
 """
 
 import pytest
-
 from arklex.env.prompts import BotConfig, load_prompts
 
 

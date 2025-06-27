@@ -4,19 +4,18 @@ Tool for creating support tickets via HubSpot in the Arklex framework.
 This module implements a tool for creating support tickets for customers using the HubSpot API. It handles ticket creation, association with contacts, and is designed for integration with the Arklex tool system.
 """
 
-import inspect
 from datetime import datetime
-from typing import Any
-
+import inspect
 import hubspot
-from hubspot.crm.associations.v4 import AssociationSpec
 from hubspot.crm.objects.emails import ApiException
+from hubspot.crm.associations.v4 import AssociationSpec
 from hubspot.crm.tickets.models import SimplePublicObjectInputForCreate
+from typing import Dict, Any, List
 
-from arklex.env.tools.hubspot._exception_prompt import HubspotExceptionPrompt
-from arklex.env.tools.hubspot.utils import authenticate_hubspot
 from arklex.env.tools.tools import register_tool
+from arklex.env.tools.hubspot.utils import authenticate_hubspot
 from arklex.utils.exceptions import ToolExecutionError
+from arklex.env.tools.hubspot._exception_prompt import HubspotExceptionPrompt
 from arklex.utils.logging_utils import LogContext
 
 log_context = LogContext(__name__)
@@ -25,7 +24,7 @@ log_context = LogContext(__name__)
 description: str = "Create a ticket for the existing customer when the customer has some problem about the specific product."
 
 # List of required parameters for the tool
-slots: list[dict[str, Any]] = [
+slots: List[Dict[str, Any]] = [
     {
         "name": "cus_cid",
         "type": "str",
@@ -44,7 +43,7 @@ slots: list[dict[str, Any]] = [
 ]
 
 # List of output parameters for the tool
-outputs: list[dict[str, Any]] = [
+outputs: List[Dict[str, Any]] = [
     {
         "name": "ticket_id",
         "type": "str",
@@ -54,7 +53,7 @@ outputs: list[dict[str, Any]] = [
 
 
 @register_tool(description, slots, outputs)
-def create_ticket(cus_cid: str, issue: str, **kwargs: dict[str, Any]) -> str:
+def create_ticket(cus_cid: str, issue: str, **kwargs: Dict[str, Any]) -> str:
     """
     Create a support ticket for a customer and associate it with their contact record.
 
@@ -76,7 +75,7 @@ def create_ticket(cus_cid: str, issue: str, **kwargs: dict[str, Any]) -> str:
 
     timestamp: str = datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ")[:-3] + "Z"
     subject_name: str = "Issue of " + cus_cid + " at " + timestamp
-    ticket_properties: dict[str, Any] = {
+    ticket_properties: Dict[str, Any] = {
         "hs_pipeline_stage": 1,
         "content": issue,
         "subject": subject_name,
@@ -88,9 +87,9 @@ def create_ticket(cus_cid: str, issue: str, **kwargs: dict[str, Any]) -> str:
         ticket_creation_response: Any = api_client.crm.tickets.basic_api.create(
             simple_public_object_input_for_create=ticket_for_create
         )
-        ticket_creation_response: dict[str, Any] = ticket_creation_response.to_dict()
+        ticket_creation_response: Dict[str, Any] = ticket_creation_response.to_dict()
         ticket_id: str = ticket_creation_response["id"]
-        association_spec: list[AssociationSpec] = [
+        association_spec: List[AssociationSpec] = [
             AssociationSpec(
                 association_category="HUBSPOT_DEFINED", association_type_id=15
             )

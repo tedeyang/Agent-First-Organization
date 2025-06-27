@@ -60,7 +60,7 @@ from .core import Generator
 
 # Make UI components optional to avoid dependency issues
 try:
-    from .ui import InputModal, TaskEditorApp
+    from .ui import TaskEditorApp, InputModal
 
     _UI_COMPONENTS = ["TaskEditorApp", "InputModal"]
 except ImportError:
@@ -82,7 +82,11 @@ except ImportError:
     _UI_COMPONENTS = []
 
 # Import specialized modules for advanced usage
-from . import core, docs, formatting, tasks, ui
+from . import core
+from . import ui
+from . import tasks
+from . import docs
+from . import formatting
 
 __all__ = [
     "Generator",

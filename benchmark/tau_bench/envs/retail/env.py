@@ -1,22 +1,22 @@
 # Copyright Sierra
 
-
 from benchmark.tau_bench.envs.base import Env
 from benchmark.tau_bench.envs.retail.data import load_data
 from benchmark.tau_bench.envs.retail.rules import RULES
 from benchmark.tau_bench.envs.retail.tools import ALL_TOOLS
 from benchmark.tau_bench.envs.retail.wiki import WIKI
+from typing import Optional, Union
 from benchmark.tau_bench.envs.user import UserStrategy
 
 
 class MockRetailDomainEnv(Env):
     def __init__(
         self,
-        user_strategy: str | UserStrategy = UserStrategy.LLM,
+        user_strategy: Union[str, UserStrategy] = UserStrategy.LLM,
         user_model: str = "gpt-4o",
-        user_provider: str | None = None,
+        user_provider: Optional[str] = None,
         task_split: str = "test",
-        task_index: int | None = None,
+        task_index: Optional[int] = None,
     ):
         match task_split:
             case "test":

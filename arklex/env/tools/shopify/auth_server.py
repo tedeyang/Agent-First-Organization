@@ -20,17 +20,17 @@ Module Name: auth_server
 This file contains the code for a Flask server that listens for an auth token from a Shopify app.
 """
 
-import threading
-import time
-from collections.abc import Callable
-
 import ngrok
-from dotenv import load_dotenv
+import threading
 from flask import Flask, request
+import time
+from typing import Optional, Callable
+
+from dotenv import load_dotenv
 
 load_dotenv()
 
-auth_token: str | None = None
+auth_token: Optional[str] = None
 
 
 def start_auth_server() -> None:
@@ -63,7 +63,9 @@ def start_auth_server() -> None:
             log_file.write(f"Received at {time.ctime()}: {token}\n")
 
         # Shut down the Flask server
-        shutdown_func: Callable | None = request.environ.get("werkzeug.server.shutdown")
+        shutdown_func: Optional[Callable] = request.environ.get(
+            "werkzeug.server.shutdown"
+        )
         if shutdown_func:
             shutdown_func()
 

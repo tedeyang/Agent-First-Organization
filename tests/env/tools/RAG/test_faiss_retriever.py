@@ -1,14 +1,12 @@
-import pickle
-from unittest.mock import Mock, patch
-
 import pytest
+from unittest.mock import patch, Mock
+import pickle
 from langchain_core.documents import Document
-
 from arklex.env.tools.RAG.retrievers.faiss_retriever import (
     FaissRetrieverExecutor,
     RetrieveEngine,
 )
-from arklex.utils.graph_state import LLMConfig, MessageState
+from arklex.utils.graph_state import MessageState, LLMConfig
 
 
 @pytest.fixture

@@ -5,9 +5,10 @@ ensuring all functionality is properly tested including error handling and edge 
 """
 
 import pytest
-
+from unittest.mock import Mock, patch, MagicMock
 from arklex.env.workers.worker import BaseWorker, register_worker
-from arklex.utils.graph_state import MessageState, ResourceRecord, StatusEnum
+from arklex.utils.graph_state import MessageState, StatusEnum, ResourceRecord
+from arklex.utils.exceptions import ValidationError
 
 
 class TestRegisterWorkerDecorator:

@@ -6,14 +6,14 @@ results. The worker uses a state graph to manage the workflow of search operatio
 response generation, integrating with the framework's tool generation system.
 """
 
-from typing import Any
+from typing import Any, Dict
 
-from langgraph.graph import START, StateGraph
+from langgraph.graph import StateGraph, START
 
-from arklex.env.tools.RAG.search import SearchEngine
-from arklex.env.tools.utils import ToolGenerator
 from arklex.env.workers.worker import BaseWorker, register_worker
 from arklex.utils.graph_state import MessageState
+from arklex.env.tools.utils import ToolGenerator
+from arklex.env.tools.RAG.search import SearchEngine
 from arklex.utils.logging_utils import LogContext
 
 log_context = LogContext(__name__)
@@ -40,7 +40,7 @@ class SearchWorker(BaseWorker):
         workflow.add_edge("search_engine", "tool_generator")
         return workflow
 
-    def _execute(self, msg_state: MessageState, **kwargs: Any) -> dict[str, Any]:
+    def _execute(self, msg_state: MessageState, **kwargs: Any) -> Dict[str, Any]:
         graph = self.action_graph.compile()
-        result: dict[str, Any] = graph.invoke(msg_state)
+        result: Dict[str, Any] = graph.invoke(msg_state)
         return result

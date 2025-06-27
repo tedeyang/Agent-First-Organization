@@ -6,10 +6,11 @@ ensuring all functionality is properly tested including import handling and UI c
 
 import importlib
 import sys
-from collections.abc import Generator as TypeGenerator
+from typing import Generator as TypeGenerator
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 
 # --- Fixtures ---
 
@@ -123,7 +124,7 @@ class TestUIComponentsAvailability:
         reload_generator_module: TypeGenerator,
     ) -> None:
         """Should provide UI components when textual is installed."""
-        from arklex.orchestrator.generator import InputModal, TaskEditorApp
+        from arklex.orchestrator.generator import TaskEditorApp, InputModal
 
         assert TaskEditorApp is not None
         assert InputModal is not None
@@ -135,7 +136,7 @@ class TestUIComponentsAvailability:
         reload_generator_module: TypeGenerator,
     ) -> None:
         """Should provide placeholder classes when textual is not installed."""
-        from arklex.orchestrator.generator import InputModal, TaskEditorApp
+        from arklex.orchestrator.generator import TaskEditorApp, InputModal
 
         assert TaskEditorApp is not None
         assert InputModal is not None
@@ -153,7 +154,7 @@ class TestUIComponentsAvailability:
         reload_generator_module: TypeGenerator,
     ) -> None:
         """Should raise ImportError when placeholder UI components are instantiated."""
-        from arklex.orchestrator.generator import InputModal, TaskEditorApp
+        from arklex.orchestrator.generator import TaskEditorApp, InputModal
 
         try:
             TaskEditorApp()
@@ -170,7 +171,7 @@ class TestUIComponentsAvailability:
         reload_generator_module: TypeGenerator,
     ) -> None:
         """Should handle ImportError during UI component import."""
-        from arklex.orchestrator.generator import InputModal, TaskEditorApp
+        from arklex.orchestrator.generator import TaskEditorApp, InputModal
 
         assert TaskEditorApp is not None
         assert InputModal is not None
@@ -188,7 +189,7 @@ class TestUIComponentsAvailability:
         reload_generator_module: TypeGenerator,
     ) -> None:
         """Should handle other exceptions during UI component import."""
-        from arklex.orchestrator.generator import InputModal, TaskEditorApp
+        from arklex.orchestrator.generator import TaskEditorApp, InputModal
 
         assert TaskEditorApp is not None
         assert InputModal is not None
@@ -224,7 +225,7 @@ class TestModuleStructure:
 
     def test_module_imports_specialized_modules(self) -> None:
         """Should import all specialized submodules."""
-        from arklex.orchestrator.generator import core, docs, formatting, tasks, ui
+        from arklex.orchestrator.generator import core, ui, tasks, docs, formatting
 
         assert core is not None
         assert ui is not None
@@ -264,7 +265,8 @@ class TestErrorHandling:
         reload_generator_module: TypeGenerator,
     ) -> None:
         """Should gracefully degrade when UI components are not available."""
-        from arklex.orchestrator.generator import InputModal, TaskEditorApp
+        import arklex.orchestrator.generator
+        from arklex.orchestrator.generator import TaskEditorApp, InputModal
 
         assert TaskEditorApp is not None
         assert InputModal is not None
@@ -291,10 +293,10 @@ class TestModuleIntegration:
         from arklex.orchestrator.generator import (
             Generator,
             core,
+            ui,
+            tasks,
             docs,
             formatting,
-            tasks,
-            ui,
         )
 
         assert Generator is not None
@@ -315,9 +317,9 @@ class TestModuleIntegration:
     def test_submodule_imports_work(self) -> None:
         """Should allow submodule imports to work correctly."""
         from arklex.orchestrator.generator.core import Generator
+        from arklex.orchestrator.generator.tasks import task_generator
         from arklex.orchestrator.generator.docs import document_loader
         from arklex.orchestrator.generator.formatting import task_graph_formatter
-        from arklex.orchestrator.generator.tasks import task_generator
 
         assert Generator is not None
         assert task_generator is not None
@@ -478,7 +480,7 @@ class TestModuleIntegration:
         reload_generator_module: TypeGenerator,
     ) -> None:
         """Should raise ImportError when placeholder classes are instantiated."""
-        from arklex.orchestrator.generator import InputModal, TaskEditorApp
+        from arklex.orchestrator.generator import TaskEditorApp, InputModal
 
         # Only test ImportError if placeholder is present
         if "Placeholder" in (TaskEditorApp.__doc__ or ""):
@@ -494,7 +496,7 @@ class TestModuleIntegration:
         reload_generator_module: TypeGenerator,
     ) -> None:
         """Should raise ImportError when placeholder classes are instantiated with arguments."""
-        from arklex.orchestrator.generator import InputModal, TaskEditorApp
+        from arklex.orchestrator.generator import TaskEditorApp, InputModal
 
         # Only test ImportError if placeholder is present
         if "Placeholder" in (TaskEditorApp.__doc__ or ""):
@@ -510,7 +512,7 @@ class TestModuleIntegration:
         reload_generator_module: TypeGenerator,
     ) -> None:
         """Should have proper docstrings for placeholder classes."""
-        from arklex.orchestrator.generator import InputModal, TaskEditorApp
+        from arklex.orchestrator.generator import TaskEditorApp, InputModal
 
         # Only assert docstring if placeholder is present
         if "Placeholder" in (TaskEditorApp.__doc__ or ""):

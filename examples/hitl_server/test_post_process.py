@@ -1,13 +1,12 @@
 # Go to the parent folder of this file (hitl_server), then Run `pytest test_post_process.py` to test the code in this file.
 import io
 import json
-import logging
 import os
+import logging
 from contextlib import redirect_stdout
-from typing import Any
+from typing import Any, Dict, List, Tuple
 
 import pytest
-
 from arklex.env.env import Environment
 from arklex.orchestrator.NLU.services.model_service import ModelService
 from run import get_api_bot_response
@@ -21,7 +20,7 @@ with open("test_cases_post_process.json", encoding="utf-8") as f:
 @pytest.fixture(scope="session")
 def config_and_env(
     request: pytest.FixtureRequest,
-) -> tuple[dict[str, Any], Environment, str]:
+) -> Tuple[Dict[str, Any], Environment, str]:
     """Load config and environment once per test session."""
     with open("taskgraph.json", encoding="utf-8") as f:
         config = json.load(f)
@@ -60,7 +59,7 @@ def config_and_env(
 
 class TestLiveChatDetection:
     def setup_method(self) -> None:
-        self.params: dict[str, Any] = {}
+        self.params: Dict[str, Any] = {}
 
     # run the same test function with multiple sets of arguments
     @pytest.mark.parametrize(
@@ -70,8 +69,8 @@ class TestLiveChatDetection:
     )
     def test_live_chat_detection(
         self,
-        test_case: dict[str, Any],
-        config_and_env: tuple[dict[str, Any], Environment, str],
+        test_case: Dict[str, Any],
+        config_and_env: Tuple[Dict[str, Any], Environment, str],
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         config, env, start_message = config_and_env
@@ -79,7 +78,7 @@ class TestLiveChatDetection:
         expected_live_chat = test_case["expect_live_chat"]
         expected_log_message = test_case.get("expect_log_message")
 
-        history: list[dict[str, str]] = [
+        history: List[Dict[str, str]] = [
             {"role": "assistant", "content": start_message}
         ]
 
@@ -110,7 +109,7 @@ class TestLiveChatDetection:
 
         # prompt user to chat with human assistant
         if expected_live_chat:
-            assert output == TRIGGER_LIVE_CHAT_PROMPT
+            assert TRIGGER_LIVE_CHAT_PROMPT == output
 
         # for irrelevant questions
         if expected_log_message:

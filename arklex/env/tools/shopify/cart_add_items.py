@@ -7,21 +7,21 @@ Module Name: cart_add_items
 This file contains the code for adding items to a shopping cart.
 """
 
-import inspect
-import json
-from typing import Any
+from typing import Any, Dict, List
 
+import json
+import inspect
 import requests
 
-from arklex.env.tools.shopify._exception_prompt import ShopifyExceptionPrompt
-from arklex.env.tools.shopify.utils_cart import *
-from arklex.env.tools.shopify.utils_nav import *
 from arklex.env.tools.shopify.utils_slots import (
     ShopifyCartAddItemsSlots,
     ShopifyOutputs,
 )
-from arklex.env.tools.tools import register_tool
+from arklex.env.tools.shopify.utils_cart import *
+from arklex.env.tools.shopify.utils_nav import *
 from arklex.utils.exceptions import ToolExecutionError
+from arklex.env.tools.tools import register_tool
+from arklex.env.tools.shopify._exception_prompt import ShopifyExceptionPrompt
 
 description = "Add items to user's shopping cart."
 slots = ShopifyCartAddItemsSlots.get_all_slots()
@@ -29,7 +29,7 @@ outputs = [ShopifyOutputs.CART_ADD_ITEMS_DETAILS]
 
 
 @register_tool(description, slots, outputs)
-def cart_add_items(cart_id: str, product_variant_ids: list[str], **kwargs: Any) -> str:
+def cart_add_items(cart_id: str, product_variant_ids: List[str], **kwargs: Any) -> str:
     """
     Add items to a shopping cart.
 
@@ -50,13 +50,13 @@ def cart_add_items(cart_id: str, product_variant_ids: list[str], **kwargs: Any) 
     func_name = inspect.currentframe().f_code.co_name
     auth = authorify_storefront(kwargs)
 
-    variable: dict[str, Any] = {
+    variable: Dict[str, Any] = {
         "cartId": cart_id,
         "lines": [
             {"merchandiseId": pv_id, "quantity": 1} for pv_id in product_variant_ids
         ],
     }
-    headers: dict[str, str] = {
+    headers: Dict[str, str] = {
         "X-Shopify-Storefront-Access-Token": auth["storefront_token"]
     }
     query = """

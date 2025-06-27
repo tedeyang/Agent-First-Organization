@@ -7,33 +7,33 @@ file formats and provides utilities for handling different types of content sour
 ensuring consistent processing and storage of loaded content.
 """
 
-import base64
-import os
-import pickle
 import time
+from pathlib import Path
+from typing import List
+import requests
+import pickle
 import uuid
 from enum import Enum
-from pathlib import Path
-from urllib.parse import urljoin
+import os
 
-import networkx as nx
-import requests
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium import webdriver
 from bs4 import BeautifulSoup
+from urllib.parse import urljoin
+import networkx as nx
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.document_loaders import (
-    PyPDFLoader,
-    TextLoader,
-    UnstructuredExcelLoader,
-    UnstructuredMarkdownLoader,
-    UnstructuredPowerPointLoader,
-    UnstructuredWordDocumentLoader,
-)
 from langchain_core.documents import Document
 from mistralai import Mistral
-from selenium import webdriver
+from langchain_community.document_loaders import (
+    PyPDFLoader,
+    UnstructuredWordDocumentLoader,
+    UnstructuredExcelLoader,
+    UnstructuredMarkdownLoader,
+    TextLoader,
+    UnstructuredPowerPointLoader,
+)
+import base64
 from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
-
 from arklex.utils.logging_utils import LogContext
 
 log_context = LogContext(__name__)
@@ -124,7 +124,7 @@ class Loader:
     def __init__(self) -> None:
         pass
 
-    def to_crawled_url_objs(self, url_list: list[str]) -> list[CrawledObject]:
+    def to_crawled_url_objs(self, url_list: List[str]) -> List[CrawledObject]:
         """Convert a list of URLs to CrawledObject instances.
 
         This function takes a list of URLs and converts them into CrawledObject instances
@@ -140,7 +140,7 @@ class Loader:
         crawled_url_objs = self.crawl_urls(url_objs)
         return crawled_url_objs
 
-    def crawl_urls(self, url_objects: list[DocObject]) -> list[CrawledObject]:
+    def crawl_urls(self, url_objects: list[DocObject]) -> List[CrawledObject]:
         """Crawl a list of URLs and extract their content.
 
         This function uses Selenium WebDriver to crawl a list of URLs and extract their
@@ -180,7 +180,7 @@ class Loader:
         )
         return docs
 
-    def _crawl_with_selenium(self, url_objects: list[DocObject]) -> list[CrawledObject]:
+    def _crawl_with_selenium(self, url_objects: list[DocObject]) -> List[CrawledObject]:
         """Crawl URLs using Selenium WebDriver with enhanced stealth options."""
         options = webdriver.ChromeOptions()
         options.add_argument("--no-sandbox")
@@ -238,7 +238,7 @@ class Loader:
                 for url_obj in url_objects
             ]
 
-        docs: list[CrawledObject] = []
+        docs: List[CrawledObject] = []
         start_time = time.time()
         max_time_per_url = 30  # Maximum 30 seconds per URL
         successful_crawls = 0
@@ -358,7 +358,7 @@ class Loader:
         )
         return docs
 
-    def _crawl_with_requests(self, url_objects: list[DocObject]) -> list[CrawledObject]:
+    def _crawl_with_requests(self, url_objects: list[DocObject]) -> List[CrawledObject]:
         """Fallback crawling using requests library."""
         headers = {
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -369,7 +369,7 @@ class Loader:
             "Upgrade-Insecure-Requests": "1",
         }
 
-        docs: list[CrawledObject] = []
+        docs: List[CrawledObject] = []
         successful_crawls = 0
 
         for i, url_obj in enumerate(url_objects, 1):
@@ -431,7 +431,7 @@ class Loader:
 
     def _create_mock_content_from_urls(
         self, url_objects: list[DocObject]
-    ) -> list[CrawledObject]:
+    ) -> List[CrawledObject]:
         """Create mock content from URLs when web crawling fails completely.
 
         This method generates basic content based on the URL structure to ensure
@@ -443,7 +443,7 @@ class Loader:
         Returns:
             List[CrawledObject]: List of CrawledObject instances with mock content.
         """
-        docs: list[CrawledObject] = []
+        docs: List[CrawledObject] = []
 
         for url_obj in url_objects:
             url = url_obj.source
@@ -519,7 +519,7 @@ class Loader:
             source_type=SourceType.WEB,
         )
 
-    def get_all_urls(self, base_url: str, max_num: int) -> list[str]:
+    def get_all_urls(self, base_url: str, max_num: int) -> List[str]:
         """Get all URLs from a base URL up to a maximum number.
 
         This function performs a breadth-first search of URLs starting from a base URL,
@@ -580,7 +580,7 @@ class Loader:
         )
         return sorted(urls_visited[:max_num])
 
-    def get_outsource_urls(self, curr_url: str, base_url: str) -> list[str]:
+    def get_outsource_urls(self, curr_url: str, base_url: str) -> List[str]:
         """Get outsource URLs from a given URL.
 
         This function extracts URLs from a webpage that point to external resources.
@@ -644,8 +644,8 @@ class Loader:
         return False
 
     def get_candidates_websites(
-        self, urls: list[CrawledObject], top_k: int
-    ) -> list[CrawledObject]:
+        self, urls: List[CrawledObject], top_k: int
+    ) -> List[CrawledObject]:
         """Get candidate websites based on content relevance.
 
         This function analyzes the content of crawled URLs and selects the most
@@ -689,7 +689,7 @@ class Loader:
         urls_cleaned = [CrawledObject.from_dict(doc) for doc in urls_candidates if doc]
         return urls_cleaned
 
-    def to_crawled_text(self, text_list: list[str]) -> list[CrawledObject]:
+    def to_crawled_text(self, text_list: List[str]) -> List[CrawledObject]:
         """Convert a list of text strings to CrawledObject instances.
 
         This function creates CrawledObject instances from a list of text strings,
@@ -713,7 +713,7 @@ class Loader:
             crawled_local_objs.append(crawled_obj)
         return crawled_local_objs
 
-    def to_crawled_local_objs(self, file_list: list[str]) -> list[CrawledObject]:
+    def to_crawled_local_objs(self, file_list: List[str]) -> List[CrawledObject]:
         """Convert a list of local files to CrawledObject instances.
 
         This function processes local files and creates CrawledObject instances
@@ -798,7 +798,7 @@ class Loader:
             elif file_type == "html":
                 # TODO : Consider replacing this logic with the Unstructured HTML Loader.
                 # Would need to be done in crawl_urls too.
-                html = open(file_path, encoding="utf-8").read()
+                html = open(file_path, "r", encoding="utf-8").read()
                 soup = BeautifulSoup(html, "html.parser")
 
                 text_list = []
@@ -870,7 +870,7 @@ class Loader:
             )
 
     @staticmethod
-    def save(file_path: str, docs: list[CrawledObject]) -> None:
+    def save(file_path: str, docs: List[CrawledObject]) -> None:
         """Save a list of CrawledObject instances to a file.
 
         This function serializes and saves CrawledObject instances to a file
@@ -884,7 +884,7 @@ class Loader:
             pickle.dump(docs, f)
 
     @classmethod
-    def chunk(cls, doc_objs: list[CrawledObject]) -> list[CrawledObject]:
+    def chunk(cls, doc_objs: List[CrawledObject]) -> List[CrawledObject]:
         """Split documents into smaller chunks.
 
         This function splits large documents into smaller, more manageable chunks

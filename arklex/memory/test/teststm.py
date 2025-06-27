@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any
+from typing import Any, Dict, List, Tuple
 
 from arklex.memory.core import ShortTermMemory
 from arklex.utils.graph_state import BotConfig, LLMConfig, MessageState, ResourceRecord
@@ -171,7 +171,7 @@ sample_records = [
 
 
 # Shopify-style grouped records function
-def get_shopify_records() -> list[list[ResourceRecord]]:
+def get_shopify_records() -> List[List[ResourceRecord]]:
     """
     Returns sample ResourceRecord groups simulating Shopify ecommerce assistant turns.
     """
@@ -188,7 +188,7 @@ def get_shopify_records() -> list[list[ResourceRecord]]:
 
 
 # Test configuration
-TEST_CONFIG: dict[str, Any] = {
+TEST_CONFIG: Dict[str, Any] = {
     "model": MODEL,
     "role": "test_assistant",
     "user_objective": "Test the short term memory functionality",
@@ -230,13 +230,13 @@ def init_test_state() -> MessageState:
 def run_test_case(
     case_name: str,
     description: str,
-    trajectory: list[list[ResourceRecord]],
+    trajectory: List[List[ResourceRecord]],
     chat_history: str,
     query: str,
     expected_intent: bool,
     expected_record: bool,
     llm_config: LLMConfig,
-) -> tuple[bool, bool]:
+) -> Tuple[bool, bool]:
     """Helper function to run a test case with standardized format.
 
     Args:

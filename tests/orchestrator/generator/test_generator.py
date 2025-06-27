@@ -5,22 +5,24 @@ and reusable task components of the Arklex framework.
 """
 
 import dataclasses
-from unittest.mock import Mock
+from typing import Dict, List
 
 import pytest
+from unittest.mock import Mock
 
+from arklex.orchestrator.generator.tasks.task_generator import (
+    TaskGenerator,
+    TaskDefinition,
+)
 from arklex.orchestrator.generator.tasks.best_practice_manager import (
-    BestPractice,
     BestPracticeManager,
+    BestPractice,
 )
 from arklex.orchestrator.generator.tasks.reusable_task_manager import (
-    ReusableTask,
     ReusableTaskManager,
+    ReusableTask,
 )
-from arklex.orchestrator.generator.tasks.task_generator import (
-    TaskDefinition,
-    TaskGenerator,
-)
+
 
 # --- Mock Classes ---
 
@@ -66,7 +68,7 @@ def always_valid_mock_model() -> Mock:
 
 
 @pytest.fixture
-def sample_objective() -> dict:
+def sample_objective() -> Dict:
     """Create a sample objective for testing."""
     return {
         "description": "Create a new product in the store",
@@ -76,7 +78,7 @@ def sample_objective() -> dict:
 
 
 @pytest.fixture
-def sample_tasks() -> list[dict]:
+def sample_tasks() -> List[Dict]:
     """Create sample tasks for testing."""
     return [
         {
@@ -121,7 +123,7 @@ def sample_tasks() -> list[dict]:
 
 
 @pytest.fixture
-def sample_practices() -> list[BestPractice]:
+def sample_practices() -> List[BestPractice]:
     """Create sample best practices for testing."""
     return [
         BestPractice(
@@ -197,7 +199,7 @@ def reusable_template() -> ReusableTask:
 
 
 @pytest.fixture
-def sample_tasks_dict() -> list[dict]:
+def sample_tasks_dict() -> List[Dict]:
     """Sample tasks as dicts for reusable task manager tests."""
     return [
         {
@@ -242,7 +244,7 @@ def sample_tasks_dict() -> list[dict]:
 
 
 @pytest.fixture
-def sample_practices_dict() -> list[dict]:
+def sample_practices_dict() -> List[Dict]:
     """Sample best practices as dicts for best practice manager tests."""
     return [
         {
@@ -321,7 +323,7 @@ class TestTaskGenerator:
         assert validated_tasks[0]["id"] == "test1"
 
     def test_establish_relationships(
-        self, task_generator: TaskGenerator, sample_tasks_dict: list[dict]
+        self, task_generator: TaskGenerator, sample_tasks_dict: List[Dict]
     ) -> None:
         """Should establish dependencies between tasks."""
         tasks = [dict(t) for t in sample_tasks_dict]
@@ -329,7 +331,7 @@ class TestTaskGenerator:
         assert tasks[1]["dependencies"] == ["task1"]
 
     def test_build_hierarchy(
-        self, task_generator: TaskGenerator, sample_tasks_dict: list[dict]
+        self, task_generator: TaskGenerator, sample_tasks_dict: List[Dict]
     ) -> None:
         """Should build hierarchy levels for tasks."""
         tasks = [dict(t) for t in sample_tasks_dict]
@@ -341,7 +343,7 @@ class TestBestPracticeManager:
     """Test BestPracticeManager core logic and validation."""
 
     def test_generate_best_practices(
-        self, best_practice_manager: BestPracticeManager, sample_tasks_dict: list[dict]
+        self, best_practice_manager: BestPracticeManager, sample_tasks_dict: List[Dict]
     ) -> None:
         """Should generate best practices from tasks."""
         practices = best_practice_manager.generate_best_practices(sample_tasks_dict)

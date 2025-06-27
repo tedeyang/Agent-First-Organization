@@ -1,23 +1,21 @@
-from unittest.mock import Mock, patch
-
 import pytest
-
+from unittest.mock import Mock, patch, MagicMock
 from arklex.orchestrator.post_process import (
-    RAG_NODES_STEPS,
-    TRIGGER_LIVE_CHAT_PROMPT,
+    post_process_response,
     _build_context,
-    _extract_confidence_from_nested_dict,
     _extract_links,
     _extract_links_from_nested_dict,
-    _include_resource,
-    _is_question_relevant,
-    _live_chat_verifier,
     _remove_invalid_links,
     _rephrase_answer,
-    post_process_response,
+    _include_resource,
+    RAG_NODES_STEPS,
+    _live_chat_verifier,
+    _extract_confidence_from_nested_dict,
+    _is_question_relevant,
     should_trigger_handoff,
+    TRIGGER_LIVE_CHAT_PROMPT,
 )
-from arklex.utils.graph_state import MessageState, Metadata, Params, ResourceRecord
+from arklex.utils.graph_state import MessageState, Params, ResourceRecord, Metadata
 
 
 @pytest.fixture

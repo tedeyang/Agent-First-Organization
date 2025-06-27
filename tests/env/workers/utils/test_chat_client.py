@@ -4,14 +4,18 @@ This module provides extensive test coverage for the ChatClient class,
 including all methods, edge cases, error conditions, and async scenarios.
 """
 
-import json
-import runpy
-from concurrent.futures import Future
-from unittest.mock import AsyncMock, Mock, patch
-
 import pytest
+import asyncio
+import json
+import sys
+from unittest.mock import Mock, patch, AsyncMock, MagicMock
+from concurrent.futures import Future
+import runpy
+import subprocess
+import os
 
 from arklex.env.workers.utils.chat_client import ChatClient
+
 
 # =============================================================================
 # FIXTURES - Core Test Data

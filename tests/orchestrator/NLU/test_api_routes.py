@@ -1,11 +1,10 @@
-from unittest.mock import AsyncMock, patch
-
 import pytest
+from unittest.mock import patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
-import arklex.orchestrator.NLU.api.routes as routes
 from arklex.utils.exceptions import ValidationError
+import arklex.orchestrator.NLU.api.routes as routes
+from unittest.mock import AsyncMock
 
 
 def test_import_routes_module() -> None:

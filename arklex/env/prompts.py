@@ -44,6 +44,7 @@ Usage:
     )
 """
 
+from typing import Dict
 from dataclasses import dataclass
 
 
@@ -61,7 +62,7 @@ class BotConfig:
     language: str
 
 
-def load_prompts(bot_config: BotConfig) -> dict[str, str]:
+def load_prompts(bot_config: BotConfig) -> Dict[str, str]:
     """Load prompt templates based on bot configuration.
 
     This function loads the appropriate set of prompt templates based on the
@@ -80,7 +81,7 @@ def load_prompts(bot_config: BotConfig) -> dict[str, str]:
         Each language has its own set of specialized prompts for different
         use cases and interaction modes.
     """
-    prompts: dict[str, str]
+    prompts: Dict[str, str]
     if bot_config.language == "EN":
         ### ================================== Generator Prompts ================================== ###
         prompts = {

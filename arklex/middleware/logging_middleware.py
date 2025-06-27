@@ -5,22 +5,21 @@ including request tracking, timing, and error handling with retry mechanisms.
 """
 
 import time
-import traceback
 import uuid
-from collections.abc import Callable
-
+import traceback
+from typing import Callable, Tuple
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from arklex.utils.exceptions import (
-    NetworkError,
-    RetryableError,
-    ServiceUnavailableError,
-    TimeoutError,
-)
 from arklex.utils.logging_utils import LogContext
+from arklex.utils.exceptions import (
+    RetryableError,
+    NetworkError,
+    TimeoutError,
+    ServiceUnavailableError,
+)
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
@@ -146,7 +145,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
     )
     async def _process_request_with_retry(
         self, request: Request, call_next: Callable, start_time: float
-    ) -> tuple[Response, float]:
+    ) -> Tuple[Response, float]:
         """Process the request with retry mechanism for retryable errors.
 
         Args:

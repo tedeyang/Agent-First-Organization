@@ -8,14 +8,13 @@ retrieval of relevant documents.
 """
 
 from functools import partial
-from typing import Any
+from typing import Any, Dict, Optional
+from langgraph.graph import StateGraph, START
 
-from langgraph.graph import START, StateGraph
-
-from arklex.env.tools.RAG.retrievers.milvus_retriever import RetrieveEngine
-from arklex.env.tools.utils import ToolGenerator
 from arklex.env.workers.worker import BaseWorker, register_worker
 from arklex.utils.graph_state import MessageState
+from arklex.env.tools.utils import ToolGenerator
+from arklex.env.tools.RAG.retrievers.milvus_retriever import RetrieveEngine
 from arklex.utils.logging_utils import LogContext
 
 log_context = LogContext(__name__)
@@ -33,15 +32,15 @@ class MilvusRAGWorker(BaseWorker):
     ) -> None:
         super().__init__()
         self.stream_response: bool = stream_response
-        self.tags: dict[str, Any] = {}
-        self.action_graph: StateGraph | None = None
+        self.tags: Dict[str, Any] = {}
+        self.action_graph: Optional[StateGraph] = None
 
     def choose_tool_generator(self, state: MessageState) -> str:
         if self.stream_response and state.is_stream:
             return "stream_tool_generator"
         return "tool_generator"
 
-    def _create_action_graph(self, tags: dict[str, Any]) -> StateGraph:
+    def _create_action_graph(self, tags: Dict[str, Any]) -> StateGraph:
         workflow: StateGraph = StateGraph(MessageState)
         # Create a partial function with the extra argument bound
         retriever_with_args = partial(RetrieveEngine.milvus_retrieve, tags=tags)
@@ -56,9 +55,9 @@ class MilvusRAGWorker(BaseWorker):
         workflow.add_conditional_edges("retriever", self.choose_tool_generator)
         return workflow
 
-    def _execute(self, msg_state: MessageState, **kwargs: Any) -> dict[str, Any]:
+    def _execute(self, msg_state: MessageState, **kwargs: Any) -> Dict[str, Any]:
         self.tags = kwargs.get("tags", {})
         self.action_graph = self._create_action_graph(self.tags)
         graph = self.action_graph.compile()
-        result: dict[str, Any] = graph.invoke(msg_state)
+        result: Dict[str, Any] = graph.invoke(msg_state)
         return result

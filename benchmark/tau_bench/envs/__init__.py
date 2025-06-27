@@ -1,18 +1,17 @@
 # Copyright Sierra
 
 from typing import Optional, Union
-
 from benchmark.tau_bench.envs.base import Env
 from benchmark.tau_bench.envs.user import UserStrategy
 
 
 def get_env(
     env_name: str,
-    user_strategy: str | UserStrategy,
+    user_strategy: Union[str, UserStrategy],
     user_model: str,
     task_split: str,
-    user_provider: str | None = None,
-    task_index: int | None = None,
+    user_provider: Optional[str] = None,
+    task_index: Optional[int] = None,
 ) -> Env:
     if env_name == "retail":
         from benchmark.tau_bench.envs.retail import MockRetailDomainEnv

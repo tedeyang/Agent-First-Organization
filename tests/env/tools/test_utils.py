@@ -4,20 +4,21 @@ This module contains comprehensive test cases for tool utility functions,
 including prompt template generation, tool generation, and execution tracing.
 """
 
-from queue import Queue
+from typing import Dict, Any
 from unittest.mock import Mock, patch
+from queue import Queue
 
 import pytest
 
 from arklex.env.tools.utils import (
-    ToolGenerator,
-    execute_tool,
     get_prompt_template,
+    ToolGenerator,
     trace,
+    execute_tool,
 )
-from arklex.types import StreamType
-from arklex.utils.exceptions import ToolError
+from arklex.types import EventType, StreamType
 from arklex.utils.graph_state import MessageState
+from arklex.utils.exceptions import ToolError
 
 
 class TestGetPromptTemplate:

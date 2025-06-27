@@ -1,14 +1,13 @@
 # Copyright Sierra
 
-from typing import Any
-
+from typing import Any, Dict
 from benchmark.tau_bench.envs.tool import Tool
 
 
 class SendCertificate(Tool):
     @staticmethod
     def invoke(
-        data: dict[str, Any],
+        data: Dict[str, Any],
         user_id: str,
         amount: int,
     ) -> str:
@@ -29,7 +28,7 @@ class SendCertificate(Tool):
                 return f"Certificate {payment_id} added to user {user_id} with amount {amount}."
 
     @staticmethod
-    def get_info() -> dict[str, Any]:
+    def get_info() -> Dict[str, Any]:
         return {
             "type": "function",
             "function": {

@@ -4,9 +4,8 @@ This module provides extensive test coverage for the ReusableTaskManager class,
 including all methods, edge cases, error conditions, and the ReusableTask dataclass.
 """
 
-from unittest.mock import Mock, patch
-
 import pytest
+from unittest.mock import Mock, patch
 
 from arklex.orchestrator.generator.tasks.reusable_task_manager import (
     ReusableTask,

@@ -12,10 +12,12 @@ Module Name: chat_client
 This file contains the code for setting up a chat client that can connect to a chat server and send and receive messages.
 """
 
-import argparse
+import sys
 import asyncio
 import json
-import sys
+import argparse
+from typing import Dict, List, Optional
+
 import threading
 from concurrent.futures import Future
 
@@ -26,47 +28,47 @@ async_result: Future = Future()
 class ChatClient:
     """Chat client class"""
 
-    reader: asyncio.StreamReader | None = None
-    writer: asyncio.StreamWriter | None = None
+    reader: Optional[asyncio.StreamReader] = None
+    writer: Optional[asyncio.StreamWriter] = None
 
     def __init__(
         self,
         server_address: str = "127.0.0.1",
         server_port: str = "8888",
         *,
-        name: str | None = None,
+        name: Optional[str] = None,
         mode: str = "c",
         debug: bool = False,
     ) -> None:
         self.server_address: str = server_address
         self.server_port: str = server_port
-        self.name: str | None = name
+        self.name: Optional[str] = name
         self.mode: str = mode
 
         self.timeout: int = 100000
         self.debug: bool = debug
 
-        self.logs: list[dict[str, str]] = []
+        self.logs: List[Dict[str, str]] = []
 
-        self.async_thread: threading.Thread | None = None
+        self.async_thread: Optional[threading.Thread] = None
         self.async_result: Future = Future()
 
     # Thread for async event loop
-    def async_thread_worker(self, message: str | None) -> None:
+    def async_thread_worker(self, message: Optional[str]) -> None:
         loop: asyncio.AbstractEventLoop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
         result: str = loop.run_until_complete(self.main(message))
         self.async_result.set_result(result)
 
-    def sync_main(self, message: str | None = None) -> str:
+    def sync_main(self, message: Optional[str] = None) -> str:
         self.async_thread = threading.Thread(
             target=self.async_thread_worker, args=(message,)
         )
         self.async_thread.start()
         return self.async_result.result()
 
-    def format_logs(self, logs: list[dict[str, str]]) -> str:
+    def format_logs(self, logs: List[Dict[str, str]]) -> str:
         return "\n".join([f"{log['name']}: {log['message']}" for log in logs])
 
     async def send_message(self, message: str) -> None:
@@ -99,10 +101,10 @@ class ChatClient:
         # report that the program is terminating
         print("Quitting...")
 
-    async def receive_message(self) -> list[dict[str, str]]:
+    async def receive_message(self) -> List[Dict[str, str]]:
         result_bytes: bytes = await self.reader.read(1024)  # Read raw bytes
         decoded_data: str = result_bytes.decode()
-        messages: list[dict[str, str]] = []
+        messages: List[Dict[str, str]] = []
         # print(decoded_data)
         for data in decoded_data.split("{"):
             if not data:
@@ -111,7 +113,7 @@ class ChatClient:
             # convert to string
             # data_json = json.loads('{' + data)
             # name, line = data_json['name'], data_json['message'].strip()
-            result_json: dict[str, str] = json.loads("{" + data)
+            result_json: Dict[str, str] = json.loads("{" + data)
             if self.debug or (self.mode == "c" and result_json["name"] != "Server"):
                 print(f"{result_json['name']}: {result_json['message'].strip()}")
             messages.append(result_json)
@@ -122,11 +124,11 @@ class ChatClient:
     async def read_messages(self) -> None:
         # read messages from the server and print to user
         while True:
-            messages: list[dict[str, str]] = await self.receive_message()
+            messages: List[Dict[str, str]] = await self.receive_message()
             self.logs.extend(messages)
 
     # echo client
-    async def main(self, message: str | None = None) -> str:
+    async def main(self, message: Optional[str] = None) -> str:
         # report progress to the user
         if self.debug:
             print(f"Connecting to {self.server_address}:{self.server_port}...")
@@ -141,7 +143,7 @@ class ChatClient:
         if not self.name:
             self.name = input("Enter name: ")
 
-        connect: dict[str, str] = {"sys": "connect", "name": self.name}
+        connect: Dict[str, str] = {"sys": "connect", "name": self.name}
         connect_json: str = json.dumps(connect)
         self.writer.write(connect_json.encode())
         await self.writer.drain()
@@ -149,8 +151,8 @@ class ChatClient:
         await self.receive_message()
         await self.receive_message()
 
-        read_task: asyncio.Task | None = None
-        write_task: asyncio.Task | None = None
+        read_task: Optional[asyncio.Task] = None
+        write_task: Optional[asyncio.Task] = None
 
         match self.mode:
             case "c":
@@ -186,7 +188,7 @@ class ChatClient:
             case "ro":
                 if message:
                     await self.send_message(message)
-                read_msg: str | None = None
+                read_msg: Optional[str] = None
                 while not read_msg:
                     for m in await self.receive_message():
                         if m["name"] != "Server" and m["name"] != self.name:

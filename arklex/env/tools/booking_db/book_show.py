@@ -1,13 +1,11 @@
-import datetime
-import uuid
-from typing import Any
-
-import pandas as pd
-
-from arklex.utils.logging_utils import LogContext
-
+from typing import List, Dict, Any, Optional, Union
 from ..tools import register_tool
 from .utils import *
+from arklex.utils.logging_utils import LogContext
+
+import datetime
+import uuid
+import pandas as pd
 
 log_context = LogContext(__name__)
 
@@ -30,11 +28,11 @@ log_context = LogContext(__name__)
     lambda x: x and x not in (LOG_IN_FAILURE, NO_SHOW_MESSAGE, MULTIPLE_SHOWS_MESSAGE),
 )
 def book_show(
-    show_name: str | None = None,
-    date: str | None = None,
-    time: str | None = None,
-    location: str | None = None,
-) -> str | None:
+    show_name: Optional[str] = None,
+    date: Optional[str] = None,
+    time: Optional[str] = None,
+    location: Optional[str] = None,
+) -> Union[str, None]:
     if not log_in():
         return LOG_IN_FAILURE
 
@@ -42,8 +40,8 @@ def book_show(
     conn: sqlite3.Connection = sqlite3.connect(booking.db_path)
     cursor: sqlite3.Cursor = conn.cursor()
     query: str = "SELECT id, show_name, date, time, description, location, price FROM show WHERE 1 = 1"
-    params: list[str] = []
-    slots: dict[str, str | None] = {
+    params: List[str] = []
+    slots: Dict[str, Optional[str]] = {
         "show_name": show_name,
         "date": date,
         "time": time,
@@ -57,18 +55,18 @@ def book_show(
 
     # Execute the query
     cursor.execute(query, params)
-    rows: list[tuple] = cursor.fetchall()
+    rows: List[tuple] = cursor.fetchall()
     log_context.info(f"Rows found: {len(rows)}")
 
-    response: str | None = None
+    response: Optional[str] = None
     # Check whether info is enough to book a show
     if len(rows) == 0:
         response = NO_SHOW_MESSAGE
     elif len(rows) > 1:
         response = MULTIPLE_SHOWS_MESSAGE
     else:
-        column_names: list[str] = [column[0] for column in cursor.description]
-        results: dict[str, Any] = dict(zip(column_names, rows[0], strict=False))
+        column_names: List[str] = [column[0] for column in cursor.description]
+        results: Dict[str, Any] = dict(zip(column_names, rows[0]))
         show_id: str = results["id"]
 
         # Insert a row into the booking table

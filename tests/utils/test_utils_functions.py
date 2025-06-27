@@ -4,9 +4,8 @@ This module tests the utility functions used throughout the Arklex framework,
 including text processing, JSON handling, and chat history formatting.
 """
 
-from unittest.mock import patch
-
 import pytest
+from unittest.mock import patch
 
 import arklex.utils.utils as utils
 

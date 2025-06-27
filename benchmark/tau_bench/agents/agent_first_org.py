@@ -1,18 +1,19 @@
 # Copyright Sierra
-import json
 import os
+import json
 from copy import deepcopy
-from typing import Any
+from typing import Optional, Dict, Any, List, Tuple
 
-from arklex.env.env import Env
 from arklex.orchestrator.orchestrator import AgentOrg
+from arklex.env.env import Env
+
 from benchmark.tau_bench.agents.base import Agent
 from benchmark.tau_bench.tau_types import (
-    RESPOND_ACTION_NAME,
+    SolveResult,
     Action,
+    RESPOND_ACTION_NAME,
     EnvResetResponse,
     EnvResponse,
-    SolveResult,
 )
 
 
@@ -23,7 +24,7 @@ class AgentFirstOrg(Agent):
         from benchmark.tau_bench.tau_bench_eval import TauBenchResourceInitializer
 
         with open(self.taskgraph_path) as taskgraph:
-            taskgraph: dict[str, Any] = json.load(taskgraph)
+            taskgraph: Dict[str, Any] = json.load(taskgraph)
             tau_bench_resource_initializer: TauBenchResourceInitializer = (
                 TauBenchResourceInitializer()
             )
@@ -34,53 +35,53 @@ class AgentFirstOrg(Agent):
                 resource_inizializer=tau_bench_resource_initializer,
             )
 
-            self.start_message: str | None = None
+            self.start_message: Optional[str] = None
             for node in taskgraph["nodes"]:
                 if node[1].get("type", "") == "start":
                     self.start_message = node[1]["attribute"]["value"]
                     break
 
     def get_api_bot_response(
-        self, history: list[dict[str, Any]], user_text: str, parameters: dict[str, Any]
-    ) -> tuple[str, dict[str, Any]]:
-        data: dict[str, Any] = {
+        self, history: List[Dict[str, Any]], user_text: str, parameters: Dict[str, Any]
+    ) -> Tuple[str, Dict[str, Any]]:
+        data: Dict[str, Any] = {
             "text": user_text,
             "chat_history": history,
             "parameters": parameters,
         }
         orchestrator: AgentOrg = AgentOrg(config=self.taskgraph_path, env=self.env)
-        result: dict[str, Any] = orchestrator.get_response(data)
+        result: Dict[str, Any] = orchestrator.get_response(data)
         return result["answer"], result["parameters"]
 
     def solve(
-        self, env: Env, task_index: int | None = None, max_num_steps: int = 30
+        self, env: Env, task_index: Optional[int] = None, max_num_steps: int = 30
     ) -> SolveResult:
         total_cost: float = 0.0
         env_reset_res: EnvResetResponse = env.reset(task_index=task_index)
         obs: str = env_reset_res.observation
-        info: dict[str, Any] = env_reset_res.info.model_dump()
+        info: Dict[str, Any] = env_reset_res.info.model_dump()
         reward: float = 0.0
-        history: list[dict[str, Any]] = [
+        history: List[Dict[str, Any]] = [
             {"role": "assistant", "content": self.start_message}
         ]
-        messages: list[dict[str, Any]] = [
+        messages: List[Dict[str, Any]] = [
             {"role": "assistant", "content": self.start_message}
         ]
-        params: dict[str, Any] = {}
+        params: Dict[str, Any] = {}
         user_text: str = obs
         message_index: int = 1
 
         for _ in range(max_num_steps):
-            new_messages: list[dict[str, Any]] = []
+            new_messages: List[Dict[str, Any]] = []
             output: str
-            params: dict[str, Any]
+            params: Dict[str, Any]
             output, params = self.get_api_bot_response(
                 deepcopy(history), user_text, params
             )
 
-            user_message: dict[str, str] = {"role": "user", "content": user_text}
-            assistant_message: dict[str, str] = {"role": "assistant", "content": output}
-            assistant_message_metadata: dict[str, Any] = {
+            user_message: Dict[str, str] = {"role": "user", "content": user_text}
+            assistant_message: Dict[str, str] = {"role": "assistant", "content": output}
+            assistant_message_metadata: Dict[str, Any] = {
                 "role": "assistant",
                 "content": output,
                 "curr_node": deepcopy(params["taskgraph"]["curr_node"]),
@@ -91,13 +92,13 @@ class AgentFirstOrg(Agent):
             history.append(assistant_message)
 
             print("=============trajectory============")
-            trajectory: list[dict[str, Any]] = params["memory"][
+            trajectory: List[Dict[str, Any]] = params["memory"][
                 "function_calling_trajectory"
             ]
             print(trajectory)
 
             while message_index < len(trajectory):
-                msg: dict[str, Any] = trajectory[message_index]
+                msg: Dict[str, Any] = trajectory[message_index]
 
                 if not is_message_worker(msg):
                     if (
@@ -138,19 +139,19 @@ class AgentFirstOrg(Agent):
         )
 
 
-def is_user(message: dict[str, Any]) -> bool:
+def is_user(message: Dict[str, Any]) -> bool:
     if message.get("role") == "user":
         return True
     return False
 
 
-def is_tool(message: dict[str, Any]) -> bool:
+def is_tool(message: Dict[str, Any]) -> bool:
     if message.get("role") == "tool":
         return True
     return False
 
 
-def is_assistant_with_tool_calls(message: dict[str, Any]) -> bool:
+def is_assistant_with_tool_calls(message: Dict[str, Any]) -> bool:
     if message.get("role") != "assistant":
         return False
     if "tool_calls" not in message:
@@ -166,7 +167,7 @@ def is_assistant_with_tool_calls(message: dict[str, Any]) -> bool:
     return True
 
 
-def is_message_worker(message: dict[str, Any]) -> bool:
+def is_message_worker(message: Dict[str, Any]) -> bool:
     if message.get("name") == "MessageWorker":
         return True
     if "tool_calls" not in message:
@@ -183,7 +184,7 @@ def is_message_worker(message: dict[str, Any]) -> bool:
 
 
 def message_to_action(
-    message: dict[str, Any],
+    message: Dict[str, Any],
 ) -> Action:
     if (
         "tool_calls" in message

@@ -2,23 +2,22 @@
 
 import json
 from copy import deepcopy
-from typing import Any
-
+from typing import Any, Dict, List
 from benchmark.tau_bench.envs.tool import Tool
 
 
 class BookReservation(Tool):
     @staticmethod
     def invoke(
-        data: dict[str, Any],
+        data: Dict[str, Any],
         user_id: str,
         origin: str,
         destination: str,
         flight_type: str,
         cabin: str,
-        flights: list[dict[str, Any]],
-        passengers: list[dict[str, Any]],
-        payment_methods: list[dict[str, Any]],
+        flights: List[Dict[str, Any]],
+        passengers: List[Dict[str, Any]],
+        payment_methods: List[Dict[str, Any]],
         total_baggages: int,
         nonfree_baggages: int,
         insurance: str,
@@ -105,7 +104,7 @@ class BookReservation(Tool):
         return json.dumps(reservation)
 
     @staticmethod
-    def get_info() -> dict[str, Any]:
+    def get_info() -> Dict[str, Any]:
         return {
             "type": "function",
             "function": {

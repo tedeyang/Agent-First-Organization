@@ -4,14 +4,14 @@ This module provides extensive test coverage for the TaskGraphFormatter class,
 including all methods, edge cases, error conditions, and formatting scenarios.
 """
 
-import logging
-from unittest.mock import Mock, patch
-
 import pytest
+from unittest.mock import Mock, patch
+import logging
 
 from arklex.orchestrator.generator.formatting.task_graph_formatter import (
     TaskGraphFormatter,
 )
+
 
 # =============================================================================
 # FIXTURES - Core Test Data
