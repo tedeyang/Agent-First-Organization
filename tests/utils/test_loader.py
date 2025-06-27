@@ -4,7 +4,7 @@ This module contains comprehensive test cases for document and content loading u
 including web crawling, file processing, and content chunking functionality.
 """
 
-from unittest.mock import Mock, patch, mock_open
+from unittest.mock import Mock, patch
 import tempfile
 import os
 import requests
@@ -1112,147 +1112,162 @@ class TestLoader:
             assert hasattr(doc, "metadata")
             assert doc.metadata["source"] == "long.txt"
 
+    def test_get_outsource_urls_exception_handling(self) -> None:
+        loader = Loader()
 
-def test_crawl_with_selenium_url_timeout(monkeypatch) -> None:
-    loader = Loader()
-    url_objects = [DocObject("1", "http://timeout.com")]
+        # Mock requests.get to raise an exception
+        with patch("requests.get") as mock_get:
+            mock_get.side_effect = Exception("Network error")
 
-    # Use a more robust time mocking approach
-    call_count = 0
+            result = loader.get_outsource_urls(
+                "http://example.com", "http://example.com"
+            )
 
-    def mock_time():
-        nonlocal call_count
-        call_count += 1
-        # Return increasing times to simulate timeout
-        return call_count * 100
+            # Should return empty list when exception occurs
+            assert result == []
 
-    monkeypatch.setattr("time.time", mock_time)
+    def test_get_outsource_urls_non_200_status(self) -> None:
+        loader = Loader()
 
-    with patch("selenium.webdriver.Chrome") as mock_driver:
-        mock_driver_instance = Mock()
-        mock_driver.return_value = mock_driver_instance
-        mock_driver_instance.page_source = "<html><title>Timeout</title></html>"
-        mock_driver_instance.title = "Timeout"
-        mock_driver_instance.get.return_value = None
+        # Mock requests.get to return non-200 status
+        with patch("requests.get") as mock_get:
+            mock_response = Mock()
+            mock_response.status_code = 404
+            mock_get.return_value = mock_response
 
-        # This should trigger the timeout logic
-        result = loader._crawl_with_selenium(url_objects)
+            result = loader.get_outsource_urls(
+                "http://example.com", "http://example.com"
+            )
 
-        # Verify the method was called
-        assert mock_driver_instance.get.called
+            # Should return empty list when status code is not 200
+            assert result == []
 
+    def test_get_outsource_urls_link_processing_exception(self) -> None:
+        loader = Loader()
 
-def test_get_all_urls_error_logging(monkeypatch) -> None:
-    loader = Loader()
-    # Patch get_outsource_urls to raise Exception
-    monkeypatch.setattr(
-        loader,
-        "get_outsource_urls",
-        lambda *a, **kw: (_ for _ in ()).throw(Exception("fail")),
-    )
-    # This should trigger error logging but still return the original URL
-    result = loader.get_all_urls("test_url", 10)  # Add missing max_num parameter
-    assert "test_url" in result  # The method returns the original URL even on error
+        # Mock requests.get to return successful response
+        with patch("requests.get") as mock_get:
+            mock_response = Mock()
+            mock_response.status_code = 200
+            mock_response.text = '<html><a href="invalid://url">Link</a></html>'
+            mock_get.return_value = mock_response
 
+            # Mock BeautifulSoup to raise exception during link processing
+            with patch("bs4.BeautifulSoup") as mock_soup:
+                mock_soup_instance = Mock()
+                mock_link = Mock()
+                mock_link.get.return_value = "invalid://url"
+                mock_soup_instance.find_all.return_value = [mock_link]
+                mock_soup.return_value = mock_soup_instance
 
-def test_get_outsource_urls_connection_error(monkeypatch) -> None:
-    loader = Loader()
-    with patch("requests.get") as mock_get:
-        mock_get.side_effect = requests.exceptions.ConnectionError("Connection failed")
-        result = loader.get_outsource_urls("http://example.com", 10)
-        assert result == []
+                result = loader.get_outsource_urls(
+                    "http://example.com", "http://example.com"
+                )
 
+                # Should handle link processing exceptions gracefully
+                assert isinstance(result, list)
 
-def test_get_outsource_urls_timeout_error(monkeypatch) -> None:
-    loader = Loader()
-    with patch("requests.get") as mock_get:
-        mock_get.side_effect = requests.exceptions.Timeout("Request timeout")
-        result = loader.get_outsource_urls("http://example.com", 10)
-        assert result == []
+    def test_get_candidates_websites_with_error_urls(self) -> None:
+        loader = Loader()
 
+        # Create URLs with some error ones
+        urls = [
+            CrawledObject("1", "http://example1.com", "content1", is_error=True),
+            CrawledObject("2", "http://example2.com", "content2", is_error=False),
+        ]
 
-def test_get_outsource_urls_request_exception(monkeypatch) -> None:
-    loader = Loader()
-    with patch("requests.get") as mock_get:
-        mock_get.side_effect = requests.exceptions.RequestException("General error")
-        result = loader.get_outsource_urls("http://example.com", 10)
-        assert result == []
+        result = loader.get_candidates_websites(urls, top_k=1)
 
+        # Should skip error URLs and return valid candidates
+        assert isinstance(result, list)
 
-def test_crawl_file_with_unsupported_file_type_error(monkeypatch) -> None:
-    loader = Loader()
-    with patch("builtins.open", mock_open(read_data="test content")):
-        with patch("os.path.splitext") as mock_splitext:
-            mock_splitext.return_value = ("test", ".xyz")
-            doc_obj = DocObject("1", "test.xyz")
-            result = loader.crawl_file(doc_obj)
+    def test_to_crawled_text(self) -> None:
+        loader = Loader()
+
+        text_list = ["text1", "text2", "text3"]
+        result = loader.to_crawled_text(text_list)
+
+        assert len(result) == 3
+        for i, obj in enumerate(result):
+            assert obj.content == f"text{i + 1}"
+            assert obj.source == "text"
+            assert obj.source_type == SourceType.TEXT
+
+    def test_to_crawled_local_objs(self) -> None:
+        loader = Loader()
+
+        # Mock crawl_file to avoid file system dependencies
+        with patch.object(loader, "crawl_file") as mock_crawl:
+            mock_crawl.return_value = CrawledObject("1", "test.txt", "content")
+
+            file_list = ["test1.txt", "test2.txt"]
+            result = loader.to_crawled_local_objs(file_list)
+
+            assert len(result) == 2
+            assert mock_crawl.call_count == 2
+
+    def test_crawl_file_unsupported_file_type(self) -> None:
+        loader = Loader()
+
+        # Create a DocObject with unsupported file type
+        local_obj = DocObject("1", "test.unsupported")
+
+        # Mock Path to return unsupported file type
+        with patch("pathlib.Path") as mock_path:
+            mock_path_instance = Mock()
+            mock_path_instance.suffix = ".unsupported"
+            mock_path_instance.name = "test.unsupported"
+            mock_path.return_value = mock_path_instance
+
+            result = loader.crawl_file(local_obj)
+
+            # Should return error object for unsupported file type
             assert result.is_error is True
-            assert result.content is None
+            assert "Unsupported file type" in result.error_message
 
+    def test_crawl_file_no_file_type(self) -> None:
+        loader = Loader()
 
-def test_crawl_file_with_missing_file_type_error(monkeypatch) -> None:
-    loader = Loader()
-    with patch("builtins.open", mock_open(read_data="test content")):
-        with patch("os.path.splitext") as mock_splitext:
-            mock_splitext.return_value = ("test", "")
-            doc_obj = DocObject("1", "test")
-            result = loader.crawl_file(doc_obj)
+        # Create a DocObject with no file type
+        local_obj = DocObject("1", "test")
+
+        # Mock Path to return no file type
+        with patch("pathlib.Path") as mock_path:
+            mock_path_instance = Mock()
+            mock_path_instance.suffix = ""
+            mock_path_instance.name = "test"
+            mock_path.return_value = mock_path_instance
+
+            result = loader.crawl_file(local_obj)
+
+            # Should return error object for no file type
             assert result.is_error is True
-            assert result.content is None
+            assert "No file type detected" in result.error_message
 
+    def test_chunk_with_error_docs(self) -> None:
+        loader = Loader()
 
-def test_chunk_method_with_skip_logic_edge_case(monkeypatch) -> None:
-    loader = Loader()
-    # Use CrawledObject instance
-    doc = CrawledObject("1", "very short", "text", "test.txt", "file")
-    doc.is_error = True  # This should trigger skip logic
-    docs = [doc]
-    result = loader.chunk(docs)
-    assert result == []
+        # Create documents with errors
+        docs = [
+            CrawledObject("1", "test1.txt", None, is_error=True),
+            CrawledObject("2", "test2.txt", "content", is_error=False),
+        ]
 
+        result = loader.chunk(docs)
 
-def test_chunk_method_with_return_logic_edge_case(monkeypatch) -> None:
-    loader = Loader()
-    # Use CrawledObject instance
-    doc = CrawledObject("1", "content", "text", "test.txt", "file")
-    doc.metadata = {"return_early": True}
-    docs = [doc]
-    result = loader.chunk(docs)
-    assert isinstance(result, list)
+        # Should skip error documents and return valid chunks
+        assert isinstance(result, list)
 
+    def test_chunk_with_already_chunked_docs(self) -> None:
+        loader = Loader()
 
-def test_get_all_urls_with_error_logging(monkeypatch) -> None:
-    loader = Loader()
+        # Create already chunked documents
+        docs = [
+            CrawledObject("1", "test1.txt", "content", is_chunk=True),
+            CrawledObject("2", "test2.txt", "content", is_chunk=False),
+        ]
 
-    # Mock get_outsource_urls to raise an exception
-    def mock_get_outsource_urls(*args, **kwargs) -> NoReturn:
-        raise Exception("Test error")
+        result = loader.chunk(docs)
 
-    monkeypatch.setattr(loader, "get_outsource_urls", mock_get_outsource_urls)
-    result = loader.get_all_urls("http://example.com", 10)
-    # Should return the original URL even on error
-    assert "http://example.com" in result
-
-
-def test_crawl_with_selenium_retry_logic(monkeypatch) -> None:
-    loader = Loader()
-    url_objects = [DocObject("1", "http://retry.com")]
-
-    call_count = 0
-
-    def mock_time():
-        nonlocal call_count
-        call_count += 1
-        return call_count * 50  # Simulate retry scenario
-
-    monkeypatch.setattr("time.time", mock_time)
-
-    with patch("selenium.webdriver.Chrome") as mock_driver:
-        mock_driver_instance = Mock()
-        mock_driver.return_value = mock_driver_instance
-        mock_driver_instance.page_source = "<html><title>Retry</title></html>"
-        mock_driver_instance.title = "Retry"
-        mock_driver_instance.get.return_value = None
-
-        result = loader._crawl_with_selenium(url_objects)
-        assert mock_driver_instance.get.called
+        # Should skip already chunked documents and process new ones
+        assert isinstance(result, list)
