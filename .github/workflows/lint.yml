@@ -25,4 +25,4 @@ jobs:
 
       - name: Run Ruff (non-blocking on PR changes)
         run: |
-          pre-commit run ruff --from-ref origin/main --to-ref HEAD || echo "::warning ::Ruff found lint issues"
+          pre-commit run ruff --from-ref origin/main --to-ref HEAD
