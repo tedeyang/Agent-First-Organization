@@ -981,16 +981,53 @@ class TestTaskGenerator:
         self, patched_model_generate
     ) -> None:
         gen = patched_model_generate["generator"]
-        # Properly mock the response so .text is a string
+        patched_model_generate["mock_generate"].return_value = {
+            "text": "[not valid json]"
+        }
+        result = gen._process_objective("test objective", "intro", "docs")
+        assert result["tasks"] == []
+
+    def test_process_objective_with_message_content(
+        self, patched_model_generate
+    ) -> None:
+        """Test _process_objective with response.generations[0][0].message.content (lines 296-299)."""
+        gen = patched_model_generate["generator"]
+        # Mock response with message.content structure
+        mock_message = Mock()
+        mock_message.content = '[{"task": "test task", "intent": "test intent"}]'
         mock_generation = Mock()
-        mock_generation.text = "[not valid json]"
+        mock_generation.message = mock_message
         mock_response = Mock()
         mock_response.generations = [[mock_generation]]
         patched_model_generate["mock_generate"].return_value = mock_response
         result = gen._process_objective("test objective", "intro", "docs")
-        assert result["tasks"] == []
+        assert result["tasks"] == [{"task": "test task", "intent": "test intent"}]
 
-    def test_generate_high_level_tasks_no_json_array(self, patched_model_invoke):
+    def test_process_objective_with_dict_response_text(
+        self, patched_model_generate
+    ) -> None:
+        """Test _process_objective with dict response containing 'text' key (line 305)."""
+        gen = patched_model_generate["generator"]
+        # Mock response as dict with 'text' key
+        mock_response = {"text": '[{"task": "test task", "intent": "test intent"}]'}
+        patched_model_generate["mock_generate"].return_value = mock_response
+        result = gen._process_objective("test objective", "intro", "docs")
+        assert result["tasks"] == [{"task": "test task", "intent": "test intent"}]
+
+    def test_process_objective_with_dict_response_content(
+        self, patched_model_generate
+    ) -> None:
+        """Test _process_objective with dict response containing 'content' key."""
+        gen = patched_model_generate["generator"]
+        # Mock response as dict with 'content' key
+        mock_response = {"content": '[{"task": "test task", "intent": "test intent"}]'}
+        patched_model_generate["mock_generate"].return_value = mock_response
+        result = gen._process_objective("test objective", "intro", "docs")
+        assert result["tasks"] == [{"task": "test task", "intent": "test intent"}]
+
+    def test_generate_high_level_tasks_no_json_array(
+        self, patched_model_invoke
+    ) -> None:
         """Covers lines 471-473: when no JSON array is found in response."""
         patched_model_invoke["mock_invoke"].return_value = {
             "text": "No JSON array here"
@@ -999,14 +1036,73 @@ class TestTaskGenerator:
         result = gen._generate_high_level_tasks("intro")
         assert result == []
 
-    def test_check_task_breakdown_original_fallback(self, patched_model_invoke):
+    def test_generate_task_steps_original_with_step_format(
+        self, patched_model_invoke
+    ) -> None:
+        """Test _generate_task_steps_original with 'step' key format (lines 471-473)."""
+        patched_model_invoke["mock_invoke"].return_value = {
+            "content": '[{"step": "test step", "description": "test description"}]'
+        }
+        gen = patched_model_invoke["generator"]
+        result = gen._generate_task_steps_original("test task", "test intent")
+        assert result == [{"task": "test step", "description": "test description"}]
+
+    def test_generate_task_steps_original_with_string_steps(
+        self, patched_model_invoke
+    ) -> None:
+        """Test _generate_task_steps_original with string steps (lines 471-473)."""
+        patched_model_invoke["mock_invoke"].return_value = {
+            "content": '["step1", "step2"]'
+        }
+        gen = patched_model_invoke["generator"]
+        result = gen._generate_task_steps_original("test task", "test intent")
+        assert result == [
+            {"task": "step1", "description": "Execute: step1"},
+            {"task": "step2", "description": "Execute: step2"},
+        ]
+
+    def test_convert_to_task_definitions_with_string_steps(
+        self, patched_model_invoke
+    ) -> None:
+        """Test _convert_to_task_definitions with string steps (line 554)."""
+        gen = patched_model_invoke["generator"]
+        tasks_with_steps = [
+            {
+                "task": "test task",
+                "description": "test description",
+                "steps": ["step1", "step2"],
+            }
+        ]
+        result = gen._convert_to_task_definitions(tasks_with_steps)
+        assert len(result) == 1
+        assert result[0].steps == [
+            {"task": "step1", "description": "Execute step: step1"},
+            {"task": "step2", "description": "Execute step: step2"},
+        ]
+
+    def test_convert_to_task_dict_with_task_key(self, patched_model_invoke) -> None:
+        """Test _convert_to_task_dict with 'task' key (line 592)."""
+        gen = patched_model_invoke["generator"]
+        task_definitions = [
+            {
+                "task": "test task",
+                "intent": "test intent",
+                "steps": [{"task": "step1", "description": "step1"}],
+            }
+        ]
+        result = gen._convert_to_task_dict(task_definitions)
+        assert "task_1" in result
+        assert result["task_1"]["name"] == "test task"
+        assert result["task_1"]["description"] == "test intent"
+
+    def test_check_task_breakdown_original_fallback(self, patched_model_invoke) -> None:
         """Covers line 517: fallback when task breakdown fails."""
         patched_model_invoke["mock_invoke"].return_value = {"text": "Invalid response"}
         gen = patched_model_invoke["generator"]
         result = gen._check_task_breakdown_original("task", "intent")
         assert result is True  # Default to breakdown on error
 
-    def test_generate_task_steps_original_fallback(self, patched_model_invoke):
+    def test_generate_task_steps_original_fallback(self, patched_model_invoke) -> None:
         """Covers line 554: fallback when task steps generation fails."""
         patched_model_invoke["mock_invoke"].return_value = {"text": "Invalid response"}
         gen = patched_model_invoke["generator"]
@@ -1014,14 +1110,14 @@ class TestTaskGenerator:
         assert isinstance(result, list)
         assert "task" in result[0]
 
-    def test_convert_to_task_definitions_fallback(self, patched_model_invoke):
+    def test_convert_to_task_definitions_fallback(self, patched_model_invoke) -> None:
         """Covers line 592: fallback when task definition conversion fails."""
         patched_model_invoke["mock_invoke"].return_value = {"text": "Invalid response"}
         gen = patched_model_invoke["generator"]
         result = gen._convert_to_task_definitions([{"task": "test task"}])
         assert isinstance(result, list)
 
-    def test_validate_tasks_fallback(self, patched_model_invoke):
+    def test_validate_tasks_fallback(self, patched_model_invoke) -> None:
         """Covers validation fallback when tasks are invalid."""
         patched_model_invoke["mock_invoke"].return_value = {"text": "Invalid response"}
         gen = patched_model_invoke["generator"]
