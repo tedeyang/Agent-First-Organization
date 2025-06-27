@@ -517,3 +517,22 @@ class TestModuleIntegration:
             # UI components are not available (placeholder mode)
             # The _UI_COMPONENTS list should be empty in this case
             pass
+
+
+# =====================
+# TODO: UI Coverage Stubs for generator/__init__.py (lines 66-82)
+# =====================
+# These lines handle UI component imports and placeholder classes for TaskEditorApp and InputModal.
+# UI testing is deferred for now. Implement these when UI test infra is ready.
+
+
+def test_ui_component_imports_todo():
+    """TODO: Cover UI component import branches in generator/__init__.py (66-82)."""
+    # This is a stub. Implement UI import and placeholder tests when UI testing is enabled.
+    pass
+
+
+def test_ui_component_placeholders_todo():
+    """TODO: Cover placeholder class instantiation for TaskEditorApp and InputModal."""
+    # This is a stub. Implement placeholder instantiation and ImportError raising tests when UI testing is enabled.
+    pass
