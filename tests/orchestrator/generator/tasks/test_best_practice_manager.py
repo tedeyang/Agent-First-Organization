@@ -1151,7 +1151,14 @@ class TestBestPracticeManagerEdgeCases:
         """Test finetune_best_practice with string step (line 238)."""
         gen = patched_model_invoke["manager"]
         practice = {"steps": ["step1", "step2"]}
-        task = {"name": "test task", "steps": [{"task": "task step"}]}
+        # Provide task with 2 steps to match the expected output
+        task = {"name": "test task", "steps": [{"task": "step1"}, {"task": "step2"}]}
+
+        # Mock the model response to return a proper JSON response
+        patched_model_invoke["mock_invoke"].return_value = {
+            "content": '[{"task": "step1", "description": "Step 1 description"}, {"task": "step2", "description": "Step 2 description"}]'
+        }
+
         result = gen.finetune_best_practice(practice, task)
         assert "steps" in result
         assert len(result["steps"]) == 2
