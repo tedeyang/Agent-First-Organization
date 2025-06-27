@@ -39,7 +39,7 @@ __pycache__/
 ehthumbs.db
 Thumbs.db
 
-# local env #
+# Local Env #
 ######################
 .bashrc
 .env
@@ -47,3 +47,8 @@ temp_files
 
 .coverage
 test_logs/*
+
+# Test artifacts and generated files #
+#####################################
+test_dir/simulate_data/*.json
+*.json.tmp
