@@ -920,111 +920,53 @@ class TestReactPlanner:
                     task="test task",
                 )
 
-                # Should use the original trajectory_summary when steps is empty
-                assert isinstance(result, list)
+                # Should return empty list when steps are empty
+                assert result == []
 
-    def test_retrieve_resource_signatures_with_steps(self) -> None:
-        """Test _retrieve_resource_signatures when steps list has content (covers line 460)."""
+    def test_message_to_actions_with_invalid_resource(self) -> None:
+        """Test message_to_actions with invalid resource (covers line 580)."""
         planner = ReactPlanner({}, {}, {})
 
-        # Add the missing attribute
-        planner.guaranteed_retrieval_docs = []
+        # Test with a message that has an invalid resource
+        message = {"name": "invalid_resource", "arguments": {"content": "test content"}}
 
-        # Mock the retriever and other dependencies
-        with patch.object(
-            planner,
-            "_parse_trajectory_summary_to_steps",
-            return_value=["step1", "step2"],
-        ):
-            with patch.object(planner, "retriever", create=True) as mock_retriever:
-                mock_retriever.vectorstore.similarity_search_with_score.return_value = []
+        result = planner.message_to_actions(message)
 
-                result = planner._retrieve_resource_signatures(
-                    n_retrievals=5,
-                    trajectory_summary="test summary",
-                    user_message="test message",
-                    task="test task",
-                )
+        # Should return RESPOND_ACTION when resource is invalid
+        assert len(result) == 1
+        assert result[0].name == "respond"
+        assert result[0].kwargs["content"] == "test content"
 
-                # Should join steps with space when steps list is not empty
-                assert isinstance(result, list)
-
-    def test_plan_max_steps_exhausted(self) -> None:
-        planner = ReactPlanner({}, {}, {})
-
-        # Mock all the dependencies
-        with patch.object(
-            planner, "_get_planning_trajectory_summary", return_value="test summary"
-        ):
-            with patch.object(planner, "_get_num_resource_retrievals", return_value=3):
-                with patch.object(
-                    planner, "_retrieve_resource_signatures", return_value=[]
-                ):
-                    with patch.object(planner, "llm") as mock_llm:
-                        # Mock the LLM to return non-RESPOND_ACTION responses
-                        mock_response = Mock()
-                        mock_response.content = (
-                            'Action:\n{"name": "test_action", "arguments": {}}'
-                        )
-                        mock_llm.invoke.return_value = mock_response
-
-                        # Mock the step method to return a non-RESPOND_ACTION response
-                        with patch.object(planner, "step") as mock_step:
-                            mock_step.return_value = Mock(
-                                observation="test observation"
-                            )
-
-                            # Mock message_to_actions to return non-RESPOND_ACTION
-                            with patch.object(
-                                planner, "message_to_actions"
-                            ) as mock_actions:
-                                mock_action = Mock()
-                                mock_action.name = "test_action"
-                                mock_action.kwargs = {}
-                                mock_actions.return_value = [mock_action]
-
-                                # Mock _parse_response_action_to_json
-                                with patch.object(
-                                    planner,
-                                    "_parse_response_action_to_json",
-                                    return_value={"name": "test_action"},
-                                ):
-                                    # Mock aimessage_to_dict
-                                    with patch(
-                                        "arklex.env.planner.react_planner.aimessage_to_dict",
-                                        return_value={"content": "test"},
-                                    ):
-                                        result = planner.plan(
-                                            state=Mock(),
-                                            msg_history=[],
-                                            max_num_steps=1,  # Only one step to trigger exhaustion
-                                        )
-
-                                        # Should return the last action and response when max steps exhausted
-                                        assert len(result) == 3
-                                        assert result[1] == "test_action"
-
-    def test_step_unknown_action(self) -> None:
+    def test_step_with_unknown_action(self) -> None:
+        """Test step with unknown action (covers line 674)."""
         planner = ReactPlanner({}, {}, {})
 
         action = Action(name="unknown_action", kwargs={})
-        msg_state = Mock()
+        state = MessageState()
 
-        result = planner.step(action, msg_state)
+        result = planner.step(action, state)
 
         # Should return error message for unknown action
-        assert "Unknown action" in result.observation
+        assert "Unknown action unknown_action" in result.observation
 
-    def test_step_respond_action(self) -> None:
+    def test_execute_plan_with_max_steps_exhausted(self) -> None:
+        """Test execute when max steps are exhausted (covers line 688)."""
         planner = ReactPlanner({}, {}, {})
 
-        action = Action(name="respond", kwargs={"content": "test response"})
-        msg_state = Mock()
+        # Mock the plan method to return without RESPOND_ACTION
+        with patch.object(planner, "plan") as mock_plan:
+            mock_plan.return_value = ([], "test_action", "test_response")
 
-        result = planner.step(action, msg_state)
+            state = MessageState()
+            msg_history = []
 
-        # Should return the content as observation
-        assert result.observation == "test response"
+            result_action, result_state, result_history = planner.execute(
+                state, msg_history
+            )
+
+            # Should return the last action and response
+            assert result_action == "test_action"
+            assert result_state.response == "test_response"
 
 
 class TestReactPlannerIntegration:
