@@ -4,13 +4,12 @@ on:
   pull_request:
     branches: [main]  # or your default branch
 
-permissions:
-  contents: read
-  pull-requests: write
-
 jobs:
   coverage:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
 
     steps:
     - name: Checkout code
@@ -50,13 +49,9 @@ jobs:
         name: htmlcov
         path: htmlcov/
 
-    - name: Compare coverage (soft-block on regression)
-      uses: ewjoachim/python-coverage-comment-action@v3
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # crucial for auth
+    - name: Display coverage
+      uses: py-cov-action/python-coverage-comment-action@v3
       with:
-        coverage-file: coverage.xml
-        minimum-coverage: 98  # Optional threshold
-        hide-comment: false  # Ensures the comment is visible
-        fail-on-coverage-decrease: false  # Set to true to block merges
-        post-new-comment: true  # Forces a new comment per PR update
+        GITHUB_TOKEN: ${{ github.token }}
+        MINIMUM_GREEN: 98
+        MINIMUM_ORANGE: 70
