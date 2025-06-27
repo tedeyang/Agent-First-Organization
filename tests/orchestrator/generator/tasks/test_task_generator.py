@@ -1621,9 +1621,9 @@ class TestTaskGenerator:
             {
                 "task": "Task Without Name",
                 "intent": "Intent",
-                "description": "desc",  # Add description to pass validation
+                "description": "desc",
                 # no 'name' field - this should be added by the method
-                "steps": [{"task": "step1"}],
+                "steps": [{"task": "step1", "description": "desc for step1"}],
             }
         ]
         with patch.object(
@@ -1631,7 +1631,6 @@ class TestTaskGenerator:
         ) as mock_check:
             mock_check.return_value = False
             result = task_generator.add_provided_tasks(user_tasks, "intro")
-            # The task should have been processed and have a name added
             assert len(result) > 0
             assert result[0]["name"] == "Task Without Name"
 
@@ -1642,8 +1641,8 @@ class TestTaskGenerator:
             {
                 "task": "TaskDefTest",
                 "intent": "Intent",
-                "description": "desc",  # Add description to pass validation
-                "steps": [{"task": "step1"}],
+                "description": "desc",
+                "steps": [{"task": "step1", "description": "desc for step1"}],
             }
         ]
         with patch.object(
@@ -1662,8 +1661,8 @@ class TestTaskGenerator:
             {
                 "task": "ValidTask",
                 "intent": "Intent",
-                "description": "desc",  # Add description to pass validation
-                "steps": [{"task": "step1"}],
+                "description": "desc",
+                "steps": [{"task": "step1", "description": "desc for step1"}],
             }
         ]
         with (
@@ -1677,7 +1676,15 @@ class TestTaskGenerator:
             result = task_generator.add_provided_tasks(user_tasks, "intro")
             assert len(result) > 0
             assert any(t["name"] == "ValidTask" for t in result)
-        # Invalid task
+        # Invalid task (missing description in step)
+        user_tasks_invalid = [
+            {
+                "task": "InvalidTask",
+                "intent": "Intent",
+                "description": "desc",
+                "steps": [{"task": "step1"}],  # No description
+            }
+        ]
         with (
             patch.object(
                 task_generator, "_check_task_breakdown_original"
@@ -1686,7 +1693,7 @@ class TestTaskGenerator:
         ):
             mock_check.return_value = False
             mock_validate.return_value = False
-            result = task_generator.add_provided_tasks(user_tasks, "intro")
+            result = task_generator.add_provided_tasks(user_tasks_invalid, "intro")
             assert result == []
 
     def test_generate_high_level_tasks_existing_tasks_str(
