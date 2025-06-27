@@ -477,7 +477,6 @@ class TestSimulateFirstPassConvos:
                     "attr1": {"values": ["val1", "val2"]},
                     "attr2": {"values": ["val3", "val4"]},
                 },
-                "user_profiles": {"profile1": {"values": ["p1"]}},
             },
         }
 
