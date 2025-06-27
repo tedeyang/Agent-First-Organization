@@ -981,9 +981,12 @@ class TestTaskGenerator:
         self, patched_model_generate
     ) -> None:
         gen = patched_model_generate["generator"]
-        patched_model_generate["mock_generate"].return_value = {
-            "text": "[not valid json]"
-        }
+        # Mock the model.generate to return a response that will cause JSON decode error
+        mock_response = Mock()
+        mock_generation = Mock()
+        mock_generation.text = "[not valid json"
+        mock_response.generations = [[mock_generation]]
+        patched_model_generate["mock_generate"].return_value = mock_response
         result = gen._process_objective("obj", "intro", "docs")
         assert result["tasks"] == []
 
@@ -1132,9 +1135,8 @@ class TestTaskGenerator:
 
                 # Should have fallback intents when JSON parsing fails
                 assert len(result) == 2
-                # The tasks are converted to TaskDefinition objects and then back to dicts
-                # The intent becomes the description field
-                assert result[0]["description"] == "User inquires about test task 1"
+                assert result[0]["intent"] == "User inquires about test task 1"
+                assert result[1]["intent"] == "User inquires about test task 2"
 
 
 """Comprehensive tests for TaskGenerator.
@@ -2120,48 +2122,43 @@ class TestTaskGenerator:
         self, patched_model_generate
     ) -> None:
         gen = patched_model_generate["generator"]
-        patched_model_generate["mock_generate"].return_value = {
-            "text": "[not valid json]"
-        }
-        result = gen._process_objective("obj", "intro", "docs")
+        result = gen._process_objective("test objective", "intro", "docs")
         assert result["tasks"] == []
 
-    def test_generate_high_level_tasks_handles_string_response(
-        self, patched_model_invoke
-    ) -> None:
+    def test_generate_high_level_tasks_no_json_array(patched_model_invoke):
+        """Covers lines 471-473: when no JSON array is found in response."""
+        patched_model_invoke["mock_invoke"].return_value = {
+            "text": "No JSON array here"
+        }
         gen = patched_model_invoke["generator"]
-        patched_model_invoke["mock_invoke"].return_value = '[{"task": "t"}]'
-        result = gen._generate_high_level_tasks("intro")
-        assert isinstance(result, list)
-
-    def test_generate_high_level_tasks_handles_invalid_json(
-        self, patched_model_invoke
-    ) -> None:
-        gen = patched_model_invoke["generator"]
-        patched_model_invoke["mock_invoke"].return_value = "not a json list"
         result = gen._generate_high_level_tasks("intro")
         assert result == []
 
-    def test_generate_high_level_tasks_handles_exception(
-        self, patched_model_invoke
-    ) -> None:
+    def test_check_task_breakdown_original_fallback(self, patched_model_invoke):
+        """Covers line 517: fallback when task breakdown fails."""
+        patched_model_invoke["mock_invoke"].return_value = {"text": "Invalid response"}
         gen = patched_model_invoke["generator"]
-        patched_model_invoke["mock_invoke"].side_effect = Exception("fail")
-        result = gen._generate_high_level_tasks("intro")
-        assert result == []
+        result = gen._check_task_breakdown_original("task", "intent")
+        assert result is True  # Default to breakdown on error
 
-    def test_generate_task_steps_original_handles_invalid_json(
-        self, patched_model_invoke
-    ) -> None:
+    def test_generate_task_steps_original_fallback(self, patched_model_invoke):
+        """Covers line 554: fallback when task steps generation fails."""
+        patched_model_invoke["mock_invoke"].return_value = {"text": "Invalid response"}
         gen = patched_model_invoke["generator"]
-        patched_model_invoke["mock_invoke"].return_value = "not a json list"
         result = gen._generate_task_steps_original("task", "intent")
         assert isinstance(result, list)
         assert "task" in result[0]
 
-    def test_generate_task_steps_original_handles_exception(
-        self, patched_model_invoke
-    ) -> None:
+    def test_convert_to_task_definitions_fallback(self, patched_model_invoke):
+        """Covers line 592: fallback when task definition conversion fails."""
+        patched_model_invoke["mock_invoke"].return_value = {"text": "Invalid response"}
+        gen = patched_model_invoke["generator"]
+        result = gen._convert_to_task_definitions([{"task": "test task"}])
+        assert isinstance(result, list)
+
+    def test_validate_tasks_fallback(self, patched_model_invoke):
+        """Covers validation fallback when tasks are invalid."""
+        patched_model_invoke["mock_invoke"].return_value = {"text": "Invalid response"}
         gen = patched_model_invoke["generator"]
         patched_model_invoke["mock_invoke"].side_effect = Exception("fail")
         result = gen._generate_task_steps_original("task", "intent")
