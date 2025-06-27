@@ -8,6 +8,7 @@ from unittest.mock import Mock, patch
 import tempfile
 import os
 import requests
+from pathlib import Path
 
 from arklex.utils.loader import (
     encode_image,
@@ -625,27 +626,37 @@ class TestLoader:
     def test_crawl_file_unsupported_file_type(self) -> None:
         """Test crawl_file with unsupported file type."""
         loader = Loader()
-        local_obj = DocObject("id", "file.unsupported")
-        result = loader.crawl_file(local_obj)
-        assert result.is_error
-        assert "Unsupported file type" in result.error_message
+        # Create a DocObject with unsupported file type
+        local_obj = DocObject("1", "test.unsupported")
 
-    def test_crawl_file_missing_file_type(self) -> None:
+        # Create a mock Path object with the required properties
+        mock_path = Mock()
+        mock_path.suffix = ".unsupported"
+        mock_path.name = "test.unsupported"
+
+        with patch("arklex.utils.loader.Path", return_value=mock_path):
+            result = loader.crawl_file(local_obj)
+            # Should return CrawledObject with error for unsupported file type
+            assert isinstance(result, CrawledObject)
+            assert result.is_error is True
+            assert "Unsupported file type" in result.error_message
+
+    def test_crawl_file_with_missing_file_type(self) -> None:
+        """Test crawl_file with missing file type (covers lines 833, 835, 839, 841)."""
         loader = Loader()
 
-        with patch("arklex.utils.loader.Path") as mock_path:
-            # Mock the Path class itself to have _flavour attribute
-            mock_path._flavour = Mock()
-            mock_path_instance = Mock()
-            mock_path_instance.suffix = ""  # No file extension
-            mock_path_instance.name = "testfile"
-            # Add the _flavour attribute that Path objects have
-            mock_path_instance._flavour = Mock()
-            mock_path.return_value = mock_path_instance
+        # Create a DocObject with no file type
+        local_obj = DocObject("1", "test")
 
-            # The function should handle missing file type gracefully
-            result = loader.crawl_file(DocObject("test_id", "testfile"))
+        # Create a mock Path object instead of trying to patch real Path properties
+        mock_path = Mock()
+        mock_path.suffix = ""
+        mock_path.name = "test"
 
+        with patch("arklex.utils.loader.Path", return_value=mock_path):
+            result = loader.crawl_file(local_obj)
+            # Should return CrawledObject with error for missing file type
+            assert isinstance(result, CrawledObject)
             assert result.is_error is True
             assert "No file type detected" in result.error_message
 
@@ -1144,205 +1155,20 @@ class TestLoader:
             # Should return empty list when status code is not 200
             assert result == []
 
-    def test_crawl_file_with_unsupported_file_type(self) -> None:
-        """Test crawl_file with unsupported file type (covers lines 833, 835, 839, 841)."""
-        loader = Loader()
-
-        # Create a mock file object
-        mock_file_obj = Mock()
-        mock_file_obj.id = "test_id"
-        mock_file_obj.source = "test.unsupported"
-
-        # Mock Path to return a file with unsupported extension
-        with patch("pathlib.Path") as mock_path:
-            mock_path_instance = Mock()
-            mock_path_instance.suffix = ".unsupported"
-            mock_path_instance.name = "test.unsupported"
-            mock_path.return_value = mock_path_instance
-
-            result = loader.crawl_file(mock_file_obj)
-
-            # Should return error object for unsupported file type
-            assert result.is_error is True
-            assert "Unsupported file type" in result.error_message
-
-    def test_crawl_file_with_missing_file_type(self) -> None:
-        """Test crawl_file with missing file type (covers lines 833, 835, 839, 841)."""
-        loader = Loader()
-
-        # Create a mock file object
-        mock_file_obj = Mock()
-        mock_file_obj.id = "test_id"
-        mock_file_obj.source = "testfile"
-
-        # Mock Path to return a file with no extension
-        with patch("pathlib.Path") as mock_path:
-            mock_path_instance = Mock()
-            mock_path_instance.suffix = ""
-            mock_path_instance.name = "testfile"
-            mock_path.return_value = mock_path_instance
-
-            result = loader.crawl_file(mock_file_obj)
-
-            # Should return error object for missing file type
-            assert result.is_error is True
-            assert "No file type detected" in result.error_message
-
-    def test_chunk_method_with_error_and_chunked_docs(self) -> None:
-        """Test chunk method with error docs and chunked docs (covers lines 564-568)."""
-        loader = Loader()
-
-        # Create test documents
-        error_doc = CrawledObject(
-            id="error_id",
-            source="error_source",
-            content=None,
-            is_error=True,
-            error_message="Test error",
-        )
-
-        chunked_doc = CrawledObject(
-            id="chunked_id",
-            source="chunked_source",
-            content="Test content",
-            is_chunk=True,
-        )
-
-        normal_doc = CrawledObject(
-            id="normal_id", source="normal_source", content="Test content for chunking"
-        )
-
-        docs = [error_doc, chunked_doc, normal_doc]
-
-        result = loader.chunk(docs)
-
-        # Should skip error docs and already chunked docs
-        # Should only process normal docs
-        assert len(result) > 0
-
-    def test_chunk_method_return_logic(self) -> None:
-        """Test chunk method return logic (covers lines 564-568)."""
-        loader = Loader()
-
-        # Create a normal document
-        normal_doc = CrawledObject(
-            id="normal_id", source="normal_source", content="Test content for chunking"
-        )
-
-        docs = [normal_doc]
-
-        result = loader.chunk(docs)
-
-        # Should return chunked documents
-        assert isinstance(result, list)
-        assert len(result) > 0
-
-    def test_get_outsource_urls_link_processing_exception(self) -> None:
-        """Test get_outsource_urls with link processing exception (covers lines 610-612)."""
-        loader = Loader()
-
-        # Mock requests.get to return successful response
-        with patch("requests.get") as mock_get:
-            mock_response = Mock()
-            mock_response.status_code = 200
-            mock_response.text = '<html><a href="invalid_url">Link</a></html>'
-            mock_get.return_value = mock_response
-
-            # Mock urljoin to raise exception
-            with patch("urllib.parse.urljoin") as mock_urljoin:
-                mock_urljoin.side_effect = Exception("URL processing error")
-
-                result = loader.get_outsource_urls(
-                    "http://example.com", "http://example.com"
-                )
-
-                # Should handle link processing exceptions gracefully
-                assert isinstance(result, list)
-
-    def test_get_candidates_websites_with_error_urls(self) -> None:
-        """Test get_candidates_websites with error URLs (covers lines 266-269)."""
-        loader = Loader()
-
-        # Create test URLs with error
-        error_url = CrawledObject(
-            id="error_id",
-            source="error_source",
-            content="Test content",
-            is_error=True,
-            error_message="Test error",
-        )
-
-        normal_url = CrawledObject(
-            id="normal_id", source="normal_source", content="Test content"
-        )
-
-        urls = [error_url, normal_url]
-
-        result = loader.get_candidates_websites(urls, top_k=1)
-
-        # Should handle error URLs gracefully
-        assert isinstance(result, list)
-
-    def test_to_crawled_text(self) -> None:
-        loader = Loader()
-
-        text_list = ["text1", "text2", "text3"]
-        result = loader.to_crawled_text(text_list)
-
-        assert len(result) == 3
-        for i, obj in enumerate(result):
-            assert obj.content == f"text{i + 1}"
-            assert obj.source == "text"
-            assert obj.source_type == SourceType.TEXT
-
-    def test_to_crawled_local_objs(self) -> None:
-        loader = Loader()
-
-        # Mock crawl_file to avoid file system dependencies
-        with patch.object(loader, "crawl_file") as mock_crawl:
-            mock_crawl.return_value = CrawledObject("1", "test.txt", "content")
-
-            file_list = ["test1.txt", "test2.txt"]
-            result = loader.to_crawled_local_objs(file_list)
-
-            assert len(result) == 2
-            assert mock_crawl.call_count == 2
-
-    def test_crawl_file_unsupported_file_type(self) -> None:
-        loader = Loader()
-
-        # Create a DocObject with unsupported file type
-        local_obj = DocObject("1", "test.unsupported")
-
-        # Mock Path to return unsupported file type
-        with patch("pathlib.Path") as mock_path:
-            mock_path_instance = Mock()
-            mock_path_instance.suffix = ".unsupported"
-            mock_path_instance.name = "test.unsupported"
-            mock_path.return_value = mock_path_instance
-
-            result = loader.crawl_file(local_obj)
-
-            # Should return error object for unsupported file type
-            assert result.is_error is True
-            assert "Unsupported file type" in result.error_message
-
     def test_crawl_file_no_file_type(self) -> None:
         loader = Loader()
-
         # Create a DocObject with no file type
         local_obj = DocObject("1", "test")
 
-        # Mock Path to return no file type
-        with patch("pathlib.Path") as mock_path:
-            mock_path_instance = Mock()
-            mock_path_instance.suffix = ""
-            mock_path_instance.name = "test"
-            mock_path.return_value = mock_path_instance
+        # Create a mock Path object instead of trying to patch real Path properties
+        mock_path = Mock()
+        mock_path.suffix = ""
+        mock_path.name = "test"
 
+        with patch("arklex.utils.loader.Path", return_value=mock_path):
             result = loader.crawl_file(local_obj)
-
-            # Should return error object for no file type
+            # Should return CrawledObject with error for missing file type
+            assert isinstance(result, CrawledObject)
             assert result.is_error is True
             assert "No file type detected" in result.error_message
 
