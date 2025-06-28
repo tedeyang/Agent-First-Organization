@@ -475,18 +475,19 @@ class TestBuildUserProfiles:
             "system_attributes": {"attr1": {"values": ["val1", "val2"]}},
         }
 
-        # Override load_docs to return empty list
-        patched_sample_config["load_docs"].return_value = []
+        # Override load_docs to return empty list using the patched function
+        with patch("arklex.evaluation.build_user_profiles.load_docs") as mock_load_docs:
+            mock_load_docs.return_value = []
 
-        profiles, goals, attributes_list, system_inputs, labels_list = build_profile(
-            mock_synthetic_params, config
-        )
+            profiles, goals, attributes_list, system_inputs, labels_list = (
+                build_profile(mock_synthetic_params, config)
+            )
 
-        assert len(profiles) == 2
-        assert len(goals) == 2
-        assert len(attributes_list) == 2
-        assert len(system_inputs) == 2
-        assert len(labels_list) == 2
+            assert len(profiles) == 2
+            assert len(goals) == 2
+            assert len(attributes_list) == 2
+            assert len(system_inputs) == 2
+            assert len(labels_list) == 2
 
     def test_get_custom_profiles_with_api_and_exception(self) -> None:
         """Test get_custom_profiles function when API call raises an exception."""
