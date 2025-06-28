@@ -56,31 +56,31 @@ def advanced_config() -> dict:
             {
                 "name": "CustomerAnalytics",
                 "description": "Advanced customer analytics",
-                "path": "tools/customer_analytics.py",
+                "path": "mock_path",
                 "id": "customer_analytics_1",
             },
             {
                 "name": "PredictiveModeling",
                 "description": "Predictive modeling tools",
-                "path": "tools/predictive_modeling.py",
+                "path": "mock_path",
                 "id": "predictive_modeling_1",
             },
             {
                 "name": "BehavioralAnalysis",
                 "description": "Customer behavior analysis",
-                "path": "tools/behavioral_analysis.py",
+                "path": "mock_path",
                 "id": "behavioral_analysis_1",
             },
             {
                 "name": "RecommendationEngine",
                 "description": "AI recommendation engine",
-                "path": "tools/recommendation_engine.py",
+                "path": "mock_path",
                 "id": "recommendation_engine_1",
             },
             {
                 "name": "SentimentAnalysis",
                 "description": "Sentiment analysis tools",
-                "path": "tools/sentiment_analysis.py",
+                "path": "mock_path",
                 "id": "sentiment_analysis_1",
             },
         ],
@@ -144,7 +144,10 @@ def optimization_config() -> dict:
         "role": "Optimization System",
         "user_objective": "Optimize task execution and resource allocation",
         "workers": [{"name": "DataWorker"}, {"name": "AnalyticsWorker"}],
-        "tools": [{"name": "DataTool"}, {"name": "AnalyticsTool"}],
+        "tools": [
+            {"name": "DataTool", "path": "mock_path"},
+            {"name": "AnalyticsTool", "path": "mock_path"},
+        ],
     }
 
 
