@@ -54,7 +54,12 @@ Usage:
 import copy
 import json
 import time
-from typing import Any, TypedDict, Unpack
+from typing import Any, TypedDict
+
+try:
+    from typing import Unpack
+except ImportError:
+    from typing_extensions import Unpack
 
 import janus
 from dotenv import load_dotenv
