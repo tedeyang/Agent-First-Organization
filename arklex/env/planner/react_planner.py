@@ -509,6 +509,8 @@ class ReactPlanner(DefaultPlanner):
         resource_name: str | None = message.get("name")
         resource_id: int | None = self.name2id.get(resource_name, None)
         arguments: dict[str, Any] | None = message.get("arguments")
+        if arguments is None:
+            arguments = {}
 
         # Ensure selected resource is a valid worker or tool
         if resource_id is not None and (
