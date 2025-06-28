@@ -1,4 +1,3 @@
-from typing import NoReturn
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -24,7 +23,7 @@ def app_with_middleware() -> FastAPI:
         return {"message": "test"}
 
     @app.get("/error")
-    async def error_endpoint() -> NoReturn:
+    async def error_endpoint() -> None:
         raise ValueError("Test error")
 
     @app.get("/{param1}/{param2}")
