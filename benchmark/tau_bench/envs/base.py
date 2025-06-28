@@ -1,5 +1,3 @@
-# Copyright Sierra
-
 import random
 from collections.abc import Callable
 from hashlib import sha256

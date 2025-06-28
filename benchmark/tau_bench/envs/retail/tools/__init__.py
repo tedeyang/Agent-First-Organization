@@ -1,5 +1,3 @@
-# Copyright Sierra
-
 from .calculate import Calculate
 from .cancel_pending_order import CancelPendingOrder
 from .exchange_delivered_order_items import ExchangeDeliveredOrderItems

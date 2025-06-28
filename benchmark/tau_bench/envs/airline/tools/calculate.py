@@ -1,5 +1,3 @@
-# Copyright Sierra
-
 from typing import Any
 
 from benchmark.tau_bench.envs.tool import Tool

@@ -1,6 +1,3 @@
-# Copyright Sierra
-
-
 from benchmark.tau_bench.envs.airline.data import load_data
 from benchmark.tau_bench.envs.airline.rules import RULES
 from benchmark.tau_bench.envs.airline.tools import ALL_TOOLS

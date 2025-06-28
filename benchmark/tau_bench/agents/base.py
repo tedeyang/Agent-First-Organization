@@ -1,5 +1,3 @@
-# Copyright Sierra
-
 import abc
 
 from benchmark.tau_bench.envs.base import Env

@@ -13,7 +13,6 @@ The module includes:
 - Concurrent processing of multiple results
 """
 
-# Copyright Sierra
 import argparse
 import json
 import os
