@@ -130,8 +130,9 @@ async def test_get_model_service_exception() -> None:
     with patch("arklex.orchestrator.NLU.api.routes.ModelService") as MockModelService:
         MockModelService.side_effect = RuntimeError("Model initialization failed")
         from arklex.orchestrator.NLU.api.routes import get_model_service
+        from arklex.utils.exceptions import ModelError
 
-        with pytest.raises(RuntimeError):
+        with pytest.raises(ModelError):
             get_model_service()
 
 
@@ -245,7 +246,9 @@ def test_predict_intent_app_general_exception() -> None:
     with patch("arklex.orchestrator.NLU.api.routes.ModelService") as MockModelService:
         mock_service = MockModelService.return_value
         mock_service.format_intent_input.side_effect = RuntimeError("Model error")
-        with pytest.raises(RuntimeError):
+        from arklex.utils.exceptions import ModelError
+
+        with pytest.raises(ModelError):
             client.post("/nlu/predict", json=data)
 
 
@@ -293,7 +296,9 @@ def test_predict_slots_app_general_exception() -> None:
     with patch("arklex.orchestrator.NLU.api.routes.ModelService") as MockModelService:
         mock_service = MockModelService.return_value
         mock_service.format_slot_input.side_effect = RuntimeError("Model error")
-        with pytest.raises(RuntimeError):
+        from arklex.utils.exceptions import ModelError
+
+        with pytest.raises(ModelError):
             client.post("/slotfill/predict", json=data)
 
 
@@ -341,7 +346,9 @@ def test_verify_slot_app_general_exception() -> None:
     with patch("arklex.orchestrator.NLU.api.routes.ModelService") as MockModelService:
         mock_service = MockModelService.return_value
         mock_service.format_verification_input.side_effect = RuntimeError("Model error")
-        with pytest.raises(RuntimeError):
+        from arklex.utils.exceptions import ModelError
+
+        with pytest.raises(ModelError):
             client.post("/slotfill/verify", json=data)
 
 
@@ -482,12 +489,13 @@ async def test_router_predict_intent_exception() -> None:
     from arklex.orchestrator.NLU.api.routes import (
         predict_intent as router_predict_intent,
     )
+    from arklex.utils.exceptions import ArklexError
 
     with patch("arklex.orchestrator.NLU.api.routes.ModelService") as MockModelService:
         mock_service = MockModelService.return_value
         mock_service.predict_intent = AsyncMock(side_effect=RuntimeError("Model error"))
 
-        with pytest.raises(RuntimeError):
+        with pytest.raises(ArklexError):
             await router_predict_intent("hello", mock_service)
 
 
@@ -495,12 +503,13 @@ async def test_router_predict_intent_exception() -> None:
 async def test_router_fill_slots_exception() -> None:
     """Test the router /fill_slots endpoint when ModelService raises an exception."""
     from arklex.orchestrator.NLU.api.routes import fill_slots as router_fill_slots
+    from arklex.utils.exceptions import ArklexError
 
     with patch("arklex.orchestrator.NLU.api.routes.ModelService") as MockModelService:
         mock_service = MockModelService.return_value
         mock_service.fill_slots = AsyncMock(side_effect=RuntimeError("Model error"))
 
-        with pytest.raises(RuntimeError):
+        with pytest.raises(ArklexError):
             await router_fill_slots("my name is John", "greet", mock_service)
 
 
@@ -508,11 +517,12 @@ async def test_router_fill_slots_exception() -> None:
 async def test_router_verify_slots_exception() -> None:
     """Test the router /verify_slots endpoint when ModelService raises an exception."""
     from arklex.orchestrator.NLU.api.routes import verify_slots as router_verify_slots
+    from arklex.utils.exceptions import ArklexError
 
     with patch("arklex.orchestrator.NLU.api.routes.ModelService") as MockModelService:
         mock_service = MockModelService.return_value
         mock_service.verify_slots = AsyncMock(side_effect=RuntimeError("Model error"))
 
         slots = {"user": "John"}
-        with pytest.raises(RuntimeError):
+        with pytest.raises(ArklexError):
             await router_verify_slots("my name is John", slots, mock_service)
