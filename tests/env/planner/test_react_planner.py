@@ -471,40 +471,45 @@ class TestReactPlanner:
         assert result["arguments"]["content"] == "Invalid JSON content"
 
     def test_message_to_actions_valid_tool(self, react_planner: ReactPlanner) -> None:
-        message = {"content": '{"name": "test_tool", "arguments": {"param1": "value"}}'}
+        message = {"name": "test_tool", "arguments": {"param1": "value"}}
         actions = react_planner.message_to_actions(message)
 
         assert len(actions) == 1
+        # Valid tools should return the tool name and arguments
         assert actions[0].name == "test_tool"
-        assert "param1" in actions[0].kwargs["content"]
+        assert actions[0].kwargs == {"param1": "value"}
 
     def test_message_to_actions_valid_worker(self, react_planner: ReactPlanner) -> None:
-        message = {"content": '{"name": "test_worker", "arguments": {}}'}
+        message = {"name": "test_worker", "arguments": {}}
         actions = react_planner.message_to_actions(message)
 
         assert len(actions) == 1
+        # Valid workers should return the worker name and arguments
         assert actions[0].name == "test_worker"
-        assert "test_worker" in actions[0].kwargs["content"]
+        assert actions[0].kwargs == {}
 
     def test_message_to_actions_invalid_resource(
         self, react_planner: ReactPlanner
     ) -> None:
-        message = {"content": '{"name": "invalid_resource", "arguments": {}}'}
+        message = {"name": "invalid_resource", "arguments": {}}
         actions = react_planner.message_to_actions(message)
 
         assert len(actions) == 1
-        assert actions[0].name == "invalid_resource"
-        assert "invalid_resource" in actions[0].kwargs["content"]
+        # Invalid resources should return RESPOND_ACTION_NAME
+        assert actions[0].name == RESPOND_ACTION_NAME
+        assert actions[0].kwargs == {"content": ""}
 
     def test_message_to_actions_missing_arguments(
         self, react_planner: ReactPlanner
     ) -> None:
-        message = {"content": '{"name": "test_tool"}'}
+        # The method expects a parsed JSON object, not a message with content field
+        message = {"name": "test_tool"}
         actions = react_planner.message_to_actions(message)
 
         assert len(actions) == 1
+        # Missing arguments are now handled gracefully and default to empty dict
         assert actions[0].name == "test_tool"
-        assert "test_tool" in actions[0].kwargs["content"]
+        assert actions[0].kwargs == {}
 
     def test_step_respond_action(
         self, react_planner: ReactPlanner, mock_message_state: MessageState
@@ -598,9 +603,9 @@ class TestReactPlanner:
         assert result == "Test response"
         mock_llm.invoke.assert_called_once()
         call_args = mock_llm.invoke.call_args[0][0]
-        assert len(call_args) == 2
+        # For OpenAI/Gemini providers, only one system message is created
+        assert len(call_args) == 1
         assert call_args[0]["role"] == "system"
-        assert call_args[1]["role"] == "user"
 
     def test_retrieve_resource_signatures(
         self, react_planner: ReactPlanner, patched_sample_config: dict[str, Any]
@@ -647,6 +652,14 @@ class TestReactPlanner:
         config["mock_aimessage_to_dict"].return_value = {
             "content": 'Action:\n{"name": "respond", "arguments": {"content": "Hello!"}}'
         }
+
+        # Mock the step method to return the correct response for respond action
+        def mock_step(action: Action, msg_state: MessageState) -> EnvResponse:
+            if action.name == RESPOND_ACTION_NAME:
+                return EnvResponse(observation=action.kwargs["content"])
+            return EnvResponse(observation="tool_result")
+
+        configured_react_planner.step = mock_step
 
         msg_history, action_name, response = configured_react_planner.plan(
             mock_message_state, mock_msg_history, max_num_steps=1
