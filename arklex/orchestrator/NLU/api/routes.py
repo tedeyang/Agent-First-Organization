@@ -49,9 +49,7 @@ async def health_check() -> dict[str, str]:
     return {"status": "healthy"}
 
 
-@router.post("/model_service")
-@handle_exceptions()
-async def get_model_service() -> ModelService:
+def get_model_service() -> ModelService:
     """Get model service instance.
 
     Returns:
@@ -61,7 +59,7 @@ async def get_model_service() -> ModelService:
         ModelError: If model service initialization fails
     """
     try:
-        model_service = ModelService()
+        model_service = ModelService(DEFAULT_MODEL_CONFIG)
         log_context.info(
             "Model service initialized successfully",
             extra={"operation": "model_service_initialization"},
@@ -69,7 +67,7 @@ async def get_model_service() -> ModelService:
         return model_service
     except Exception as e:
         log_context.error(
-            LOG_MESSAGES["MODEL_INIT_ERROR"],
+            LOG_MESSAGES["ERROR"]["INITIALIZATION_ERROR"],
             extra={
                 "error": str(e),
                 "operation": "model_service_initialization",
