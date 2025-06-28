@@ -626,9 +626,16 @@ class TestComponentInitialization:
             assert best_practice_manager == mock_manager_instance
 
     def test_initialize_best_practice_manager_resource_processing(
-        self, always_valid_mock_model: Mock
+        self, always_valid_mock_model: Mock, mock_resource_initializer: Mock
     ) -> None:
         """Test best practice manager resource processing."""
+        # Configure the mock resource initializer to return tools as a list
+        # that matches what the Generator expects
+        mock_resource_initializer.init_tools.return_value = [
+            {"name": "Tool1", "description": "Tool 1 desc"},
+            {"name": "Tool2", "description": "Tool 1 desc"},  # Default description
+        ]
+
         config = {
             "role": "test_role",
             "user_objective": "test objective",
@@ -656,6 +663,7 @@ class TestComponentInitialization:
             config=config,
             model=always_valid_mock_model,
             allow_nested_graph=True,
+            resource_initializer=mock_resource_initializer,
         )
 
         with patch(
