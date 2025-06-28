@@ -71,7 +71,7 @@ def load_test_cases(test_cases_path: Path) -> list[dict[str, Any]]:
 @pytest.mark.parametrize(
     "test_case",
     TEST_CASES,
-    ids=lambda tc: tc.name,
+    ids=lambda tc: str(tc),
 )
 def test_resources(test_case: CaseConfig) -> None:
     """Run test cases for a specific orchestrator class.
