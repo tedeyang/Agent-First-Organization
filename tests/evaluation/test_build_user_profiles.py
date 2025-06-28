@@ -233,7 +233,7 @@ class TestBuildUserProfiles:
                 },
                 "user_profiles": {"profile1": {"values": ["p1"]}},
             },
-            "tools": [{"id": "tool1", "name": "Test Tool"}],
+            "tools": [{"id": "tool1", "name": "Test Tool", "path": "mock_path"}],
             "workers": [{"id": "worker1", "name": "Test Worker"}],
         }
 
