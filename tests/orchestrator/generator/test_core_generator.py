@@ -3042,37 +3042,43 @@ class TestCompleteLineCoverage:
                     interactable_with_user=True,
                 )
 
-                # Set up the tasks that will be compared
-                generator.tasks = mock_ui_tasks.copy()
+                # Patch the _initialize_document_loader method to return our mock
+                with patch.object(
+                    generator,
+                    "_initialize_document_loader",
+                    return_value=mock_document_loader.return_value,
+                ):
+                    # Set up the tasks that will be compared
+                    generator.tasks = mock_ui_tasks.copy()
 
-                # Mock best practices
-                mock_best_practice_manager.return_value.generate_best_practices.return_value = [
-                    {
-                        "name": "Best Practice 1",
-                        "description": "Best practice description",
-                        "steps": [{"description": "Best practice step"}],
+                    # Mock best practices
+                    mock_best_practice_manager.return_value.generate_best_practices.return_value = [
+                        {
+                            "name": "Best Practice 1",
+                            "description": "Best practice description",
+                            "steps": [{"description": "Best practice step"}],
+                        }
+                    ]
+
+                    # Mock task graph formatter to return a proper dictionary
+                    mock_task_graph_formatter.return_value.format_task_graph.return_value = {
+                        "tasks": [],
+                        "metadata": {},
+                        "version": "1.0",
                     }
-                ]
+                    mock_task_graph_formatter.return_value.ensure_nested_graph_connectivity.return_value = {
+                        "tasks": [],
+                        "metadata": {},
+                        "version": "1.0",
+                    }
 
-                # Mock task graph formatter to return a proper dictionary
-                mock_task_graph_formatter.return_value.format_task_graph.return_value = {
-                    "tasks": [],
-                    "metadata": {},
-                    "version": "1.0",
-                }
-                mock_task_graph_formatter.return_value.ensure_nested_graph_connectivity.return_value = {
-                    "tasks": [],
-                    "metadata": {},
-                    "version": "1.0",
-                }
+                    # Run generate method
+                    result = generator.generate()
 
-                # Run generate method
-                result = generator.generate()
-
-                # Verify that the else branch was executed (no changes detected)
-                assert result is not None
-                # Verify that finetune_best_practice was called for original tasks
-                mock_best_practice_manager.return_value.finetune_best_practice.assert_called()
+                    # Verify that the else branch was executed (no changes detected)
+                    assert result is not None
+                    # Verify that finetune_best_practice was called for original tasks
+                    mock_best_practice_manager.return_value.finetune_best_practice.assert_called()
 
     def test_generate_else_branch_no_ui_interaction(
         self,
@@ -3127,46 +3133,52 @@ class TestCompleteLineCoverage:
                 interactable_with_user=False,
             )
 
-            # Set up tasks
-            generator.tasks = [
-                {
-                    "name": "Generated Task 1",
-                    "description": "Generated task description",
-                    "steps": [
-                        {"description": "Generated Step 1"},
-                        {"description": "Generated Step 2"},
-                    ],
+            # Patch the _initialize_document_loader method to return our mock
+            with patch.object(
+                generator,
+                "_initialize_document_loader",
+                return_value=mock_document_loader.return_value,
+            ):
+                # Set up tasks
+                generator.tasks = [
+                    {
+                        "name": "Generated Task 1",
+                        "description": "Generated task description",
+                        "steps": [
+                            {"description": "Generated Step 1"},
+                            {"description": "Generated Step 2"},
+                        ],
+                    }
+                ]
+
+                # Mock best practices
+                mock_best_practice_manager.return_value.generate_best_practices.return_value = [
+                    {
+                        "name": "Best Practice 1",
+                        "description": "Best practice description",
+                        "steps": [{"description": "Best practice step"}],
+                    }
+                ]
+
+                # Mock task graph formatter to return a proper dictionary
+                mock_task_graph_formatter.return_value.format_task_graph.return_value = {
+                    "tasks": [],
+                    "metadata": {},
+                    "version": "1.0",
                 }
-            ]
-
-            # Mock best practices
-            mock_best_practice_manager.return_value.generate_best_practices.return_value = [
-                {
-                    "name": "Best Practice 1",
-                    "description": "Best practice description",
-                    "steps": [{"description": "Best practice step"}],
+                mock_task_graph_formatter.return_value.ensure_nested_graph_connectivity.return_value = {
+                    "tasks": [],
+                    "metadata": {},
+                    "version": "1.0",
                 }
-            ]
 
-            # Mock task graph formatter to return a proper dictionary
-            mock_task_graph_formatter.return_value.format_task_graph.return_value = {
-                "tasks": [],
-                "metadata": {},
-                "version": "1.0",
-            }
-            mock_task_graph_formatter.return_value.ensure_nested_graph_connectivity.return_value = {
-                "tasks": [],
-                "metadata": {},
-                "version": "1.0",
-            }
+                # Run generate method
+                result = generator.generate()
 
-            # Run generate method
-            result = generator.generate()
-
-            # Verify that the else branch was executed (no UI interaction)
-            assert result is not None
-            # Verify that finetune_best_practice was called for all tasks
-            mock_best_practice_manager.return_value.finetune_best_practice.assert_called()
+                # Verify that the else branch was executed (no UI interaction)
+                assert result is not None
+                # Verify that finetune_best_practice was called for all tasks
+                mock_best_practice_manager.return_value.finetune_best_practice.assert_called()
 
     def test_save_task_graph_sanitize_functools_partial(
         self, always_valid_mock_model: Mock, patched_sample_config: dict[str, Any]
