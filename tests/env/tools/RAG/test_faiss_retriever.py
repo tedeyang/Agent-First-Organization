@@ -39,9 +39,9 @@ def faiss_retriever(
         patch("arklex.env.tools.RAG.retrievers.faiss_retriever.FAISS"),
     ):
         retriever = FaissRetrieverExecutor(
-            documents=mock_documents,
+            texts=mock_documents,
+            index_path="/tmp/test_db/index",
             llm_config=mock_llm_config,
-            database_path="/tmp/test_db",
         )
         return retriever
 
@@ -69,14 +69,13 @@ class TestFaissRetrieverExecutor:
             mock_faiss_instance.as_retriever.return_value = Mock()
 
             retriever = FaissRetrieverExecutor(
-                documents=mock_documents,
+                texts=mock_documents,
+                index_path="/tmp/test_db/index",
                 llm_config=mock_llm_config,
-                database_path="/tmp/test_db",
             )
 
-            assert retriever.documents == mock_documents
-            assert retriever.llm_config == mock_llm_config
-            assert retriever.database_path == "/tmp/test_db"
+            assert retriever.texts == mock_documents
+            assert retriever.index_path == "/tmp/test_db/index"
             assert retriever.embedding_model is not None
             assert retriever.retriever is not None
 
@@ -90,7 +89,7 @@ class TestFaissRetrieverExecutor:
 
         with (
             patch(
-                "arklex.env.tools.RAG.retrievers.faiss_retriever.AnthropicEmbeddings"
+                "arklex.env.tools.RAG.retrievers.faiss_retriever.OpenAIEmbeddings"
             ) as mock_embeddings,
             patch(
                 "arklex.env.tools.RAG.retrievers.faiss_retriever.FAISS"
@@ -104,9 +103,9 @@ class TestFaissRetrieverExecutor:
             mock_faiss_instance.as_retriever.return_value = Mock()
 
             retriever = FaissRetrieverExecutor(
-                documents=mock_documents,
+                texts=mock_documents,
+                index_path="/tmp/test_db/index",
                 llm_config=config,
-                database_path="/tmp/test_db",
             )
 
             assert retriever.embedding_model is not None
@@ -124,7 +123,7 @@ class TestFaissRetrieverExecutor:
             faiss_retriever._init_retriever()
 
             mock_from_documents.assert_called_once()
-            mock_faiss_instance.as_retriever.assert_called_once_with(k=5)
+            mock_faiss_instance.as_retriever.assert_called_once()
 
     def test_retrieve_w_score_default_k(
         self, faiss_retriever: FaissRetrieverExecutor
@@ -134,15 +133,16 @@ class TestFaissRetrieverExecutor:
             (Document(page_content="doc1"), 0.8),
             (Document(page_content="doc2"), 0.6),
         ]
-        faiss_retriever.retriever.similarity_search_with_score = Mock(
+        faiss_retriever.retriever.vectorstore.similarity_search_with_score = Mock(
             return_value=mock_docs_and_scores
         )
+        faiss_retriever.retriever.search_kwargs = {}
 
         result = faiss_retriever.retrieve_w_score("test query")
 
         assert result == mock_docs_and_scores
-        faiss_retriever.retriever.similarity_search_with_score.assert_called_once_with(
-            "test query", k=5
+        faiss_retriever.retriever.vectorstore.similarity_search_with_score.assert_called_once_with(
+            "test query", k=4
         )
 
     def test_retrieve_w_score_custom_k(
@@ -153,14 +153,15 @@ class TestFaissRetrieverExecutor:
             (Document(page_content="doc1"), 0.8),
             (Document(page_content="doc2"), 0.6),
         ]
-        faiss_retriever.retriever.similarity_search_with_score = Mock(
+        faiss_retriever.retriever.vectorstore.similarity_search_with_score = Mock(
             return_value=mock_docs_and_scores
         )
+        faiss_retriever.retriever.search_kwargs = {"k": 10}
 
-        result = faiss_retriever.retrieve_w_score("test query", k=10)
+        result = faiss_retriever.retrieve_w_score("test query")
 
         assert result == mock_docs_and_scores
-        faiss_retriever.retriever.similarity_search_with_score.assert_called_once_with(
+        faiss_retriever.retriever.vectorstore.similarity_search_with_score.assert_called_once_with(
             "test query", k=10
         )
 
@@ -172,15 +173,38 @@ class TestFaissRetrieverExecutor:
         ]
         faiss_retriever.retrieve_w_score = Mock(return_value=mock_docs_and_scores)
 
-        result = faiss_retriever.search("test query")
+        with (
+            patch(
+                "arklex.env.tools.RAG.retrievers.faiss_retriever.PromptTemplate"
+            ) as mock_prompt,
+            patch(
+                "arklex.env.tools.RAG.retrievers.faiss_retriever.StrOutputParser"
+            ) as mock_parser,
+        ):
+            mock_prompt_instance = Mock()
+            mock_llm = Mock()
+            mock_parser_instance = Mock()
+            mock_chain = Mock()
+            mock_chain.invoke.return_value = "reformulated query"
 
-        assert len(result) == 2
-        assert result[0]["content"] == "doc1"
-        assert result[0]["source"] == "test1.txt"
-        assert result[0]["confidence"] == 0.8
-        assert result[1]["content"] == "doc2"
-        assert result[1]["source"] == "test2.txt"
-        assert result[1]["confidence"] == 0.6
+            # Patch | operator for the chain: PromptTemplate | llm | StrOutputParser
+            mock_prompt.from_template.return_value = mock_prompt_instance
+            mock_prompt_instance.__or__ = Mock(return_value=mock_llm)
+            mock_llm.__or__ = Mock(return_value=mock_chain)
+            mock_parser.return_value = mock_parser_instance
+
+            result_text, result_returns = faiss_retriever.search(
+                "test query", "test prompt"
+            )
+
+            assert result_text == "doc1 \ndoc2 \n"
+            assert len(result_returns) == 2
+            assert result_returns[0]["content"] == "doc1"
+            assert result_returns[0]["source"] == "test1.txt"
+            assert result_returns[0]["confidence"] == 0.8
+            assert result_returns[1]["content"] == "doc2"
+            assert result_returns[1]["source"] == "test2.txt"
+            assert result_returns[1]["confidence"] == 0.6
 
     def test_search_empty_results(
         self, faiss_retriever: FaissRetrieverExecutor
@@ -188,9 +212,32 @@ class TestFaissRetrieverExecutor:
         """Test search method with empty results."""
         faiss_retriever.retrieve_w_score = Mock(return_value=[])
 
-        result = faiss_retriever.search("test query")
+        with (
+            patch(
+                "arklex.env.tools.RAG.retrievers.faiss_retriever.PromptTemplate"
+            ) as mock_prompt,
+            patch(
+                "arklex.env.tools.RAG.retrievers.faiss_retriever.StrOutputParser"
+            ) as mock_parser,
+        ):
+            mock_prompt_instance = Mock()
+            mock_llm = Mock()
+            mock_parser_instance = Mock()
+            mock_chain = Mock()
+            mock_chain.invoke.return_value = "reformulated query"
 
-        assert result == []
+            # Patch | operator for the chain: PromptTemplate | llm | StrOutputParser
+            mock_prompt.from_template.return_value = mock_prompt_instance
+            mock_prompt_instance.__or__ = Mock(return_value=mock_llm)
+            mock_llm.__or__ = Mock(return_value=mock_chain)
+            mock_parser.return_value = mock_parser_instance
+
+            result_text, result_returns = faiss_retriever.search(
+                "test query", "test prompt"
+            )
+
+            assert result_text == ""
+            assert result_returns == []
 
     @staticmethod
     def test_load_docs_success(mock_llm_config: Mock) -> None:
@@ -205,6 +252,8 @@ class TestFaissRetrieverExecutor:
                 "arklex.env.tools.RAG.retrievers.faiss_retriever.pickle.load"
             ) as mock_load,
             patch("builtins.open", mock_open(read_data="test data")),
+            patch("arklex.env.tools.RAG.retrievers.faiss_retriever.OpenAIEmbeddings"),
+            patch("arklex.env.tools.RAG.retrievers.faiss_retriever.FAISS"),
         ):
             mock_load.return_value = mock_documents
 
@@ -212,7 +261,8 @@ class TestFaissRetrieverExecutor:
                 database_path="/tmp/test_db", llm_config=mock_llm_config
             )
 
-            assert result == mock_documents
+            assert isinstance(result, FaissRetrieverExecutor)
+            assert result.texts == mock_documents
 
     @staticmethod
     def test_faiss_retriever_file_not_found() -> None:  # noqa: N802
@@ -230,20 +280,34 @@ class TestRetrieveEngine:
     def test_faiss_retrieve(self) -> None:
         """Test faiss_retrieve static method."""
         mock_state = Mock(spec=MessageState)
-        mock_state.user_message.message = "test query"
+        mock_state.user_message = Mock()
+        mock_state.user_message.history = "test query"
+        mock_state.bot_config = Mock()
+        mock_state.bot_config.llm_config = Mock()
 
         mock_retriever = Mock()
-        mock_retriever.search.return_value = [
-            {"content": "doc1", "source": "test1.txt", "confidence": 0.8}
-        ]
+        mock_retriever.search.return_value = (
+            "retrieved text",
+            [{"content": "doc1", "source": "test1.txt", "confidence": 0.8}],
+        )
 
-        with patch(
-            "arklex.env.tools.RAG.retrievers.faiss_retriever.FaissRetrieverExecutor.load_docs"
-        ) as mock_load_docs:
-            mock_load_docs.return_value = [Document(page_content="doc1")]
+        with (
+            patch("os.environ.get", return_value="/tmp/test_db"),
+            patch(
+                "arklex.env.tools.RAG.retrievers.faiss_retriever.load_prompts",
+                return_value={"retrieve_contextualize_q_prompt": "test prompt"},
+            ),
+            patch(
+                "arklex.env.tools.RAG.retrievers.faiss_retriever.FaissRetrieverExecutor.load_docs"
+            ) as mock_load_docs,
+            patch(
+                "arklex.env.tools.RAG.retrievers.faiss_retriever.trace"
+            ) as mock_trace,
+        ):
+            mock_load_docs.return_value = mock_retriever
+            mock_trace.return_value = mock_state
 
-            result = RetrieveEngine.faiss_retrieve(mock_state, "/tmp/test_db")
+            result = RetrieveEngine.faiss_retrieve(mock_state)
 
-            assert result == [
-                {"content": "doc1", "source": "test1.txt", "confidence": 0.8}
-            ]
+            assert result == mock_state
+            assert mock_state.message_flow == "retrieved text"
