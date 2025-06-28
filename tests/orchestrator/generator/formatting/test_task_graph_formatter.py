@@ -701,6 +701,11 @@ class TestTaskGraphFormatter:
                 "attribute": {"value": {"description": "desc text"}},
             }
         ]
+        # Create mock nodes that include the expected structure
+        mock_nodes = [
+            ["0", {"type": "start", "attribute": {"value": "Hello!"}}],
+            ["1", {"type": "task", "attribute": {"value": "desc", "task": "Task 1"}}],
+        ]
         # Patch ensure_nested_graph_connectivity to just return its input
         with (
             patch.object(
@@ -709,7 +714,9 @@ class TestTaskGraphFormatter:
                 side_effect=lambda g: g,
             ),
             patch.object(
-                task_graph_formatter, "_format_nodes", return_value=([], {}, [])
+                task_graph_formatter,
+                "_format_nodes",
+                return_value=(mock_nodes, {"task1": "1"}, ["1"]),
             ),
             patch.object(task_graph_formatter, "_format_edges", return_value=([], [])),
         ):
@@ -729,6 +736,11 @@ class TestTaskGraphFormatter:
                 "attribute": {"value": {"other": "no desc"}},
             }
         ]
+        # Create mock nodes that include the expected structure
+        mock_nodes = [
+            ["0", {"type": "start", "attribute": {"value": "Hello!"}}],
+            ["1", {"type": "task", "attribute": {"value": "desc", "task": "Task 1"}}],
+        ]
         with (
             patch.object(
                 task_graph_formatter,
@@ -736,7 +748,9 @@ class TestTaskGraphFormatter:
                 side_effect=lambda g: g,
             ),
             patch.object(
-                task_graph_formatter, "_format_nodes", return_value=([], {}, [])
+                task_graph_formatter,
+                "_format_nodes",
+                return_value=(mock_nodes, {"task1": "1"}, ["1"]),
             ),
             patch.object(task_graph_formatter, "_format_edges", return_value=([], [])),
         ):
@@ -756,6 +770,11 @@ class TestTaskGraphFormatter:
                 "attribute": {"value": [1, 2, 3]},
             }
         ]
+        # Create mock nodes that include the expected structure
+        mock_nodes = [
+            ["0", {"type": "start", "attribute": {"value": "Hello!"}}],
+            ["1", {"type": "task", "attribute": {"value": "desc", "task": "Task 1"}}],
+        ]
         with (
             patch.object(
                 task_graph_formatter,
@@ -763,7 +782,9 @@ class TestTaskGraphFormatter:
                 side_effect=lambda g: g,
             ),
             patch.object(
-                task_graph_formatter, "_format_nodes", return_value=([], {}, [])
+                task_graph_formatter,
+                "_format_nodes",
+                return_value=(mock_nodes, {"task1": "1"}, ["1"]),
             ),
             patch.object(task_graph_formatter, "_format_edges", return_value=([], [])),
         ):
@@ -1747,10 +1768,15 @@ class TestTaskGraphFormatter:
             }
         ]
 
-        # Mock the _format_nodes method to return empty task_node_ids
+        # Create mock nodes that include a start node but empty task_node_ids
+        mock_nodes = [
+            ["0", {"type": "start", "attribute": {"value": "1"}}],
+        ]
+
+        # Mock the _format_nodes method to return nodes with empty task_node_ids
         with (
             patch.object(
-                task_graph_formatter, "_format_nodes", return_value=([], {}, [])
+                task_graph_formatter, "_format_nodes", return_value=(mock_nodes, {}, [])
             ),
             patch.object(task_graph_formatter, "_format_edges", return_value=([], [])),
             patch.object(
