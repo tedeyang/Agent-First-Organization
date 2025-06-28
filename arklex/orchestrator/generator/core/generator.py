@@ -257,8 +257,13 @@ class Generator:
                         }
                     )
 
-            # Add tools
-            for tool in self.tools:
+            # Add tools - handle both list and dictionary formats
+            tools_list = self.tools
+            if isinstance(self.tools, dict):
+                # Convert dictionary to list format for processing
+                tools_list = list(self.tools.values())
+
+            for tool in tools_list:
                 if isinstance(tool, dict) and "name" in tool:
                     all_resources.append(
                         {
