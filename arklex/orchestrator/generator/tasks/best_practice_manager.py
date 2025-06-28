@@ -349,7 +349,7 @@ class BestPracticeManager:
             return False
         if not isinstance(practice_def.priority, int):
             return False
-        return practice_def.category
+        return bool(practice_def.category)
 
     def _categorize_practices(self, practices: list[dict[str, Any]]) -> None:
         """Categorize practices by type.
