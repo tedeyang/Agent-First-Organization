@@ -3,7 +3,10 @@ from unittest.mock import Mock, mock_open, patch
 import pytest
 from langchain_core.documents import Document
 
-from arklex.env.tools.RAG.faiss_retriever import FaissRetrieverExecutor, RetrieveEngine
+from arklex.env.tools.RAG.retrievers.faiss_retriever import (
+    FaissRetrieverExecutor,
+    RetrieveEngine,
+)
 from arklex.utils.graph_state import LLMConfig, MessageState
 
 
@@ -32,8 +35,8 @@ def faiss_retriever(
     mock_documents: list[Document], mock_llm_config: Mock
 ) -> FaissRetrieverExecutor:
     with (
-        patch("arklex.env.tools.RAG.faiss_retriever.OpenAIEmbeddings"),
-        patch("arklex.env.tools.RAG.faiss_retriever.FAISS"),
+        patch("arklex.env.tools.RAG.retrievers.faiss_retriever.OpenAIEmbeddings"),
+        patch("arklex.env.tools.RAG.retrievers.faiss_retriever.FAISS"),
     ):
         retriever = FaissRetrieverExecutor(
             documents=mock_documents,
@@ -52,9 +55,11 @@ class TestFaissRetrieverExecutor:
         """Test FaissRetrieverExecutor initialization."""
         with (
             patch(
-                "arklex.env.tools.RAG.faiss_retriever.OpenAIEmbeddings"
+                "arklex.env.tools.RAG.retrievers.faiss_retriever.OpenAIEmbeddings"
             ) as mock_embeddings,
-            patch("arklex.env.tools.RAG.faiss_retriever.FAISS") as mock_faiss,
+            patch(
+                "arklex.env.tools.RAG.retrievers.faiss_retriever.FAISS"
+            ) as mock_faiss,
         ):
             mock_embeddings_instance = Mock()
             mock_embeddings.return_value = mock_embeddings_instance
@@ -85,9 +90,11 @@ class TestFaissRetrieverExecutor:
 
         with (
             patch(
-                "arklex.env.tools.RAG.faiss_retriever.AnthropicEmbeddings"
+                "arklex.env.tools.RAG.retrievers.faiss_retriever.AnthropicEmbeddings"
             ) as mock_embeddings,
-            patch("arklex.env.tools.RAG.faiss_retriever.FAISS") as mock_faiss,
+            patch(
+                "arklex.env.tools.RAG.retrievers.faiss_retriever.FAISS"
+            ) as mock_faiss,
         ):
             mock_embeddings_instance = Mock()
             mock_embeddings.return_value = mock_embeddings_instance
@@ -108,7 +115,7 @@ class TestFaissRetrieverExecutor:
     def test_init_retriever(self, faiss_retriever: FaissRetrieverExecutor) -> None:
         """Test _init_retriever method."""
         with patch(
-            "arklex.env.tools.RAG.faiss_retriever.FAISS.from_documents"
+            "arklex.env.tools.RAG.retrievers.faiss_retriever.FAISS.from_documents"
         ) as mock_from_documents:
             mock_faiss_instance = Mock()
             mock_from_documents.return_value = mock_faiss_instance
@@ -194,7 +201,9 @@ class TestFaissRetrieverExecutor:
         ]
 
         with (
-            patch("arklex.env.tools.RAG.faiss_retriever.pickle.load") as mock_load,
+            patch(
+                "arklex.env.tools.RAG.retrievers.faiss_retriever.pickle.load"
+            ) as mock_load,
             patch("builtins.open", mock_open(read_data="test data")),
         ):
             mock_load.return_value = mock_documents
@@ -229,7 +238,7 @@ class TestRetrieveEngine:
         ]
 
         with patch(
-            "arklex.env.tools.RAG.faiss_retriever.FaissRetrieverExecutor.load_docs"
+            "arklex.env.tools.RAG.retrievers.faiss_retriever.FaissRetrieverExecutor.load_docs"
         ) as mock_load_docs:
             mock_load_docs.return_value = [Document(page_content="doc1")]
 
