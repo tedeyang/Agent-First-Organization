@@ -198,14 +198,14 @@ class TestChatGPTUtils:
         # Setup
         mock_create_client.return_value = mock_client
         # Simulate an exception in the OpenAI client
-        mock_client.chat.completions.create.side_effect = Exception("API error")
+        mock_client.chat.completions.create.side_effect = RuntimeError("API error")
         conversation = [
             {"content": "Hello"},
             {"role": "assistant", "content": "Hi there"},
         ]
 
         # Execute and assert
-        with pytest.raises(RuntimeError):
+        with pytest.raises(RuntimeError, match="API error"):
             chatgpt_chatbot(conversation, client=mock_client)
 
     def test_filter_convo_empty_conversation(self) -> None:
