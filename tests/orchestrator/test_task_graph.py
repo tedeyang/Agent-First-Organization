@@ -3163,20 +3163,26 @@ class TestTaskGraphAdditionalCoverage:
         # Ensure no NLU records exist
         sample_params.taskgraph.nlu_records = []
 
-        # Mock the graph to have edges with intent "none"
-        task_graph.graph.add_edge("task_node", "leaf_node", intent="none")
-
-        # Execute
-        has_random_next, node_output, updated_params = (
-            task_graph.handle_random_next_node("task_node", sample_params)
+        # Mock the graph to have edges with intent "none" and proper weight
+        task_graph.graph.add_edge(
+            "task_node", "leaf_node", intent="none", attribute={"weight": 1.0}
         )
 
-        # Assert
-        assert has_random_next is True
-        assert isinstance(node_output, NodeInfo)  # Should return NodeInfo, not dict
-        # Should have created NLU record with no_intent=True
-        assert len(updated_params.taskgraph.nlu_records) == 1
-        assert updated_params.taskgraph.nlu_records[0]["no_intent"] is True
+        # Mock np.random.choice to ensure deterministic behavior
+        with patch("arklex.orchestrator.task_graph.np.random.choice") as mock_choice:
+            mock_choice.return_value = "leaf_node"  # Ensure it returns the target node
+
+            # Execute
+            has_random_next, node_output, updated_params = (
+                task_graph.handle_random_next_node("task_node", sample_params)
+            )
+
+            # Assert
+            assert has_random_next is True
+            assert isinstance(node_output, NodeInfo)  # Should return NodeInfo, not dict
+            # Should have created NLU record with no_intent=True
+            assert len(updated_params.taskgraph.nlu_records) == 1
+            assert updated_params.taskgraph.nlu_records[0]["no_intent"] is True
 
     def test_handle_leaf_node_nested_graph_still_leaf(
         self,
