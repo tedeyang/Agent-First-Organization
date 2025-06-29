@@ -631,6 +631,20 @@ class TestNestedGraph:
         assert result_node is None
         assert result_params == params
 
+    def test_get_nested_graph_component_node_final_return_none_params(self) -> None:
+        """Test the final return None, params branch with empty path."""
+        params = Params()
+        params.taskgraph.path = []
+
+        def is_leaf_func(node_id: str) -> bool:
+            return True
+
+        result_node, result_params = NestedGraph.get_nested_graph_component_node(
+            params, is_leaf_func
+        )
+        assert result_node is None
+        assert result_params == params
+
     def test_get_nested_graph_component_node_all_nodes_are_leaves(self) -> None:
         """Test get_nested_graph_component_node fallback branch"""
         params = Params()
