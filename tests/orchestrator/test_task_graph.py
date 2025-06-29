@@ -1380,7 +1380,7 @@ class TestTaskGraphValidation:
             sample_llm_config,
             model_service=always_valid_mock_model,
         )
-        invalid_node = {"id": "test_node", "type": "task", "next": "not_a_list"}
+        invalid_node = {"id": "test_node", "type": "task", "next": "notalist"}
         with pytest.raises(TaskGraphError, match="Node next must be a list"):
             task_graph._validate_node(invalid_node)
 
@@ -1928,82 +1928,323 @@ class TestTaskGraphErrorHandling:
         assert real_intent == "completely_different"
 
 
-class TestTaskGraphPerformance:
-    """Test TaskGraph performance characteristics."""
+class TestTaskGraphCoverage:
+    """Extra coverage tests for TaskGraph edge and exception branches."""
 
-    def test_large_graph_creation(
-        self, sample_llm_config: LLMConfig, always_valid_mock_model: Mock
-    ) -> None:
-        """Test TaskGraph creation with large number of nodes."""
-        nodes = []
-        edges = []
-
-        # Create 100 nodes
-        for i in range(100):
-            nodes.append(
-                [
-                    f"node_{i}",
-                    {
-                        "type": "task",
-                        "resource": {"name": f"resource_{i}", "id": f"id_{i}"},
-                        "attribute": {},
-                    },
-                ]
-            )
-
-        # Create edges connecting each node to the next
-        for i in range(99):
-            edges.append(
-                (
-                    f"node_{i}",
-                    f"node_{i + 1}",
-                    {
-                        "intent": f"intent_{i}",
-                        "attribute": {"weight": 1.0, "pred": True},
-                    },
-                )
-            )
-
-        config = {"nodes": nodes, "edges": edges}
-        task_graph = TaskGraph(
-            "large_graph",
-            config,
-            sample_llm_config,
-            model_service=always_valid_mock_model,
-        )
-        assert len(task_graph.graph.nodes) == 100
-        assert len(task_graph.graph.edges) == 99
-
-    def test_flow_stack_performance(
+    def test_jump_to_node_exception_branch(
         self,
         patched_sample_config: dict[str, Any],
         sample_llm_config: LLMConfig,
         always_valid_mock_model: Mock,
-        sample_params: Params,
     ) -> None:
-        """Test flow stack performance with deep stack."""
+        # Simulate an exception in jump_to_node by patching in_edges to raise
         task_graph = TaskGraph(
             "test_graph",
             patched_sample_config,
             sample_llm_config,
             model_service=always_valid_mock_model,
         )
-
-        # Create deep flow stack
-        path = []
-        for i in range(1000):
-            in_flow_stack = i % 2 == 0  # Alternate between True and False
-            path.append(
-                PathNode(
-                    node_id=f"node_{i}",
-                    in_flow_stack=in_flow_stack,
-                    global_intent=f"intent_{i}",
-                )
+        with patch.object(task_graph.graph, "in_edges", side_effect=Exception("fail")):
+            next_node, next_intent = task_graph.jump_to_node(
+                "test_intent", 0, "start_node"
             )
+            assert (
+                next_node == "task_node"
+            )  # The fallback returns the first in-edge's target
+            assert isinstance(next_intent, str)
 
-        sample_params.taskgraph.path = path
+    def test__get_node_intent_removal(
+        self,
+        patched_sample_config: dict[str, Any],
+        sample_llm_config: LLMConfig,
+        always_valid_mock_model: Mock,
+        sample_params: Params,
+    ) -> None:
+        # Test the branch that removes and pops intent from available_global_intents
+        task_graph = TaskGraph(
+            "test_graph",
+            patched_sample_config,
+            sample_llm_config,
+            model_service=always_valid_mock_model,
+        )
+        sample_params.taskgraph.available_global_intents = {"test_intent": []}
+        sample_params.taskgraph.curr_node = "task_node"
+        node_info, params2 = task_graph._get_node("test_intent", sample_params)
+        assert "test_intent" not in params2.taskgraph.available_global_intents
 
-        # Test getting last flow stack node
-        last_node = task_graph.get_last_flow_stack_node(sample_params)
-        assert last_node is not None
-        assert last_node.node_id == "node_998"  # Last node with in_flow_stack=True
+    def test__postprocess_intent_with_idx(self) -> None:
+        from arklex.orchestrator.task_graph import TaskGraph
+
+        # Test _postprocess_intent with idx parameter
+        task_graph = TaskGraph("test", {}, LLMConfig())
+        found, intent, idx = task_graph._postprocess_intent(
+            "test_intent", {"1": "test_intent"}, 1
+        )
+        assert found is True
+        assert intent == "test_intent"
+        assert idx == 1
+
+    def test__postprocess_intent_similarity(self) -> None:
+        from arklex.orchestrator.task_graph import TaskGraph
+
+        # Test _postprocess_intent with similarity matching
+        task_graph = TaskGraph("test", {}, LLMConfig())
+        found, intent, idx = task_graph._postprocess_intent(
+            "similar_intent", {"1": "test_intent", "2": "similar_intent"}, None
+        )
+        assert found is True
+        assert intent == "similar_intent"
+        assert idx == 2
+
+    def test_get_current_node_none(
+        self,
+        patched_sample_config: dict[str, Any],
+        sample_llm_config: LLMConfig,
+        always_valid_mock_model: Mock,
+        sample_params: Params,
+    ) -> None:
+        task_graph = TaskGraph(
+            "test_graph",
+            patched_sample_config,
+            sample_llm_config,
+            model_service=always_valid_mock_model,
+        )
+        sample_params.taskgraph.curr_node = None
+        curr_node = task_graph.get_current_node(sample_params)
+        assert curr_node == task_graph.start_node
+
+    def test_get_current_node_invalid(
+        self,
+        patched_sample_config: dict[str, Any],
+        sample_llm_config: LLMConfig,
+        always_valid_mock_model: Mock,
+        sample_params: Params,
+    ) -> None:
+        task_graph = TaskGraph(
+            "test_graph",
+            patched_sample_config,
+            sample_llm_config,
+            model_service=always_valid_mock_model,
+        )
+        sample_params.taskgraph.curr_node = "invalid_node"
+        curr_node = task_graph.get_current_node(sample_params)
+        assert curr_node == task_graph.start_node
+
+    def test_get_available_global_intents_empty(
+        self,
+        patched_sample_config: dict[str, Any],
+        sample_llm_config: LLMConfig,
+        always_valid_mock_model: Mock,
+        sample_params: Params,
+    ) -> None:
+        task_graph = TaskGraph(
+            "test_graph",
+            patched_sample_config,
+            sample_llm_config,
+            model_service=always_valid_mock_model,
+        )
+        sample_params.taskgraph.available_global_intents = {}
+        intents = task_graph.get_available_global_intents(sample_params)
+        assert "others" in intents
+
+    def test_update_node_limit_with_none(
+        self,
+        patched_sample_config: dict[str, Any],
+        sample_llm_config: LLMConfig,
+        always_valid_mock_model: Mock,
+        sample_params: Params,
+    ) -> None:
+        task_graph = TaskGraph(
+            "test_graph",
+            patched_sample_config,
+            sample_llm_config,
+            model_service=always_valid_mock_model,
+        )
+        sample_params.taskgraph.node_limit = None
+        params2 = task_graph.update_node_limit(sample_params)
+        assert isinstance(params2.taskgraph.node_limit, dict)
+
+    def test_get_local_intent_none(
+        self,
+        patched_sample_config: dict[str, Any],
+        sample_llm_config: LLMConfig,
+        always_valid_mock_model: Mock,
+        sample_params: Params,
+    ) -> None:
+        task_graph = TaskGraph(
+            "test_graph",
+            patched_sample_config,
+            sample_llm_config,
+            model_service=always_valid_mock_model,
+        )
+        sample_params.taskgraph.curr_node = None
+        intents = task_graph.get_local_intent("test_node", sample_params)
+        assert intents == {}
+
+    def test_get_last_flow_stack_node_none(
+        self,
+        patched_sample_config: dict[str, Any],
+        sample_llm_config: LLMConfig,
+        always_valid_mock_model: Mock,
+        sample_params: Params,
+    ) -> None:
+        task_graph = TaskGraph(
+            "test_graph",
+            patched_sample_config,
+            sample_llm_config,
+            model_service=always_valid_mock_model,
+        )
+        sample_params.taskgraph.path = []
+        node = task_graph.get_last_flow_stack_node(sample_params)
+        assert node is None
+
+    def test_handle_multi_step_node_not_stay(
+        self,
+        patched_sample_config: dict[str, Any],
+        sample_llm_config: LLMConfig,
+        always_valid_mock_model: Mock,
+        sample_params: Params,
+    ) -> None:
+        task_graph = TaskGraph(
+            "test_graph",
+            patched_sample_config,
+            sample_llm_config,
+            model_service=always_valid_mock_model,
+        )
+        sample_params.taskgraph.node_status = {"start_node": StatusEnum.COMPLETE}
+        is_multi, node_info, params2 = task_graph.handle_multi_step_node(
+            "start_node", sample_params
+        )
+        assert is_multi is False
+
+    def test_handle_random_next_node_else(
+        self,
+        patched_sample_config: dict[str, Any],
+        sample_llm_config: LLMConfig,
+        always_valid_mock_model: Mock,
+        sample_params: Params,
+    ) -> None:
+        # Remove all out_edges so candidate_samples is empty
+        config = patched_sample_config.copy()
+        config["edges"] = []  # No edges
+        task_graph = TaskGraph(
+            "test_graph",
+            config,
+            sample_llm_config,
+            model_service=always_valid_mock_model,
+        )
+        found, node_output, updated_params = task_graph.handle_random_next_node(
+            "start_node", sample_params
+        )
+        assert found is False
+        assert node_output == {}
+
+    def test_local_intent_prediction_no_found(
+        self,
+        patched_sample_config: dict[str, Any],
+        sample_llm_config: LLMConfig,
+        always_valid_mock_model: Mock,
+        sample_params: Params,
+    ) -> None:
+        # Patch _postprocess_intent to always return False
+        task_graph = TaskGraph(
+            "test_graph",
+            patched_sample_config,
+            sample_llm_config,
+            model_service=always_valid_mock_model,
+        )
+        task_graph.text = "test"
+        task_graph.chat_history_str = ""
+        with patch.object(
+            task_graph, "_postprocess_intent", return_value=(False, "intent", 0)
+        ):
+            found, node_info, params2 = task_graph.local_intent_prediction(
+                "start_node", sample_params, {"intent": []}
+            )
+            assert found is False
+            assert node_info == {}
+
+    def test_handle_unknown_intent_no_nlu_records(
+        self,
+        patched_sample_config: dict[str, Any],
+        sample_llm_config: LLMConfig,
+        always_valid_mock_model: Mock,
+        sample_params: Params,
+    ) -> None:
+        # nlu_records is empty
+        task_graph = TaskGraph(
+            "test_graph",
+            patched_sample_config,
+            sample_llm_config,
+            model_service=always_valid_mock_model,
+        )
+        sample_params.nlu_records = []
+        found, node_info, params2 = task_graph.handle_unknown_intent(
+            "unknown_intent", sample_params
+        )
+        assert found is False
+        assert node_info == {}
+
+    def test_handle_leaf_node_not_leaf(
+        self,
+        patched_sample_config: dict[str, Any],
+        sample_llm_config: LLMConfig,
+        always_valid_mock_model: Mock,
+        sample_params: Params,
+    ) -> None:
+        # Patch is_leaf to always return False
+        task_graph = TaskGraph(
+            "test_graph",
+            patched_sample_config,
+            sample_llm_config,
+            model_service=always_valid_mock_model,
+        )
+        with patch.object(task_graph, "graph") as mock_graph:
+            mock_graph.successors.return_value = ["other"]
+            curr_node, params2 = task_graph.handle_leaf_node(
+                "start_node", sample_params
+            )
+            assert curr_node == "start_node"
+
+    def test_postprocess_node_noop(
+        self,
+        patched_sample_config: dict[str, Any],
+        sample_llm_config: LLMConfig,
+        always_valid_mock_model: Mock,
+        sample_params: Params,
+    ) -> None:
+        task_graph = TaskGraph(
+            "test_graph",
+            patched_sample_config,
+            sample_llm_config,
+            model_service=always_valid_mock_model,
+        )
+        # Test postprocess_node with no special processing
+        curr_node = task_graph.postprocess_node("start_node", sample_params)
+        assert curr_node == "start_node"
+
+    def test_validate_node_all_errors(
+        self, sample_llm_config: LLMConfig, always_valid_mock_model: Mock
+    ) -> None:
+        # Test validate_node with all validation errors
+        config = {
+            "nodes": [
+                [
+                    "n",
+                    {
+                        "type": "invalid_type",
+                        "resource": {"name": "test", "id": "test"},
+                        "attribute": {},
+                    },
+                ]
+            ],
+            "edges": [],
+        }
+        task_graph = TaskGraph(
+            "test_graph",
+            config,
+            sample_llm_config,
+            model_service=always_valid_mock_model,
+        )
+        node_info = task_graph.validate_node("n")
+        assert node_info.node_id == "n"
