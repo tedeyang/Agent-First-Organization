@@ -2320,37 +2320,180 @@ class TestTaskGraphCoverage:
         always_valid_mock_model: Mock,
         sample_params: Params,
     ) -> None:
-        tg = TaskGraph(
-            "g",
+        """Test get_node with global intent switch and random next node selection."""
+        task_graph = TaskGraph(
+            "test_graph",
             patched_sample_config,
             sample_llm_config,
             model_service=always_valid_mock_model,
         )
-        params = sample_params
-        inputs = {
-            "text": "irrelevant",
-            "chat_history_str": "history",
-            "parameters": params,
-            "allow_global_intent_switch": True,
+
+        # Setup params with current node and no local intents
+        sample_params.taskgraph.curr_node = "task_node"
+        sample_params.taskgraph.available_global_intents = {
+            "test_intent": [{"target_node": "leaf_node"}]
         }
-        # Patch get_local_intent to return no local intents so the global intent branch is taken
-        node_info_obj = NodeInfo(
-            node_id="leaf_node",
-            type="task",
-            resource_id="leaf_id",
-            resource_name="leaf_resource",
-            can_skipped=False,
-            is_leaf=True,
-            attributes={},
-        )
+
+        # Patch intent_detector.execute to return 'unsure'
         with (
-            patch.object(tg, "get_local_intent", return_value={}),
-            patch.object(
-                tg,
-                "global_intent_prediction",
-                return_value=(True, "not_unsure", node_info_obj, params),
-            ),
+            patch.object(task_graph.intent_detector, "execute", return_value="unsure"),
+            patch.object(task_graph, "get_local_intent", return_value={}),
+            patch.object(task_graph, "global_intent_prediction") as mock_global,
+            patch.object(task_graph, "handle_random_next_node") as mock_random,
         ):
-            node_info, out_params = tg.get_node(inputs)
-            assert node_info.node_id == "leaf_node"
-            assert out_params is params
+            # Mock global intent prediction to return False so handle_random_next_node is called
+            mock_global.return_value = (False, "test_intent", {}, sample_params)
+            # Mock handle_random_next_node to return True
+            mock_random.return_value = (True, {}, sample_params)
+            inputs = {
+                "text": "test message",
+                "chat_history_str": "",
+                "parameters": sample_params,
+                "allow_global_intent_switch": True,
+            }
+            result = task_graph.get_node(inputs)
+            assert result is not None
+            mock_global.assert_called_once()
+            mock_random.assert_called_once()
+
+    def test_handle_leaf_node_with_nested_graph_branch(
+        self,
+        patched_sample_config: dict[str, Any],
+        sample_llm_config: LLMConfig,
+        always_valid_mock_model: Mock,
+        sample_params: Params,
+    ) -> None:
+        """Test handle_leaf_node with nested graph component (lines 697-698)."""
+        task_graph = TaskGraph(
+            "test_graph",
+            patched_sample_config,
+            sample_llm_config,
+            model_service=always_valid_mock_model,
+        )
+        sample_params.taskgraph.curr_node = "leaf_node"
+        with patch("arklex.orchestrator.task_graph.NestedGraph") as mock_nested_graph:
+            mock_node_info = Mock()
+            mock_node_info.node_id = "nested_node"
+            mock_nested_graph.get_nested_graph_component_node.return_value = (
+                mock_node_info,
+                sample_params,
+            )
+
+            # Patch successors to return a non-empty list for the nested node
+            def successors_side_effect(node: str) -> list[str]:
+                if node == "nested_node":
+                    return ["some_successor"]
+                return []
+
+            with patch.object(
+                task_graph.graph, "successors", side_effect=successors_side_effect
+            ):
+                curr_node, params = task_graph.handle_leaf_node(
+                    "leaf_node", sample_params
+                )
+                assert curr_node == "nested_node"
+                assert params.taskgraph.curr_node == "nested_node"
+
+    def test_validate_node_invalid_next(
+        self,
+        sample_llm_config: LLMConfig,
+        always_valid_mock_model: Mock,
+    ) -> None:
+        """Test _validate_node with invalid next field (lines 821-825)."""
+        minimal_config = {
+            "nodes": [["test_node", {"type": "task", "attribute": {}}]],
+            "edges": [],
+        }
+        task_graph = TaskGraph(
+            "test_graph",
+            minimal_config,
+            sample_llm_config,
+            model_service=always_valid_mock_model,
+        )
+        invalid_node = {
+            "id": "test_node",
+            "type": "task",
+            "next": "not_a_list",  # Should be a list
+        }
+        with pytest.raises(TaskGraphError, match="Node next must be a list"):
+            task_graph._validate_node(invalid_node)
+
+    def test_get_node_with_global_intent_switch_and_random_next_complex(
+        self,
+        patched_sample_config: dict[str, Any],
+        sample_llm_config: LLMConfig,
+        always_valid_mock_model: Mock,
+        sample_params: Params,
+    ) -> None:
+        """Test get_node complex flow with global intent switch and random next (lines 780-789)."""
+        task_graph = TaskGraph(
+            "test_graph",
+            patched_sample_config,
+            sample_llm_config,
+            model_service=always_valid_mock_model,
+        )
+        sample_params.taskgraph.curr_node = "task_node"
+        sample_params.taskgraph.available_global_intents = {
+            "test_intent": [{"target_node": "leaf_node"}]
+        }
+        with (
+            patch.object(task_graph.intent_detector, "execute", return_value="unsure"),
+            patch.object(task_graph, "get_local_intent", return_value={}),
+            patch.object(task_graph, "global_intent_prediction") as mock_global,
+            patch.object(task_graph, "handle_random_next_node") as mock_random,
+            patch.object(task_graph, "handle_multi_step_node") as mock_multi,
+            patch.object(task_graph, "handle_leaf_node") as mock_leaf,
+            patch.object(task_graph, "handle_incomplete_node") as mock_incomplete,
+            patch.object(task_graph, "local_intent_prediction") as mock_local,
+        ):
+            mock_global.return_value = (False, "test_intent", {}, sample_params)
+            mock_random.return_value = (True, {}, sample_params)
+            mock_multi.return_value = (False, {}, sample_params)
+            mock_leaf.return_value = ("task_node", sample_params)
+            mock_incomplete.return_value = (
+                False,
+                {},
+                sample_params,
+            )
+            mock_local.return_value = (
+                False,
+                {},
+                sample_params,
+            )
+            inputs = {
+                "text": "test message",
+                "chat_history_str": "",
+                "parameters": sample_params,
+                "allow_global_intent_switch": True,
+            }
+            result = task_graph.get_node(inputs)
+            assert result is not None
+            mock_global.assert_called()
+            mock_random.assert_called()
+
+    def test_jump_to_node_exception_handling_with_in_edges(
+        self,
+        patched_sample_config: dict[str, Any],
+        sample_llm_config: LLMConfig,
+        always_valid_mock_model: Mock,
+    ) -> None:
+        """Test jump_to_node exception handling with in_edges access."""
+        task_graph = TaskGraph(
+            "test_graph",
+            patched_sample_config,
+            sample_llm_config,
+            model_service=always_valid_mock_model,
+        )
+        with patch.object(task_graph, "intents") as mock_intents:
+            mock_intents.__getitem__.side_effect = Exception("Test exception")
+            # Patch in_edges to first return a tuple, then raise an exception
+            with patch.object(task_graph.graph, "in_edges") as mock_in_edges:
+                mock_in_edges.side_effect = [
+                    [("a", "b", "intent_value")],
+                    Exception("Test exception"),
+                ]
+                next_node, next_intent = task_graph.jump_to_node(
+                    "test_intent", 0, "start_node"
+                )
+                assert next_node == "start_node"
+                assert next_intent == "intent_value"
