@@ -664,17 +664,41 @@ class TestNestedGraph:
         assert result_params == params
 
     def test_get_nested_graph_component_node_none_return(self) -> None:
-        """Test get_nested_graph_component_node returns None when path is empty."""
-        from arklex.env.nested_graph.nested_graph import NestedGraph
-        from arklex.utils.graph_state import Params
-
-        # Setup params with empty path to force the final return
-        params = Params(taskgraph={"path": [], "node_status": {}})
+        """Test get_nested_graph_component_node returns the first node when all nodes are leaves in circular pattern."""
+        params = Params()
+        # Create a path where all nodes are leaves and form nested graph patterns
+        # but the algorithm exhausts all possibilities
+        path_node1 = PathNode(node_id="node1", nested_graph_node_value="node2")
+        path_node2 = PathNode(node_id="node2", nested_graph_node_value="node3")
+        path_node3 = PathNode(node_id="node3", nested_graph_node_value="node1")
+        params.taskgraph.path = [path_node1, path_node2, path_node3]
+        params.taskgraph.node_status = {}
 
         def is_leaf_func(node_id: str) -> bool:
-            return False
+            return True  # All nodes are leaves
 
-        result, updated_params = NestedGraph.get_nested_graph_component_node(
+        result_node, result_params = NestedGraph.get_nested_graph_component_node(
             params, is_leaf_func
         )
-        assert result is None
+
+        # When all nodes are leaves, the algorithm returns the first node in the path
+        assert result_node is not None
+        assert result_node.node_id == "node1"
+        assert result_params == params
+
+    def test_get_nested_graph_component_node_empty_path_returns_none(self) -> None:
+        """Test get_nested_graph_component_node returns None with empty path."""
+        params = Params()
+        params.taskgraph.path = []
+        params.taskgraph.node_status = {}
+
+        def is_leaf_func(node_id: str) -> bool:
+            return True
+
+        result_node, result_params = NestedGraph.get_nested_graph_component_node(
+            params, is_leaf_func
+        )
+
+        # Should return None when path is empty
+        assert result_node is None
+        assert result_params == params
