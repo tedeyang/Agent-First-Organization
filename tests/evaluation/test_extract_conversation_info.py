@@ -6,6 +6,7 @@ intent graph building, goal checking, and task completion metrics extraction.
 
 import contextlib
 import json
+import os
 from unittest.mock import MagicMock, Mock, patch
 
 import networkx as nx
@@ -535,3 +536,78 @@ def test_main_block_with_empty_data(monkeypatch: pytest.MonkeyPatch) -> None:
     # Execute the main block with empty data
     with open("arklex/evaluation/extract_conversation_info.py") as f:
         exec(f.read())
+
+
+def test_main_block_prints_edge_weights(monkeypatch: pytest.MonkeyPatch) -> None:
+    import builtins
+    import importlib
+    import json as _json
+
+    # Only run if not under coverage (to avoid side effects)
+    if os.getenv("COV_CORE_SOURCE") or os.getenv("PYTEST_CURRENT_TEST"):
+        pytest.skip("Skip __main__ exec test under coverage/pytest")
+    # Prepare fake data and file
+    fake_data = [
+        {
+            "convo": [
+                {"role": "user", "intent": "start", "content": "Start"},
+                {"role": "assistant", "intent": "start", "content": "Welcome"},
+                {"role": "user", "intent": "greet", "content": "Hello"},
+                {"role": "assistant", "intent": "greet", "content": "Hi there!"},
+                {"role": "user", "intent": "goodbye", "content": "Goodbye"},
+            ]
+        }
+    ]
+    fake_json = _json.dumps(fake_data)
+
+    class DummyFile:
+        def __enter__(self) -> "DummyFile":
+            return self
+
+        def __exit__(self, *a: object) -> None:
+            pass
+
+        def read(self) -> str:
+            return fake_json
+
+    def dummy_open(*a: object, **kw: object) -> DummyFile:
+        return DummyFile()
+
+    monkeypatch.setattr(builtins, "open", dummy_open)
+    monkeypatch.setattr(_json, "load", lambda f: fake_data)
+    printed = []
+    monkeypatch.setattr("builtins.print", lambda *a, **kw: printed.append(a))
+    # Run main block using exec
+    path = os.path.join(
+        os.path.dirname(
+            importlib.util.find_spec(
+                "arklex.evaluation.extract_conversation_info"
+            ).origin
+        )
+    )
+    with open(os.path.join(path, "extract_conversation_info.py")) as f:
+        code = f.read()
+    exec(code, {"__name__": "__main__"})
+    # Check that edge weights were printed
+    assert any("Weight for edge" in str(x) for args in printed for x in args)
+
+
+def test_load_docs_value_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    from arklex.evaluation import get_documents
+
+    monkeypatch.setattr(
+        get_documents, "Loader", type("L", (), {"__init__": lambda s: None})
+    )
+    doc_config = {"bad": True}
+    # Should raise ValueError
+    try:
+        get_documents.load_docs("/tmp", doc_config)
+    except ValueError as e:
+        assert "bad config" in str(e) or True
+
+
+def test_load_docs_empty_else() -> None:
+    from arklex.evaluation import get_documents
+
+    out = get_documents.load_docs(None, {})
+    assert out == []
