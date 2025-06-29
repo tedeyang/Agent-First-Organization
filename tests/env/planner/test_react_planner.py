@@ -1139,9 +1139,7 @@ class TestReactPlanner:
         """Test plan method with zero-shot prompt (covers line 577)."""
         # Mock USE_FEW_SHOT_REACT_PROMPT to be False to trigger zero-shot branch
         with (
-            patch.object(
-                "arklex.env.planner.react_planner.USE_FEW_SHOT_REACT_PROMPT", False
-            ),
+            patch("arklex.env.planner.react_planner.USE_FEW_SHOT_REACT_PROMPT", False),
             patch.object(
                 configured_react_planner, "_get_planning_trajectory_summary"
             ) as mock_summary,
@@ -1155,6 +1153,7 @@ class TestReactPlanner:
             patch(
                 "arklex.env.planner.react_planner.aimessage_to_dict"
             ) as mock_aimessage_to_dict,
+            patch.object(configured_react_planner, "step") as mock_step,
         ):
             # Setup mocks
             mock_summary.return_value = "Test summary"
@@ -1170,20 +1169,19 @@ class TestReactPlanner:
             }
 
             # Mock step to return a response
-            with patch.object(configured_react_planner, "step") as mock_step:
-                mock_step.return_value = EnvResponse(observation="test observation")
+            mock_step.return_value = EnvResponse(observation="test observation")
 
-                # Call the plan method
-                result_history, result_action, result_response = (
-                    configured_react_planner.plan(mock_message_state, mock_msg_history)
-                )
+            # Call the plan method
+            result_history, result_action, result_response = (
+                configured_react_planner.plan(mock_message_state, mock_msg_history)
+            )
 
-                # Verify the zero-shot branch was taken
-                mock_summary.assert_called_once()
-                mock_retrievals.assert_called_once()
-                mock_retrieve.assert_called_once()
-                assert result_action == "respond"
-                assert result_response == "test observation"
+            # Verify the zero-shot branch was taken
+            mock_summary.assert_called_once()
+            mock_retrievals.assert_called_once()
+            mock_retrieve.assert_called_once()
+            assert result_action == "respond"
+            assert result_response == "test observation"
 
 
 class TestReactPlannerIntegration:
