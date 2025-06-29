@@ -507,46 +507,28 @@ class TestHITLWorkerMCFlag:
         assert state.status == StatusEnum.COMPLETE
 
     def test_execute_with_hitl_invalid_choice_attempts_remaining(self) -> None:
-        """Test execute method when hitl is set and invalid choice with attempts remaining."""
-        worker = HITLWorkerMCFlag(name="test_mc_flag")
+        """Test execute with HITL when invalid choice but attempts still remaining."""
+        worker = HITLWorkerMCFlag(name="test_worker")
         state = MessageState()
         state.metadata = Metadata()
         state.metadata.hitl = "mc"
-        state.metadata.attempts = 2
+        state.metadata.attempts = 3
         state.user_message = Mock()
         state.user_message.message = "INVALID"
 
         result = worker._execute(state)
 
-        assert result == state
+        assert result.metadata.hitl == "mc"
+        assert result.status == StatusEnum.STAY
+        assert result.metadata.attempts == 2
         assert (
-            state.response
+            result.response
             == "[[sending confirmation : this should not show up for user]]"
         )
-        assert state.metadata.hitl == "mc"
-        assert state.metadata.attempts == 1
-        assert state.status == StatusEnum.STAY
 
-    def test_execute_with_hitl_invalid_choice_no_attempts_remaining(self) -> None:
-        """Test execute method when hitl is set and invalid choice with no attempts remaining."""
-        worker = HITLWorkerMCFlag(name="test_mc_flag")
-        state = MessageState()
-        state.metadata = Metadata()
-        state.metadata.hitl = "mc"
-        state.metadata.attempts = 1
-        state.user_message = Mock()
-        state.user_message.message = "INVALID"
-
-        result = worker._execute(state)
-
-        assert result == state
-        assert state.response == "User is not allowed to continue with the purchase"
-        assert state.metadata.hitl is None
-        assert state.status == StatusEnum.INCOMPLETE
-
-    def test_execute_with_hitl_invalid_choice_attempts_exhausted(self) -> None:
-        """Test execute method when hitl is set and attempts are exhausted."""
-        worker = HITLWorkerMCFlag(name="test_mc_flag")
+    def test_execute_with_hitl_invalid_choice_zero_attempts(self) -> None:
+        """Test execute with HITL when invalid choice and attempts reach zero."""
+        worker = HITLWorkerMCFlag(name="test_worker")
         state = MessageState()
         state.metadata = Metadata()
         state.metadata.hitl = "mc"
@@ -556,7 +538,22 @@ class TestHITLWorkerMCFlag:
 
         result = worker._execute(state)
 
-        assert result == state
-        assert state.response == "User is not allowed to continue with the purchase"
-        assert state.metadata.hitl is None
-        assert state.status == StatusEnum.INCOMPLETE
+        assert result.metadata.hitl is None
+        assert result.status == StatusEnum.INCOMPLETE
+        assert result.response == "User is not allowed to continue with the purchase"
+
+    def test_execute_with_hitl_invalid_choice_attempts_exhausted(self) -> None:
+        """Test execute with HITL when invalid choice and attempts are exhausted."""
+        worker = HITLWorkerMCFlag(name="test_worker")
+        state = MessageState()
+        state.metadata = Metadata()
+        state.metadata.hitl = "mc"
+        state.metadata.attempts = 1
+        state.user_message = Mock()
+        state.user_message.message = "INVALID"
+
+        result = worker._execute(state)
+
+        assert result.metadata.hitl is None
+        assert result.status == StatusEnum.INCOMPLETE
+        assert result.response == "User is not allowed to continue with the purchase"
