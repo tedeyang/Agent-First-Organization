@@ -449,6 +449,10 @@ class ReactPlanner(DefaultPlanner):
         Returns:
             A list of Documents, each corresponding to a single resource/action (tool or worker to be called).
         """
+        # Return early if no retrievals requested
+        if n_retrievals <= 0:
+            return []
+
         # Format RAG query
         query: str = ""
         if user_message:
@@ -703,10 +707,18 @@ class ReactPlanner(DefaultPlanner):
 
 
 def aimessage_to_dict(ai_message: AIMessage | dict[str, Any]) -> dict[str, Any]:
-    message_dict: dict[str, Any] = {
-        "content": ai_message.content,
-        "role": "assistant" if isinstance(ai_message, AIMessage) else "user",
-        "function_call": None,
-        "tool_calls": None,
-    }
+    if isinstance(ai_message, dict):
+        message_dict: dict[str, Any] = {
+            "content": ai_message.get("content", ""),
+            "role": ai_message.get("role", "user"),
+            "function_call": ai_message.get("function_call", None),
+            "tool_calls": ai_message.get("tool_calls", None),
+        }
+    else:
+        message_dict: dict[str, Any] = {
+            "content": ai_message.content,
+            "role": "assistant",
+            "function_call": None,
+            "tool_calls": None,
+        }
     return message_dict
