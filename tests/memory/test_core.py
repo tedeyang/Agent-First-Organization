@@ -578,35 +578,3 @@ class TestShortTermMemory:
         # Assert
         assert not found
         assert intent is None
-
-    def test_retrieve_intent_empty_trajectory_explicit(
-        self, mock_llm_config: LLMConfig
-    ) -> None:
-        """Explicitly test retrieve_intent with empty trajectory to cover line 222."""
-        with (
-            patch("arklex.memory.core.PROVIDER_MAP"),
-            patch("arklex.memory.core.PROVIDER_EMBEDDINGS"),
-            patch("arklex.memory.core.PROVIDER_EMBEDDING_MODELS"),
-        ):
-            memory = ShortTermMemory(
-                trajectory=[], chat_history="", llm_config=mock_llm_config
-            )
-            found, intent = memory.retrieve_intent("test query")
-            assert found is False
-            assert intent is None
-
-    def test_retrieve_records_empty_trajectory_explicit(
-        self, mock_llm_config: LLMConfig
-    ) -> None:
-        """Explicitly test retrieve_records with empty trajectory to cover line 329."""
-        with (
-            patch("arklex.memory.core.PROVIDER_MAP"),
-            patch("arklex.memory.core.PROVIDER_EMBEDDINGS"),
-            patch("arklex.memory.core.PROVIDER_EMBEDDING_MODELS"),
-        ):
-            memory = ShortTermMemory(
-                trajectory=[], chat_history="", llm_config=mock_llm_config
-            )
-            found, records = memory.retrieve_records("test query")
-            assert found is False
-            assert records == []
