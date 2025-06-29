@@ -1309,6 +1309,126 @@ class TestReactPlanner:
         assert action == "test_action"
         assert history == mock_msg_history
 
+    def test_get_num_resource_retrievals_with_exception_handling(
+        self, react_planner: ReactPlanner
+    ) -> None:
+        """Test _get_num_resource_retrievals with exception handling (lines 421-422)."""
+        # Mock _parse_trajectory_summary_to_steps to raise an exception
+        with patch.object(
+            react_planner,
+            "_parse_trajectory_summary_to_steps",
+            side_effect=Exception("Test exception"),
+        ):
+            result = react_planner._get_num_resource_retrievals("invalid summary")
+            # Should return MIN_NUM_RETRIEVALS when exception occurs
+            assert result == MIN_NUM_RETRIEVALS
+
+    def test_retrieve_resource_signatures_with_guaranteed_docs_not_in_retrieved(
+        self, react_planner: ReactPlanner, patched_sample_config: dict[str, Any]
+    ) -> None:
+        """Test _retrieve_resource_signatures with guaranteed docs not in retrieved list (lines 482-487)."""
+        # Setup guaranteed retrieval docs
+        guaranteed_doc = Mock()
+        guaranteed_doc.metadata = {"resource_name": "guaranteed_resource"}
+        react_planner.guaranteed_retrieval_docs = [guaranteed_doc]
+
+        # Mock the retriever attribute
+        mock_retriever = Mock()
+        mock_vectorstore = Mock()
+        mock_vectorstore.similarity_search_with_score.return_value = [
+            (Mock(metadata={"resource_name": "different_resource"}), 0.8)
+        ]
+        mock_retriever.vectorstore = mock_vectorstore
+        react_planner.retriever = mock_retriever
+
+        result = react_planner._retrieve_resource_signatures(1, "test summary")
+
+        # Should include both retrieved and guaranteed docs
+        assert len(result) == 2
+        resource_names = [doc.metadata["resource_name"] for doc in result]
+        assert "guaranteed_resource" in resource_names
+        assert "different_resource" in resource_names
+
+    def test_plan_method_fallback_return_without_respond_action(
+        self,
+        configured_react_planner: ReactPlanner,
+        mock_message_state: MessageState,
+        mock_msg_history: list[dict[str, Any]],
+        patched_sample_config: dict[str, Any],
+        mock_planning_methods: dict[str, Mock],
+    ) -> None:
+        """Test plan method fallback return when max steps exhausted without RESPOND_ACTION (lines 675, 689)."""
+        # Mock the planning methods to return non-respond actions
+        mock_planning_methods["mock_summary"].return_value = "test summary"
+        mock_planning_methods["mock_retrievals"].return_value = 1
+        mock_planning_methods["mock_retrieve"].return_value = []
+
+        # Mock LLM to return non-respond actions
+        mock_llm_response = Mock()
+        mock_llm_response.content = 'Action:\n{"name": "test_tool", "arguments": {}}'
+        configured_react_planner.llm.invoke.return_value = mock_llm_response
+
+        # Mock aimessage_to_dict to return proper dictionary
+        patched_sample_config["mock_aimessage_to_dict"].return_value = {
+            "content": 'Action:\n{"name": "test_tool", "arguments": {}}'
+        }
+
+        # Mock step to return a non-respond action response
+        def mock_step(action: Action, msg_state: MessageState) -> EnvResponse:
+            return EnvResponse(observation="tool result")
+
+        configured_react_planner.step = mock_step
+
+        # Set max_num_steps to 1 to ensure we hit the fallback return
+        result = configured_react_planner.plan(
+            mock_message_state, mock_msg_history, max_num_steps=1
+        )
+
+        # Should return the last action and response
+        assert len(result) == 3
+        assert result[1] == "test_tool"  # action name
+        assert result[2] == "tool result"  # observation
+
+    def test_plan_method_fallback_return_with_multiple_actions(
+        self,
+        configured_react_planner: ReactPlanner,
+        mock_message_state: MessageState,
+        mock_msg_history: list[dict[str, Any]],
+        patched_sample_config: dict[str, Any],
+        mock_planning_methods: dict[str, Mock],
+    ) -> None:
+        """Test plan method fallback return with multiple actions in the loop (lines 675, 689)."""
+        # Mock the planning methods
+        mock_planning_methods["mock_summary"].return_value = "test summary"
+        mock_planning_methods["mock_retrievals"].return_value = 1
+        mock_planning_methods["mock_retrieve"].return_value = []
+
+        # Mock LLM to return multiple actions
+        mock_llm_response = Mock()
+        mock_llm_response.content = 'Action:\n{"name": "test_tool", "arguments": {}}'
+        configured_react_planner.llm.invoke.return_value = mock_llm_response
+
+        # Mock aimessage_to_dict to return proper dictionary
+        patched_sample_config["mock_aimessage_to_dict"].return_value = {
+            "content": 'Action:\n{"name": "test_tool", "arguments": {}}'
+        }
+
+        # Mock step to return a non-respond action response
+        def mock_step(action: Action, msg_state: MessageState) -> EnvResponse:
+            return EnvResponse(observation="tool result")
+
+        configured_react_planner.step = mock_step
+
+        # Set max_num_steps to 2 to ensure we process multiple actions
+        result = configured_react_planner.plan(
+            mock_message_state, mock_msg_history, max_num_steps=2
+        )
+
+        # Should return the last action and response after exhausting max steps
+        assert len(result) == 3
+        assert result[1] == "test_tool"  # action name
+        assert result[2] == "tool result"  # observation
+
 
 class TestReactPlannerIntegration:
     @pytest.fixture
