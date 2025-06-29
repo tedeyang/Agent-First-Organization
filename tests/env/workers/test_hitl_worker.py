@@ -211,8 +211,8 @@ class TestHITLWorker:
         mock_verify.return_value = (False, "")
         state = MessageState()
         result = worker._execute(state)
-        assert isinstance(result, dict)
-        assert result["status"] == StatusEnum.INCOMPLETE
+        assert isinstance(result, MessageState)
+        assert result.status == StatusEnum.INCOMPLETE
 
     @patch.object(HITLWorker, "verify")
     def test_execute_verify_succeeds(self, mock_verify: Mock) -> None:
@@ -255,30 +255,48 @@ class TestHITLWorker:
 
             # Should call error method when verify returns (False, message)
             mock_error.assert_called_once_with(state)
-            # The result should be a dict with INCOMPLETE status
-            assert isinstance(result, dict)
-            assert result["status"] == StatusEnum.INCOMPLETE
+            # The result should be a MessageState with INCOMPLETE status
+            assert isinstance(result, MessageState)
+            assert result.status == StatusEnum.INCOMPLETE
 
     def test_execute_with_verify_success_calls_action_graph(self) -> None:
-        """Test execute method when verify succeeds (covers line 196)."""
+        """Test execute method when verify succeeds."""
         worker = HITLWorker(name="test_worker")
+        state = MessageState()
+        state.metadata = Metadata()
 
-        # Mock verify to return (True, message) - first element is True
-        with patch.object(worker, "verify", return_value=(True, "HITL needed")):
-            # Mock action_graph.compile and invoke
+        with patch.object(worker, "verify", return_value=(True, "Success")):
+            # Mock the action_graph directly since it's created during initialization
             mock_graph = Mock()
             mock_compiled_graph = Mock()
-            mock_compiled_graph.invoke.return_value = MessageState()
+            # Ensure the mock returns the actual state object, not a dictionary
+            mock_compiled_graph.invoke.return_value = state
             mock_graph.compile.return_value = mock_compiled_graph
             worker.action_graph = mock_graph
 
-            state = MessageState()
             result = worker._execute(state)
 
-            # Should compile and invoke the action graph
+            # The result should be the state object returned by the action graph
+            # Check that the result has the same properties as the expected state
+            assert isinstance(result, MessageState)
+            assert result.status == state.status
             mock_graph.compile.assert_called_once()
             mock_compiled_graph.invoke.assert_called_once_with(state)
+
+    def test_execute_verify_fails_returns_error_state(self) -> None:
+        """Test execute method when verify fails returns error state."""
+        worker = HITLWorker(name="test_worker")
+        state = MessageState()
+        state.metadata = Metadata()
+
+        with patch.object(
+            worker, "verify", return_value=(False, "Verification failed")
+        ):
+            result = worker._execute(state)
+
+            # Should return the state object with INCOMPLETE status
             assert isinstance(result, MessageState)
+            assert result.status == StatusEnum.INCOMPLETE
 
 
 class TestHITLWorkerTestChat:
