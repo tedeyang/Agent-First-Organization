@@ -1486,3 +1486,168 @@ class TestBuildUserProfiles:
         ]
         result = chatgpt_utils.format_chat_history_str(chat_history)
         assert result.endswith("hi") and not result.endswith(" ")
+
+
+class TestBuildUserProfilesExtraCoverage:
+    def test_build_user_profiles_empty_list(self) -> None:
+        """Test build_user_profiles function - covers lines 914-915"""
+        from arklex.evaluation import build_user_profiles
+
+        test_data = [{"key": "value"}]
+        result = build_user_profiles.build_user_profiles(test_data)
+        assert result == []  # Function always returns empty list
+
+    def test_attributes_to_text_empty_list(self) -> None:
+        """Test attributes_to_text with empty list"""
+        from arklex.evaluation import build_user_profiles
+
+        result = build_user_profiles.attributes_to_text([])
+        assert result == []
+
+    def test_attributes_to_text_single_item(self) -> None:
+        """Test attributes_to_text with single item"""
+        from arklex.evaluation import build_user_profiles
+
+        attributes = [{"name": "John", "age": "30"}]
+        result = build_user_profiles.attributes_to_text(attributes)
+        assert len(result) == 1
+        assert "name: John" in result[0]
+        assert "age: 30" in result[0]
+
+    def test_attributes_to_text_multiple_items(self) -> None:
+        """Test attributes_to_text with multiple items"""
+        from arklex.evaluation import build_user_profiles
+
+        attributes = [{"name": "John", "age": "30"}, {"name": "Jane", "age": "25"}]
+        result = build_user_profiles.attributes_to_text(attributes)
+        assert len(result) == 2
+        assert "name: John" in result[0]
+        assert "name: Jane" in result[1]
+
+    def test_attributes_to_text_removes_trailing_newline(self) -> None:
+        """Test attributes_to_text removes trailing newline"""
+        from arklex.evaluation import build_user_profiles
+
+        attributes = [{"name": "John"}]
+        result = build_user_profiles.attributes_to_text(attributes)
+        assert result[0] == "name: John"  # No trailing newline
+
+    def test_convert_attributes_to_profile(self) -> None:
+        """Test convert_attributes_to_profile function"""
+        from arklex.evaluation import build_user_profiles
+
+        attributes = {"name": "John", "age": "30"}
+        config = {"company_summary": "Test Company", "client": None}
+
+        with patch.object(
+            build_user_profiles, "chatgpt_chatbot", return_value="Test profile"
+        ):
+            result = build_user_profiles.convert_attributes_to_profile(
+                attributes, config
+            )
+            assert result == "Test profile"
+
+    def test_convert_attributes_to_profiles(self) -> None:
+        """Test convert_attributes_to_profiles function"""
+        from arklex.evaluation import build_user_profiles
+
+        attributes_list = [{"name": "John", "goal": "test goal"}]
+        system_attributes_list = [{"system": "value"}]
+        config = {"company_summary": "Test Company", "client": None}
+
+        with patch.object(
+            build_user_profiles,
+            "convert_attributes_to_profile",
+            return_value="Test profile",
+        ):
+            profiles, goals, system_inputs = (
+                build_user_profiles.convert_attributes_to_profiles(
+                    attributes_list, system_attributes_list, config
+                )
+            )
+            assert len(profiles) == 1
+            assert len(goals) == 1
+            assert len(system_inputs) == 1
+            assert profiles[0] == "Test profile"
+            assert goals[0] == "test goal"
+            assert system_inputs[0] == {"system": "value"}
+
+    def test_augment_attributes_with_augment_flag(self) -> None:
+        """Test augment_attributes with augment flag set"""
+        from arklex.evaluation import build_user_profiles
+
+        predefined_attributes = {
+            "category": {"values": ["value1", "value2"], "augment": True}
+        }
+        config = {"company_summary": "Test Company", "client": None}
+        documents = [{"content": "Test document content"}]
+
+        with patch.object(
+            build_user_profiles,
+            "chatgpt_chatbot",
+            return_value="new_value1, new_value2",
+        ):
+            result = build_user_profiles.augment_attributes(
+                predefined_attributes, config, documents
+            )
+            assert "value1" in result["category"]
+            assert "value2" in result["category"]
+            assert "new_value1" in result["category"]
+            assert "new_value2" in result["category"]
+
+    def test_augment_attributes_without_augment_flag(self) -> None:
+        """Test augment_attributes without augment flag"""
+        from arklex.evaluation import build_user_profiles
+
+        predefined_attributes = {"category": {"values": ["value1", "value2"]}}
+        config = {"company_summary": "Test Company", "client": None}
+        documents = [{"content": "Test document content"}]
+
+        result = build_user_profiles.augment_attributes(
+            predefined_attributes, config, documents
+        )
+        assert result["category"] == ["value1", "value2"]
+
+    def test_select_system_attributes(self) -> None:
+        """Test select_system_attributes function"""
+        from arklex.evaluation import build_user_profiles
+
+        config = {
+            "user_attributes": {
+                "system_attributes": {
+                    "attr1": {"values": ["val1", "val2"]},
+                    "attr2": {"values": ["val3", "val4"]},
+                }
+            }
+        }
+        synthetic_data_params = {"num_convos": 2}
+
+        with patch.object(build_user_profiles, "random") as mock_random:
+            mock_random.choice.side_effect = ["val1", "val3", "val2", "val4"]
+            result = build_user_profiles.select_system_attributes(
+                config, synthetic_data_params
+            )
+            assert len(result) == 2
+            assert result[0]["attr1"] == "val1"
+            assert result[0]["attr2"] == "val3"
+            assert result[1]["attr1"] == "val2"
+            assert result[1]["attr2"] == "val4"
+
+    def test_filter_attributes(self) -> None:
+        """Test filter_attributes function"""
+        from arklex.evaluation import build_user_profiles
+
+        config = {
+            "user_attributes": {
+                "goal": {"values": ["goal1"]},
+                "system_attributes": {"values": ["sys1"]},
+                "attr1": {"values": ["val1"]},
+                "attr2": {"values": ["val2"]},
+            }
+        }
+
+        result = build_user_profiles.filter_attributes(config)
+        assert "goal" not in result
+        assert "system_attributes" not in result
+        assert "attr1" in result
+        assert "attr2" in result
