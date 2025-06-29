@@ -13,7 +13,7 @@ to test. We need to:
 5. Make UI components thin wrappers around business logic services
 """
 
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, PropertyMock, patch
 
 import pytest
 from textual.widgets.tree import TreeNode
@@ -282,6 +282,27 @@ class TestInputModalUI:
         # The modal should have a way to be dismissed
         assert hasattr(modal, "on_button_pressed")
         assert callable(modal.on_button_pressed)
+
+    def test_input_modal_on_button_pressed_no_callback(self) -> None:
+        """Test InputModal on_button_pressed when callback is None (should not error)."""
+        from arklex.orchestrator.generator.ui.input_modal import InputModal
+
+        modal = InputModal("Test Title", "default value", callback=None)
+        # Patch query_one to return a mock Input with a value
+        modal.query_one = lambda selector, cls: type(
+            "FakeInput", (), {"value": "new value"}
+        )()
+        # Simulate submit button press
+        event = type(
+            "FakeEvent", (), {"button": type("FakeButton", (), {"id": "submit"})()}
+        )()
+        # Patch the app property to have a pop_screen method
+        with patch.object(InputModal, "app", new_callable=PropertyMock) as mock_app:
+            mock_app.return_value = type(
+                "FakeApp", (), {"pop_screen": lambda self: None}
+            )()
+            # Should not raise any error
+            modal.on_button_pressed(event)
 
 
 class TestUIErrorHandling:
