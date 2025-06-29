@@ -2950,17 +2950,20 @@ class TestCompleteLineCoverage:
 
     def test_ui_unavailable_placeholder_class_instantiation(self) -> None:
         """Test that the placeholder TaskEditorApp class raises ImportError when instantiated."""
-        # Test the placeholder class behavior when UI is unavailable
-        with patch("arklex.orchestrator.generator.core.generator.UI_AVAILABLE", False):
-            # Import the TaskEditorApp class directly
-            from arklex.orchestrator.generator.core.generator import TaskEditorApp
+        import importlib
+        import sys
+        from unittest.mock import patch
 
-            # Test that the placeholder class raises ImportError
+        with patch.dict(sys.modules, {"arklex.orchestrator.generator.ui": None}):
+            import arklex.orchestrator.generator.core.generator as generator_module
+
+            importlib.reload(generator_module)
+            TaskEditorApp = generator_module.TaskEditorApp
+
             with pytest.raises(
                 ImportError,
                 match="UI components require 'textual' package to be installed",
             ):
-                # Actually instantiate the class to trigger the ImportError
                 TaskEditorApp(tasks=[])
 
     def test_generate_else_branch_no_user_changes_detected(
