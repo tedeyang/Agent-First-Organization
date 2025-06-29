@@ -385,14 +385,20 @@ class TestExtractTaskCompletionMetrics:
         assert result["user_task_completion_efficiency"] == 1.0
 
     def test_extract_task_completion_metrics_empty_data(self) -> None:
-        """Test extracting task completion metrics with empty data."""
+        """Test extract_task_completion_metrics with empty data."""
         data = []
-        client = MagicMock()
+        result = extract_conversation_info.extract_task_completion_metrics(data, Mock())
+        assert result == "Error while extracting task completion metrics"
 
-        result = extract_conversation_info.extract_task_completion_metrics(data, client)
-
-        assert isinstance(result, str)
-        assert "Error" in result
+    def test_extract_task_completion_metrics_empty_data_with_bot_goal(self) -> None:
+        """Test extract_task_completion_metrics with empty data and bot goal (lines 102-106)."""
+        data = []
+        mock_client = Mock()
+        result = extract_conversation_info.extract_task_completion_metrics(
+            data, mock_client, bot_goal="test goal"
+        )
+        # Should return error message when num_convos is 0, regardless of bot_goal parameter
+        assert result == "Error while extracting task completion metrics"
 
     @patch("arklex.evaluation.extract_conversation_info.check_bot_goal")
     def test_extract_task_completion_metrics_complex_conversation(
