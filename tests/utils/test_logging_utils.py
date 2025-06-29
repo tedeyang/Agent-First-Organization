@@ -721,3 +721,21 @@ class TestLogContextInternalMethods:
         assert isinstance(handler, logging.StreamHandler)
         assert handler.formatter is not None
         assert "%(levelname)s - %(message)s" in str(handler.formatter._fmt)
+
+    def test_log_context_parent_property_with_numeric_level_handling(self) -> None:
+        """Test LogContext parent property with numeric level handling (covers line 150)."""
+        # Create a parent context with a numeric level
+        parent_context = LogContext("parent")
+        parent_context.log_context.setLevel(logging.WARNING)  # Set numeric level
+
+        # Create a child context
+        child_context = LogContext("child")
+        child_context.log_context.parent = parent_context.log_context
+
+        # Access the parent property - this should handle the numeric level
+        parent = child_context.parent
+
+        # Should return a LogContext with the parent's name and level
+        assert parent is not None
+        assert parent.name == "parent"
+        assert parent.level == logging.WARNING
