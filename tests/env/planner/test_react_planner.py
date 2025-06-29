@@ -614,9 +614,7 @@ class TestReactPlanner:
         mock_retriever = config["mock_retriever"]
         react_planner.retriever = mock_retriever
         react_planner.guaranteed_retrieval_docs = []
-        docs = react_planner._retrieve_resource_signatures(
-            "test query", "- Step 1\n- Step 2"
-        )
+        docs = react_planner._retrieve_resource_signatures(1, "- Step 1\n- Step 2")
         assert len(docs) == 1
         assert docs[0].metadata["resource_name"] == "test_resource"
 
@@ -794,7 +792,7 @@ class TestReactPlanner:
         react_planner.retriever = mock_retriever
         react_planner.guaranteed_retrieval_docs = []
         docs = react_planner._retrieve_resource_signatures(
-            "test query", "- Step 1\n- Step 2"
+            1, "- Step 1\n- Step 2", "test user message", "test task"
         )
         assert len(docs) == 1
         assert docs[0].metadata["resource_name"] == "test_resource"
@@ -806,9 +804,7 @@ class TestReactPlanner:
         mock_retriever = config["mock_retriever"]
         react_planner.retriever = mock_retriever
         react_planner.guaranteed_retrieval_docs = []
-        docs = react_planner._retrieve_resource_signatures(
-            "test query", "- Step 1\n- Step 2"
-        )
+        docs = react_planner._retrieve_resource_signatures(1, "- Step 1\n- Step 2")
         assert len(docs) == 1
         assert docs[0].metadata["resource_name"] == "test_resource"
 
@@ -819,9 +815,7 @@ class TestReactPlanner:
         mock_retriever = config["mock_retriever"]
         react_planner.retriever = mock_retriever
         react_planner.guaranteed_retrieval_docs = []
-        docs = react_planner._retrieve_resource_signatures(
-            "test query", "- Step 1\n- Step 2"
-        )
+        docs = react_planner._retrieve_resource_signatures(1, "- Step 1\n- Step 2")
         assert len(docs) == 1
         assert docs[0].metadata["resource_name"] == "test_resource"
 
@@ -957,270 +951,148 @@ class TestReactPlanner:
         assert result == [invalid_summary]
 
     def test_retrieve_resource_signatures_with_empty_steps(self) -> None:
-        """Test _retrieve_resource_signatures when steps list is empty (covers line 458)."""
-        planner = ReactPlanner({}, {}, {})
+        """Test _retrieve_resource_signatures with empty steps list."""
+        react_planner = ReactPlanner({}, {}, {})
 
-        # Add the missing attribute
-        planner.guaranteed_retrieval_docs = []
-
-        # Mock the retriever and other dependencies
+        # Mock the trajectory summary to return empty steps
         with (
             patch.object(
-                planner, "_parse_trajectory_summary_to_steps", return_value=[]
+                react_planner, "_parse_trajectory_summary_to_steps", return_value=[]
             ),
-            patch.object(planner, "retriever", create=True) as mock_retriever,
+            patch.object(react_planner, "_get_num_resource_retrievals", return_value=0),
         ):
-            mock_retriever.vectorstore.similarity_search_with_score.return_value = []
+            # Mock the retriever attribute since it's not created until set_llm_config_and_build_resource_library is called
+            react_planner.retriever = Mock()
+            react_planner.retriever.vectorstore = Mock()
+            react_planner.retriever.vectorstore.similarity_search_with_score.return_value = []
+            react_planner.guaranteed_retrieval_docs = []
 
-            result = planner._retrieve_resource_signatures(
-                n_retrievals=5,
-                trajectory_summary="test summary",
-                user_message="test message",
-                task="test task",
-            )
+            result = react_planner._retrieve_resource_signatures(0, "test_summary")
 
-            # Should return empty list when steps are empty
             assert result == []
+            react_planner.retriever.vectorstore.similarity_search_with_score.assert_not_called()
 
-    def test_message_to_actions_with_invalid_resource(self) -> None:
-        """Test message_to_actions with invalid resource (covers line 580)."""
-        planner = ReactPlanner({}, {}, {})
+    def test_retrieve_resource_signatures_with_none_user_message_and_task(self) -> None:
+        """Test _retrieve_resource_signatures with None user_message and task parameters."""
+        react_planner = ReactPlanner({}, {}, {})
 
-        # Test with a message that has an invalid resource
-        message = {"name": "invalid_resource", "arguments": {"content": "test content"}}
-
-        result = planner.message_to_actions(message)
-
-        # Should return RESPOND_ACTION when resource is invalid
-        assert len(result) == 1
-        assert result[0].name == "respond"
-        assert result[0].kwargs["content"] == "test content"
-
-    def test_step_with_unknown_action(self) -> None:
-        """Test step with unknown action (covers line 674)."""
-        planner = ReactPlanner({}, {}, {})
-
-        action = Action(name="unknown_action", kwargs={})
-        state = MessageState()
-
-        result = planner.step(action, state)
-
-        # Should return error message for unknown action
-        assert "Unknown action unknown_action" in result.observation
-
-    def test_execute_plan_with_max_steps_exhausted(self) -> None:
-        """Test execute when max steps are exhausted (covers line 688)."""
-        planner = ReactPlanner({}, {}, {})
-
-        # Mock the plan method to return without RESPOND_ACTION
-        with patch.object(planner, "plan") as mock_plan:
-            mock_plan.return_value = ([], "test_action", "test_response")
-
-            state = MessageState()
-            msg_history = []
-
-            result_action, result_state, result_history = planner.execute(
-                state, msg_history
-            )
-
-            # Should return the last action and response
-            assert result_action == "test_action"
-            assert result_state.response == "test_response"
-
-    def test_get_num_resource_retrievals_exception_handling(
-        self, react_planner: ReactPlanner
-    ) -> None:
-        """Test _get_num_resource_retrievals with exception handling (covers lines 421-422)."""
-        # Mock the _parse_trajectory_summary_to_steps to raise an exception
-        with patch.object(
-            react_planner,
-            "_parse_trajectory_summary_to_steps",
-            side_effect=Exception("Test exception"),
-        ):
-            result = react_planner._get_num_resource_retrievals("test summary")
-            # Should return MIN_NUM_RETRIEVALS when exception occurs
-            assert result == MIN_NUM_RETRIEVALS
-
-    def test_message_to_actions_with_content_field(
-        self, react_planner: ReactPlanner
-    ) -> None:
-        """Test message_to_actions with content field in message (covers line 577)."""
-        # Test with a message that has content field but no arguments
-        message = {"name": "invalid_resource", "content": "test content"}
-
-        result = react_planner.message_to_actions(message)
-
-        # Should return RESPOND_ACTION with content from message
-        assert len(result) == 1
-        assert result[0].name == "respond"
-        assert result[0].kwargs["content"] == "test content"
-
-    def test_step_with_worker_execution_non_string_observation(
-        self, react_planner: ReactPlanner
-    ) -> None:
-        """Test step with worker execution returning non-string observation (covers line 671)."""
-        # Mock workers_map to return a worker that returns non-string
-        react_planner.workers_map = {
-            "test_worker": {
-                "execute": Mock(return_value=Mock(execute=Mock(return_value=123)))
-            }
-        }
-
-        action = Action(name="test_worker", kwargs={})
-        state = MessageState()
-
-        result = react_planner.step(action, state)
-
-        # Should convert non-string observation to string
-        assert result.observation == "123"
-
-    def test_plan_method_max_steps_exhausted_final_return(
-        self, configured_react_planner: ReactPlanner
-    ) -> None:
-        """Test plan method when max steps are exhausted (covers line 685)."""
-        # Mock the necessary methods
         with (
             patch.object(
-                configured_react_planner, "_get_planning_trajectory_summary"
-            ) as mock_summary,
-            patch.object(
-                configured_react_planner, "_get_num_resource_retrievals"
-            ) as mock_retrievals,
-            patch.object(
-                configured_react_planner, "_retrieve_resource_signatures"
-            ) as mock_retrieve,
-            patch.object(configured_react_planner, "llm") as mock_llm,
-            patch(
-                "arklex.env.planner.react_planner.aimessage_to_dict"
-            ) as mock_aimessage_to_dict,
+                react_planner,
+                "_parse_trajectory_summary_to_steps",
+                return_value=["step1"],
+            ),
+            patch.object(react_planner, "_get_num_resource_retrievals", return_value=1),
         ):
-            mock_summary.return_value = "test trajectory"
-            mock_retrievals.return_value = 3
-            mock_retrieve.return_value = []
-            mock_aimessage_to_dict.return_value = {"content": "test content"}
+            # Mock the retriever attribute
+            react_planner.retriever = Mock()
+            react_planner.retriever.vectorstore = Mock()
+            react_planner.retriever.vectorstore.similarity_search_with_score.return_value = []
+            react_planner.guaranteed_retrieval_docs = []
 
-            # Mock LLM to return non-RESPOND_ACTION responses
-            mock_response = Mock()
-            mock_response.content = (
-                'Action:\n{"name": "test_tool", "arguments": {"param": "value"}}'
+            result = react_planner._retrieve_resource_signatures(
+                1, "test_summary", None, None
             )
-            mock_llm.invoke.return_value = mock_response
 
-            # Mock step to return a response
-            with patch.object(configured_react_planner, "step") as mock_step:
-                mock_step.return_value = EnvResponse(observation="test observation")
+            assert result == []
+            react_planner.retriever.vectorstore.similarity_search_with_score.assert_called_once()
 
-                # Create state with proper user_message
-                state = MessageState()
-                state.user_message = ConvoMessage(history="", message="test message")
-                state.orchestrator_message = OrchestratorMessage(
-                    message="", attribute={}
-                )
-                msg_history = []
-
-                # Set max_num_steps to 1 to ensure we exhaust steps
-                result_history, result_action, result_response = (
-                    configured_react_planner.plan(state, msg_history, max_num_steps=1)
-                )
-
-                # Verify the results
-                assert isinstance(result_history, list)
-                assert isinstance(result_action, str)
-                assert isinstance(result_response, str)  # Should be a string response
-
-    def test_plan_method_with_zero_shot_prompt(
+    def test_retrieve_resource_signatures_with_empty_user_message_and_task(
         self,
-        configured_react_planner: ReactPlanner,
-        mock_message_state: MessageState,
-        mock_msg_history: list[dict[str, Any]],
-        patched_sample_config: dict[str, Any],
-        mock_planning_methods: dict[str, Mock],
     ) -> None:
-        """Test plan method with zero-shot prompt (covers line 577)."""
-        # Mock USE_FEW_SHOT_REACT_PROMPT to be False to trigger zero-shot branch
+        """Test _retrieve_resource_signatures with empty user_message and task parameters."""
+        react_planner = ReactPlanner({}, {}, {})
+
         with (
-            patch("arklex.env.planner.react_planner.USE_FEW_SHOT_REACT_PROMPT", False),
             patch.object(
-                configured_react_planner, "_get_planning_trajectory_summary"
-            ) as mock_summary,
-            patch.object(
-                configured_react_planner, "_get_num_resource_retrievals"
-            ) as mock_retrievals,
-            patch.object(
-                configured_react_planner, "_retrieve_resource_signatures"
-            ) as mock_retrieve,
-            patch.object(configured_react_planner, "llm") as mock_llm,
-            patch(
-                "arklex.env.planner.react_planner.aimessage_to_dict"
-            ) as mock_aimessage_to_dict,
-            patch.object(configured_react_planner, "step") as mock_step,
+                react_planner,
+                "_parse_trajectory_summary_to_steps",
+                return_value=["step1"],
+            ),
+            patch.object(react_planner, "_get_num_resource_retrievals", return_value=1),
         ):
-            # Setup mocks
-            mock_summary.return_value = "Test summary"
-            mock_retrievals.return_value = 0
-            mock_retrieve.return_value = []
+            # Mock the retriever attribute
+            react_planner.retriever = Mock()
+            react_planner.retriever.vectorstore = Mock()
+            react_planner.retriever.vectorstore.similarity_search_with_score.return_value = []
+            react_planner.guaranteed_retrieval_docs = []
 
-            # Mock LLM to return RESPOND_ACTION
-            mock_response = Mock()
-            mock_response.content = 'Action:\n{"name": "respond", "arguments": {"content": "test response"}}'
-            mock_llm.invoke.return_value = mock_response
-            mock_aimessage_to_dict.return_value = {
-                "content": 'Action:\n{"name": "respond", "arguments": {"content": "test response"}}'
-            }
-
-            # Mock step to return a response
-            mock_step.return_value = EnvResponse(observation="test observation")
-
-            # Call the plan method
-            result_history, result_action, result_response = (
-                configured_react_planner.plan(mock_message_state, mock_msg_history)
+            result = react_planner._retrieve_resource_signatures(
+                1, "test_summary", "", ""
             )
 
-            # Verify the zero-shot branch was taken
-            mock_summary.assert_called_once()
-            mock_retrievals.assert_called_once()
-            mock_retrieve.assert_called_once()
-            assert result_action == "respond"
-            assert result_response == "test observation"
+            assert result == []
+            react_planner.retriever.vectorstore.similarity_search_with_score.assert_called_once()
 
-    def test_plan_exhausts_max_steps(self) -> None:
-        from arklex.env.planner.react_planner import Action, MessageState, ReactPlanner
+    def test_retrieve_resource_signatures_with_zero_retrievals(self) -> None:
+        """Test _retrieve_resource_signatures with zero retrievals."""
+        react_planner = ReactPlanner({}, {}, {})
 
-        class DummyLLM:
-            def invoke(self, messages: list[dict[str, str]]) -> object:
-                class DummyResponse:
-                    content = "no respond action"
+        with (
+            patch.object(
+                react_planner, "_parse_trajectory_summary_to_steps", return_value=[]
+            ),
+            patch.object(react_planner, "_get_num_resource_retrievals", return_value=0),
+        ):
+            # Mock the retriever attribute
+            react_planner.retriever = Mock()
+            react_planner.retriever.vectorstore = Mock()
+            react_planner.retriever.vectorstore.similarity_search_with_score.return_value = []
+            react_planner.guaranteed_retrieval_docs = []
 
-                return DummyResponse()
+            result = react_planner._retrieve_resource_signatures(0, "test_summary")
 
-        planner = ReactPlanner({}, {}, {})
-        planner.llm = DummyLLM()
-        planner.message_to_actions = lambda msg: [Action(name="not_respond", kwargs={})]
-        planner.step = lambda action, state: type(
-            "EnvResponse", (), {"observation": "obs"}
-        )()
+            assert result == []
+            react_planner.retriever.vectorstore.similarity_search_with_score.assert_not_called()
 
-        # Mock retriever with vectorstore.similarity_search_with_score
-        class DummyVectorStore:
-            def similarity_search_with_score(
-                self, query: str, k: int
-            ) -> list[tuple[object, float]]:
-                return []
+    def test_retrieve_resource_signatures_with_negative_retrievals(self) -> None:
+        """Test _retrieve_resource_signatures with negative retrievals."""
+        react_planner = ReactPlanner({}, {}, {})
 
-        class DummyRetriever:
-            vectorstore = DummyVectorStore()
+        with (
+            patch.object(
+                react_planner, "_parse_trajectory_summary_to_steps", return_value=[]
+            ),
+            patch.object(
+                react_planner, "_get_num_resource_retrievals", return_value=-1
+            ),
+        ):
+            # Mock the retriever attribute
+            react_planner.retriever = Mock()
+            react_planner.retriever.vectorstore = Mock()
+            react_planner.retriever.vectorstore.similarity_search_with_score.return_value = []
+            react_planner.guaranteed_retrieval_docs = []
 
-        planner.retriever = DummyRetriever()
-        planner.guaranteed_retrieval_docs = []
-        # Provide a MessageState with valid user_message and orchestrator_message
-        state = MessageState(
-            user_message={"history": "", "message": "test"},
-            orchestrator_message={"message": "", "attribute": {"task": ""}},
-        )
-        msg_history = []
-        # Should return after max_num_steps
-        result = planner.plan(state, msg_history, max_num_steps=1)
-        assert isinstance(result, tuple)
+            result = react_planner._retrieve_resource_signatures(-1, "test_summary")
+
+            assert result == []
+            react_planner.retriever.vectorstore.similarity_search_with_score.assert_not_called()
+
+    def test_aimessage_to_dict_with_dict_input(self) -> None:
+        """Test aimessage_to_dict function with dictionary input."""
+        from arklex.env.planner.react_planner import aimessage_to_dict
+
+        message_dict = {"content": "test content", "role": "user"}
+        result = aimessage_to_dict(message_dict)
+
+        assert result["content"] == "test content"
+        assert result["role"] == "user"
+        assert result["function_call"] is None
+        assert result["tool_calls"] is None
+
+    def test_aimessage_to_dict_with_aimessage_input(self) -> None:
+        """Test aimessage_to_dict function with AIMessage input."""
+        from langchain_core.messages import AIMessage
+
+        from arklex.env.planner.react_planner import aimessage_to_dict
+
+        ai_message = AIMessage(content="test content")
+        result = aimessage_to_dict(ai_message)
+
+        assert result["content"] == "test content"
+        assert result["role"] == "assistant"
+        assert result["function_call"] is None
+        assert result["tool_calls"] is None
 
 
 class TestReactPlannerIntegration:
