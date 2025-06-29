@@ -1027,6 +1027,107 @@ class TestReactPlanner:
             assert result_action == "test_action"
             assert result_state.response == "test_response"
 
+    def test_get_num_resource_retrievals_exception_handling(
+        self, react_planner: ReactPlanner
+    ) -> None:
+        """Test _get_num_resource_retrievals with exception handling (covers lines 421-422)."""
+        # Mock the _parse_trajectory_summary_to_steps to raise an exception
+        with patch.object(
+            react_planner,
+            "_parse_trajectory_summary_to_steps",
+            side_effect=Exception("Test exception"),
+        ):
+            result = react_planner._get_num_resource_retrievals("test summary")
+            # Should return MIN_NUM_RETRIEVALS when exception occurs
+            assert result == MIN_NUM_RETRIEVALS
+
+    def test_message_to_actions_with_content_field(
+        self, react_planner: ReactPlanner
+    ) -> None:
+        """Test message_to_actions with content field in message (covers line 577)."""
+        # Test with a message that has content field but no arguments
+        message = {"name": "invalid_resource", "content": "test content"}
+
+        result = react_planner.message_to_actions(message)
+
+        # Should return RESPOND_ACTION with content from message
+        assert len(result) == 1
+        assert result[0].name == "respond"
+        assert result[0].kwargs["content"] == "test content"
+
+    def test_step_with_worker_execution_non_string_observation(
+        self, react_planner: ReactPlanner
+    ) -> None:
+        """Test step with worker execution returning non-string observation (covers line 671)."""
+        # Mock workers_map to return a worker that returns non-string
+        react_planner.workers_map = {
+            "test_worker": {
+                "execute": Mock(return_value=Mock(execute=Mock(return_value=123)))
+            }
+        }
+
+        action = Action(name="test_worker", kwargs={})
+        state = MessageState()
+
+        result = react_planner.step(action, state)
+
+        # Should convert non-string observation to string
+        assert result.observation == "123"
+
+    def test_plan_method_max_steps_exhausted_final_return(
+        self, configured_react_planner: ReactPlanner
+    ) -> None:
+        """Test plan method when max steps are exhausted (covers line 685)."""
+        # Mock the necessary methods
+        with (
+            patch.object(
+                configured_react_planner, "_get_planning_trajectory_summary"
+            ) as mock_summary,
+            patch.object(
+                configured_react_planner, "_get_num_resource_retrievals"
+            ) as mock_retrievals,
+            patch.object(
+                configured_react_planner, "_retrieve_resource_signatures"
+            ) as mock_retrieve,
+            patch.object(configured_react_planner, "llm") as mock_llm,
+            patch(
+                "arklex.env.planner.react_planner.aimessage_to_dict"
+            ) as mock_aimessage_to_dict,
+        ):
+            mock_summary.return_value = "test trajectory"
+            mock_retrievals.return_value = 3
+            mock_retrieve.return_value = []
+            mock_aimessage_to_dict.return_value = {"content": "test content"}
+
+            # Mock LLM to return non-RESPOND_ACTION responses
+            mock_response = Mock()
+            mock_response.content = (
+                'Action:\n{"name": "test_tool", "arguments": {"param": "value"}}'
+            )
+            mock_llm.invoke.return_value = mock_response
+
+            # Mock step to return a response
+            with patch.object(configured_react_planner, "step") as mock_step:
+                mock_step.return_value = EnvResponse(observation="test observation")
+
+                # Create state with proper user_message
+                state = MessageState()
+                state.user_message = ConvoMessage(history="", message="test message")
+                state.orchestrator_message = OrchestratorMessage(
+                    message="", attribute={}
+                )
+                msg_history = []
+
+                # Set max_num_steps to 1 to ensure we exhaust steps
+                result_history, result_action, result_response = (
+                    configured_react_planner.plan(state, msg_history, max_num_steps=1)
+                )
+
+                # Verify the results
+                assert isinstance(result_history, list)
+                assert isinstance(result_action, str)
+                assert isinstance(result_response, str)  # Should be a string response
+
 
 class TestReactPlannerIntegration:
     @pytest.fixture
