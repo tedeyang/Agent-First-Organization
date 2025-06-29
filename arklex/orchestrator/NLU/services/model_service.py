@@ -1057,21 +1057,7 @@ class DummyModelService(ModelService):
         Returns:
             str: Mock response for testing
         """
-        # Handle None or empty prompts
-        if prompt is None:
-            prompt = ""
-
-        # Return more appropriate mock responses based on the input
-        if "questions about available products" in prompt:
-            return "1) questions about available products"
-        elif "product 1" in prompt:
-            return "1) product 1"
-        elif "question about account information" in prompt:
-            return (
-                "1) question about account information (shipping address/user details)"
-            )
-        else:
-            return "1) others"
+        return "1) others"
 
     def process_slot_response(
         self, response: str, slots: list[dict[str, Any]]
