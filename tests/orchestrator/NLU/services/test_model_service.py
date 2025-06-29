@@ -2250,3 +2250,17 @@ class TestModelServiceMissingCoverage:
             # Should call parent method
             mock_parent.assert_called_once_with("test response")
             assert result == (True, "Verified")
+
+    def test_model_config_get_model_instance_unsupported_provider(self) -> None:
+        """Test ModelConfig.get_model_instance with unsupported provider raises ValueError."""
+        from arklex.orchestrator.NLU.services.model_config import ModelConfig
+
+        invalid_config = {
+            "llm_provider": "unsupported_provider",
+            "model_type_or_path": "test_model",
+        }
+
+        with pytest.raises(
+            ValueError, match="Unsupported provider: unsupported_provider"
+        ):
+            ModelConfig.get_model_instance(invalid_config)
