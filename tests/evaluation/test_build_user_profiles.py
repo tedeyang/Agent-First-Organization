@@ -1717,3 +1717,23 @@ class TestBuildUserProfiles:
             assert "val2" in result["category1"]
             assert "new_val1" in result["category1"]
             assert "new_val2" in result["category1"]
+
+    def test_augment_attributes_llm(
+        self, monkeypatch: pytest.MonkeyPatch, mock_config: dict[str, Any]
+    ) -> None:
+        from arklex.evaluation import build_user_profiles
+
+        called = {}
+
+        def fake_chatgpt_chatbot(prompt: str, client: object) -> str:
+            called["prompt"] = prompt
+            return "aug1, aug2"
+
+        monkeypatch.setattr(
+            build_user_profiles, "chatgpt_chatbot", fake_chatgpt_chatbot
+        )
+        predefined = {"cat": {"values": ["a"], "augment": True}}
+        docs = [{"content": "doc content"}]
+        out = build_user_profiles.augment_attributes(predefined, mock_config, docs)
+        assert "cat" in out and "aug1" in out["cat"] and "aug2" in out["cat"]
+        assert called["prompt"]
