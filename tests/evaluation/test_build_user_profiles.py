@@ -1506,43 +1506,142 @@ class TestBuildUserProfiles:
         assert selected["size"] in attributes["size"]
 
     def test_get_custom_profiles_binding_logic_full(self) -> None:
-        """Explicitly test get_custom_profiles for coverage (lines 688, 731, 743)."""
-        from arklex.evaluation.build_user_profiles import get_custom_profiles
-
-        # Simulate config with system_attributes and user_profiles, with binding
+        """Test get_custom_profiles with full binding logic and API responses."""
         config = {
             "user_attributes": {
                 "system_attributes": {
-                    "attrA": {
-                        "api": "http://fake.api",
-                        "bind_to": "user_profiles.attrB",
-                    },
-                    "attrB": {"api": "http://fake.api"},
+                    "attr1": {
+                        "api": "http://api.example.com/system1",
+                        "bind_to": "user_profiles.profile1",
+                    }
                 },
                 "user_profiles": {
-                    "attrB": {
-                        "api": "http://fake.api",
-                        "bind_to": "system_attributes.attrA",
-                    },
-                    "attrC": {"api": "http://fake.api"},
+                    "profile1": {
+                        "api": "http://api.example.com/profile1",
+                        "bind_to": "system_attributes.attr1",
+                    }
                 },
             }
         }
-        # Patch _fetch_api_data to return predictable results
-        from arklex.evaluation import build_user_profiles
 
         def fake_fetch_api_data(api_url: str, key: str) -> list[str]:
-            return [f"data_for_{key}"]
+            if "system1" in api_url:
+                return ["sys_val1", "sys_val2"]
+            elif "profile1" in api_url:
+                return ["prof_val1", "prof_val2"]
+            return []
 
-        orig = build_user_profiles._fetch_api_data
-        build_user_profiles._fetch_api_data = fake_fetch_api_data
-        try:
+        with patch(
+            "arklex.evaluation.build_user_profiles._fetch_api_data",
+            side_effect=fake_fetch_api_data,
+        ):
             user_profiles, system_attributes = get_custom_profiles(config)
-            assert "attrA" in system_attributes
-            assert "attrB" in system_attributes
-            assert "attrB" in user_profiles
-            assert "attrC" in user_profiles
-            # Check binding logic
-            assert user_profiles["attrB"] == system_attributes["attrA"]
-        finally:
-            build_user_profiles._fetch_api_data = orig
+
+        assert system_attributes["attr1"] == ["sys_val1", "sys_val2"]
+        assert user_profiles["profile1"] == ["sys_val1", "sys_val2"]
+
+    def test_select_random_attributes_with_goal_category(self) -> None:
+        """Test _select_random_attributes when attributes contain a 'goal' category."""
+        from arklex.evaluation.build_user_profiles import _select_random_attributes
+
+        attributes = {
+            "goal": ["goal1", "goal2"],
+            "attr1": ["val1", "val2"],
+            "attr2": ["val3", "val4"],
+        }
+        goals = ["goal1", "goal2"]
+
+        selected_attributes, selected_goal = _select_random_attributes(
+            attributes, goals
+        )
+
+        # Goal should be selected from goals list, not from attributes
+        assert selected_goal in goals
+        assert selected_attributes["goal"] == selected_goal
+        # Other attributes should be selected from their respective lists
+        assert selected_attributes["attr1"] in ["val1", "val2"]
+        assert selected_attributes["attr2"] in ["val3", "val4"]
+
+    def test_get_custom_profiles_with_non_dict_system_attributes(self) -> None:
+        """Test get_custom_profiles when system_attributes values are not dictionaries."""
+        config = {
+            "user_attributes": {
+                "system_attributes": {
+                    "attr1": ["val1", "val2"],  # Not a dict
+                    "attr2": {"api": "http://api.example.com/test"},
+                },
+                "user_profiles": {
+                    "profile1": {"api": "http://api.example.com/profile1"}
+                },
+            }
+        }
+
+        with patch(
+            "arklex.evaluation.build_user_profiles._fetch_api_data",
+            return_value=["api_val1", "api_val2"],
+        ):
+            user_profiles, system_attributes = get_custom_profiles(config)
+
+        # Non-dict values should be assigned directly
+        assert system_attributes["attr1"] == ["val1", "val2"]
+        # Dict values should be processed through API
+        assert system_attributes["attr2"] == ["api_val1", "api_val2"]
+
+    def test_get_custom_profiles_with_non_dict_user_profiles(self) -> None:
+        """Test get_custom_profiles when user_profiles values are not dictionaries."""
+        config = {
+            "user_attributes": {
+                "system_attributes": {
+                    "attr1": {"api": "http://api.example.com/system1"}
+                },
+                "user_profiles": {
+                    "profile1": ["prof1", "prof2"],  # Not a dict
+                    "profile2": {"api": "http://api.example.com/profile2"},
+                },
+            }
+        }
+
+        with patch(
+            "arklex.evaluation.build_user_profiles._fetch_api_data",
+            return_value=["api_val1", "api_val2"],
+        ):
+            user_profiles, system_attributes = get_custom_profiles(config)
+
+        # Non-dict values should be assigned directly
+        assert user_profiles["profile1"] == ["prof1", "prof2"]
+        # Dict values should be processed through API
+        assert user_profiles["profile2"] == ["api_val1", "api_val2"]
+
+    def test_augment_attributes_without_documents_using_wo_doc_prompt(self) -> None:
+        """Test augment_attributes when documents are empty, using ADD_ATTRIBUTES_WO_DOC prompt."""
+        config = {
+            "company_summary": "Test company summary",
+            "client": Mock(),
+        }
+        predefined_attributes = {
+            "category1": {
+                "values": ["val1", "val2"],
+                "augment": True,
+            }
+        }
+        documents = []  # Empty documents list
+
+        with patch(
+            "arklex.evaluation.build_user_profiles.chatgpt_chatbot"
+        ) as mock_chatbot:
+            mock_chatbot.return_value = "new_val1, new_val2, new_val3"
+
+            result = augment_attributes(predefined_attributes, config, documents)
+
+            # Should use ADD_ATTRIBUTES_WO_DOC prompt (without company_doc)
+            assert mock_chatbot.called
+            call_args = mock_chatbot.call_args[0][0]
+            assert "company_doc" not in call_args
+            assert "Here is a page from the company website" not in call_args
+
+            # Should include original and new values
+            assert "val1" in result["category1"]
+            assert "val2" in result["category1"]
+            assert "new_val1" in result["category1"]
+            assert "new_val2" in result["category1"]
+            assert "new_val3" in result["category1"]
