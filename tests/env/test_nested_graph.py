@@ -662,3 +662,19 @@ class TestNestedGraph:
         # Should return None and params in the fallback case
         assert result_node is None
         assert result_params == params
+
+    def test_get_nested_graph_component_node_none_return(self) -> None:
+        """Test get_nested_graph_component_node returns None when path is empty."""
+        from arklex.env.nested_graph.nested_graph import NestedGraph
+        from arklex.utils.graph_state import Params
+
+        # Setup params with empty path to force the final return
+        params = Params(taskgraph={"path": [], "node_status": {}})
+
+        def is_leaf_func(node_id: str) -> bool:
+            return False
+
+        result, updated_params = NestedGraph.get_nested_graph_component_node(
+            params, is_leaf_func
+        )
+        assert result is None
