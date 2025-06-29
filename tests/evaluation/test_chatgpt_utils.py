@@ -720,3 +720,32 @@ class TestChatGPTUtils:
         messages = [{"role": "user", "content": "hi"}]
         result = chatgpt_chatbot(messages, DummyOpenAI())
         assert result == "response"
+
+    def test_chatgpt_chatbot_anthropic_branch(self) -> None:
+        """Explicitly test chatgpt_chatbot for Anthropic branch (lines 50-51)."""
+        from arklex.evaluation import chatgpt_utils
+
+        class DummyAnthropic:
+            class messages:
+                @staticmethod
+                def create(**kwargs: object) -> object:
+                    class Result:
+                        content = [type("Obj", (), {"text": "anthropic result"})()]
+
+                    return Result()
+
+        messages = [{"role": "user", "content": "hi"}]
+        # Patch MODEL to anthropic
+        orig_model = chatgpt_utils.MODEL.copy()
+        chatgpt_utils.MODEL["llm_provider"] = "anthropic"
+        try:
+            result = chatgpt_utils.chatgpt_chatbot(messages, DummyAnthropic())
+            assert result == "anthropic result"
+        finally:
+            chatgpt_utils.MODEL = orig_model
+
+    def test_format_chat_history_str_empty(self) -> None:
+        """Explicitly test format_chat_history_str for empty input (line 332)."""
+        from arklex.evaluation.chatgpt_utils import format_chat_history_str
+
+        assert format_chat_history_str([]) == ""
