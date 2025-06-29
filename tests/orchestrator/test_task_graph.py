@@ -2120,3 +2120,157 @@ class TestTaskGraphCoverage:
         )
         with pytest.raises(TaskGraphError):
             task_graph._validate_node({"id": "i"})
+
+    def test_handle_random_next_node_no_candidates(
+        self,
+        patched_sample_config: dict[str, Any],
+        sample_llm_config: LLMConfig,
+        always_valid_mock_model: Mock,
+    ) -> None:
+        from arklex.orchestrator.task_graph import TaskGraph
+        from arklex.utils.graph_state import Params
+
+        tg = TaskGraph(
+            "g",
+            {"nodes": [], "edges": []},
+            sample_llm_config,
+            model_service=always_valid_mock_model,
+        )
+        tg.graph.add_node("n1")
+        params = Params()
+        result = tg.handle_random_next_node("n1", params)
+        assert result[0] is False
+        assert result[1] == {}
+
+    def test_local_intent_prediction_not_found(
+        self,
+        patched_sample_config: dict[str, Any],
+        sample_llm_config: LLMConfig,
+        always_valid_mock_model: Mock,
+    ) -> None:
+        from arklex.orchestrator.task_graph import TaskGraph
+        from arklex.utils.graph_state import Params
+
+        tg = TaskGraph(
+            "g",
+            {"nodes": [], "edges": []},
+            sample_llm_config,
+            model_service=always_valid_mock_model,
+        )
+        tg.intent_detector = Mock()
+        tg.intent_detector.execute.return_value = "not_found"
+        tg.unsure_intent = {"intent": "unsure"}
+        tg.text = "text"
+        tg.chat_history_str = "history"
+        tg.llm_config = sample_llm_config
+        params = Params()
+        result = tg.local_intent_prediction("n1", params, {})
+        assert result[0] is False
+        assert result[1] == {}
+
+    def test_handle_leaf_node_not_leaf_branch(
+        self,
+        patched_sample_config: dict[str, Any],
+        sample_llm_config: LLMConfig,
+        always_valid_mock_model: Mock,
+        sample_params: Params,
+    ) -> None:
+        from arklex.orchestrator.task_graph import TaskGraph
+        from arklex.utils.graph_state import Params
+
+        tg = TaskGraph(
+            "g",
+            {"nodes": [], "edges": []},
+            sample_llm_config,
+            model_service=always_valid_mock_model,
+        )
+        tg.graph.add_node("n1")
+        params = Params()
+        out = tg.handle_leaf_node("n1", params)
+        assert out[0] == "n1"
+
+    def test_handle_leaf_node_with_initial_node(
+        self,
+        patched_sample_config: dict[str, Any],
+        sample_llm_config: LLMConfig,
+        always_valid_mock_model: Mock,
+        sample_params: Params,
+    ) -> None:
+        from arklex.orchestrator.task_graph import TaskGraph
+        from arklex.utils.graph_state import Params
+
+        tg = TaskGraph(
+            "g",
+            {"nodes": [], "edges": []},
+            sample_llm_config,
+            model_service=always_valid_mock_model,
+        )
+        tg.graph.add_node("n1")
+        tg.initial_node = "init"
+        params = Params()
+        out = tg.handle_leaf_node("n1", params)
+        assert out[0] == "init"
+
+    def test_postprocess_node_returns_input(
+        self,
+        patched_sample_config: dict[str, Any],
+        sample_llm_config: LLMConfig,
+        always_valid_mock_model: Mock,
+        sample_params: Params,
+    ) -> None:
+        from arklex.orchestrator.task_graph import TaskGraph
+        from arklex.utils.graph_state import NodeInfo, Params
+
+        tg = TaskGraph(
+            "g",
+            {"nodes": [], "edges": []},
+            sample_llm_config,
+            model_service=always_valid_mock_model,
+        )
+        node = NodeInfo(
+            node_id="n",
+            type="t",
+            resource_id="r",
+            resource_name="r",
+            can_skipped=False,
+            is_leaf=True,
+            attributes={},
+            additional_args={},
+        )
+        params = Params()
+        out = tg.postprocess_node((node, params))
+        assert out == (node, params)
+
+    def test_handle_random_next_node_with_candidates_branch(
+        self,
+        patched_sample_config: dict[str, Any],
+        sample_llm_config: LLMConfig,
+        always_valid_mock_model: Mock,
+    ) -> None:
+        import numpy as np
+
+        from arklex.orchestrator.task_graph import TaskGraph
+        from arklex.utils.graph_state import Params
+
+        tg = TaskGraph(
+            "g",
+            {"nodes": [], "edges": []},
+            sample_llm_config,
+            model_service=always_valid_mock_model,
+        )
+        tg.graph.add_node("n1")
+        tg.graph.add_node(
+            "n2",
+            resource={"name": "r", "id": "id"},
+            attribute={"can_skipped": False, "tags": {}, "node_specific_data": {}},
+        )
+        tg.graph.add_edge("n1", "n2", intent="none", attribute={"weight": 1.0})
+        params = Params()
+        orig_choice = np.random.choice
+        np.random.choice = lambda arr, p=None: arr[0]
+        try:
+            result = tg.handle_random_next_node("n1", params)
+            assert result[0] is True
+            assert hasattr(result[1], "node_id")
+        finally:
+            np.random.choice = orig_choice
