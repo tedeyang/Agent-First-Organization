@@ -909,16 +909,83 @@ class TestReactPlanner:
         patched_sample_config: dict[str, Any],
         mock_planning_methods: dict[str, Mock],
     ) -> None:
-        config = patched_sample_config
-        config["mock_aimessage_to_dict"].return_value = {
-            "content": 'Action:\n{"name": "test_tool", "arguments": {"param": "value"}}'
-        }
-        import pytest
+        """Test plan method when max_num_steps is exhausted without finding RESPOND_ACTION."""
+        # Mock the planning methods to return non-RESPOND_ACTION
+        mock_planning_methods["mock_summary"].return_value = "Test trajectory"
+        mock_planning_methods["mock_retrievals"].return_value = 2
+        mock_planning_methods["mock_retrieve"].return_value = []
 
-        with pytest.raises(UnboundLocalError):
+        # Mock aimessage_to_dict to return proper dictionary
+        patched_sample_config["mock_aimessage_to_dict"].return_value = {
+            "content": 'Action:\n{"name": "test_tool", "arguments": {}}'
+        }
+
+        # Mock LLM to return non-RESPOND_ACTION responses
+        mock_response = Mock()
+        mock_response.content = 'Action:\n{"name": "test_tool", "arguments": {}}'
+        configured_react_planner.llm.invoke.return_value = mock_response
+
+        # Mock step to return non-RESPOND_ACTION response
+        def mock_step(action: Action, msg_state: MessageState) -> EnvResponse:
+            return EnvResponse(observation="tool_result")
+
+        configured_react_planner.step = mock_step
+
+        # Execute with max_num_steps=1 to ensure exhaustion
+        result_msg_history, result_action, result_response = (
             configured_react_planner.plan(
-                mock_message_state, mock_msg_history, max_num_steps=0
+                mock_message_state, mock_msg_history, max_num_steps=1
             )
+        )
+
+        # Should return the last action and response when max steps exhausted
+        assert result_action == "test_tool"
+        assert result_response == "tool_result"
+        # The message history should contain the original messages plus the new action and response
+        assert len(result_msg_history) >= len(mock_msg_history)
+
+    def test_plan_method_fallback_return_statement(
+        self,
+        configured_react_planner: ReactPlanner,
+        mock_message_state: MessageState,
+        mock_msg_history: list[dict[str, Any]],
+        patched_sample_config: dict[str, Any],
+        mock_planning_methods: dict[str, Mock],
+    ) -> None:
+        """Test plan method fallback return statement when max_num_steps is exhausted."""
+        # Mock the planning methods
+        mock_planning_methods["mock_summary"].return_value = "Test trajectory"
+        mock_planning_methods["mock_retrievals"].return_value = 2
+        mock_planning_methods["mock_retrieve"].return_value = []
+
+        # Mock aimessage_to_dict to return proper dictionary
+        patched_sample_config["mock_aimessage_to_dict"].return_value = {
+            "content": 'Action:\n{"name": "test_worker", "arguments": {}}'
+        }
+
+        # Mock LLM to return non-RESPOND_ACTION responses
+        mock_response = Mock()
+        mock_response.content = 'Action:\n{"name": "test_worker", "arguments": {}}'
+        configured_react_planner.llm.invoke.return_value = mock_response
+
+        # Mock step to return non-RESPOND_ACTION response
+        def mock_step(action: Action, msg_state: MessageState) -> EnvResponse:
+            return EnvResponse(observation="worker_result")
+
+        configured_react_planner.step = mock_step
+
+        # Execute with max_num_steps=1 to trigger the fallback return
+        result_msg_history, result_action, result_response = (
+            configured_react_planner.plan(
+                mock_message_state, mock_msg_history, max_num_steps=1
+            )
+        )
+
+        # Should return the last action and response from the fallback return statement
+        assert result_action == "test_worker"
+        assert result_response == "worker_result"
+        # The message history should contain the original messages plus the new action and response
+        assert len(result_msg_history) >= len(mock_msg_history)
 
     def test_default_planner_set_llm_config_and_build_resource_library(
         self,
