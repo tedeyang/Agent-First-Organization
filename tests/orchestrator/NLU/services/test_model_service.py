@@ -2264,3 +2264,15 @@ class TestModelServiceMissingCoverage:
             ValueError, match="Unsupported provider: unsupported_provider"
         ):
             ModelConfig.get_model_instance(invalid_config)
+
+    async def test_verify_slots_with_invalid_slots_type(
+        self, model_service_with_mock_model: ModelService
+    ) -> None:
+        """Test verify_slots with invalid slots type (not a dict)."""
+        from arklex.utils.exceptions import ValidationError
+
+        text = "test text"
+        invalid_slots = "not a dict"  # Invalid type
+
+        with pytest.raises(ValidationError, match="Invalid slots"):
+            await model_service_with_mock_model.verify_slots(text, invalid_slots)
