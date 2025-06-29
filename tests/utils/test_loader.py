@@ -10,7 +10,6 @@ from collections.abc import Generator
 from typing import NoReturn
 from unittest.mock import Mock, mock_open, patch
 
-import pytest
 import requests
 
 from arklex.utils.loader import (
@@ -1279,14 +1278,16 @@ class TestLoader:
 
         # Mock time to simulate timeout - provide enough values for all time.time() calls
         with patch("time.time") as mock_time:
-            # Provide enough values for all time.time() calls in the test
             mock_time.side_effect = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
 
             # Mock selenium webdriver
             with patch("arklex.utils.loader.webdriver") as mock_webdriver:
                 mock_driver = Mock()
                 mock_webdriver.Chrome.return_value = mock_driver
-                mock_driver.page_source = "<html><body>Test content</body></html>"
+                # First call to page_source raises, second call returns content
+                mock_driver.page_source = Mock(
+                    side_effect=[Exception("Timeout"), "Success content"]
+                )
 
                 # Mock BeautifulSoup to return a simple soup object
                 with patch("arklex.utils.loader.BeautifulSoup") as mock_bs:
@@ -1294,16 +1295,11 @@ class TestLoader:
                     mock_soup.get_text.return_value = "Test content"
                     mock_bs.return_value = mock_soup
 
-                    # Mock the retry logic by making the first attempt fail and second succeed
-                    with patch.object(loader, "_crawl_with_selenium") as mock_crawl:
-                        # First call raises an exception, second call succeeds
-                        mock_crawl.side_effect = [
-                            Exception("Timeout"),
-                            "Success content",
-                        ]
-
-                        with pytest.raises(TimeoutError):
-                            loader._crawl_with_selenium(url_objects)
+                    result = loader._crawl_with_selenium(url_objects)
+                    # Should have retried once (2 calls)
+                    assert mock_driver.page_source.call_count == 2
+                    # Should return None or empty if all retries fail
+                    assert result is None or result == []
 
     def test_crawl_with_selenium_timeout_detection_with_retry_and_success(self) -> None:
         """Test selenium crawling with timeout detection and eventual success (covers lines 267-270)."""
@@ -1312,14 +1308,20 @@ class TestLoader:
 
         # Mock time to simulate timeout
         with patch("time.time") as mock_time:
-            # Provide enough values for all time.time() calls
             mock_time.side_effect = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
 
             # Mock selenium webdriver
             with patch("arklex.utils.loader.webdriver") as mock_webdriver:
                 mock_driver = Mock()
                 mock_webdriver.Chrome.return_value = mock_driver
-                mock_driver.page_source = "<html><body>Test content</body></html>"
+                # First two calls to page_source raise, third call returns content
+                mock_driver.page_source = Mock(
+                    side_effect=[
+                        Exception("Timeout 1"),
+                        Exception("Timeout 2"),
+                        "Final success content",
+                    ]
+                )
 
                 # Mock BeautifulSoup
                 with patch("arklex.utils.loader.BeautifulSoup") as mock_bs:
@@ -1327,17 +1329,11 @@ class TestLoader:
                     mock_soup.get_text.return_value = "Test content"
                     mock_bs.return_value = mock_soup
 
-                    # Mock the retry logic
-                    with patch.object(loader, "_crawl_with_selenium") as mock_crawl:
-                        # Multiple failures then success
-                        mock_crawl.side_effect = [
-                            Exception("Timeout 1"),
-                            Exception("Timeout 2"),
-                            "Final success content",
-                        ]
-
-                        with pytest.raises(TimeoutError):
-                            loader._crawl_with_selenium(url_objects)
+                    result = loader._crawl_with_selenium(url_objects)
+                    # Should have retried twice (3 calls)
+                    assert mock_driver.page_source.call_count == 3
+                    # Should return the final content
+                    assert result == "Test content"
 
     def test_crawl_with_selenium_timeout_detection_with_early_success(self) -> None:
         """Test selenium crawling with timeout detection but early success (covers lines 267-270)."""
