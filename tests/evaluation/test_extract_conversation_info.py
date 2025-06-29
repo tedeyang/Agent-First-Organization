@@ -4,6 +4,7 @@ This module tests the conversation analysis utilities including edge counting,
 intent graph building, goal checking, and task completion metrics extraction.
 """
 
+import json
 import sys
 from unittest.mock import MagicMock, Mock, patch
 
@@ -472,3 +473,47 @@ def test_main_block_coverage(monkeypatch: pytest.MonkeyPatch) -> None:
     finally:
         # Restore original sys.argv
         sys.argv = original_argv
+
+    def test_main_block_prints_graph_weights(self: object, monkeypatch: object) -> None:
+        """Explicitly test __main__ block for lines 102-106 in extract_conversation_info.py."""
+        import builtins
+
+        from arklex.evaluation import extract_conversation_info
+
+        # Patch open to return a fake JSON
+        fake_data = [
+            {
+                "convo": [
+                    {"role": "user", "intent": "start", "content": "hi"},
+                    {"role": "assistant", "intent": "start", "content": "hello"},
+                    {"role": "user", "intent": "greet", "content": "hey"},
+                    {"role": "assistant", "intent": "greet", "content": "yo"},
+                ]
+            }
+        ]
+
+        class DummyFile:
+            def __enter__(self) -> "DummyFile":
+                return self
+
+            def __exit__(self, *a: object) -> None:
+                pass
+
+            def read(self) -> str:
+                return json.dumps(fake_data)
+
+            def __iter__(self) -> object:
+                return iter([json.dumps(fake_data)])
+
+        monkeypatch.setattr(builtins, "open", lambda *a, **k: DummyFile())
+        monkeypatch.setattr("json.load", lambda f: fake_data)
+        printed = []
+        monkeypatch.setattr("builtins.print", lambda *a, **k: printed.append(a))
+        # Run main block
+        code = extract_conversation_info.__file__
+        # Simulate __main__
+        import runpy
+
+        runpy.run_path(code, run_name="__main__")
+        # Check that print was called with expected edge weights
+        assert any("Weight for edge" in str(args[0]) for args in printed)
