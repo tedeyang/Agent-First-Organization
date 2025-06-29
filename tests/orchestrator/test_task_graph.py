@@ -35,41 +35,47 @@ def patched_sample_config() -> dict[str, Any]:
     """Provide a sample configuration for testing TaskGraph."""
     return {
         "nodes": [
-            {
-                "id": "start_node",
-                "type": "start",
-                "resource": {"name": "start_resource", "id": "start_id"},
-                "attribute": {
-                    "start": True,
-                    "can_skipped": False,
-                    "tags": {},
-                    "node_specific_data": {},
-                },
-            },
-            {
-                "id": "task_node",
-                "type": "task",
-                "resource": {"name": "task_resource", "id": "task_id"},
-                "attribute": {
-                    "can_skipped": True,
-                    "limit": 3,
-                    "tags": {"category": "test"},
-                    "node_specific_data": {
-                        "key1": "value1",
-                        "nested": {"key2": "value2"},
+            [
+                "start_node",
+                {
+                    "type": "start",
+                    "resource": {"name": "start_resource", "id": "start_id"},
+                    "attribute": {
+                        "start": True,
+                        "can_skipped": False,
+                        "tags": {},
+                        "node_specific_data": {},
                     },
                 },
-            },
-            {
-                "id": "leaf_node",
-                "type": "task",
-                "resource": {"name": "leaf_resource", "id": "leaf_id"},
-                "attribute": {
-                    "can_skipped": False,
-                    "tags": {},
-                    "node_specific_data": {},
+            ],
+            [
+                "task_node",
+                {
+                    "type": "task",
+                    "resource": {"name": "task_resource", "id": "task_id"},
+                    "attribute": {
+                        "can_skipped": True,
+                        "limit": 3,
+                        "tags": {"category": "test"},
+                        "node_specific_data": {
+                            "key1": "value1",
+                            "nested": {"key2": "value2"},
+                        },
+                    },
                 },
-            },
+            ],
+            [
+                "leaf_node",
+                {
+                    "type": "task",
+                    "resource": {"name": "leaf_resource", "id": "leaf_id"},
+                    "attribute": {
+                        "can_skipped": False,
+                        "tags": {},
+                        "node_specific_data": {},
+                    },
+                },
+            ],
         ],
         "edges": [
             (
@@ -101,7 +107,6 @@ def patched_sample_config() -> dict[str, Any]:
                 },
             ),
         ],
-        "services_nodes": {"service1": "start_node", "service2": "task_node"},
     }
 
 
@@ -170,7 +175,7 @@ class TestTaskGraphBase:
     def test_get_start_node_no_start(self) -> None:
         """Test getting start node when no start node exists."""
         config = {
-            "nodes": [{"id": "node1", "type": "task"}],
+            "nodes": [["node1", {"type": "task"}]],
             "edges": [],
         }
         with patch.object(TaskGraphBase, "create_graph"):
@@ -260,12 +265,14 @@ class TestTaskGraphInitialization:
         """Test graph creation from configuration."""
         config = {
             "nodes": [
-                {
-                    "id": "node1",
-                    "type": "task",
-                    "resource": {"name": "resource1", "id": "id1"},
-                    "attribute": {},
-                }
+                [
+                    "node1",
+                    {
+                        "type": "task",
+                        "resource": {"name": "resource1", "id": "id1"},
+                        "attribute": {},
+                    },
+                ]
             ],
             "edges": [
                 (
@@ -312,12 +319,14 @@ class TestTaskGraphInitialization:
         """Test getting initial flow without services nodes."""
         config = {
             "nodes": [
-                {
-                    "id": "node1",
-                    "type": "task",
-                    "resource": {"name": "resource1", "id": "id1"},
-                    "attribute": {},
-                }
+                [
+                    "node1",
+                    {
+                        "type": "task",
+                        "resource": {"name": "resource1", "id": "id1"},
+                        "attribute": {},
+                    },
+                ]
             ],
             "edges": [],
         }
@@ -1181,18 +1190,20 @@ class TestTaskGraphEdgeCases:
         """Test _get_node with complex node_specific_data."""
         config = {
             "nodes": [
-                {
-                    "id": "complex_node",
-                    "type": "task",
-                    "resource": {"name": "complex_resource", "id": "complex_id"},
-                    "attribute": {
-                        "node_specific_data": {
-                            "simple_key": "simple_value",
-                            "nested_dict": {"nested_key": "nested_value"},
-                            "another_nested": {"another_key": "another_value"},
-                        }
+                [
+                    "complex_node",
+                    {
+                        "type": "task",
+                        "resource": {"name": "complex_resource", "id": "complex_id"},
+                        "attribute": {
+                            "node_specific_data": {
+                                "simple_key": "simple_value",
+                                "nested_dict": {"nested_key": "nested_value"},
+                                "another_nested": {"another_key": "another_value"},
+                            }
+                        },
                     },
-                }
+                ]
             ],
             "edges": [],
         }
@@ -1502,12 +1513,14 @@ class TestTaskGraphErrorHandling:
         """Test create_graph handles None intent correctly."""
         config = {
             "nodes": [
-                {
-                    "id": "node1",
-                    "type": "task",
-                    "resource": {"name": "resource1", "id": "id1"},
-                    "attribute": {},
-                }
+                [
+                    "node1",
+                    {
+                        "type": "task",
+                        "resource": {"name": "resource1", "id": "id1"},
+                        "attribute": {},
+                    },
+                ]
             ],
             "edges": [
                 (
@@ -1535,12 +1548,14 @@ class TestTaskGraphErrorHandling:
         """Test create_graph handles empty intent correctly."""
         config = {
             "nodes": [
-                {
-                    "id": "node1",
-                    "type": "task",
-                    "resource": {"name": "resource1", "id": "id1"},
-                    "attribute": {},
-                }
+                [
+                    "node1",
+                    {
+                        "type": "task",
+                        "resource": {"name": "resource1", "id": "id1"},
+                        "attribute": {},
+                    },
+                ]
             ],
             "edges": [
                 (
@@ -1568,12 +1583,14 @@ class TestTaskGraphErrorHandling:
         """Test get_initial_flow handles invalid weights gracefully."""
         config = {
             "nodes": [
-                {
-                    "id": "node1",
-                    "type": "task",
-                    "resource": {"name": "resource1", "id": "id1"},
-                    "attribute": {},
-                }
+                [
+                    "node1",
+                    {
+                        "type": "task",
+                        "resource": {"name": "resource1", "id": "id1"},
+                        "attribute": {},
+                    },
+                ]
             ],
             "edges": [
                 (
@@ -1673,12 +1690,14 @@ class TestTaskGraphPerformance:
         # Create 100 nodes
         for i in range(100):
             nodes.append(
-                {
-                    "id": f"node_{i}",
-                    "type": "task",
-                    "resource": {"name": f"resource_{i}", "id": f"id_{i}"},
-                    "attribute": {},
-                }
+                [
+                    f"node_{i}",
+                    {
+                        "type": "task",
+                        "resource": {"name": f"resource_{i}", "id": f"id_{i}"},
+                        "attribute": {},
+                    },
+                ]
             )
 
         # Create edges connecting each node to the next
@@ -1701,7 +1720,6 @@ class TestTaskGraphPerformance:
             sample_llm_config,
             model_service=always_valid_mock_model,
         )
-
         assert len(task_graph.graph.nodes) == 100
         assert len(task_graph.graph.edges) == 99
 
