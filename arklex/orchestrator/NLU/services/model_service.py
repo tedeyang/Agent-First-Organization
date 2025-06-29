@@ -1057,7 +1057,21 @@ class DummyModelService(ModelService):
         Returns:
             str: Mock response for testing
         """
-        return "1) others"
+        # Handle None or empty prompts
+        if prompt is None:
+            prompt = ""
+
+        # Return more appropriate mock responses based on the input
+        if "questions about available products" in prompt:
+            return "1) questions about available products"
+        elif "product 1" in prompt:
+            return "1) product 1"
+        elif "question about account information" in prompt:
+            return (
+                "1) question about account information (shipping address/user details)"
+            )
+        else:
+            return "1) others"
 
     def process_slot_response(
         self, response: str, slots: list[dict[str, Any]]
@@ -1097,3 +1111,26 @@ class DummyModelService(ModelService):
             Tuple[bool, str]: Verification result and explanation
         """
         return super().process_verification_response(response)
+
+    def get_json_response(
+        self,
+        prompt: str,
+        model_config: dict[str, Any] | None = None,
+        system_prompt: str | None = None,
+    ) -> dict[str, Any]:
+        """Get a mock JSON response for testing.
+
+        Args:
+            prompt: Input prompt
+            model_config: Optional model configuration
+            system_prompt: Optional system prompt
+
+        Returns:
+            dict[str, Any]: Mock JSON response for testing
+        """
+        # Handle None or empty prompts
+        if prompt is None:
+            prompt = ""
+
+        # Return appropriate mock JSON responses based on the input
+        return {"result": "mock_response", "status": "success"}
