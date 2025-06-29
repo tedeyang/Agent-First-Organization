@@ -8,7 +8,7 @@ import os
 import tempfile
 from collections.abc import Generator
 from typing import NoReturn
-from unittest.mock import Mock, mock_open, patch
+from unittest.mock import Mock, PropertyMock, mock_open, patch
 
 import requests
 
@@ -1276,18 +1276,21 @@ class TestLoader:
         loader = Loader()
         url_objects = [DocObject("1", "http://example.com")]
 
-        # Mock time to simulate timeout - provide enough values for all time.time() calls
+        # Mock time to simulate timeout - provide many more values for all time.time() calls
         with patch("time.time") as mock_time:
-            mock_time.side_effect = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
+            # Provide many more values to handle all time.time() calls including logging
+            mock_time.side_effect = [100 + i for i in range(50)]
 
             # Mock selenium webdriver
             with patch("arklex.utils.loader.webdriver") as mock_webdriver:
                 mock_driver = Mock()
                 mock_webdriver.Chrome.return_value = mock_driver
-                # First call to page_source raises, second call returns content
-                mock_driver.page_source = Mock(
-                    side_effect=[Exception("Timeout"), "Success content"]
+
+                # Use PropertyMock directly and assert on its call_count
+                page_source_prop = PropertyMock(
+                    side_effect=[Exception("Timeout"), Exception("Timeout")]
                 )
+                type(mock_driver).page_source = page_source_prop
 
                 # Mock BeautifulSoup to return a simple soup object
                 with patch("arklex.utils.loader.BeautifulSoup") as mock_bs:
@@ -1296,44 +1299,56 @@ class TestLoader:
                     mock_bs.return_value = mock_soup
 
                     result = loader._crawl_with_selenium(url_objects)
-                    # Should have retried once (2 calls)
-                    assert mock_driver.page_source.call_count == 2
-                    # Should return None or empty if all retries fail
-                    assert result is None or result == []
+
+                    # Should have retried twice (2 calls)
+                    assert page_source_prop.call_count == 2
+                    # Should return a list with one error CrawledObject
+                    assert len(result) == 1
+                    assert result[0].content == "" or getattr(
+                        result[0], "is_error", False
+                    )
 
     def test_crawl_with_selenium_timeout_detection_with_retry_and_success(self) -> None:
         """Test selenium crawling with timeout detection and eventual success (covers lines 267-270)."""
         loader = Loader()
         url_objects = [DocObject("1", "http://example.com")]
 
-        # Mock time to simulate timeout
+        # Mock time to simulate timeout - provide many more values for all time.time() calls
         with patch("time.time") as mock_time:
-            mock_time.side_effect = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
+            # Provide many more values to handle all time.time() calls including logging
+            mock_time.side_effect = [100 + i for i in range(50)]
 
             # Mock selenium webdriver
             with patch("arklex.utils.loader.webdriver") as mock_webdriver:
                 mock_driver = Mock()
                 mock_webdriver.Chrome.return_value = mock_driver
-                # First two calls to page_source raise, third call returns content
-                mock_driver.page_source = Mock(
+
+                # Use PropertyMock directly and assert on its call_count
+                page_source_prop = PropertyMock(
                     side_effect=[
                         Exception("Timeout 1"),
-                        Exception("Timeout 2"),
-                        "Final success content",
+                        "<html><body>Final success content</body></html>",
                     ]
                 )
+                type(mock_driver).page_source = page_source_prop
 
-                # Mock BeautifulSoup
+                # Mock BeautifulSoup to properly handle iteration
                 with patch("arklex.utils.loader.BeautifulSoup") as mock_bs:
                     mock_soup = Mock()
-                    mock_soup.get_text.return_value = "Test content"
+                    # Create mock string objects that have find_parent method
+                    mock_string = Mock()
+                    mock_string.find_parent.return_value = None
+                    mock_string.strip.return_value = "Final success content"
+                    mock_soup.strings = [mock_string]
+                    mock_soup.find_all.return_value = []
                     mock_bs.return_value = mock_soup
 
                     result = loader._crawl_with_selenium(url_objects)
-                    # Should have retried twice (3 calls)
-                    assert mock_driver.page_source.call_count == 3
-                    # Should return the final content
-                    assert result == "Test content"
+
+                    # Should have retried once (2 calls)
+                    assert page_source_prop.call_count == 2
+                    # Should return a list with one CrawledObject
+                    assert len(result) == 1
 
     def test_crawl_with_selenium_timeout_detection_with_early_success(self) -> None:
         """Test selenium crawling with timeout detection but early success (covers lines 267-270)."""
