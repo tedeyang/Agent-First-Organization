@@ -1,6 +1,5 @@
 """Tests for the chatgpt_utils module."""
 
-from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
@@ -695,9 +694,9 @@ class TestChatGPTUtils:
             _print_goals(goals)
             mock_print.assert_called_once_with(goals)
 
-    def test_chatgpt_chatbot_openai_branch(self, monkeypatch: Any) -> None:  # noqa: ANN401
-        from typing import Any
-
+    def test_chatgpt_chatbot_openai_branch(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         from arklex.evaluation.chatgpt_utils import chatgpt_chatbot
 
         class DummyOpenAI:
@@ -705,8 +704,8 @@ class TestChatGPTUtils:
                 class completions:
                     @staticmethod
                     def create(
-                        model: str, messages: list[Any], temperature: float
-                    ) -> Any:  # noqa: ANN401
+                        model: str, messages: list[dict[str, str]], temperature: float
+                    ) -> object:
                         class Choice:
                             class Message:
                                 content = "response"
