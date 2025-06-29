@@ -192,7 +192,8 @@ class HITLWorker(BaseWorker):
     def _execute(
         self, state: MessageState, **kwargs: HITLWorkerExecuteKwargs
     ) -> MessageState:
-        if not self.verify(state):
+        need_hitl, _ = self.verify(state)
+        if not need_hitl:
             return self.error(state)
 
         graph = self.action_graph.compile()
