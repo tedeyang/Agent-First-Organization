@@ -9,6 +9,7 @@ import collections
 from typing import Any
 from unittest.mock import Mock, patch
 
+import networkx as nx
 import pytest
 
 from arklex.orchestrator.NLU.core.intent import IntentDetector
@@ -3480,3 +3481,23 @@ class TestTaskGraphAdditionalCoverage:
         # But this only happens when next_node != curr_node, which requires candidates
         # So in this case, no NLU record should be created
         assert len(updated_params.taskgraph.nlu_records) == 0
+
+    def test__get_node_removes_intent_from_available_global_intents(
+        self, sample_params: Params
+    ) -> None:
+        from arklex.orchestrator.task_graph import TaskGraph
+
+        g = TaskGraph.__new__(TaskGraph)
+        g.graph = nx.DiGraph()
+        g.graph.add_node(
+            "n",
+            type="t",
+            resource={"name": "r", "id": "id"},
+            attribute={"can_skipped": False, "tags": {}, "node_specific_data": {}},
+        )
+        g.start_node = "n"
+        params = sample_params
+        params.taskgraph.available_global_intents = {"foo": [{"target_node": "n"}]}
+        params.taskgraph.curr_node = "n"
+        node_info, new_params = g._get_node("n", params, intent="foo")
+        assert "foo" not in new_params.taskgraph.available_global_intents
