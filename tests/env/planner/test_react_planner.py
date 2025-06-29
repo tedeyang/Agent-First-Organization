@@ -1183,6 +1183,43 @@ class TestReactPlanner:
             assert result_action == "respond"
             assert result_response == "test observation"
 
+    def test_plan_exhausts_max_steps(self) -> None:
+        from arklex.env.planner.react_planner import Action, MessageState, ReactPlanner
+
+        class DummyLLM:
+            def invoke(self, messages: list[Any]) -> Any:  # noqa: ANN401
+                class DummyResponse:
+                    content = "no respond action"
+
+                return DummyResponse()
+
+        planner = ReactPlanner({}, {}, {})
+        planner.llm = DummyLLM()
+        planner.message_to_actions = lambda msg: [Action(name="not_respond", kwargs={})]
+        planner.step = lambda action, state: type(
+            "EnvResponse", (), {"observation": "obs"}
+        )()
+
+        # Mock retriever with vectorstore.similarity_search_with_score
+        class DummyVectorStore:
+            def similarity_search_with_score(self, query: str, k: int) -> list[Any]:  # noqa: ANN401
+                return []
+
+        class DummyRetriever:
+            vectorstore = DummyVectorStore()
+
+        planner.retriever = DummyRetriever()
+        planner.guaranteed_retrieval_docs = []
+        # Provide a MessageState with valid user_message and orchestrator_message
+        state = MessageState(
+            user_message={"history": "", "message": "test"},
+            orchestrator_message={"message": "", "attribute": {"task": ""}},
+        )
+        msg_history = []
+        # Should return after max_num_steps
+        result = planner.plan(state, msg_history, max_num_steps=1)
+        assert isinstance(result, tuple)
+
 
 class TestReactPlannerIntegration:
     @pytest.fixture
@@ -1267,6 +1304,10 @@ class TestReactPlannerIntegration:
             msg_history, action_name, response = integration_planner.plan(
                 msg_state, msg_history, max_num_steps=1
             )
+
+            assert action_name == "integration_tool"
+            assert response == "integration_result"
+            assert len(msg_history) > 1
 
             assert action_name == "integration_tool"
             assert response == "integration_result"
