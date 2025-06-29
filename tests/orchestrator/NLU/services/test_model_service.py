@@ -522,9 +522,10 @@ class TestDummyModelService:
         assert isinstance(response, str)
         assert len(response) > 0
 
-        # Test get_json_response - this will fail because "1) others" is not valid JSON
-        with pytest.raises(ValueError, match="Failed to parse JSON response"):
-            dummy_model_service.get_json_response("test prompt")
+        # Test get_json_response - now returns valid JSON
+        json_response = dummy_model_service.get_json_response("test prompt")
+        assert isinstance(json_response, dict)
+        assert "result" in json_response
 
     def test_dummy_model_service_with_none_config(self) -> None:
         """Test DummyModelService initialization with None config."""
@@ -551,17 +552,19 @@ class TestDummyModelService:
         self, dummy_model_service: DummyModelService
     ) -> None:
         """Test DummyModelService get_json_response with None prompt."""
-        # This will fail because "1) others" is not valid JSON
-        with pytest.raises(ValueError, match="Failed to parse JSON response"):
-            dummy_model_service.get_json_response(None)
+        # Now returns valid JSON instead of raising error
+        json_response = dummy_model_service.get_json_response(None)
+        assert isinstance(json_response, dict)
+        assert "result" in json_response
 
     def test_dummy_model_service_get_json_response_with_empty_prompt(
         self, dummy_model_service: DummyModelService
     ) -> None:
         """Test DummyModelService get_json_response with empty prompt."""
-        # This will fail because "1) others" is not valid JSON
-        with pytest.raises(ValueError, match="Failed to parse JSON response"):
-            dummy_model_service.get_json_response("")
+        # Now returns valid JSON instead of raising error
+        json_response = dummy_model_service.get_json_response("")
+        assert isinstance(json_response, dict)
+        assert "result" in json_response
 
 
 class TestModelServiceErrorHandling:
