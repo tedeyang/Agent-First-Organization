@@ -2274,3 +2274,83 @@ class TestTaskGraphCoverage:
             assert hasattr(result[1], "node_id")
         finally:
             np.random.choice = orig_choice
+
+    def test__get_node_sets_curr_node(
+        self,
+        patched_sample_config: dict[str, Any],
+        sample_llm_config: LLMConfig,
+        always_valid_mock_model: Mock,
+        sample_params: Params,
+    ) -> None:
+        tg = TaskGraph(
+            "g",
+            patched_sample_config,
+            sample_llm_config,
+            model_service=always_valid_mock_model,
+        )
+        params = sample_params
+        node_id = "start_node"
+        node_info, out_params = tg._get_node(node_id, params)
+        assert out_params.taskgraph.curr_node == node_id
+        assert node_info.node_id == node_id
+
+    def test_handle_random_next_node_else_branch(
+        self,
+        patched_sample_config: dict[str, Any],
+        sample_llm_config: LLMConfig,
+        always_valid_mock_model: Mock,
+        sample_params: Params,
+    ) -> None:
+        tg = TaskGraph(
+            "g",
+            patched_sample_config,
+            sample_llm_config,
+            model_service=always_valid_mock_model,
+        )
+        tg.graph.remove_edge("task_node", "task_node")
+        params = sample_params
+        result = tg.handle_random_next_node("leaf_node", params)
+        assert result[0] is False
+        assert result[1] == {}
+
+    def test_get_node_global_intent_switch_and_random_next(
+        self,
+        patched_sample_config: dict[str, Any],
+        sample_llm_config: LLMConfig,
+        always_valid_mock_model: Mock,
+        sample_params: Params,
+    ) -> None:
+        tg = TaskGraph(
+            "g",
+            patched_sample_config,
+            sample_llm_config,
+            model_service=always_valid_mock_model,
+        )
+        params = sample_params
+        inputs = {
+            "text": "irrelevant",
+            "chat_history_str": "history",
+            "parameters": params,
+            "allow_global_intent_switch": True,
+        }
+        # Patch get_local_intent to return no local intents so the global intent branch is taken
+        node_info_obj = NodeInfo(
+            node_id="leaf_node",
+            type="task",
+            resource_id="leaf_id",
+            resource_name="leaf_resource",
+            can_skipped=False,
+            is_leaf=True,
+            attributes={},
+        )
+        with (
+            patch.object(tg, "get_local_intent", return_value={}),
+            patch.object(
+                tg,
+                "global_intent_prediction",
+                return_value=(True, "not_unsure", node_info_obj, params),
+            ),
+        ):
+            node_info, out_params = tg.get_node(inputs)
+            assert node_info.node_id == "leaf_node"
+            assert out_params is params
