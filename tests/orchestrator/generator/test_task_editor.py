@@ -631,6 +631,23 @@ class TestTaskEditorAppNodeManagement:
                 task_editor_app.show_input_modal(title, default)
                 mock_input_modal.assert_called_with(title, default)
 
+    def test_show_input_modal_returns_result(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from arklex.orchestrator.generator.ui.task_editor import TaskEditorApp
+
+        class DummyModal:
+            def __init__(self, title: str, default: str) -> None:
+                self.result = "foo"
+
+        monkeypatch.setattr(
+            "arklex.orchestrator.generator.ui.task_editor.InputModal", DummyModal
+        )
+        app = TaskEditorApp([])
+        monkeypatch.setattr(app, "push_screen", lambda modal: None)
+        result = app.show_input_modal("title", "default")
+        assert result == "foo"
+
 
 class TestTaskEditorAppDataManagement:
     """Test TaskEditorApp data management methods."""
@@ -777,3 +794,10 @@ class TestTaskEditorAppDataManagement:
         task_editor_app.run = MagicMock(return_value=task_editor_app.tasks)
         result = task_editor_app.run()
         assert result == [{"name": "Task 1", "steps": ["Step 1"]}]
+
+    def test_task_editor_app_init_with_none(self) -> None:
+        from arklex.orchestrator.generator.ui.task_editor import TaskEditorApp
+
+        app = TaskEditorApp(None)
+        assert app.tasks is None
+        assert app.task_tree is None
