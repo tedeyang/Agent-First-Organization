@@ -230,11 +230,30 @@ class TestHITLWorker:
         assert isinstance(result, MessageState)
 
     def test_error_method_sets_status_incomplete(self) -> None:
+        """Test error method sets status to incomplete."""
         worker = HITLWorker(name="test_worker")
         state = MessageState()
         result = worker.error(state)
-        assert result.status == StatusEnum.INCOMPLETE
-        assert result is state
+        assert result == state
+        assert state.status == StatusEnum.INCOMPLETE
+
+    def test_execute_with_verify_failure_calls_error(self) -> None:
+        """Test execute method calls error when verify fails (covers line 196)."""
+        worker = HITLWorker(name="test_worker")
+        state = MessageState()
+
+        # Mock verify to return False (first element of tuple)
+        with (
+            patch.object(worker, "verify", return_value=(False, "")),
+            patch.object(worker.action_graph, "compile") as mock_compile,
+        ):
+            # The error branch should be taken, so compile.invoke should not be called, but we patch it just in case
+            mock_compile.return_value.invoke.return_value = state
+            result = worker._execute(state)
+
+            # Should call error method when verify fails
+            assert result.status == StatusEnum.INCOMPLETE
+            assert result == state  # Should return the same state object
 
 
 class TestHITLWorkerTestChat:
