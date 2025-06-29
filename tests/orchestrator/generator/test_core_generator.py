@@ -7,7 +7,8 @@ management, document loading, task generation, and task graph formatting.
 
 import json
 from datetime import datetime
-from typing import Any, Path
+from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, Mock, call, mock_open, patch
 
 import pytest
