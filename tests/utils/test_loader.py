@@ -1963,3 +1963,29 @@ class TestLoader:
         assert result.is_error is True
         assert result.error_message == "Test error message"
         assert result.source_type == SourceType.WEB
+
+    def test_get_outsource_urls_link_processing_exception(self) -> None:
+        """Test get_outsource_urls when link processing raises an exception (lines 609-611)."""
+        loader = Loader()
+        curr_url = "http://example.com"
+        base_url = "http://example.com"
+
+        # Mock requests.get to return a successful response
+        with patch("requests.get") as mock_get:
+            mock_response = Mock()
+            mock_response.status_code = 200
+            mock_response.text = '<html><a href="http://example.com/page1">Link1</a><a href="http://example.com/page2">Link2</a></html>'
+            mock_get.return_value = mock_response
+
+            # Mock urljoin to raise an exception when processing links
+            with patch(
+                "arklex.utils.loader.urljoin",
+                side_effect=Exception("Link processing error"),
+            ):
+                # Execute the method - should handle the exception gracefully
+                result = loader.get_outsource_urls(curr_url, base_url)
+
+                # The method should handle the exception gracefully
+                # Since all links fail due to exceptions, no URLs should be added
+                # The implementation catches exceptions for each link individually
+                assert result == []
