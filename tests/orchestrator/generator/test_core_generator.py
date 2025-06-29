@@ -2952,15 +2952,7 @@ class TestCompleteLineCoverage:
         """Test that the placeholder TaskEditorApp class raises ImportError when instantiated."""
         # Test the placeholder class behavior when UI is unavailable
         with patch("arklex.orchestrator.generator.core.generator.UI_AVAILABLE", False):
-            # Re-import the module to get the placeholder class
-            import sys
-
-            # Remove the module from sys.modules to force re-import
-            module_name = "arklex.orchestrator.generator.core.generator"
-            if module_name in sys.modules:
-                del sys.modules[module_name]
-
-            # Import the module again to get the placeholder class
+            # Import the TaskEditorApp class directly
             from arklex.orchestrator.generator.core.generator import TaskEditorApp
 
             # Test that the placeholder class raises ImportError
@@ -2968,7 +2960,8 @@ class TestCompleteLineCoverage:
                 ImportError,
                 match="UI components require 'textual' package to be installed",
             ):
-                TaskEditorApp(tasks=[])  # Pass the required tasks argument
+                # Actually instantiate the class to trigger the ImportError
+                TaskEditorApp(tasks=[])
 
     def test_generate_else_branch_no_user_changes_detected(
         self,
@@ -3455,40 +3448,46 @@ class TestCompleteLineCoverage:
                 interactable_with_user=False,
             )
 
-            # Set up tasks
-            generator.tasks = [
-                {
-                    "name": "Generated Task 1",
-                    "description": "Generated task description",
-                    "steps": [
-                        {"description": "Generated Step 1"},
-                        {"description": "Generated Step 2"},
-                    ],
+            # Patch the _initialize_document_loader method to return our mock
+            with patch.object(
+                generator,
+                "_initialize_document_loader",
+                return_value=mock_document_loader.return_value,
+            ):
+                # Set up tasks
+                generator.tasks = [
+                    {
+                        "name": "Generated Task 1",
+                        "description": "Generated task description",
+                        "steps": [
+                            {"description": "Generated Step 1"},
+                            {"description": "Generated Step 2"},
+                        ],
+                    }
+                ]
+
+                # Mock empty best practices
+                mock_best_practice_manager.return_value.generate_best_practices.return_value = []
+
+                # Mock task graph formatter to return a proper dictionary
+                mock_task_graph_formatter.return_value.format_task_graph.return_value = {
+                    "tasks": [],
+                    "metadata": {},
+                    "version": "1.0",
                 }
-            ]
+                mock_task_graph_formatter.return_value.ensure_nested_graph_connectivity.return_value = {
+                    "tasks": [],
+                    "metadata": {},
+                    "version": "1.0",
+                }
 
-            # Mock empty best practices
-            mock_best_practice_manager.return_value.generate_best_practices.return_value = []
+                # Run generate method
+                result = generator.generate()
 
-            # Mock task graph formatter to return a proper dictionary
-            mock_task_graph_formatter.return_value.format_task_graph.return_value = {
-                "tasks": [],
-                "metadata": {},
-                "version": "1.0",
-            }
-            mock_task_graph_formatter.return_value.ensure_nested_graph_connectivity.return_value = {
-                "tasks": [],
-                "metadata": {},
-                "version": "1.0",
-            }
-
-            # Run generate method
-            result = generator.generate()
-
-            # Verify that the method completed successfully
-            assert result is not None
-            # Since there are no best practices, finetune_best_practice should not be called
-            mock_best_practice_manager.return_value.finetune_best_practice.assert_not_called()
+                # Verify that the method completed successfully
+                assert result is not None
+                # Since there are no best practices, finetune_best_practice should not be called
+                mock_best_practice_manager.return_value.finetune_best_practice.assert_not_called()
 
     def test_generate_with_more_tasks_than_best_practices(
         self,
@@ -3559,65 +3558,71 @@ class TestCompleteLineCoverage:
                 interactable_with_user=False,
             )
 
-            # Set up tasks (more tasks than best practices)
-            generator.tasks = [
-                {
-                    "name": "Generated Task 1",
-                    "description": "Generated task description",
-                    "steps": [
-                        {"description": "Generated Step 1"},
-                        {"description": "Generated Step 2"},
-                    ],
-                },
-                {
-                    "name": "Generated Task 2",
-                    "description": "Generated task description 2",
-                    "steps": [
-                        {"description": "Generated Step 3"},
-                        {"description": "Generated Step 4"},
-                    ],
-                },
-                {
-                    "name": "Generated Task 3",
-                    "description": "Generated task description 3",
-                    "steps": [
-                        {"description": "Generated Step 5"},
-                        {"description": "Generated Step 6"},
-                    ],
-                },
-            ]
+            # Patch the _initialize_document_loader method to return our mock
+            with patch.object(
+                generator,
+                "_initialize_document_loader",
+                return_value=mock_document_loader.return_value,
+            ):
+                # Set up tasks (more tasks than best practices)
+                generator.tasks = [
+                    {
+                        "name": "Generated Task 1",
+                        "description": "Generated task description",
+                        "steps": [
+                            {"description": "Generated Step 1"},
+                            {"description": "Generated Step 2"},
+                        ],
+                    },
+                    {
+                        "name": "Generated Task 2",
+                        "description": "Generated task description 2",
+                        "steps": [
+                            {"description": "Generated Step 3"},
+                            {"description": "Generated Step 4"},
+                        ],
+                    },
+                    {
+                        "name": "Generated Task 3",
+                        "description": "Generated task description 3",
+                        "steps": [
+                            {"description": "Generated Step 5"},
+                            {"description": "Generated Step 6"},
+                        ],
+                    },
+                ]
 
-            # Mock only one best practice (fewer than tasks)
-            mock_best_practice_manager.return_value.generate_best_practices.return_value = [
-                {
-                    "name": "Best Practice 1",
-                    "description": "Best practice description",
-                    "steps": [{"description": "Best practice step"}],
+                # Mock only one best practice (fewer than tasks)
+                mock_best_practice_manager.return_value.generate_best_practices.return_value = [
+                    {
+                        "name": "Best Practice 1",
+                        "description": "Best practice description",
+                        "steps": [{"description": "Best practice step"}],
+                    }
+                ]
+
+                # Mock task graph formatter to return a proper dictionary
+                mock_task_graph_formatter.return_value.format_task_graph.return_value = {
+                    "tasks": [],
+                    "metadata": {},
+                    "version": "1.0",
                 }
-            ]
+                mock_task_graph_formatter.return_value.ensure_nested_graph_connectivity.return_value = {
+                    "tasks": [],
+                    "metadata": {},
+                    "version": "1.0",
+                }
 
-            # Mock task graph formatter to return a proper dictionary
-            mock_task_graph_formatter.return_value.format_task_graph.return_value = {
-                "tasks": [],
-                "metadata": {},
-                "version": "1.0",
-            }
-            mock_task_graph_formatter.return_value.ensure_nested_graph_connectivity.return_value = {
-                "tasks": [],
-                "metadata": {},
-                "version": "1.0",
-            }
+                # Run generate method
+                result = generator.generate()
 
-            # Run generate method
-            result = generator.generate()
-
-            # Verify that the method completed successfully
-            assert result is not None
-            # Only the first task should have finetune_best_practice called (since there's only 1 best practice)
-            assert (
-                mock_best_practice_manager.return_value.finetune_best_practice.call_count
-                == 1
-            )
+                # Verify that the method completed successfully
+                assert result is not None
+                # Only the first task should have finetune_best_practice called (since there's only 1 best practice)
+                assert (
+                    mock_best_practice_manager.return_value.finetune_best_practice.call_count
+                    == 1
+                )
 
     def test_generate_with_nested_graph_disabled(
         self,
@@ -3673,41 +3678,47 @@ class TestCompleteLineCoverage:
                 allow_nested_graph=False,
             )
 
-            # Set up tasks
-            generator.tasks = [
-                {
-                    "name": "Generated Task 1",
-                    "description": "Generated task description",
-                    "steps": [
-                        {"description": "Generated Step 1"},
-                        {"description": "Generated Step 2"},
-                    ],
+            # Patch the _initialize_document_loader method to return our mock
+            with patch.object(
+                generator,
+                "_initialize_document_loader",
+                return_value=mock_document_loader.return_value,
+            ):
+                # Set up tasks
+                generator.tasks = [
+                    {
+                        "name": "Generated Task 1",
+                        "description": "Generated task description",
+                        "steps": [
+                            {"description": "Generated Step 1"},
+                            {"description": "Generated Step 2"},
+                        ],
+                    }
+                ]
+
+                # Mock best practices
+                mock_best_practice_manager.return_value.generate_best_practices.return_value = [
+                    {
+                        "name": "Best Practice 1",
+                        "description": "Best practice description",
+                        "steps": [{"description": "Best practice step"}],
+                    }
+                ]
+
+                # Mock task graph formatter to return a proper dictionary
+                mock_task_graph_formatter.return_value.format_task_graph.return_value = {
+                    "tasks": [],
+                    "metadata": {},
+                    "version": "1.0",
                 }
-            ]
 
-            # Mock best practices
-            mock_best_practice_manager.return_value.generate_best_practices.return_value = [
-                {
-                    "name": "Best Practice 1",
-                    "description": "Best practice description",
-                    "steps": [{"description": "Best practice step"}],
-                }
-            ]
+                # Run generate method
+                result = generator.generate()
 
-            # Mock task graph formatter to return a proper dictionary
-            mock_task_graph_formatter.return_value.format_task_graph.return_value = {
-                "tasks": [],
-                "metadata": {},
-                "version": "1.0",
-            }
-
-            # Run generate method
-            result = generator.generate()
-
-            # Verify that the method completed successfully
-            assert result is not None
-            # Since nested graph is disabled, ensure_nested_graph_connectivity should not be called
-            mock_task_graph_formatter.return_value.ensure_nested_graph_connectivity.assert_not_called()
+                # Verify that the method completed successfully
+                assert result is not None
+                # Since nested graph is disabled, ensure_nested_graph_connectivity should not be called
+                mock_task_graph_formatter.return_value.ensure_nested_graph_connectivity.assert_not_called()
 
     def test_generate_with_empty_reusable_tasks(
         self,
@@ -3763,44 +3774,50 @@ class TestCompleteLineCoverage:
                 allow_nested_graph=False,  # Disable nested graph to avoid adding nested_graph reusable task
             )
 
-            # Set up tasks
-            generator.tasks = [
-                {
-                    "name": "Generated Task 1",
-                    "description": "Generated task description",
-                    "steps": [
-                        {"description": "Generated Step 1"},
-                        {"description": "Generated Step 2"},
-                    ],
+            # Patch the _initialize_document_loader method to return our mock
+            with patch.object(
+                generator,
+                "_initialize_document_loader",
+                return_value=mock_document_loader.return_value,
+            ):
+                # Set up tasks
+                generator.tasks = [
+                    {
+                        "name": "Generated Task 1",
+                        "description": "Generated task description",
+                        "steps": [
+                            {"description": "Generated Step 1"},
+                            {"description": "Generated Step 2"},
+                        ],
+                    }
+                ]
+
+                # Ensure reusable_tasks is empty
+                generator.reusable_tasks = {}
+
+                # Mock best practices
+                mock_best_practice_manager.return_value.generate_best_practices.return_value = [
+                    {
+                        "name": "Best Practice 1",
+                        "description": "Best practice description",
+                        "steps": [{"description": "Best practice step"}],
+                    }
+                ]
+
+                # Mock task graph formatter to return a proper dictionary
+                mock_task_graph_formatter.return_value.format_task_graph.return_value = {
+                    "tasks": [],
+                    "metadata": {},
+                    "version": "1.0",
                 }
-            ]
 
-            # Ensure reusable_tasks is empty
-            generator.reusable_tasks = {}
+                # Run generate method
+                result = generator.generate()
 
-            # Mock best practices
-            mock_best_practice_manager.return_value.generate_best_practices.return_value = [
-                {
-                    "name": "Best Practice 1",
-                    "description": "Best practice description",
-                    "steps": [{"description": "Best practice step"}],
-                }
-            ]
-
-            # Mock task graph formatter to return a proper dictionary
-            mock_task_graph_formatter.return_value.format_task_graph.return_value = {
-                "tasks": [],
-                "metadata": {},
-                "version": "1.0",
-            }
-
-            # Run generate method
-            result = generator.generate()
-
-            # Verify that the method completed successfully
-            assert result is not None
-            # Since reusable_tasks is empty, it should not be added to the task graph
-            assert "reusable_tasks" not in result
+                # Verify that the method completed successfully
+                assert result is not None
+                # Since reusable_tasks is empty, it should not be added to the task graph
+                assert "reusable_tasks" not in result
 
     def test_generate_with_none_reusable_tasks(
         self,
@@ -3856,41 +3873,47 @@ class TestCompleteLineCoverage:
                 allow_nested_graph=False,  # Disable nested graph to avoid adding nested_graph reusable task
             )
 
-            # Set up tasks
-            generator.tasks = [
-                {
-                    "name": "Generated Task 1",
-                    "description": "Generated task description",
-                    "steps": [
-                        {"description": "Generated Step 1"},
-                        {"description": "Generated Step 2"},
-                    ],
+            # Patch the _initialize_document_loader method to return our mock
+            with patch.object(
+                generator,
+                "_initialize_document_loader",
+                return_value=mock_document_loader.return_value,
+            ):
+                # Set up tasks
+                generator.tasks = [
+                    {
+                        "name": "Generated Task 1",
+                        "description": "Generated task description",
+                        "steps": [
+                            {"description": "Generated Step 1"},
+                            {"description": "Generated Step 2"},
+                        ],
+                    }
+                ]
+
+                # Set reusable_tasks to None
+                generator.reusable_tasks = None
+
+                # Mock best practices
+                mock_best_practice_manager.return_value.generate_best_practices.return_value = [
+                    {
+                        "name": "Best Practice 1",
+                        "description": "Best practice description",
+                        "steps": [{"description": "Best practice step"}],
+                    }
+                ]
+
+                # Mock task graph formatter to return a proper dictionary
+                mock_task_graph_formatter.return_value.format_task_graph.return_value = {
+                    "tasks": [],
+                    "metadata": {},
+                    "version": "1.0",
                 }
-            ]
 
-            # Set reusable_tasks to None
-            generator.reusable_tasks = None
+                # Run generate method
+                result = generator.generate()
 
-            # Mock best practices
-            mock_best_practice_manager.return_value.generate_best_practices.return_value = [
-                {
-                    "name": "Best Practice 1",
-                    "description": "Best practice description",
-                    "steps": [{"description": "Best practice step"}],
-                }
-            ]
-
-            # Mock task graph formatter to return a proper dictionary
-            mock_task_graph_formatter.return_value.format_task_graph.return_value = {
-                "tasks": [],
-                "metadata": {},
-                "version": "1.0",
-            }
-
-            # Run generate method
-            result = generator.generate()
-
-            # Verify that the method completed successfully
-            assert result is not None
-            # Since reusable_tasks is None, it should not be added to the task graph
-            assert "reusable_tasks" not in result
+                # Verify that the method completed successfully
+                assert result is not None
+                # Since reusable_tasks is None, it should not be added to the task graph
+                assert "reusable_tasks" not in result
