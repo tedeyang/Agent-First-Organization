@@ -3321,8 +3321,9 @@ class TestTaskGraphAdditionalCoverage:
         # Assert
         assert has_random_next is False
         assert node_output == {}
-        # Should have updated the last NLU record
-        assert updated_params.taskgraph.nlu_records[-1]["no_intent"] is True
+        # When no candidates are found, next_node == curr_node, so no_intent is not updated
+        # The NLU record should remain unchanged
+        assert updated_params.taskgraph.nlu_records[-1]["no_intent"] is False
 
     def test_handle_leaf_node_nested_graph_not_leaf_after_update(
         self,
