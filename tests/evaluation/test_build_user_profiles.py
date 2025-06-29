@@ -1122,11 +1122,30 @@ class TestBuildUserProfiles:
             assert mock_chatgpt_chatbot.call_count == 3
 
     def test_build_user_profiles(self) -> None:
-        """Test build_user_profiles function."""
+        """Test build_user_profiles function returns empty list."""
         from arklex.evaluation.build_user_profiles import build_user_profiles
 
         test_data = [{"test": "data"}]
         result = build_user_profiles(test_data)
+
+        assert result == []
+
+    def test_build_user_profiles_with_empty_input(self) -> None:
+        """Test build_user_profiles function with empty input."""
+        from arklex.evaluation.build_user_profiles import build_user_profiles
+
+        test_data = []
+        result = build_user_profiles(test_data)
+
+        assert result == []
+
+    def test_build_user_profiles_with_none_input(self) -> None:
+        """Test build_user_profiles function with None input."""
+        from arklex.evaluation.build_user_profiles import build_user_profiles
+
+        test_data = None
+        result = build_user_profiles(test_data)
+
         assert result == []
 
     def test_attributes_to_text(self) -> None:
