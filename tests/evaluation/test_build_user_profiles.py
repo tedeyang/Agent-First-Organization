@@ -5,7 +5,7 @@ including profile generation, attribute conversion, and custom profile handling.
 """
 
 from collections.abc import Generator
-from typing import Any
+from typing import Any, NoReturn
 from unittest.mock import Mock, patch
 
 import pytest
@@ -1382,3 +1382,107 @@ class TestBuildUserProfiles:
                 label, success = get_label({"goal": "g"}, mock_config)
                 assert label[0]["tool_id"] == "0"
                 assert success is True
+
+    def test__select_random_attributes_empty_attributes(self) -> None:
+        from arklex.evaluation import build_user_profiles
+
+        with pytest.raises(IndexError):
+            build_user_profiles._select_random_attributes({}, [])
+
+    def test__fetch_api_data_value_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from arklex.evaluation import build_user_profiles
+
+        def raise_value_error(*a: object, **kw: object) -> NoReturn:  # type: ignore[misc]
+            raise ValueError("bad json")
+
+        monkeypatch.setattr(
+            "arklex.evaluation.build_user_profiles.requests.get",
+            lambda *a, **kw: type("R", (), {"json": raise_value_error})(),
+        )
+        try:
+            build_user_profiles._fetch_api_data("http://fake", "key")
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("Should raise ValueError")
+
+    def test_get_custom_profiles_no_system_or_user_profiles(self) -> None:
+        from arklex.evaluation import build_user_profiles
+
+        config = {"user_attributes": {}}
+        user_profiles, system_attributes = build_user_profiles.get_custom_profiles(
+            config
+        )
+        assert user_profiles == {}
+        assert system_attributes == {}
+
+    def test_filter_attributes_excludes_goal_and_system(self) -> None:
+        from arklex.evaluation import build_user_profiles
+
+        config = {"user_attributes": {"goal": 1, "system_attributes": 2, "foo": 3}}
+        result = build_user_profiles.filter_attributes(config)
+        assert "goal" not in result and "system_attributes" not in result
+        assert "foo" in result
+
+    def test_get_label_unexpected_exception_branch(
+        self, monkeypatch: pytest.MonkeyPatch, mock_config: dict[str, Any]
+    ) -> None:
+        from arklex.evaluation import build_user_profiles
+
+        class DummyEnv:
+            def __getitem__(self, k: str) -> object:
+                raise Exception("fail")
+
+        monkeypatch.setattr(
+            "arklex.evaluation.build_user_profiles.Environment",
+            lambda *a, **kw: DummyEnv(),
+        )
+        try:
+            build_user_profiles.get_label({"goal": "foo"}, mock_config)
+        except Exception:
+            pass
+        else:
+            raise AssertionError("Should raise Exception")
+
+    def test_chatgpt_chatbot_openai_branch(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from arklex.evaluation import chatgpt_utils
+
+        class DummyChat:
+            class completions:
+                @staticmethod
+                def create(model: str, messages: list, temperature: float) -> object:
+                    class Choice:
+                        class Message:
+                            content = " result "
+
+                        message = Message()
+
+                    class Result:
+                        choices = [Choice()]
+
+                    return Result()
+
+        class DummyClient:
+            chat = DummyChat()
+
+        monkeypatch.setattr(
+            chatgpt_utils,
+            "MODEL",
+            {"llm_provider": "openai", "model_type_or_path": "gpt"},
+        )
+        result = chatgpt_utils.chatgpt_chatbot(
+            [{"role": "user", "content": "hi"}], DummyClient()
+        )
+        assert result == "result"
+
+    def test_format_chat_history_str_trailing_space(self) -> None:
+        from arklex.evaluation import chatgpt_utils
+
+        chat_history = [
+            {"role": "user", "content": "hello"},
+            {"role": "assistant", "content": "hi"},
+        ]
+        result = chatgpt_utils.format_chat_history_str(chat_history)
+        assert result.endswith("hi") and not result.endswith(" ")
