@@ -17,6 +17,7 @@ from arklex.env.planner.react_planner import (
     EnvResponse,
     PlannerResource,
     ReactPlanner,
+    aimessage_to_dict,
 )
 from arklex.types import StreamType
 from arklex.utils.graph_state import (
@@ -1082,17 +1083,164 @@ class TestReactPlanner:
 
     def test_aimessage_to_dict_with_aimessage_input(self) -> None:
         """Test aimessage_to_dict function with AIMessage input."""
-        from langchain_core.messages import AIMessage
+        from langchain.schema import AIMessage
 
-        from arklex.env.planner.react_planner import aimessage_to_dict
-
-        ai_message = AIMessage(content="test content")
+        ai_message = AIMessage(content="Test content")
         result = aimessage_to_dict(ai_message)
 
-        assert result["content"] == "test content"
+        assert result["content"] == "Test content"
         assert result["role"] == "assistant"
         assert result["function_call"] is None
         assert result["tool_calls"] is None
+
+    def test_get_num_resource_retrievals_with_non_zero_steps_else_branch(
+        self, react_planner: ReactPlanner
+    ) -> None:
+        """Test _get_num_resource_retrievals when n_steps is not 0 (else branch)."""
+        # Mock _parse_trajectory_summary_to_steps to return a non-empty list
+        with patch.object(
+            react_planner, "_parse_trajectory_summary_to_steps"
+        ) as mock_parse:
+            mock_parse.return_value = ["step1", "step2", "step3"]
+
+            summary = "Test summary with steps"
+            result = react_planner._get_num_resource_retrievals(summary)
+
+            # Should be NUM_STEPS_TO_NUM_RETRIEVALS(3) = 3 + 3 = 6
+            assert result == 6
+
+    def test_message_to_actions_invalid_resource_else_branch(
+        self, react_planner: ReactPlanner
+    ) -> None:
+        """Test message_to_actions when resource is invalid (else branch)."""
+        # Test with invalid resource name that's not in name2id
+        message = {"name": "invalid_resource", "arguments": {"param1": "value1"}}
+
+        actions = react_planner.message_to_actions(message)
+
+        assert len(actions) == 1
+        assert actions[0].name == RESPOND_ACTION_NAME
+        assert actions[0].kwargs["content"] == ""
+
+    def test_message_to_actions_invalid_resource_with_content(
+        self, react_planner: ReactPlanner
+    ) -> None:
+        """Test message_to_actions when resource is invalid but has content."""
+        # Test with invalid resource name and content in arguments
+        message = {
+            "name": "invalid_resource",
+            "arguments": {"content": "Error message"},
+            "content": "Fallback content",
+        }
+
+        actions = react_planner.message_to_actions(message)
+
+        assert len(actions) == 1
+        assert actions[0].name == RESPOND_ACTION_NAME
+        assert actions[0].kwargs["content"] == "Error message"
+
+    def test_message_to_actions_invalid_resource_with_content_fallback(
+        self, react_planner: ReactPlanner
+    ) -> None:
+        """Test message_to_actions when resource is invalid with content fallback."""
+        # Test with invalid resource name, no content in arguments, but content in message
+        message = {
+            "name": "invalid_resource",
+            "arguments": {"other_param": "value"},
+            "content": "Fallback content",
+        }
+
+        actions = react_planner.message_to_actions(message)
+
+        assert len(actions) == 1
+        assert actions[0].name == RESPOND_ACTION_NAME
+        assert actions[0].kwargs["content"] == "Fallback content"
+
+    def test_plan_with_zero_shot_prompt(
+        self,
+        configured_react_planner: ReactPlanner,
+        mock_message_state: MessageState,
+        mock_msg_history: list[dict[str, Any]],
+        patched_sample_config: dict[str, Any],
+        mock_planning_methods: dict[str, Mock],
+    ) -> None:
+        """Test plan method with USE_FEW_SHOT_REACT_PROMPT set to False."""
+        # Mock the global variable
+        with patch("arklex.env.planner.react_planner.USE_FEW_SHOT_REACT_PROMPT", False):
+            # Mock the planning methods
+            configured_react_planner._get_planning_trajectory_summary = (
+                mock_planning_methods["mock_summary"]
+            )
+            configured_react_planner._get_num_resource_retrievals = (
+                mock_planning_methods["mock_retrievals"]
+            )
+            configured_react_planner._retrieve_resource_signatures = (
+                mock_planning_methods["mock_retrieve"]
+            )
+
+            # Mock LLM response
+            mock_llm_response = Mock()
+            mock_llm_response.content = 'Action:\n{"name": "respond", "arguments": {"content": "Test response"}}'
+            configured_react_planner.llm.invoke.return_value = mock_llm_response
+
+            # Mock aimessage_to_dict function
+            with patch(
+                "arklex.env.planner.react_planner.aimessage_to_dict"
+            ) as mock_aimessage_to_dict:
+                mock_aimessage_to_dict.return_value = {
+                    "content": 'Action:\n{"name": "respond", "arguments": {"content": "Test response"}}',
+                    "role": "assistant",
+                }
+
+                # Mock step method
+                mock_env_response = EnvResponse(observation="Test observation")
+                configured_react_planner.step.return_value = mock_env_response
+
+                result = configured_react_planner.plan(
+                    mock_message_state, mock_msg_history
+                )
+
+                assert len(result) == 3
+                assert result[1] == "respond"
+
+    def test_step_unknown_action_else_branch(
+        self, react_planner: ReactPlanner, mock_message_state: MessageState
+    ) -> None:
+        """Test step method with unknown action (else branch)."""
+        # Create an action that's not in tools_map, workers_map, or RESPOND_ACTION
+        action = Action(name="unknown_action", kwargs={"param": "value"})
+
+        # Mock name2id to return None for unknown action
+        react_planner.name2id = {"test_tool": 1, "test_worker": 2}
+
+        result = react_planner.step(action, mock_message_state)
+
+        assert result.observation == "Unknown action unknown_action"
+
+    def test_execute_method_else_branch(
+        self,
+        react_planner: ReactPlanner,
+        mock_message_state: MessageState,
+        mock_msg_history: list[dict[str, Any]],
+        mock_plan_method: Mock,
+    ) -> None:
+        """Test execute method (else branch - commented line)."""
+        # Mock plan method to return a tuple
+        mock_plan_method.return_value = (
+            mock_msg_history,
+            "test_action",
+            "test_response",
+        )
+        react_planner.plan = mock_plan_method
+
+        action, state, history = react_planner.execute(
+            mock_message_state, mock_msg_history
+        )
+
+        # Verify the response is set on the message state
+        assert state.response == "test_response"
+        assert action == "test_action"
+        assert history == mock_msg_history
 
 
 class TestReactPlannerIntegration:
