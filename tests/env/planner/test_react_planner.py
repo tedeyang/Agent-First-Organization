@@ -1128,6 +1128,63 @@ class TestReactPlanner:
                 assert isinstance(result_action, str)
                 assert isinstance(result_response, str)  # Should be a string response
 
+    def test_plan_method_with_zero_shot_prompt(
+        self,
+        configured_react_planner: ReactPlanner,
+        mock_message_state: MessageState,
+        mock_msg_history: list[dict[str, Any]],
+        patched_sample_config: dict[str, Any],
+        mock_planning_methods: dict[str, Mock],
+    ) -> None:
+        """Test plan method with zero-shot prompt (covers line 577)."""
+        # Mock USE_FEW_SHOT_REACT_PROMPT to be False to trigger zero-shot branch
+        with (
+            patch.object(
+                "arklex.env.planner.react_planner.USE_FEW_SHOT_REACT_PROMPT", False
+            ),
+            patch.object(
+                configured_react_planner, "_get_planning_trajectory_summary"
+            ) as mock_summary,
+            patch.object(
+                configured_react_planner, "_get_num_resource_retrievals"
+            ) as mock_retrievals,
+            patch.object(
+                configured_react_planner, "_retrieve_resource_signatures"
+            ) as mock_retrieve,
+            patch.object(configured_react_planner, "llm") as mock_llm,
+            patch(
+                "arklex.env.planner.react_planner.aimessage_to_dict"
+            ) as mock_aimessage_to_dict,
+        ):
+            # Setup mocks
+            mock_summary.return_value = "Test summary"
+            mock_retrievals.return_value = 0
+            mock_retrieve.return_value = []
+
+            # Mock LLM to return RESPOND_ACTION
+            mock_response = Mock()
+            mock_response.content = 'Action:\n{"name": "respond", "arguments": {"content": "test response"}}'
+            mock_llm.invoke.return_value = mock_response
+            mock_aimessage_to_dict.return_value = {
+                "content": 'Action:\n{"name": "respond", "arguments": {"content": "test response"}}'
+            }
+
+            # Mock step to return a response
+            with patch.object(configured_react_planner, "step") as mock_step:
+                mock_step.return_value = EnvResponse(observation="test observation")
+
+                # Call the plan method
+                result_history, result_action, result_response = (
+                    configured_react_planner.plan(mock_message_state, mock_msg_history)
+                )
+
+                # Verify the zero-shot branch was taken
+                mock_summary.assert_called_once()
+                mock_retrievals.assert_called_once()
+                mock_retrieve.assert_called_once()
+                assert result_action == "respond"
+                assert result_response == "test observation"
+
 
 class TestReactPlannerIntegration:
     @pytest.fixture
