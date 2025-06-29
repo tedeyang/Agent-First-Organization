@@ -1187,7 +1187,7 @@ class TestReactPlanner:
         from arklex.env.planner.react_planner import Action, MessageState, ReactPlanner
 
         class DummyLLM:
-            def invoke(self, messages: list[Any]) -> Any:  # noqa: ANN401
+            def invoke(self, messages: list[dict[str, str]]) -> object:
                 class DummyResponse:
                     content = "no respond action"
 
@@ -1202,7 +1202,9 @@ class TestReactPlanner:
 
         # Mock retriever with vectorstore.similarity_search_with_score
         class DummyVectorStore:
-            def similarity_search_with_score(self, query: str, k: int) -> list[Any]:  # noqa: ANN401
+            def similarity_search_with_score(
+                self, query: str, k: int
+            ) -> list[tuple[object, float]]:
                 return []
 
         class DummyRetriever:
