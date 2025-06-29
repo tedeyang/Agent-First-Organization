@@ -9,6 +9,7 @@ from typing import Any, NoReturn
 from unittest.mock import Mock, patch
 
 import pytest
+import requests
 
 from arklex.evaluation.build_user_profiles import (
     augment_attributes,
@@ -1645,3 +1646,55 @@ class TestBuildUserProfiles:
             assert "new_val1" in result["category1"]
             assert "new_val2" in result["category1"]
             assert "new_val3" in result["category1"]
+
+    def test_fetch_api_data_request_exception_returns_empty_list(self) -> None:
+        """Test _fetch_api_data when RequestException occurs (line 688)."""
+        from arklex.evaluation.build_user_profiles import _fetch_api_data
+
+        with patch("arklex.evaluation.build_user_profiles.requests.get") as mock_get:
+            # Mock RequestException (not ValueError)
+            mock_get.side_effect = requests.RequestException("Network error")
+
+            result = _fetch_api_data("http://api.example.com/test", "test_key")
+
+            # Should return empty list for RequestException
+            assert result == []
+
+    def test_augment_attributes_uses_wo_doc_prompt_when_documents_empty(self) -> None:
+        """Test augment_attributes uses ADD_ATTRIBUTES_WO_DOC when documents are empty (lines 914-915)."""
+        from arklex.evaluation.build_user_profiles import (
+            augment_attributes,
+        )
+
+        config = {
+            "company_summary": "Test company summary",
+            "client": Mock(),
+        }
+        predefined_attributes = {
+            "category1": {
+                "values": ["val1", "val2"],
+                "augment": True,
+            }
+        }
+        documents = []  # Empty documents list
+
+        with patch(
+            "arklex.evaluation.build_user_profiles.chatgpt_chatbot"
+        ) as mock_chatbot:
+            mock_chatbot.return_value = "new_val1, new_val2"
+
+            result = augment_attributes(predefined_attributes, config, documents)
+
+            # Verify the prompt used contains ADD_ATTRIBUTES_WO_DOC content
+            call_args = mock_chatbot.call_args[0][0]
+            # Check that it uses the wo_doc prompt (no company_doc field)
+            assert "company_doc" not in call_args
+            assert (
+                "Here is the summary fo the company:" in call_args
+            )  # Part of ADD_ATTRIBUTES_WO_DOC
+
+            # Verify the result includes both original and new values
+            assert "val1" in result["category1"]
+            assert "val2" in result["category1"]
+            assert "new_val1" in result["category1"]
+            assert "new_val2" in result["category1"]
