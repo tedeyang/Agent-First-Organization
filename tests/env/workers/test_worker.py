@@ -395,20 +395,18 @@ class TestWorkerIntegration:
         assert child_result.response == "child"
 
     def test_hitlworker_execute_final_return(self) -> None:
-        from typing import Any
-
         from arklex.env.workers.hitl_worker import HITLWorker, MessageState
 
         class DummyHITLWorker(HITLWorker):
-            def verify(self, state: Any) -> tuple[bool, str]:  # noqa: ANN401
+            def verify(self, state: MessageState) -> tuple[bool, str]:
                 return True, ""
 
-            def _create_action_graph(self) -> Any:  # noqa: ANN401
+            def _create_action_graph(self) -> object:
                 class DummyGraph:
-                    def compile(self) -> Any:  # noqa: ANN401
+                    def compile(self) -> object:
                         return self
 
-                    def invoke(self, state: Any) -> Any:  # noqa: ANN401
+                    def invoke(self, state: MessageState) -> MessageState:
                         return state
 
                 return DummyGraph()
