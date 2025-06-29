@@ -6,7 +6,6 @@ intent graph building, goal checking, and task completion metrics extraction.
 
 import contextlib
 import json
-import os
 from unittest.mock import MagicMock, Mock, patch
 
 import networkx as nx
@@ -540,12 +539,10 @@ def test_main_block_with_empty_data(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_main_block_prints_edge_weights(monkeypatch: pytest.MonkeyPatch) -> None:
     import builtins
-    import importlib
     import json as _json
 
-    # Only run if not under coverage (to avoid side effects)
-    if os.getenv("COV_CORE_SOURCE") or os.getenv("PYTEST_CURRENT_TEST"):
-        pytest.skip("Skip __main__ exec test under coverage/pytest")
+    from arklex.evaluation.extract_conversation_info import print_edge_weights_from_file
+
     # Prepare fake data and file
     fake_data = [
         {
@@ -577,17 +574,8 @@ def test_main_block_prints_edge_weights(monkeypatch: pytest.MonkeyPatch) -> None
     monkeypatch.setattr(_json, "load", lambda f: fake_data)
     printed = []
     monkeypatch.setattr("builtins.print", lambda *a, **kw: printed.append(a))
-    # Run main block using exec
-    path = os.path.join(
-        os.path.dirname(
-            importlib.util.find_spec(
-                "arklex.evaluation.extract_conversation_info"
-            ).origin
-        )
-    )
-    with open(os.path.join(path, "extract_conversation_info.py")) as f:
-        code = f.read()
-    exec(code, {"__name__": "__main__"})
+    # Call the function directly
+    print_edge_weights_from_file("dummy_path.json")
     # Check that edge weights were printed
     assert any("Weight for edge" in str(x) for args in printed for x in args)
 
