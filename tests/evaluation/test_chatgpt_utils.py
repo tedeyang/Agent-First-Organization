@@ -749,3 +749,59 @@ class TestChatGPTUtils:
         from arklex.evaluation.chatgpt_utils import format_chat_history_str
 
         assert format_chat_history_str([]) == ""
+
+    def test_create_client_with_anthropic_provider(self) -> None:
+        """Test create_client function with anthropic provider."""
+        from arklex.evaluation.chatgpt_utils import create_client
+
+        with (
+            patch(
+                "arklex.evaluation.chatgpt_utils.MODEL", {"llm_provider": "anthropic"}
+            ),
+            patch(
+                "arklex.evaluation.chatgpt_utils.anthropic.Anthropic"
+            ) as mock_anthropic,
+        ):
+            mock_client = Mock()
+            mock_anthropic.return_value = mock_client
+
+            result = create_client()
+
+            assert result == mock_client
+            mock_anthropic.assert_called_once()
+
+    def test_create_client_with_unknown_provider(self) -> None:
+        """Test create_client function with unknown provider."""
+        from arklex.evaluation.chatgpt_utils import create_client
+
+        with (
+            patch("arklex.evaluation.chatgpt_utils.MODEL", {"llm_provider": "unknown"}),
+            patch("arklex.evaluation.chatgpt_utils.OpenAI") as mock_openai,
+        ):
+            mock_client = Mock()
+            mock_openai.return_value = mock_client
+
+            with pytest.raises(ValueError, match="Unsupported LLM provider: unknown"):
+                create_client()
+
+    def test_main_function_with_import_error(self) -> None:
+        """Test main function when import fails."""
+        from arklex.evaluation.chatgpt_utils import main
+
+        with (
+            patch("builtins.__import__", side_effect=ImportError("Test import error")),
+            pytest.raises(ImportError, match="Test import error"),
+        ):
+            # Should raise an ImportError
+            main()
+
+    def test_main_function_with_sys_exit(self) -> None:
+        """Test main function when sys.exit is called."""
+        from arklex.evaluation.chatgpt_utils import main
+
+        with (
+            patch("sys.exit"),
+            pytest.raises(ModuleNotFoundError, match="No module named 'get_documents'"),
+        ):
+            # Should raise ModuleNotFoundError
+            main()
