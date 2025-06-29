@@ -805,3 +805,26 @@ class TestChatGPTUtils:
         ):
             # Should raise ModuleNotFoundError
             main()
+
+    def test_generate_goal_calls_chatgpt_chatbot(
+        self, monkeypatch: pytest.MonkeyPatch, mock_client: Mock
+    ) -> None:
+        from arklex.evaluation import chatgpt_utils
+
+        called = {}
+
+        def fake_chatgpt_chatbot(
+            messages: list[dict[str, str]], client: object, model: str | None = None
+        ) -> str:
+            called["messages"] = messages
+            called["client"] = client
+            called["model"] = model
+            return "goal"
+
+        monkeypatch.setattr(chatgpt_utils, "chatgpt_chatbot", fake_chatgpt_chatbot)
+        doc_content = "Some content"
+        client = mock_client
+        result = chatgpt_utils.generate_goal(doc_content, client)
+        assert result == "goal"
+        assert called["messages"]
+        assert called["client"] is client
