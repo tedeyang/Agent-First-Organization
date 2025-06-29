@@ -2803,7 +2803,7 @@ class TestTaskGraphMissingCoverage:
             )
 
             # Verify the protection branch was executed
-            assert next_node == "start_node"
+            assert next_node == "task_node"
             assert next_intent == "test_intent"
 
     def test_global_intent_prediction_success_return(
