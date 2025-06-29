@@ -7,7 +7,7 @@ verification, and utility methods.
 
 import json
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -19,7 +19,7 @@ from arklex.orchestrator.NLU.services.model_service import (
     DummyModelService,
     ModelService,
 )
-from arklex.utils.exceptions import ModelError, ValidationError
+from arklex.utils.exceptions import ArklexError, ModelError, ValidationError
 
 
 @pytest.fixture
@@ -2276,3 +2276,90 @@ class TestModelServiceMissingCoverage:
 
         with pytest.raises(ValidationError, match="Invalid slots"):
             await model_service_with_mock_model.verify_slots(text, invalid_slots)
+
+
+class TestModelServiceExtraCoverage:
+    async def test_process_text_invalid_input_type(
+        self, model_service: ModelService
+    ) -> None:
+        """Test process_text with invalid input type - covers lines 162-170"""
+        # Test with non-string input
+        with pytest.raises(ArklexError, match="Operation failed in process_text"):
+            await model_service.process_text(123)  # type: ignore
+
+    async def test_predict_intent_empty_response(
+        self, model_service: ModelService
+    ) -> None:
+        """Test predict_intent with empty response - covers lines 484-492"""
+        with patch.object(
+            model_service.model, "invoke", new_callable=AsyncMock
+        ) as mock_invoke:
+            # Mock empty response
+            mock_response = Mock()
+            mock_response.content = None
+            mock_invoke.return_value = mock_response
+
+            with pytest.raises(ModelError, match="Empty response from model"):
+                await model_service.predict_intent("test text")
+
+    async def test_predict_intent_invalid_json(
+        self, model_service: ModelService
+    ) -> None:
+        """Test predict_intent with invalid JSON response"""
+        with patch.object(
+            model_service.model, "invoke", new_callable=AsyncMock
+        ) as mock_invoke:
+            # Mock invalid JSON response
+            mock_response = Mock()
+            mock_response.content = "invalid json"
+            mock_invoke.return_value = mock_response
+
+            with pytest.raises(ModelError, match="Failed to parse model response"):
+                await model_service.predict_intent("test text")
+
+    async def test_predict_intent_validation_error(
+        self, model_service: ModelService
+    ) -> None:
+        """Test predict_intent with validation error in response"""
+        with patch.object(
+            model_service.model, "invoke", new_callable=AsyncMock
+        ) as mock_invoke:
+            # Mock response that will fail validation
+            mock_response = Mock()
+            mock_response.content = '{"invalid": "response"}'
+            mock_invoke.return_value = mock_response
+
+            with pytest.raises(ArklexError, match="Operation failed in predict_intent"):
+                await model_service.predict_intent("test text")
+
+    async def test_fill_slots_invalid_input(self, model_service: ModelService) -> None:
+        """Test fill_slots with invalid input"""
+        with pytest.raises(ValidationError, match="Invalid input text"):
+            await model_service.fill_slots("", "test_intent")
+
+    async def test_verify_slots_invalid_input(
+        self, model_service: ModelService
+    ) -> None:
+        """Test verify_slots with invalid input"""
+        with pytest.raises(ValidationError, match="Invalid input text"):
+            await model_service.verify_slots("", {"slot1": "value1"})
+
+    def test_get_response_with_note(self, model_service: ModelService) -> None:
+        """Test get_response with note parameter - covers line 661"""
+        with patch.object(model_service.model, "invoke") as mock_invoke:
+            mock_response = Mock()
+            mock_response.content = "test response"
+            mock_invoke.return_value = mock_response
+
+            result = model_service.get_response("test prompt", note="test note")
+            assert result == "test response"
+
+    def test_get_json_response_invalid_json(self, model_service: ModelService) -> None:
+        """Test get_json_response with invalid JSON"""
+        with patch.object(model_service.model, "invoke") as mock_invoke:
+            mock_response = Mock()
+            mock_response.content = "invalid json"
+            mock_invoke.return_value = mock_response
+
+            with pytest.raises(ValueError, match="Failed to parse JSON response"):
+                model_service.get_json_response("test prompt")
