@@ -535,85 +535,63 @@ def test_ui_component_placeholders_todo() -> None:
     pass
 
 
-def test_specialized_module_imports_coverage() -> None:
-    """Test specialized module imports to cover lines 66-82."""
-    # This test specifically covers the specialized module imports
-    # that are executed at module level
+def test_specialized_modules_import_execution() -> None:
+    """Test that specialized module imports execute correctly."""
     from arklex.orchestrator.generator import core, docs, formatting, tasks, ui
 
-    # Verify all specialized modules are imported
+    # Verify all specialized modules are imported and accessible
     assert core is not None
-    assert ui is not None
-    assert tasks is not None
     assert docs is not None
     assert formatting is not None
+    assert tasks is not None
+    assert ui is not None
 
 
-def test_all_list_definition_coverage() -> None:
-    """Test __all__ list definition to cover lines 66-82."""
-    # This test specifically covers the __all__ list definition
+def test_all_list_construction_with_ui_components() -> None:
+    """Test __all__ list construction when UI components are available."""
     from arklex.orchestrator.generator import __all__
 
-    # Verify __all__ contains all expected items
-    expected_items = ["Generator", "core", "ui", "tasks", "docs", "formatting"]
-
-    # Check that all expected items are in __all__
-    for item in expected_items:
-        assert item in __all__, f"Missing item in __all__: {item}"
-
-    # Check that UI components are conditionally included
-    ui_components = ["TaskEditorApp", "InputModal"]
-    for component in ui_components:
-        if component in __all__:
-            # If UI components are available, they should be in __all__
-            assert component in __all__
-        else:
-            # If UI components are not available, they should not be in __all__
-            assert component not in __all__
+    # Should include Generator and UI components
+    assert "Generator" in __all__
+    assert "core" in __all__
+    assert "ui" in __all__
+    assert "tasks" in __all__
+    assert "docs" in __all__
+    assert "formatting" in __all__
 
 
-def test_module_level_execution_coverage() -> None:
-    """Test module level execution to ensure all lines are covered."""
-    # This test ensures that all module level code is executed
+def test_specialized_modules_import_statement_execution() -> None:
+    """Test that the specialized modules import statement executes correctly."""
+    # This test ensures the line "from . import core, docs, formatting, tasks, ui" is covered
     import arklex.orchestrator.generator
 
-    # Verify the module has been loaded and executed
-    assert hasattr(arklex.orchestrator.generator, "__all__")
-    assert hasattr(arklex.orchestrator.generator, "Generator")
+    # Verify the modules are accessible through the package
     assert hasattr(arklex.orchestrator.generator, "core")
-    assert hasattr(arklex.orchestrator.generator, "ui")
-    assert hasattr(arklex.orchestrator.generator, "tasks")
     assert hasattr(arklex.orchestrator.generator, "docs")
     assert hasattr(arklex.orchestrator.generator, "formatting")
+    assert hasattr(arklex.orchestrator.generator, "tasks")
+    assert hasattr(arklex.orchestrator.generator, "ui")
 
 
-def test_ui_components_conditional_inclusion() -> None:
-    """Test conditional inclusion of UI components in __all__."""
-    # This test covers the conditional logic for including UI components
+def test_all_list_unpacking_with_ui_components() -> None:
+    """Test __all__ list unpacking when UI components are available."""
     from arklex.orchestrator.generator import __all__
 
-    # Check if UI components are available using importlib.util.find_spec
-    ui_available = (
-        importlib.util.find_spec("arklex.orchestrator.generator.ui.input_modal")
-        is not None
-        and importlib.util.find_spec("arklex.orchestrator.generator.ui.task_editor")
-        is not None
-    )
+    # Test that the unpacking syntax "*_UI_COMPONENTS" works correctly
+    # This covers the line: __all__ = ["Generator", *_UI_COMPONENTS, "core", "ui", "tasks", "docs", "formatting"]
+    expected_base_items = ["Generator", "core", "ui", "tasks", "docs", "formatting"]
 
-    # Verify __all__ reflects the availability of UI components
-    if ui_available:
-        assert "TaskEditorApp" in __all__
-        assert "InputModal" in __all__
-    else:
-        # When UI components are not available, they should not be in __all__
-        # (the placeholder classes are not added to __all__)
-        pass
+    # All base items should be present
+    for item in expected_base_items:
+        assert item in __all__, f"Missing item in __all__: {item}"
+
+    # Should also include UI component names
+    assert "TaskEditorApp" in __all__ or "InputModal" in __all__
 
 
-def test_specialized_modules_import_execution() -> None:
-    """Test that specialized module imports are executed."""
-    # This test ensures the specialized module imports are executed
-    # and covers the import statements at lines 66-70
+def test_module_level_import_execution() -> None:
+    """Test that module level imports execute correctly."""
+    # This test ensures the import statements at the module level are executed
     import importlib
 
     # Reload the module to ensure all imports are executed
@@ -621,13 +599,39 @@ def test_specialized_modules_import_execution() -> None:
         del importlib.sys.modules["arklex.orchestrator.generator"]
 
     # Import the module again to execute all lines
-    from arklex.orchestrator.generator import core, docs, formatting, tasks, ui
+    from arklex.orchestrator.generator import Generator, __all__
 
-    # Verify all modules are properly imported
-    assert core is not None
-    assert ui is not None
-    assert tasks is not None
-    assert docs is not None
-    assert formatting is not None
+    # Verify the imports worked
+    assert Generator is not None
+    assert len(__all__) > 0
 
     # Restore the module
+    if "arklex.orchestrator.generator" in importlib.sys.modules:
+        del importlib.sys.modules["arklex.orchestrator.generator"]
+
+
+def test_ui_components_list_variable_assignment() -> None:
+    """Test _UI_COMPONENTS list variable assignment."""
+    # This test ensures the _UI_COMPONENTS variable assignment is covered
+    # The _UI_COMPONENTS variable should be defined
+    # This covers the line: _UI_COMPONENTS = ["TaskEditorApp", "InputModal"]
+    from arklex.orchestrator.generator import __all__
+
+    # Should include UI components
+    assert "TaskEditorApp" in __all__
+    assert "InputModal" in __all__
+
+
+def test_all_list_construction_execution() -> None:
+    """Test __all__ list construction execution."""
+    # This test ensures the __all__ list construction is executed
+    from arklex.orchestrator.generator import __all__
+
+    # Verify the list contains expected items
+    expected_items = ["Generator", "core", "ui", "tasks", "docs", "formatting"]
+    for item in expected_items:
+        assert item in __all__, f"Missing item in __all__: {item}"
+
+    # Should also include UI components
+    assert "TaskEditorApp" in __all__
+    assert "InputModal" in __all__
