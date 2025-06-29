@@ -238,22 +238,47 @@ class TestHITLWorker:
         assert state.status == StatusEnum.INCOMPLETE
 
     def test_execute_with_verify_failure_calls_error(self) -> None:
-        """Test execute method calls error when verify fails (covers line 196)."""
+        """Test execute method when verify fails (covers line 196)."""
         worker = HITLWorker(name="test_worker")
-        state = MessageState()
 
-        # Mock verify to return False (first element of tuple)
+        # Mock verify to return (False, message) - first element is False
         with (
-            patch.object(worker, "verify", return_value=(False, "")),
-            patch.object(worker.action_graph, "compile") as mock_compile,
+            patch.object(worker, "verify", return_value=(False, "No HITL needed")),
+            patch.object(worker, "error") as mock_error,
         ):
-            # The error branch should be taken, so compile.invoke should not be called, but we patch it just in case
-            mock_compile.return_value.invoke.return_value = state
+            error_state = MessageState()
+            error_state.status = StatusEnum.INCOMPLETE
+            mock_error.return_value = error_state
+
+            state = MessageState()
             result = worker._execute(state)
 
-            # Should call error method when verify fails
-            assert result.status == StatusEnum.INCOMPLETE
-            assert result == state  # Should return the same state object
+            # Should call error method when verify returns (False, message)
+            mock_error.assert_called_once_with(state)
+            # The result should be a dict with INCOMPLETE status
+            assert isinstance(result, dict)
+            assert result["status"] == StatusEnum.INCOMPLETE
+
+    def test_execute_with_verify_success_calls_action_graph(self) -> None:
+        """Test execute method when verify succeeds (covers line 196)."""
+        worker = HITLWorker(name="test_worker")
+
+        # Mock verify to return (True, message) - first element is True
+        with patch.object(worker, "verify", return_value=(True, "HITL needed")):
+            # Mock action_graph.compile and invoke
+            mock_graph = Mock()
+            mock_compiled_graph = Mock()
+            mock_compiled_graph.invoke.return_value = MessageState()
+            mock_graph.compile.return_value = mock_compiled_graph
+            worker.action_graph = mock_graph
+
+            state = MessageState()
+            result = worker._execute(state)
+
+            # Should compile and invoke the action graph
+            mock_graph.compile.assert_called_once()
+            mock_compiled_graph.invoke.assert_called_once_with(state)
+            assert isinstance(result, MessageState)
 
 
 class TestHITLWorkerTestChat:
