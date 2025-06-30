@@ -18,12 +18,12 @@ from unittest.mock import Mock
 
 import pytest
 
-from arklex.orchestrator.generator.ui.task_editor import TaskEditorApp
-from arklex.orchestrator.generator.ui.testing import (
-    TaskDataManager,
+from arklex.orchestrator.generator.ui.data_manager import TaskDataManager
+from arklex.orchestrator.generator.ui.protocols import (
     TreeNodeProtocol,
     TreeProtocol,
 )
+from arklex.orchestrator.generator.ui.task_editor import TaskEditorApp
 
 
 class TestTaskDataManager:
