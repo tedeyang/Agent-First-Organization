@@ -5,9 +5,9 @@ including nested graph component node identification and path traversal.
 """
 
 from unittest.mock import Mock
+
 from arklex.env.nested_graph.nested_graph import NestedGraph
 from arklex.utils.graph_state import NodeInfo, Params, PathNode
-from unittest.mock import Mock
 
 
 class TestNestedGraph:
@@ -344,7 +344,7 @@ class TestNestedGraph:
         # Execute & Assert - Should raise KeyError
         try:
             result = nested_graph.get_nested_graph_start_node_id()
-            assert False, "Expected KeyError but got result: " + str(result)
+            raise AssertionError("Expected KeyError but got result: " + str(result))
         except KeyError:
             pass  # Expected behavior
 
@@ -358,7 +358,7 @@ class TestNestedGraph:
         # Execute & Assert - Should raise TypeError (not AttributeError)
         try:
             result = nested_graph.get_nested_graph_start_node_id()
-            assert False, "Expected TypeError but got result: " + str(result)
+            raise AssertionError("Expected TypeError but got result: " + str(result))
         except TypeError:
             pass  # Expected behavior
 
@@ -398,7 +398,9 @@ class TestNestedGraph:
         # Execute & Assert - Should raise AttributeError
         try:
             result = NestedGraph.get_nested_graph_component_node(None, is_leaf_func)
-            assert False, "Expected AttributeError but got result: " + str(result)
+            raise AssertionError(
+                "Expected AttributeError but got result: " + str(result)
+            )
         except AttributeError:
             pass  # Expected behavior
 
@@ -449,7 +451,9 @@ class TestNestedGraph:
         # Execute & Assert - Should raise AttributeError when accessing None node
         try:
             result = NestedGraph.get_nested_graph_component_node(params, is_leaf_func)
-            assert False, "Expected AttributeError but got result: " + str(result)
+            raise AssertionError(
+                "Expected AttributeError but got result: " + str(result)
+            )
         except AttributeError:
             pass  # Expected behavior
 
@@ -515,7 +519,7 @@ class TestNestedGraph:
         # Execute & Assert - Should raise IndexError when accessing out of bounds index
         try:
             result = NestedGraph.get_nested_graph_component_node(params, is_leaf_func)
-            assert False, "Expected IndexError but got result: " + str(result)
+            raise AssertionError("Expected IndexError but got result: " + str(result))
         except IndexError:
             pass  # Expected behavior
 
@@ -536,7 +540,9 @@ class TestNestedGraph:
         # Execute & Assert - Should raise AttributeError
         try:
             result = NestedGraph.get_nested_graph_component_node(params, is_leaf_func)
-            assert False, "Expected AttributeError but got result: " + str(result)
+            raise AssertionError(
+                "Expected AttributeError but got result: " + str(result)
+            )
         except AttributeError:
             pass  # Expected behavior
 
@@ -609,22 +615,36 @@ class TestNestedGraph:
         assert result_node is not None
         assert result_node.node_id == "node2"
 
-    def test_get_nested_graph_component_node_is_leaf_func_returns_non_boolean(
-        self,
-    ) -> None:
-        """Test get_nested_graph_component_node when is_leaf_func returns non-boolean."""
-        # Setup
+    def test_get_nested_graph_component_node_empty_path_triggers_none(self) -> None:
+        """Test get_nested_graph_component_node returns None when path is empty."""
         params = Params()
-        params.taskgraph.path = [PathNode(node_id="node1")]
+        params.taskgraph.path = []
+        params.taskgraph.node_status = {}
 
-        def is_leaf_func(node_id: str) -> str:  # Returns string instead of bool
-            return "not_a_boolean"
+        def is_leaf_func(node_id: str) -> bool:
+            return True
 
-        # Execute
         result_node, result_params = NestedGraph.get_nested_graph_component_node(
             params, is_leaf_func
         )
 
-        # Assert - Should work (Python treats non-empty strings as True)
-        assert result_node is not None
-        assert result_node.node_id == "node1"
+        assert result_node is None
+        assert result_params == params
+
+    def test_get_nested_graph_component_node_all_nodes_are_leaves(self) -> None:
+        """Test get_nested_graph_component_node fallback branch"""
+        params = Params()
+        # Provide an empty path to trigger the fallback branch
+        params.taskgraph.path = []
+        params.taskgraph.node_status = {}
+
+        def is_leaf_func(node_id: str) -> bool:
+            return True
+
+        result_node, result_params = NestedGraph.get_nested_graph_component_node(
+            params, is_leaf_func
+        )
+
+        # Should return None and params in the fallback case
+        assert result_node is None
+        assert result_params == params

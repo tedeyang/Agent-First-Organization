@@ -24,8 +24,8 @@
                     "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "User intends to inquire about robot specifications and features",
-                    "task": "Provide information on specifications and features of different robots",
+                    "value": "User inquiries about robot product specifications",
+                    "task": "Provide information about the specifications and capabilities of different robot products",
                     "directed": false
                 }
             }
@@ -38,8 +38,8 @@
                     "name": "FaissRAGWorker"
                 },
                 "attribute": {
-                    "value": "Execute: Execute Provide information on specifications and features of different robots",
-                    "task": "Provide information on specifications and features of different robots",
+                    "value": "Greet the user and ask them to specify which robot product specifications or capabilities they are interested in.",
+                    "task": "Provide information about the specifications and capabilities of different robot products",
                     "directed": false
                 }
             }
@@ -52,8 +52,8 @@
                     "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "User wants assistance with purchasing or renting a robot",
-                    "task": "Offer guidance on purchasing or renting robotic products",
+                    "value": "Utilize the RAGWorker to gather detailed information about the specified robot products from the company's internal documents, including specifications and capabilities.",
+                    "task": "Provide information about the specifications and capabilities of different robot products",
                     "directed": false
                 }
             }
@@ -62,12 +62,12 @@
             "4",
             {
                 "resource": {
-                    "id": "FaissRAGWorker",
-                    "name": "FaissRAGWorker"
+                    "id": "9c15af81-04b3-443e-be04-a3522124b905",
+                    "name": "SearchWorker"
                 },
                 "attribute": {
-                    "value": "Greet the user and ask how you can assist them today with purchasing or renting robotic products.",
-                    "task": "Offer guidance on purchasing or renting robotic products",
+                    "value": "Present the gathered information to the user, and ask if they need more details or have additional questions about the robots.",
+                    "task": "Provide information about the specifications and capabilities of different robot products",
                     "directed": false
                 }
             }
@@ -76,12 +76,12 @@
             "5",
             {
                 "resource": {
-                    "id": "26bb6634-3bee-417d-ad75-23269ac17bc3",
-                    "name": "MessageWorker"
+                    "id": "nested_graph",
+                    "name": "NestedGraph"
                 },
                 "attribute": {
-                    "value": "Listen to the user's specific needs or questions about products or renting options to understand their requirements.",
-                    "task": "Offer guidance on purchasing or renting robotic products",
+                    "value": "1",
+                    "task": "Provide information about the specifications and capabilities of different robot products",
                     "directed": false
                 }
             }
@@ -90,12 +90,12 @@
             "6",
             {
                 "resource": {
-                    "id": "9c15af81-04b3-443e-be04-a3522124b905",
-                    "name": "SearchWorker"
+                    "id": "26bb6634-3bee-417d-ad75-23269ac17bc3",
+                    "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "Utilize RAGWorker to provide relevant information about robotic products, including purchase and rental policies based on the user's needs.",
-                    "task": "Offer guidance on purchasing or renting robotic products",
+                    "value": "User requests for product maintenance and troubleshooting",
+                    "task": "Assist with robot maintenance, troubleshooting, and repair guidance",
                     "directed": false
                 }
             }
@@ -104,12 +104,12 @@
             "7",
             {
                 "resource": {
-                    "id": "nested_graph",
-                    "name": "NestedGraph"
+                    "id": "FaissRAGWorker",
+                    "name": "FaissRAGWorker"
                 },
                 "attribute": {
-                    "value": "8",
-                    "task": "Offer guidance on purchasing or renting robotic products",
+                    "value": "Greet the user and ask them to describe the issue or the type of maintenance task they are looking to perform on their robot.",
+                    "task": "Assist with robot maintenance, troubleshooting, and repair guidance",
                     "directed": false
                 }
             }
@@ -118,12 +118,12 @@
             "8",
             {
                 "resource": {
-                    "id": "FaissRAGWorker",
-                    "name": "FaissRAGWorker"
+                    "id": "26bb6634-3bee-417d-ad75-23269ac17bc3",
+                    "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "Guide the user through the purchasing or renting process, and offer instructions on completing the transaction if they decide to proceed.",
-                    "task": "Offer guidance on purchasing or renting robotic products",
+                    "value": "Use the RAGWorker to retrieve information relevant to the user's issue from the company's internal documentation, such as FAQs and maintenance guides.",
+                    "task": "Assist with robot maintenance, troubleshooting, and repair guidance",
                     "directed": false
                 }
             }
@@ -132,12 +132,12 @@
             "9",
             {
                 "resource": {
-                    "id": "26bb6634-3bee-417d-ad75-23269ac17bc3",
-                    "name": "MessageWorker"
+                    "id": "9c15af81-04b3-443e-be04-a3522124b905",
+                    "name": "SearchWorker"
                 },
                 "attribute": {
-                    "value": "Ask if there is anything else the user would like to know or needs assistance with regarding robotic products.",
-                    "task": "Offer guidance on purchasing or renting robotic products",
+                    "value": "Provide the user with troubleshooting steps or guidance based on the retrieved information, and ask if they need further clarification or additional help.",
+                    "task": "Assist with robot maintenance, troubleshooting, and repair guidance",
                     "directed": false
                 }
             }
@@ -146,12 +146,12 @@
             "10",
             {
                 "resource": {
-                    "id": "26bb6634-3bee-417d-ad75-23269ac17bc3",
-                    "name": "MessageWorker"
+                    "id": "nested_graph",
+                    "name": "NestedGraph"
                 },
                 "attribute": {
-                    "value": "User needs information about delivery times and shipping",
-                    "task": "Provide details on delivery schedules and shipping logistics",
+                    "value": "11",
+                    "task": "Assist with robot maintenance, troubleshooting, and repair guidance",
                     "directed": false
                 }
             }
@@ -164,8 +164,8 @@
                     "name": "FaissRAGWorker"
                 },
                 "attribute": {
-                    "value": "Greet the user and ask about the specific details or order for which they need delivery schedule information.",
-                    "task": "Provide details on delivery schedules and shipping logistics",
+                    "value": "Offer to connect the user with a human technician if the problem cannot be resolved through standard troubleshooting steps.",
+                    "task": "Assist with robot maintenance, troubleshooting, and repair guidance",
                     "directed": false
                 }
             }
@@ -178,8 +178,8 @@
                     "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "Utilize RAGWorker to retrieve and provide standard delivery schedules and shipping logistics information from the company's internal documentation.",
-                    "task": "Provide details on delivery schedules and shipping logistics",
+                    "value": "User seeks delivery information",
+                    "task": "Provide detailed information about delivery schedules and processes for each robot type",
                     "directed": false
                 }
             }
@@ -188,12 +188,12 @@
             "13",
             {
                 "resource": {
-                    "id": "9c15af81-04b3-443e-be04-a3522124b905",
-                    "name": "SearchWorker"
+                    "id": "FaissRAGWorker",
+                    "name": "FaissRAGWorker"
                 },
                 "attribute": {
-                    "value": "Ask the user if they need detailed information about a specific order's delivery timeline or if they have any particular shipping-related inquiries.",
-                    "task": "Provide details on delivery schedules and shipping logistics",
+                    "value": "Greet the user and ask how you can assist with their inquiry about delivery schedules and processes.",
+                    "task": "Provide detailed information about delivery schedules and processes for each robot type",
                     "directed": false
                 }
             }
@@ -202,12 +202,12 @@
             "14",
             {
                 "resource": {
-                    "id": "nested_graph",
-                    "name": "NestedGraph"
+                    "id": "26bb6634-3bee-417d-ad75-23269ac17bc3",
+                    "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "15",
-                    "task": "Provide details on delivery schedules and shipping logistics",
+                    "value": "Use the RAGWorker to retrieve specific information about delivery schedules and processes for the user's requested robot type from the company's internal documentation.",
+                    "task": "Provide detailed information about delivery schedules and processes for each robot type",
                     "directed": false
                 }
             }
@@ -216,12 +216,12 @@
             "15",
             {
                 "resource": {
-                    "id": "FaissRAGWorker",
-                    "name": "FaissRAGWorker"
+                    "id": "9c15af81-04b3-443e-be04-a3522124b905",
+                    "name": "SearchWorker"
                 },
                 "attribute": {
-                    "value": "Confirm with the user if the information provided meets their needs or if they have further questions.",
-                    "task": "Provide details on delivery schedules and shipping logistics",
+                    "value": "Present the information to the user regarding delivery schedules and processes, ensuring clarity and completeness.",
+                    "task": "Provide detailed information about delivery schedules and processes for each robot type",
                     "directed": false
                 }
             }
@@ -230,12 +230,12 @@
             "16",
             {
                 "resource": {
-                    "id": "26bb6634-3bee-417d-ad75-23269ac17bc3",
-                    "name": "MessageWorker"
+                    "id": "nested_graph",
+                    "name": "NestedGraph"
                 },
                 "attribute": {
-                    "value": "Provide appropriate next steps or additional assistance based on the user's response.",
-                    "task": "Provide details on delivery schedules and shipping logistics",
+                    "value": "17",
+                    "task": "Provide detailed information about delivery schedules and processes for each robot type",
                     "directed": false
                 }
             }
@@ -244,12 +244,12 @@
             "17",
             {
                 "resource": {
-                    "id": "26bb6634-3bee-417d-ad75-23269ac17bc3",
-                    "name": "MessageWorker"
+                    "id": "FaissRAGWorker",
+                    "name": "FaissRAGWorker"
                 },
                 "attribute": {
-                    "value": "User seeks customer support for robot operation issues",
-                    "task": "Assist in troubleshooting and resolving operational issues with robots",
+                    "value": "Provide further assistance or thank the user for reaching out if their query has been fully resolved.",
+                    "task": "Provide detailed information about delivery schedules and processes for each robot type",
                     "directed": false
                 }
             }
@@ -258,12 +258,12 @@
             "18",
             {
                 "resource": {
-                    "id": "FaissRAGWorker",
-                    "name": "FaissRAGWorker"
+                    "id": "26bb6634-3bee-417d-ad75-23269ac17bc3",
+                    "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "Greet the user and inquire about the specific operational issue they are facing with the robot.",
-                    "task": "Assist in troubleshooting and resolving operational issues with robots",
+                    "value": "User asks about renting options and availability",
+                    "task": "Provide details on rental agreements, pricing, and availability of the ADAM robot",
                     "directed": false
                 }
             }
@@ -272,12 +272,12 @@
             "19",
             {
                 "resource": {
-                    "id": "26bb6634-3bee-417d-ad75-23269ac17bc3",
-                    "name": "MessageWorker"
+                    "id": "FaissRAGWorker",
+                    "name": "FaissRAGWorker"
                 },
                 "attribute": {
-                    "value": "Use RAGWorker to access and provide relevant troubleshooting steps from the company's internal documentation.",
-                    "task": "Assist in troubleshooting and resolving operational issues with robots",
+                    "value": "Greet the user and inquire about their specific needs related to the ADAM robot (e.g., rental agreement details, pricing, availability).",
+                    "task": "Provide details on rental agreements, pricing, and availability of the ADAM robot",
                     "directed": false
                 }
             }
@@ -286,12 +286,12 @@
             "20",
             {
                 "resource": {
-                    "id": "9c15af81-04b3-443e-be04-a3522124b905",
-                    "name": "SearchWorker"
+                    "id": "26bb6634-3bee-417d-ad75-23269ac17bc3",
+                    "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "Ask the user to follow the provided steps and report back the outcome.",
-                    "task": "Assist in troubleshooting and resolving operational issues with robots",
+                    "value": "Use the RAGWorker to retrieve information from the company's internal documentation regarding the rental agreements, pricing, and availability of the ADAM robot.",
+                    "task": "Provide details on rental agreements, pricing, and availability of the ADAM robot",
                     "directed": false
                 }
             }
@@ -300,12 +300,12 @@
             "21",
             {
                 "resource": {
-                    "id": "nested_graph",
-                    "name": "NestedGraph"
+                    "id": "9c15af81-04b3-443e-be04-a3522124b905",
+                    "name": "SearchWorker"
                 },
                 "attribute": {
-                    "value": "22",
-                    "task": "Assist in troubleshooting and resolving operational issues with robots",
+                    "value": "Provide the retrieved information about the ADAM robot to the user, ensuring clarity and detail in response.",
+                    "task": "Provide details on rental agreements, pricing, and availability of the ADAM robot",
                     "directed": false
                 }
             }
@@ -314,12 +314,12 @@
             "22",
             {
                 "resource": {
-                    "id": "FaissRAGWorker",
-                    "name": "FaissRAGWorker"
+                    "id": "nested_graph",
+                    "name": "NestedGraph"
                 },
                 "attribute": {
-                    "value": "Confirm with the user whether the operational issue has been successfully resolved or if further assistance is required.",
-                    "task": "Assist in troubleshooting and resolving operational issues with robots",
+                    "value": "23",
+                    "task": "Provide details on rental agreements, pricing, and availability of the ADAM robot",
                     "directed": false
                 }
             }
@@ -328,12 +328,12 @@
             "23",
             {
                 "resource": {
-                    "id": "26bb6634-3bee-417d-ad75-23269ac17bc3",
-                    "name": "MessageWorker"
+                    "id": "FaissRAGWorker",
+                    "name": "FaissRAGWorker"
                 },
                 "attribute": {
-                    "value": "User is interested in learning about robot use cases and applications",
-                    "task": "Share insights into use cases and applications of robots in business",
+                    "value": "Offer to help with the next steps if they are interested in proceeding with a rental, including directing them to appropriate contacts or forms.",
+                    "task": "Provide details on rental agreements, pricing, and availability of the ADAM robot",
                     "directed": false
                 }
             }
@@ -342,12 +342,12 @@
             "24",
             {
                 "resource": {
-                    "id": "FaissRAGWorker",
-                    "name": "FaissRAGWorker"
+                    "id": "26bb6634-3bee-417d-ad75-23269ac17bc3",
+                    "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "Greet the user and ask them to specify their interest in robots and business applications.",
-                    "task": "Share insights into use cases and applications of robots in business",
+                    "value": "User wishes to explore updates and innovations",
+                    "task": "Share the latest news, updates, and innovations about Richtech Robotics' offerings and technological advancements",
                     "directed": false
                 }
             }
@@ -356,12 +356,12 @@
             "25",
             {
                 "resource": {
-                    "id": "26bb6634-3bee-417d-ad75-23269ac17bc3",
-                    "name": "MessageWorker"
+                    "id": "FaissRAGWorker",
+                    "name": "FaissRAGWorker"
                 },
                 "attribute": {
-                    "value": "Use RAGWorker to provide insights into general use cases and applications of robots in business based on company's internal documentation.",
-                    "task": "Share insights into use cases and applications of robots in business",
+                    "value": "Greet the user and inquire if they are interested in learning about the latest news, updates, or innovations from Richtech Robotics.",
+                    "task": "Share the latest news, updates, and innovations about Richtech Robotics' offerings and technological advancements",
                     "directed": false
                 }
             }
@@ -370,12 +370,12 @@
             "26",
             {
                 "resource": {
-                    "id": "9c15af81-04b3-443e-be04-a3522124b905",
-                    "name": "SearchWorker"
+                    "id": "26bb6634-3bee-417d-ad75-23269ac17bc3",
+                    "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "Ask the user if they have any specific questions or need more detailed information on certain applications.",
-                    "task": "Share insights into use cases and applications of robots in business",
+                    "value": "Use the RAGWorker to retrieve the most recent news, updates, and technological advancements from the company's internal documentation.",
+                    "task": "Share the latest news, updates, and innovations about Richtech Robotics' offerings and technological advancements",
                     "directed": false
                 }
             }
@@ -384,12 +384,12 @@
             "27",
             {
                 "resource": {
-                    "id": "nested_graph",
-                    "name": "NestedGraph"
+                    "id": "9c15af81-04b3-443e-be04-a3522124b905",
+                    "name": "SearchWorker"
                 },
                 "attribute": {
-                    "value": "28",
-                    "task": "Share insights into use cases and applications of robots in business",
+                    "value": "Share the retrieved information with the user, highlighting key advancements or innovations.",
+                    "task": "Share the latest news, updates, and innovations about Richtech Robotics' offerings and technological advancements",
                     "directed": false
                 }
             }
@@ -398,12 +398,12 @@
             "28",
             {
                 "resource": {
-                    "id": "FaissRAGWorker",
-                    "name": "FaissRAGWorker"
+                    "id": "nested_graph",
+                    "name": "NestedGraph"
                 },
                 "attribute": {
-                    "value": "Offer further assistance or direct the user to additional resources for more detailed exploration.",
-                    "task": "Share insights into use cases and applications of robots in business",
+                    "value": "29",
+                    "task": "Share the latest news, updates, and innovations about Richtech Robotics' offerings and technological advancements",
                     "directed": false
                 }
             }
@@ -412,12 +412,12 @@
             "29",
             {
                 "resource": {
-                    "id": "26bb6634-3bee-417d-ad75-23269ac17bc3",
-                    "name": "MessageWorker"
+                    "id": "FaissRAGWorker",
+                    "name": "FaissRAGWorker"
                 },
                 "attribute": {
-                    "value": "User requests assistance with maintenance and servicing of robots",
-                    "task": "Provide details on maintenance and servicing for robotics products",
+                    "value": "Depending on the user's interest, provide additional details or direct them to where they can find more information.",
+                    "task": "Share the latest news, updates, and innovations about Richtech Robotics' offerings and technological advancements",
                     "directed": false
                 }
             }
@@ -426,12 +426,12 @@
             "30",
             {
                 "resource": {
-                    "id": "FaissRAGWorker",
-                    "name": "FaissRAGWorker"
+                    "id": "26bb6634-3bee-417d-ad75-23269ac17bc3",
+                    "name": "MessageWorker"
                 },
                 "attribute": {
-                    "value": "Utilize the MessageWorker to greet the user and ask for details about the specific robotics product they are inquiring about.",
-                    "task": "Provide details on maintenance and servicing for robotics products",
+                    "value": "User needs assistance with warranty and return policies",
+                    "task": "Provide detailed warranty information and assist with return policy queries for the robots",
                     "directed": false
                 }
             }
@@ -440,250 +440,12 @@
             "31",
             {
                 "resource": {
-                    "id": "26bb6634-3bee-417d-ad75-23269ac17bc3",
-                    "name": "MessageWorker"
-                },
-                "attribute": {
-                    "value": "Leverage the RAGWorker to access the company's internal documentation and search for maintenance and servicing information specific to the mentioned robotics product.",
-                    "task": "Provide details on maintenance and servicing for robotics products",
-                    "directed": false
-                }
-            }
-        ],
-        [
-            "32",
-            {
-                "resource": {
-                    "id": "9c15af81-04b3-443e-be04-a3522124b905",
-                    "name": "SearchWorker"
-                },
-                "attribute": {
-                    "value": "Provide the user with the retrieved maintenance and servicing details, using the MessageWorker to ensure the information is easily understandable.",
-                    "task": "Provide details on maintenance and servicing for robotics products",
-                    "directed": false
-                }
-            }
-        ],
-        [
-            "33",
-            {
-                "resource": {
-                    "id": "nested_graph",
-                    "name": "NestedGraph"
-                },
-                "attribute": {
-                    "value": "34",
-                    "task": "Provide details on maintenance and servicing for robotics products",
-                    "directed": false
-                }
-            }
-        ],
-        [
-            "34",
-            {
-                "resource": {
                     "id": "FaissRAGWorker",
                     "name": "FaissRAGWorker"
                 },
                 "attribute": {
-                    "value": "Based on the user's response, either offer additional information using RAGWorker or conclude the interaction with predefined closing responses via MessageWorker.",
-                    "task": "Provide details on maintenance and servicing for robotics products",
-                    "directed": false
-                }
-            }
-        ],
-        [
-            "35",
-            {
-                "resource": {
-                    "id": "26bb6634-3bee-417d-ad75-23269ac17bc3",
-                    "name": "MessageWorker"
-                },
-                "attribute": {
-                    "value": "User wants to learn about career opportunities at Richtech Robotics",
-                    "task": "Inform users about job opportunities and hiring processes",
-                    "directed": false
-                }
-            }
-        ],
-        [
-            "36",
-            {
-                "resource": {
-                    "id": "FaissRAGWorker",
-                    "name": "FaissRAGWorker"
-                },
-                "attribute": {
-                    "value": "Ask the user about their interest in job opportunities and which areas or positions they are interested in learning more about.",
-                    "task": "Inform users about job opportunities and hiring processes",
-                    "directed": false
-                }
-            }
-        ],
-        [
-            "37",
-            {
-                "resource": {
-                    "id": "26bb6634-3bee-417d-ad75-23269ac17bc3",
-                    "name": "MessageWorker"
-                },
-                "attribute": {
-                    "value": "Use the RAGWorker to retrieve and provide information about current job openings and hiring processes relevant to the areas or positions the user specified.",
-                    "task": "Inform users about job opportunities and hiring processes",
-                    "directed": false
-                }
-            }
-        ],
-        [
-            "38",
-            {
-                "resource": {
-                    "id": "9c15af81-04b3-443e-be04-a3522124b905",
-                    "name": "SearchWorker"
-                },
-                "attribute": {
-                    "value": "Inquire if the user needs more information about specific job roles, the application process, or company policies related to hiring.",
-                    "task": "Inform users about job opportunities and hiring processes",
-                    "directed": false
-                }
-            }
-        ],
-        [
-            "39",
-            {
-                "resource": {
-                    "id": "nested_graph",
-                    "name": "NestedGraph"
-                },
-                "attribute": {
-                    "value": "40",
-                    "task": "Inform users about job opportunities and hiring processes",
-                    "directed": false
-                }
-            }
-        ],
-        [
-            "40",
-            {
-                "resource": {
-                    "id": "FaissRAGWorker",
-                    "name": "FaissRAGWorker"
-                },
-                "attribute": {
-                    "value": "Ask the user if they are interested in submitting an application or need assistance with the next steps.",
-                    "task": "Inform users about job opportunities and hiring processes",
-                    "directed": false
-                }
-            }
-        ],
-        [
-            "41",
-            {
-                "resource": {
-                    "id": "26bb6634-3bee-417d-ad75-23269ac17bc3",
-                    "name": "MessageWorker"
-                },
-                "attribute": {
-                    "value": "User wishes to know more about Richtech Robotics\u2019 latest news and developments",
-                    "task": "Update users on the latest news and product developments at Richtech Robotics",
-                    "directed": false
-                }
-            }
-        ],
-        [
-            "42",
-            {
-                "resource": {
-                    "id": "FaissRAGWorker",
-                    "name": "FaissRAGWorker"
-                },
-                "attribute": {
-                    "value": "Greet the user and ask if they are interested in the latest news and product developments at Richtech Robotics.",
-                    "task": "Update users on the latest news and product developments at Richtech Robotics",
-                    "directed": false
-                }
-            }
-        ],
-        [
-            "43",
-            {
-                "resource": {
-                    "id": "26bb6634-3bee-417d-ad75-23269ac17bc3",
-                    "name": "MessageWorker"
-                },
-                "attribute": {
-                    "value": "If user shows interest, use the RAGWorker to retrieve the latest news and product developments from the company's internal documentation.",
-                    "task": "Update users on the latest news and product developments at Richtech Robotics",
-                    "directed": false
-                }
-            }
-        ],
-        [
-            "44",
-            {
-                "resource": {
-                    "id": "9c15af81-04b3-443e-be04-a3522124b905",
-                    "name": "SearchWorker"
-                },
-                "attribute": {
-                    "value": "Provide the user with a summary of the latest news and product developments.",
-                    "task": "Update users on the latest news and product developments at Richtech Robotics",
-                    "directed": false
-                }
-            }
-        ],
-        [
-            "45",
-            {
-                "resource": {
-                    "id": "nested_graph",
-                    "name": "NestedGraph"
-                },
-                "attribute": {
-                    "value": "46",
-                    "task": "Update users on the latest news and product developments at Richtech Robotics",
-                    "directed": false
-                }
-            }
-        ],
-        [
-            "46",
-            {
-                "resource": {
-                    "id": "FaissRAGWorker",
-                    "name": "FaissRAGWorker"
-                },
-                "attribute": {
-                    "value": "If the user has questions, use RAGWorker to provide answers based on the company's internal documentation.",
-                    "task": "Update users on the latest news and product developments at Richtech Robotics",
-                    "directed": false
-                }
-            }
-        ],
-        [
-            "47",
-            {
-                "resource": {
-                    "id": "26bb6634-3bee-417d-ad75-23269ac17bc3",
-                    "name": "MessageWorker"
-                },
-                "attribute": {
-                    "value": "Ask the user if they need any more assistance or information.",
-                    "task": "Update users on the latest news and product developments at Richtech Robotics",
-                    "directed": false
-                }
-            }
-        ],
-        [
-            "48",
-            {
-                "resource": {
-                    "id": "9c15af81-04b3-443e-be04-a3522124b905",
-                    "name": "SearchWorker"
-                },
-                "attribute": {
-                    "value": "Thank the user for their time and close the interaction.",
-                    "task": "Update users on the latest news and product developments at Richtech Robotics",
+                    "value": "Execute: Execute Provide detailed warranty information and assist with return policy queries for the robots",
+                    "task": "Provide detailed warranty information and assist with return policy queries for the robots",
                     "directed": false
                 }
             }
@@ -694,7 +456,7 @@
             "0",
             "1",
             {
-                "intent": "User inquires about specifications and features of different robots",
+                "intent": "User inquires about specifications and capabilities of robot products",
                 "attribute": {
                     "weight": 1,
                     "pred": true,
@@ -705,9 +467,9 @@
         ],
         [
             "0",
-            "3",
+            "6",
             {
-                "intent": "User seeks guidance on purchasing or renting robotic products",
+                "intent": "User seeks assistance with robot maintenance and troubleshooting",
                 "attribute": {
                     "weight": 1,
                     "pred": true,
@@ -718,9 +480,9 @@
         ],
         [
             "0",
-            "10",
+            "12",
             {
-                "intent": "User requests information on delivery schedules and shipping logistics",
+                "intent": "User requests detailed delivery information for each robot type",
                 "attribute": {
                     "weight": 1,
                     "pred": true,
@@ -731,9 +493,9 @@
         ],
         [
             "0",
-            "17",
+            "18",
             {
-                "intent": "User seeks assistance in troubleshooting and resolving operational issues with robots",
+                "intent": "User inquires about rental agreements, pricing, and availability of the ADAM robot",
                 "attribute": {
                     "weight": 1,
                     "pred": true,
@@ -744,9 +506,9 @@
         ],
         [
             "0",
-            "23",
+            "24",
             {
-                "intent": "User wants to learn about robot use cases and applications in business",
+                "intent": "User wants to explore the latest news and innovations about Richtech Robotics' offerings",
                 "attribute": {
                     "weight": 1,
                     "pred": true,
@@ -757,35 +519,9 @@
         ],
         [
             "0",
-            "29",
+            "30",
             {
-                "intent": "User requests details on maintenance and servicing for robotics products",
-                "attribute": {
-                    "weight": 1,
-                    "pred": true,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "0",
-            "35",
-            {
-                "intent": "User wants information about job opportunities and hiring processes at Richtech Robotics",
-                "attribute": {
-                    "weight": 1,
-                    "pred": true,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "0",
-            "41",
-            {
-                "intent": "User wants to be updated on the latest news and product developments at Richtech Robotics",
+                "intent": "User needs assistance with warranty and return policy information for robots",
                 "attribute": {
                     "weight": 1,
                     "pred": true,
@@ -808,6 +544,19 @@
             }
         ],
         [
+            "2",
+            "3",
+            {
+                "intent": null,
+                "attribute": {
+                    "weight": 1,
+                    "pred": false,
+                    "definition": "",
+                    "sample_utterances": []
+                }
+            }
+        ],
+        [
             "3",
             "4",
             {
@@ -823,19 +572,6 @@
         [
             "4",
             "5",
-            {
-                "intent": null,
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "5",
-            "6",
             {
                 "intent": null,
                 "attribute": {
@@ -886,8 +622,8 @@
             }
         ],
         [
+            "9",
             "10",
-            "11",
             {
                 "intent": null,
                 "attribute": {
@@ -899,8 +635,8 @@
             }
         ],
         [
+            "10",
             "11",
-            "12",
             {
                 "intent": null,
                 "attribute": {
@@ -964,8 +700,8 @@
             }
         ],
         [
+            "16",
             "17",
-            "18",
             {
                 "intent": null,
                 "attribute": {
@@ -1029,8 +765,8 @@
             }
         ],
         [
+            "22",
             "23",
-            "24",
             {
                 "intent": null,
                 "attribute": {
@@ -1094,8 +830,8 @@
             }
         ],
         [
+            "28",
             "29",
-            "30",
             {
                 "intent": null,
                 "attribute": {
@@ -1109,201 +845,6 @@
         [
             "30",
             "31",
-            {
-                "intent": null,
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "31",
-            "32",
-            {
-                "intent": null,
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "32",
-            "33",
-            {
-                "intent": null,
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "33",
-            "34",
-            {
-                "intent": null,
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "35",
-            "36",
-            {
-                "intent": null,
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "36",
-            "37",
-            {
-                "intent": null,
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "37",
-            "38",
-            {
-                "intent": null,
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "38",
-            "39",
-            {
-                "intent": null,
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "39",
-            "40",
-            {
-                "intent": null,
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "41",
-            "42",
-            {
-                "intent": null,
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "42",
-            "43",
-            {
-                "intent": null,
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "43",
-            "44",
-            {
-                "intent": null,
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "44",
-            "45",
-            {
-                "intent": null,
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "45",
-            "46",
-            {
-                "intent": null,
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "46",
-            "47",
-            {
-                "intent": null,
-                "attribute": {
-                    "weight": 1,
-                    "pred": false,
-                    "definition": "",
-                    "sample_utterances": []
-                }
-            }
-        ],
-        [
-            "47",
-            "48",
             {
                 "intent": null,
                 "attribute": {
@@ -1318,19 +859,19 @@
     "tasks": [
         {
             "id": "task_1",
-            "name": "Provide information on specifications and features of different robots",
-            "description": "User intends to inquire about robot specifications and features",
+            "name": "Provide information about the specifications and capabilities of different robot products",
+            "description": "User inquiries about robot product specifications",
             "steps": [
                 {
                     "task": {
-                        "task": "Execute Provide information on specifications and features of different robots",
-                        "description": "Execute: Execute Provide information on specifications and features of different robots",
+                        "task": "Greet the user and ask them to specify which robot product specifications or capabilities they are interested in.",
+                        "description": "Greet the user and ask them to specify which robot product specifications or capabilities they are interested in.",
                         "step_id": "step_1",
                         "required_fields": []
                     },
                     "description": {
-                        "task": "Execute Provide information on specifications and features of different robots",
-                        "description": "Execute: Execute Provide information on specifications and features of different robots",
+                        "task": "Greet the user and ask them to specify which robot product specifications or capabilities they are interested in.",
+                        "description": "Greet the user and ask them to specify which robot product specifications or capabilities they are interested in.",
                         "step_id": "step_1",
                         "required_fields": []
                     },
@@ -1341,30 +882,93 @@
                         "description": "FaissRAGWorker worker",
                         "type": "worker"
                     }
+                },
+                {
+                    "task": {
+                        "task": "Utilize the RAGWorker to gather detailed information about the specified robot products from the company's internal documents, including specifications and capabilities.",
+                        "description": "Utilize the RAGWorker to gather detailed information about the specified robot products from the company's internal documents, including specifications and capabilities.",
+                        "step_id": "step_2",
+                        "required_fields": []
+                    },
+                    "description": {
+                        "task": "Utilize the RAGWorker to gather detailed information about the specified robot products from the company's internal documents, including specifications and capabilities.",
+                        "description": "Utilize the RAGWorker to gather detailed information about the specified robot products from the company's internal documents, including specifications and capabilities.",
+                        "step_id": "step_2",
+                        "required_fields": []
+                    },
+                    "step_id": "step_2",
+                    "required_fields": [],
+                    "resource": {
+                        "name": "MessageWorker",
+                        "description": "MessageWorker worker",
+                        "type": "worker"
+                    }
+                },
+                {
+                    "task": {
+                        "task": "Present the gathered information to the user, and ask if they need more details or have additional questions about the robots.",
+                        "description": "Present the gathered information to the user, and ask if they need more details or have additional questions about the robots.",
+                        "step_id": "step_3",
+                        "required_fields": []
+                    },
+                    "description": {
+                        "task": "Present the gathered information to the user, and ask if they need more details or have additional questions about the robots.",
+                        "description": "Present the gathered information to the user, and ask if they need more details or have additional questions about the robots.",
+                        "step_id": "step_3",
+                        "required_fields": []
+                    },
+                    "step_id": "step_3",
+                    "required_fields": [],
+                    "resource": {
+                        "name": "SearchWorker",
+                        "description": "SearchWorker worker",
+                        "type": "worker"
+                    }
+                },
+                {
+                    "task": {
+                        "task": "If the user has more questions, address them using the RAGWorker. Otherwise, thank them for their inquiry and conclude the interaction.",
+                        "description": "If the user has more questions, address them using the RAGWorker. Otherwise, thank them for their inquiry and conclude the interaction.",
+                        "step_id": "step_4",
+                        "required_fields": []
+                    },
+                    "description": {
+                        "task": "If the user has more questions, address them using the RAGWorker. Otherwise, thank them for their inquiry and conclude the interaction.",
+                        "description": "If the user has more questions, address them using the RAGWorker. Otherwise, thank them for their inquiry and conclude the interaction.",
+                        "step_id": "step_4",
+                        "required_fields": []
+                    },
+                    "step_id": "step_4",
+                    "required_fields": [],
+                    "resource": {
+                        "name": "NestedGraph",
+                        "description": "A reusable task graph component that can be instantiated with different parameters",
+                        "type": "nested_graph"
+                    }
                 }
             ],
             "dependencies": [],
             "required_resources": [],
             "estimated_duration": "1 hour",
             "priority": 3,
-            "level": 0,
-            "intent": "User inquires about specifications and features of different robots"
+            "intent": "User inquires about specifications and capabilities of robot products",
+            "level": 0
         },
         {
             "id": "task_2",
-            "name": "Offer guidance on purchasing or renting robotic products",
-            "description": "User wants assistance with purchasing or renting a robot",
+            "name": "Assist with robot maintenance, troubleshooting, and repair guidance",
+            "description": "User requests for product maintenance and troubleshooting",
             "steps": [
                 {
                     "task": {
-                        "task": "Greet the user and ask how you can assist them today with purchasing or renting robotic products.",
-                        "description": "Greet the user and ask how you can assist them today with purchasing or renting robotic products.",
+                        "task": "Greet the user and ask them to describe the issue or the type of maintenance task they are looking to perform on their robot.",
+                        "description": "Greet the user and ask them to describe the issue or the type of maintenance task they are looking to perform on their robot.",
                         "step_id": "step_1",
                         "required_fields": []
                     },
                     "description": {
-                        "task": "Greet the user and ask how you can assist them today with purchasing or renting robotic products.",
-                        "description": "Greet the user and ask how you can assist them today with purchasing or renting robotic products.",
+                        "task": "Greet the user and ask them to describe the issue or the type of maintenance task they are looking to perform on their robot.",
+                        "description": "Greet the user and ask them to describe the issue or the type of maintenance task they are looking to perform on their robot.",
                         "step_id": "step_1",
                         "required_fields": []
                     },
@@ -1378,14 +982,14 @@
                 },
                 {
                     "task": {
-                        "task": "Listen to the user's specific needs or questions about products or renting options to understand their requirements.",
-                        "description": "Listen to the user's specific needs or questions about products or renting options to understand their requirements.",
+                        "task": "Use the RAGWorker to retrieve information relevant to the user's issue from the company's internal documentation, such as FAQs and maintenance guides.",
+                        "description": "Use the RAGWorker to retrieve information relevant to the user's issue from the company's internal documentation, such as FAQs and maintenance guides.",
                         "step_id": "step_2",
                         "required_fields": []
                     },
                     "description": {
-                        "task": "Listen to the user's specific needs or questions about products or renting options to understand their requirements.",
-                        "description": "Listen to the user's specific needs or questions about products or renting options to understand their requirements.",
+                        "task": "Use the RAGWorker to retrieve information relevant to the user's issue from the company's internal documentation, such as FAQs and maintenance guides.",
+                        "description": "Use the RAGWorker to retrieve information relevant to the user's issue from the company's internal documentation, such as FAQs and maintenance guides.",
                         "step_id": "step_2",
                         "required_fields": []
                     },
@@ -1399,14 +1003,14 @@
                 },
                 {
                     "task": {
-                        "task": "Utilize RAGWorker to provide relevant information about robotic products, including purchase and rental policies based on the user's needs.",
-                        "description": "Utilize RAGWorker to provide relevant information about robotic products, including purchase and rental policies based on the user's needs.",
+                        "task": "Provide the user with troubleshooting steps or guidance based on the retrieved information, and ask if they need further clarification or additional help.",
+                        "description": "Provide the user with troubleshooting steps or guidance based on the retrieved information, and ask if they need further clarification or additional help.",
                         "step_id": "step_3",
                         "required_fields": []
                     },
                     "description": {
-                        "task": "Utilize RAGWorker to provide relevant information about robotic products, including purchase and rental policies based on the user's needs.",
-                        "description": "Utilize RAGWorker to provide relevant information about robotic products, including purchase and rental policies based on the user's needs.",
+                        "task": "Provide the user with troubleshooting steps or guidance based on the retrieved information, and ask if they need further clarification or additional help.",
+                        "description": "Provide the user with troubleshooting steps or guidance based on the retrieved information, and ask if they need further clarification or additional help.",
                         "step_id": "step_3",
                         "required_fields": []
                     },
@@ -1420,14 +1024,14 @@
                 },
                 {
                     "task": {
-                        "task": "Clarify any doubts the user has about the products or policies and offer further assistance if needed.",
-                        "description": "Clarify any doubts the user has about the products or policies and offer further assistance if needed.",
+                        "task": "If the issue persists or more guidance is required, ask the user to provide detailed symptoms or error codes they may have encountered.",
+                        "description": "If the issue persists or more guidance is required, ask the user to provide detailed symptoms or error codes they may have encountered.",
                         "step_id": "step_4",
                         "required_fields": []
                     },
                     "description": {
-                        "task": "Clarify any doubts the user has about the products or policies and offer further assistance if needed.",
-                        "description": "Clarify any doubts the user has about the products or policies and offer further assistance if needed.",
+                        "task": "If the issue persists or more guidance is required, ask the user to provide detailed symptoms or error codes they may have encountered.",
+                        "description": "If the issue persists or more guidance is required, ask the user to provide detailed symptoms or error codes they may have encountered.",
                         "step_id": "step_4",
                         "required_fields": []
                     },
@@ -1441,14 +1045,14 @@
                 },
                 {
                     "task": {
-                        "task": "Guide the user through the purchasing or renting process, and offer instructions on completing the transaction if they decide to proceed.",
-                        "description": "Guide the user through the purchasing or renting process, and offer instructions on completing the transaction if they decide to proceed.",
+                        "task": "Offer to connect the user with a human technician if the problem cannot be resolved through standard troubleshooting steps.",
+                        "description": "Offer to connect the user with a human technician if the problem cannot be resolved through standard troubleshooting steps.",
                         "step_id": "step_5",
                         "required_fields": []
                     },
                     "description": {
-                        "task": "Guide the user through the purchasing or renting process, and offer instructions on completing the transaction if they decide to proceed.",
-                        "description": "Guide the user through the purchasing or renting process, and offer instructions on completing the transaction if they decide to proceed.",
+                        "task": "Offer to connect the user with a human technician if the problem cannot be resolved through standard troubleshooting steps.",
+                        "description": "Offer to connect the user with a human technician if the problem cannot be resolved through standard troubleshooting steps.",
                         "step_id": "step_5",
                         "required_fields": []
                     },
@@ -1459,51 +1063,30 @@
                         "description": "FaissRAGWorker worker",
                         "type": "worker"
                     }
-                },
-                {
-                    "task": {
-                        "task": "Ask if there is anything else the user would like to know or needs assistance with regarding robotic products.",
-                        "description": "Ask if there is anything else the user would like to know or needs assistance with regarding robotic products.",
-                        "step_id": "step_6",
-                        "required_fields": []
-                    },
-                    "description": {
-                        "task": "Ask if there is anything else the user would like to know or needs assistance with regarding robotic products.",
-                        "description": "Ask if there is anything else the user would like to know or needs assistance with regarding robotic products.",
-                        "step_id": "step_6",
-                        "required_fields": []
-                    },
-                    "step_id": "step_6",
-                    "required_fields": [],
-                    "resource": {
-                        "name": "MessageWorker",
-                        "description": "MessageWorker worker",
-                        "type": "worker"
-                    }
                 }
             ],
             "dependencies": [],
             "required_resources": [],
             "estimated_duration": "1 hour",
             "priority": 3,
-            "level": 0,
-            "intent": "User seeks guidance on purchasing or renting robotic products"
+            "intent": "User seeks assistance with robot maintenance and troubleshooting",
+            "level": 0
         },
         {
             "id": "task_3",
-            "name": "Provide details on delivery schedules and shipping logistics",
-            "description": "User needs information about delivery times and shipping",
+            "name": "Provide detailed information about delivery schedules and processes for each robot type",
+            "description": "User seeks delivery information",
             "steps": [
                 {
                     "task": {
-                        "task": "Greet the user and ask about the specific details or order for which they need delivery schedule information.",
-                        "description": "Greet the user and ask about the specific details or order for which they need delivery schedule information.",
+                        "task": "Greet the user and ask how you can assist with their inquiry about delivery schedules and processes.",
+                        "description": "Greet the user and ask how you can assist with their inquiry about delivery schedules and processes.",
                         "step_id": "step_1",
                         "required_fields": []
                     },
                     "description": {
-                        "task": "Greet the user and ask about the specific details or order for which they need delivery schedule information.",
-                        "description": "Greet the user and ask about the specific details or order for which they need delivery schedule information.",
+                        "task": "Greet the user and ask how you can assist with their inquiry about delivery schedules and processes.",
+                        "description": "Greet the user and ask how you can assist with their inquiry about delivery schedules and processes.",
                         "step_id": "step_1",
                         "required_fields": []
                     },
@@ -1517,14 +1100,14 @@
                 },
                 {
                     "task": {
-                        "task": "Utilize RAGWorker to retrieve and provide standard delivery schedules and shipping logistics information from the company's internal documentation.",
-                        "description": "Utilize RAGWorker to retrieve and provide standard delivery schedules and shipping logistics information from the company's internal documentation.",
+                        "task": "Use the RAGWorker to retrieve specific information about delivery schedules and processes for the user's requested robot type from the company's internal documentation.",
+                        "description": "Use the RAGWorker to retrieve specific information about delivery schedules and processes for the user's requested robot type from the company's internal documentation.",
                         "step_id": "step_2",
                         "required_fields": []
                     },
                     "description": {
-                        "task": "Utilize RAGWorker to retrieve and provide standard delivery schedules and shipping logistics information from the company's internal documentation.",
-                        "description": "Utilize RAGWorker to retrieve and provide standard delivery schedules and shipping logistics information from the company's internal documentation.",
+                        "task": "Use the RAGWorker to retrieve specific information about delivery schedules and processes for the user's requested robot type from the company's internal documentation.",
+                        "description": "Use the RAGWorker to retrieve specific information about delivery schedules and processes for the user's requested robot type from the company's internal documentation.",
                         "step_id": "step_2",
                         "required_fields": []
                     },
@@ -1538,14 +1121,14 @@
                 },
                 {
                     "task": {
-                        "task": "Ask the user if they need detailed information about a specific order's delivery timeline or if they have any particular shipping-related inquiries.",
-                        "description": "Ask the user if they need detailed information about a specific order's delivery timeline or if they have any particular shipping-related inquiries.",
+                        "task": "Present the information to the user regarding delivery schedules and processes, ensuring clarity and completeness.",
+                        "description": "Present the information to the user regarding delivery schedules and processes, ensuring clarity and completeness.",
                         "step_id": "step_3",
                         "required_fields": []
                     },
                     "description": {
-                        "task": "Ask the user if they need detailed information about a specific order's delivery timeline or if they have any particular shipping-related inquiries.",
-                        "description": "Ask the user if they need detailed information about a specific order's delivery timeline or if they have any particular shipping-related inquiries.",
+                        "task": "Present the information to the user regarding delivery schedules and processes, ensuring clarity and completeness.",
+                        "description": "Present the information to the user regarding delivery schedules and processes, ensuring clarity and completeness.",
                         "step_id": "step_3",
                         "required_fields": []
                     },
@@ -1559,14 +1142,14 @@
                 },
                 {
                     "task": {
-                        "task": "If the user needs order-specific information, prompt the user to provide order details and fetch relevant information using RAGWorker.",
-                        "description": "If the user needs order-specific information, prompt the user to provide order details and fetch relevant information using RAGWorker.",
+                        "task": "Ask the user if they need further clarification or have additional questions about delivery schedules.",
+                        "description": "Ask the user if they need further clarification or have additional questions about delivery schedules.",
                         "step_id": "step_4",
                         "required_fields": []
                     },
                     "description": {
-                        "task": "If the user needs order-specific information, prompt the user to provide order details and fetch relevant information using RAGWorker.",
-                        "description": "If the user needs order-specific information, prompt the user to provide order details and fetch relevant information using RAGWorker.",
+                        "task": "Ask the user if they need further clarification or have additional questions about delivery schedules.",
+                        "description": "Ask the user if they need further clarification or have additional questions about delivery schedules.",
                         "step_id": "step_4",
                         "required_fields": []
                     },
@@ -1580,14 +1163,14 @@
                 },
                 {
                     "task": {
-                        "task": "Confirm with the user if the information provided meets their needs or if they have further questions.",
-                        "description": "Confirm with the user if the information provided meets their needs or if they have further questions.",
+                        "task": "Provide further assistance or thank the user for reaching out if their query has been fully resolved.",
+                        "description": "Provide further assistance or thank the user for reaching out if their query has been fully resolved.",
                         "step_id": "step_5",
                         "required_fields": []
                     },
                     "description": {
-                        "task": "Confirm with the user if the information provided meets their needs or if they have further questions.",
-                        "description": "Confirm with the user if the information provided meets their needs or if they have further questions.",
+                        "task": "Provide further assistance or thank the user for reaching out if their query has been fully resolved.",
+                        "description": "Provide further assistance or thank the user for reaching out if their query has been fully resolved.",
                         "step_id": "step_5",
                         "required_fields": []
                     },
@@ -1598,51 +1181,30 @@
                         "description": "FaissRAGWorker worker",
                         "type": "worker"
                     }
-                },
-                {
-                    "task": {
-                        "task": "Provide appropriate next steps or additional assistance based on the user's response.",
-                        "description": "Provide appropriate next steps or additional assistance based on the user's response.",
-                        "step_id": "step_6",
-                        "required_fields": []
-                    },
-                    "description": {
-                        "task": "Provide appropriate next steps or additional assistance based on the user's response.",
-                        "description": "Provide appropriate next steps or additional assistance based on the user's response.",
-                        "step_id": "step_6",
-                        "required_fields": []
-                    },
-                    "step_id": "step_6",
-                    "required_fields": [],
-                    "resource": {
-                        "name": "MessageWorker",
-                        "description": "MessageWorker worker",
-                        "type": "worker"
-                    }
                 }
             ],
             "dependencies": [],
             "required_resources": [],
             "estimated_duration": "1 hour",
             "priority": 3,
-            "level": 0,
-            "intent": "User requests information on delivery schedules and shipping logistics"
+            "intent": "User requests detailed delivery information for each robot type",
+            "level": 0
         },
         {
             "id": "task_4",
-            "name": "Assist in troubleshooting and resolving operational issues with robots",
-            "description": "User seeks customer support for robot operation issues",
+            "name": "Provide details on rental agreements, pricing, and availability of the ADAM robot",
+            "description": "User asks about renting options and availability",
             "steps": [
                 {
                     "task": {
-                        "task": "Greet the user and inquire about the specific operational issue they are facing with the robot.",
-                        "description": "Greet the user and inquire about the specific operational issue they are facing with the robot.",
+                        "task": "Greet the user and inquire about their specific needs related to the ADAM robot (e.g., rental agreement details, pricing, availability).",
+                        "description": "Greet the user and inquire about their specific needs related to the ADAM robot (e.g., rental agreement details, pricing, availability).",
                         "step_id": "step_1",
                         "required_fields": []
                     },
                     "description": {
-                        "task": "Greet the user and inquire about the specific operational issue they are facing with the robot.",
-                        "description": "Greet the user and inquire about the specific operational issue they are facing with the robot.",
+                        "task": "Greet the user and inquire about their specific needs related to the ADAM robot (e.g., rental agreement details, pricing, availability).",
+                        "description": "Greet the user and inquire about their specific needs related to the ADAM robot (e.g., rental agreement details, pricing, availability).",
                         "step_id": "step_1",
                         "required_fields": []
                     },
@@ -1656,14 +1218,14 @@
                 },
                 {
                     "task": {
-                        "task": "Use RAGWorker to access and provide relevant troubleshooting steps from the company's internal documentation.",
-                        "description": "Use RAGWorker to access and provide relevant troubleshooting steps from the company's internal documentation.",
+                        "task": "Use the RAGWorker to retrieve information from the company's internal documentation regarding the rental agreements, pricing, and availability of the ADAM robot.",
+                        "description": "Use the RAGWorker to retrieve information from the company's internal documentation regarding the rental agreements, pricing, and availability of the ADAM robot.",
                         "step_id": "step_2",
                         "required_fields": []
                     },
                     "description": {
-                        "task": "Use RAGWorker to access and provide relevant troubleshooting steps from the company's internal documentation.",
-                        "description": "Use RAGWorker to access and provide relevant troubleshooting steps from the company's internal documentation.",
+                        "task": "Use the RAGWorker to retrieve information from the company's internal documentation regarding the rental agreements, pricing, and availability of the ADAM robot.",
+                        "description": "Use the RAGWorker to retrieve information from the company's internal documentation regarding the rental agreements, pricing, and availability of the ADAM robot.",
                         "step_id": "step_2",
                         "required_fields": []
                     },
@@ -1677,14 +1239,14 @@
                 },
                 {
                     "task": {
-                        "task": "Ask the user to follow the provided steps and report back the outcome.",
-                        "description": "Ask the user to follow the provided steps and report back the outcome.",
+                        "task": "Provide the retrieved information about the ADAM robot to the user, ensuring clarity and detail in response.",
+                        "description": "Provide the retrieved information about the ADAM robot to the user, ensuring clarity and detail in response.",
                         "step_id": "step_3",
                         "required_fields": []
                     },
                     "description": {
-                        "task": "Ask the user to follow the provided steps and report back the outcome.",
-                        "description": "Ask the user to follow the provided steps and report back the outcome.",
+                        "task": "Provide the retrieved information about the ADAM robot to the user, ensuring clarity and detail in response.",
+                        "description": "Provide the retrieved information about the ADAM robot to the user, ensuring clarity and detail in response.",
                         "step_id": "step_3",
                         "required_fields": []
                     },
@@ -1698,14 +1260,14 @@
                 },
                 {
                     "task": {
-                        "task": "If the issue is not resolved, provide additional troubleshooting steps or escalate the issue per company policy using RAGWorker.",
-                        "description": "If the issue is not resolved, provide additional troubleshooting steps or escalate the issue per company policy using RAGWorker.",
+                        "task": "Ask if the user has any further questions or needs additional assistance regarding the rental process or details about the ADAM robot.",
+                        "description": "Ask if the user has any further questions or needs additional assistance regarding the rental process or details about the ADAM robot.",
                         "step_id": "step_4",
                         "required_fields": []
                     },
                     "description": {
-                        "task": "If the issue is not resolved, provide additional troubleshooting steps or escalate the issue per company policy using RAGWorker.",
-                        "description": "If the issue is not resolved, provide additional troubleshooting steps or escalate the issue per company policy using RAGWorker.",
+                        "task": "Ask if the user has any further questions or needs additional assistance regarding the rental process or details about the ADAM robot.",
+                        "description": "Ask if the user has any further questions or needs additional assistance regarding the rental process or details about the ADAM robot.",
                         "step_id": "step_4",
                         "required_fields": []
                     },
@@ -1719,14 +1281,14 @@
                 },
                 {
                     "task": {
-                        "task": "Confirm with the user whether the operational issue has been successfully resolved or if further assistance is required.",
-                        "description": "Confirm with the user whether the operational issue has been successfully resolved or if further assistance is required.",
+                        "task": "Offer to help with the next steps if they are interested in proceeding with a rental, including directing them to appropriate contacts or forms.",
+                        "description": "Offer to help with the next steps if they are interested in proceeding with a rental, including directing them to appropriate contacts or forms.",
                         "step_id": "step_5",
                         "required_fields": []
                     },
                     "description": {
-                        "task": "Confirm with the user whether the operational issue has been successfully resolved or if further assistance is required.",
-                        "description": "Confirm with the user whether the operational issue has been successfully resolved or if further assistance is required.",
+                        "task": "Offer to help with the next steps if they are interested in proceeding with a rental, including directing them to appropriate contacts or forms.",
+                        "description": "Offer to help with the next steps if they are interested in proceeding with a rental, including directing them to appropriate contacts or forms.",
                         "step_id": "step_5",
                         "required_fields": []
                     },
@@ -1743,24 +1305,24 @@
             "required_resources": [],
             "estimated_duration": "1 hour",
             "priority": 3,
-            "level": 0,
-            "intent": "User seeks assistance in troubleshooting and resolving operational issues with robots"
+            "intent": "User inquires about rental agreements, pricing, and availability of the ADAM robot",
+            "level": 0
         },
         {
             "id": "task_5",
-            "name": "Share insights into use cases and applications of robots in business",
-            "description": "User is interested in learning about robot use cases and applications",
+            "name": "Share the latest news, updates, and innovations about Richtech Robotics' offerings and technological advancements",
+            "description": "User wishes to explore updates and innovations",
             "steps": [
                 {
                     "task": {
-                        "task": "Greet the user and ask them to specify their interest in robots and business applications.",
-                        "description": "Greet the user and ask them to specify their interest in robots and business applications.",
+                        "task": "Greet the user and inquire if they are interested in learning about the latest news, updates, or innovations from Richtech Robotics.",
+                        "description": "Greet the user and inquire if they are interested in learning about the latest news, updates, or innovations from Richtech Robotics.",
                         "step_id": "step_1",
                         "required_fields": []
                     },
                     "description": {
-                        "task": "Greet the user and ask them to specify their interest in robots and business applications.",
-                        "description": "Greet the user and ask them to specify their interest in robots and business applications.",
+                        "task": "Greet the user and inquire if they are interested in learning about the latest news, updates, or innovations from Richtech Robotics.",
+                        "description": "Greet the user and inquire if they are interested in learning about the latest news, updates, or innovations from Richtech Robotics.",
                         "step_id": "step_1",
                         "required_fields": []
                     },
@@ -1774,14 +1336,14 @@
                 },
                 {
                     "task": {
-                        "task": "Use RAGWorker to provide insights into general use cases and applications of robots in business based on company's internal documentation.",
-                        "description": "Use RAGWorker to provide insights into general use cases and applications of robots in business based on company's internal documentation.",
+                        "task": "Use the RAGWorker to retrieve the most recent news, updates, and technological advancements from the company's internal documentation.",
+                        "description": "Use the RAGWorker to retrieve the most recent news, updates, and technological advancements from the company's internal documentation.",
                         "step_id": "step_2",
                         "required_fields": []
                     },
                     "description": {
-                        "task": "Use RAGWorker to provide insights into general use cases and applications of robots in business based on company's internal documentation.",
-                        "description": "Use RAGWorker to provide insights into general use cases and applications of robots in business based on company's internal documentation.",
+                        "task": "Use the RAGWorker to retrieve the most recent news, updates, and technological advancements from the company's internal documentation.",
+                        "description": "Use the RAGWorker to retrieve the most recent news, updates, and technological advancements from the company's internal documentation.",
                         "step_id": "step_2",
                         "required_fields": []
                     },
@@ -1795,14 +1357,14 @@
                 },
                 {
                     "task": {
-                        "task": "Ask the user if they have any specific questions or need more detailed information on certain applications.",
-                        "description": "Ask the user if they have any specific questions or need more detailed information on certain applications.",
+                        "task": "Share the retrieved information with the user, highlighting key advancements or innovations.",
+                        "description": "Share the retrieved information with the user, highlighting key advancements or innovations.",
                         "step_id": "step_3",
                         "required_fields": []
                     },
                     "description": {
-                        "task": "Ask the user if they have any specific questions or need more detailed information on certain applications.",
-                        "description": "Ask the user if they have any specific questions or need more detailed information on certain applications.",
+                        "task": "Share the retrieved information with the user, highlighting key advancements or innovations.",
+                        "description": "Share the retrieved information with the user, highlighting key advancements or innovations.",
                         "step_id": "step_3",
                         "required_fields": []
                     },
@@ -1816,14 +1378,14 @@
                 },
                 {
                     "task": {
-                        "task": "Respond to specific inquiries with detailed answers using RAGWorker to retrieve information from internal documentation.",
-                        "description": "Respond to specific inquiries with detailed answers using RAGWorker to retrieve information from internal documentation.",
+                        "task": "Ask the user if they would like more detailed information on any specific topic or initiative.",
+                        "description": "Ask the user if they would like more detailed information on any specific topic or initiative.",
                         "step_id": "step_4",
                         "required_fields": []
                     },
                     "description": {
-                        "task": "Respond to specific inquiries with detailed answers using RAGWorker to retrieve information from internal documentation.",
-                        "description": "Respond to specific inquiries with detailed answers using RAGWorker to retrieve information from internal documentation.",
+                        "task": "Ask the user if they would like more detailed information on any specific topic or initiative.",
+                        "description": "Ask the user if they would like more detailed information on any specific topic or initiative.",
                         "step_id": "step_4",
                         "required_fields": []
                     },
@@ -1837,14 +1399,14 @@
                 },
                 {
                     "task": {
-                        "task": "Offer further assistance or direct the user to additional resources for more detailed exploration.",
-                        "description": "Offer further assistance or direct the user to additional resources for more detailed exploration.",
+                        "task": "Depending on the user's interest, provide additional details or direct them to where they can find more information.",
+                        "description": "Depending on the user's interest, provide additional details or direct them to where they can find more information.",
                         "step_id": "step_5",
                         "required_fields": []
                     },
                     "description": {
-                        "task": "Offer further assistance or direct the user to additional resources for more detailed exploration.",
-                        "description": "Offer further assistance or direct the user to additional resources for more detailed exploration.",
+                        "task": "Depending on the user's interest, provide additional details or direct them to where they can find more information.",
+                        "description": "Depending on the user's interest, provide additional details or direct them to where they can find more information.",
                         "step_id": "step_5",
                         "required_fields": []
                     },
@@ -1861,112 +1423,28 @@
             "required_resources": [],
             "estimated_duration": "1 hour",
             "priority": 3,
-            "level": 0,
-            "intent": "User wants to learn about robot use cases and applications in business"
+            "intent": "User wants to explore the latest news and innovations about Richtech Robotics' offerings",
+            "level": 0
         },
         {
             "id": "task_6",
-            "name": "Provide details on maintenance and servicing for robotics products",
-            "description": "User requests assistance with maintenance and servicing of robots",
+            "name": "Provide detailed warranty information and assist with return policy queries for the robots",
+            "description": "User needs assistance with warranty and return policies",
             "steps": [
                 {
                     "task": {
-                        "task": "Utilize the MessageWorker to greet the user and ask for details about the specific robotics product they are inquiring about.",
-                        "description": "Utilize the MessageWorker to greet the user and ask for details about the specific robotics product they are inquiring about.",
+                        "task": "Execute Provide detailed warranty information and assist with return policy queries for the robots",
+                        "description": "Execute: Execute Provide detailed warranty information and assist with return policy queries for the robots",
                         "step_id": "step_1",
                         "required_fields": []
                     },
                     "description": {
-                        "task": "Utilize the MessageWorker to greet the user and ask for details about the specific robotics product they are inquiring about.",
-                        "description": "Utilize the MessageWorker to greet the user and ask for details about the specific robotics product they are inquiring about.",
+                        "task": "Execute Provide detailed warranty information and assist with return policy queries for the robots",
+                        "description": "Execute: Execute Provide detailed warranty information and assist with return policy queries for the robots",
                         "step_id": "step_1",
                         "required_fields": []
                     },
                     "step_id": "step_1",
-                    "required_fields": [],
-                    "resource": {
-                        "name": "FaissRAGWorker",
-                        "description": "FaissRAGWorker worker",
-                        "type": "worker"
-                    }
-                },
-                {
-                    "task": {
-                        "task": "Leverage the RAGWorker to access the company's internal documentation and search for maintenance and servicing information specific to the mentioned robotics product.",
-                        "description": "Leverage the RAGWorker to access the company's internal documentation and search for maintenance and servicing information specific to the mentioned robotics product.",
-                        "step_id": "step_2",
-                        "required_fields": []
-                    },
-                    "description": {
-                        "task": "Leverage the RAGWorker to access the company's internal documentation and search for maintenance and servicing information specific to the mentioned robotics product.",
-                        "description": "Leverage the RAGWorker to access the company's internal documentation and search for maintenance and servicing information specific to the mentioned robotics product.",
-                        "step_id": "step_2",
-                        "required_fields": []
-                    },
-                    "step_id": "step_2",
-                    "required_fields": [],
-                    "resource": {
-                        "name": "MessageWorker",
-                        "description": "MessageWorker worker",
-                        "type": "worker"
-                    }
-                },
-                {
-                    "task": {
-                        "task": "Provide the user with the retrieved maintenance and servicing details, using the MessageWorker to ensure the information is easily understandable.",
-                        "description": "Provide the user with the retrieved maintenance and servicing details, using the MessageWorker to ensure the information is easily understandable.",
-                        "step_id": "step_3",
-                        "required_fields": []
-                    },
-                    "description": {
-                        "task": "Provide the user with the retrieved maintenance and servicing details, using the MessageWorker to ensure the information is easily understandable.",
-                        "description": "Provide the user with the retrieved maintenance and servicing details, using the MessageWorker to ensure the information is easily understandable.",
-                        "step_id": "step_3",
-                        "required_fields": []
-                    },
-                    "step_id": "step_3",
-                    "required_fields": [],
-                    "resource": {
-                        "name": "SearchWorker",
-                        "description": "SearchWorker worker",
-                        "type": "worker"
-                    }
-                },
-                {
-                    "task": {
-                        "task": "Ask the user if they have any further questions about the maintenance and servicing details provided or if they need additional assistance with their robotics product.",
-                        "description": "Ask the user if they have any further questions about the maintenance and servicing details provided or if they need additional assistance with their robotics product.",
-                        "step_id": "step_4",
-                        "required_fields": []
-                    },
-                    "description": {
-                        "task": "Ask the user if they have any further questions about the maintenance and servicing details provided or if they need additional assistance with their robotics product.",
-                        "description": "Ask the user if they have any further questions about the maintenance and servicing details provided or if they need additional assistance with their robotics product.",
-                        "step_id": "step_4",
-                        "required_fields": []
-                    },
-                    "step_id": "step_4",
-                    "required_fields": [],
-                    "resource": {
-                        "name": "NestedGraph",
-                        "description": "A reusable task graph component that can be instantiated with different parameters",
-                        "type": "nested_graph"
-                    }
-                },
-                {
-                    "task": {
-                        "task": "Based on the user's response, either offer additional information using RAGWorker or conclude the interaction with predefined closing responses via MessageWorker.",
-                        "description": "Based on the user's response, either offer additional information using RAGWorker or conclude the interaction with predefined closing responses via MessageWorker.",
-                        "step_id": "step_5",
-                        "required_fields": []
-                    },
-                    "description": {
-                        "task": "Based on the user's response, either offer additional information using RAGWorker or conclude the interaction with predefined closing responses via MessageWorker.",
-                        "description": "Based on the user's response, either offer additional information using RAGWorker or conclude the interaction with predefined closing responses via MessageWorker.",
-                        "step_id": "step_5",
-                        "required_fields": []
-                    },
-                    "step_id": "step_5",
                     "required_fields": [],
                     "resource": {
                         "name": "FaissRAGWorker",
@@ -1979,286 +1457,8 @@
             "required_resources": [],
             "estimated_duration": "1 hour",
             "priority": 3,
-            "level": 0,
-            "intent": "User requests details on maintenance and servicing for robotics products"
-        },
-        {
-            "id": "task_7",
-            "name": "Inform users about job opportunities and hiring processes",
-            "description": "User wants to learn about career opportunities at Richtech Robotics",
-            "steps": [
-                {
-                    "task": {
-                        "task": "Ask the user about their interest in job opportunities and which areas or positions they are interested in learning more about.",
-                        "description": "Ask the user about their interest in job opportunities and which areas or positions they are interested in learning more about.",
-                        "step_id": "step_1",
-                        "required_fields": []
-                    },
-                    "description": {
-                        "task": "Ask the user about their interest in job opportunities and which areas or positions they are interested in learning more about.",
-                        "description": "Ask the user about their interest in job opportunities and which areas or positions they are interested in learning more about.",
-                        "step_id": "step_1",
-                        "required_fields": []
-                    },
-                    "step_id": "step_1",
-                    "required_fields": [],
-                    "resource": {
-                        "name": "FaissRAGWorker",
-                        "description": "FaissRAGWorker worker",
-                        "type": "worker"
-                    }
-                },
-                {
-                    "task": {
-                        "task": "Use the RAGWorker to retrieve and provide information about current job openings and hiring processes relevant to the areas or positions the user specified.",
-                        "description": "Use the RAGWorker to retrieve and provide information about current job openings and hiring processes relevant to the areas or positions the user specified.",
-                        "step_id": "step_2",
-                        "required_fields": []
-                    },
-                    "description": {
-                        "task": "Use the RAGWorker to retrieve and provide information about current job openings and hiring processes relevant to the areas or positions the user specified.",
-                        "description": "Use the RAGWorker to retrieve and provide information about current job openings and hiring processes relevant to the areas or positions the user specified.",
-                        "step_id": "step_2",
-                        "required_fields": []
-                    },
-                    "step_id": "step_2",
-                    "required_fields": [],
-                    "resource": {
-                        "name": "MessageWorker",
-                        "description": "MessageWorker worker",
-                        "type": "worker"
-                    }
-                },
-                {
-                    "task": {
-                        "task": "Inquire if the user needs more information about specific job roles, the application process, or company policies related to hiring.",
-                        "description": "Inquire if the user needs more information about specific job roles, the application process, or company policies related to hiring.",
-                        "step_id": "step_3",
-                        "required_fields": []
-                    },
-                    "description": {
-                        "task": "Inquire if the user needs more information about specific job roles, the application process, or company policies related to hiring.",
-                        "description": "Inquire if the user needs more information about specific job roles, the application process, or company policies related to hiring.",
-                        "step_id": "step_3",
-                        "required_fields": []
-                    },
-                    "step_id": "step_3",
-                    "required_fields": [],
-                    "resource": {
-                        "name": "SearchWorker",
-                        "description": "SearchWorker worker",
-                        "type": "worker"
-                    }
-                },
-                {
-                    "task": {
-                        "task": "Address any additional questions or provide further details about the application process or specific job roles using RAGWorker.",
-                        "description": "Address any additional questions or provide further details about the application process or specific job roles using RAGWorker.",
-                        "step_id": "step_4",
-                        "required_fields": []
-                    },
-                    "description": {
-                        "task": "Address any additional questions or provide further details about the application process or specific job roles using RAGWorker.",
-                        "description": "Address any additional questions or provide further details about the application process or specific job roles using RAGWorker.",
-                        "step_id": "step_4",
-                        "required_fields": []
-                    },
-                    "step_id": "step_4",
-                    "required_fields": [],
-                    "resource": {
-                        "name": "NestedGraph",
-                        "description": "A reusable task graph component that can be instantiated with different parameters",
-                        "type": "nested_graph"
-                    }
-                },
-                {
-                    "task": {
-                        "task": "Ask the user if they are interested in submitting an application or need assistance with the next steps.",
-                        "description": "Ask the user if they are interested in submitting an application or need assistance with the next steps.",
-                        "step_id": "step_5",
-                        "required_fields": []
-                    },
-                    "description": {
-                        "task": "Ask the user if they are interested in submitting an application or need assistance with the next steps.",
-                        "description": "Ask the user if they are interested in submitting an application or need assistance with the next steps.",
-                        "step_id": "step_5",
-                        "required_fields": []
-                    },
-                    "step_id": "step_5",
-                    "required_fields": [],
-                    "resource": {
-                        "name": "FaissRAGWorker",
-                        "description": "FaissRAGWorker worker",
-                        "type": "worker"
-                    }
-                }
-            ],
-            "dependencies": [],
-            "required_resources": [],
-            "estimated_duration": "1 hour",
-            "priority": 3,
-            "level": 0,
-            "intent": "User wants information about job opportunities and hiring processes at Richtech Robotics"
-        },
-        {
-            "id": "task_8",
-            "name": "Update users on the latest news and product developments at Richtech Robotics",
-            "description": "User wishes to know more about Richtech Robotics\u2019 latest news and developments",
-            "steps": [
-                {
-                    "task": {
-                        "task": "Greet the user and ask if they are interested in the latest news and product developments at Richtech Robotics.",
-                        "description": "Greet the user and ask if they are interested in the latest news and product developments at Richtech Robotics.",
-                        "step_id": "step_1",
-                        "required_fields": []
-                    },
-                    "description": {
-                        "task": "Greet the user and ask if they are interested in the latest news and product developments at Richtech Robotics.",
-                        "description": "Greet the user and ask if they are interested in the latest news and product developments at Richtech Robotics.",
-                        "step_id": "step_1",
-                        "required_fields": []
-                    },
-                    "step_id": "step_1",
-                    "required_fields": [],
-                    "resource": {
-                        "name": "FaissRAGWorker",
-                        "description": "FaissRAGWorker worker",
-                        "type": "worker"
-                    }
-                },
-                {
-                    "task": {
-                        "task": "If user shows interest, use the RAGWorker to retrieve the latest news and product developments from the company's internal documentation.",
-                        "description": "If user shows interest, use the RAGWorker to retrieve the latest news and product developments from the company's internal documentation.",
-                        "step_id": "step_2",
-                        "required_fields": []
-                    },
-                    "description": {
-                        "task": "If user shows interest, use the RAGWorker to retrieve the latest news and product developments from the company's internal documentation.",
-                        "description": "If user shows interest, use the RAGWorker to retrieve the latest news and product developments from the company's internal documentation.",
-                        "step_id": "step_2",
-                        "required_fields": []
-                    },
-                    "step_id": "step_2",
-                    "required_fields": [],
-                    "resource": {
-                        "name": "MessageWorker",
-                        "description": "MessageWorker worker",
-                        "type": "worker"
-                    }
-                },
-                {
-                    "task": {
-                        "task": "Provide the user with a summary of the latest news and product developments.",
-                        "description": "Provide the user with a summary of the latest news and product developments.",
-                        "step_id": "step_3",
-                        "required_fields": []
-                    },
-                    "description": {
-                        "task": "Provide the user with a summary of the latest news and product developments.",
-                        "description": "Provide the user with a summary of the latest news and product developments.",
-                        "step_id": "step_3",
-                        "required_fields": []
-                    },
-                    "step_id": "step_3",
-                    "required_fields": [],
-                    "resource": {
-                        "name": "SearchWorker",
-                        "description": "SearchWorker worker",
-                        "type": "worker"
-                    }
-                },
-                {
-                    "task": {
-                        "task": "Offer to answer any questions the user may have or provide more details on specific news or products.",
-                        "description": "Offer to answer any questions the user may have or provide more details on specific news or products.",
-                        "step_id": "step_4",
-                        "required_fields": []
-                    },
-                    "description": {
-                        "task": "Offer to answer any questions the user may have or provide more details on specific news or products.",
-                        "description": "Offer to answer any questions the user may have or provide more details on specific news or products.",
-                        "step_id": "step_4",
-                        "required_fields": []
-                    },
-                    "step_id": "step_4",
-                    "required_fields": [],
-                    "resource": {
-                        "name": "NestedGraph",
-                        "description": "A reusable task graph component that can be instantiated with different parameters",
-                        "type": "nested_graph"
-                    }
-                },
-                {
-                    "task": {
-                        "task": "If the user has questions, use RAGWorker to provide answers based on the company's internal documentation.",
-                        "description": "If the user has questions, use RAGWorker to provide answers based on the company's internal documentation.",
-                        "step_id": "step_5",
-                        "required_fields": []
-                    },
-                    "description": {
-                        "task": "If the user has questions, use RAGWorker to provide answers based on the company's internal documentation.",
-                        "description": "If the user has questions, use RAGWorker to provide answers based on the company's internal documentation.",
-                        "step_id": "step_5",
-                        "required_fields": []
-                    },
-                    "step_id": "step_5",
-                    "required_fields": [],
-                    "resource": {
-                        "name": "FaissRAGWorker",
-                        "description": "FaissRAGWorker worker",
-                        "type": "worker"
-                    }
-                },
-                {
-                    "task": {
-                        "task": "Ask the user if they need any more assistance or information.",
-                        "description": "Ask the user if they need any more assistance or information.",
-                        "step_id": "step_6",
-                        "required_fields": []
-                    },
-                    "description": {
-                        "task": "Ask the user if they need any more assistance or information.",
-                        "description": "Ask the user if they need any more assistance or information.",
-                        "step_id": "step_6",
-                        "required_fields": []
-                    },
-                    "step_id": "step_6",
-                    "required_fields": [],
-                    "resource": {
-                        "name": "MessageWorker",
-                        "description": "MessageWorker worker",
-                        "type": "worker"
-                    }
-                },
-                {
-                    "task": {
-                        "task": "Thank the user for their time and close the interaction.",
-                        "description": "Thank the user for their time and close the interaction.",
-                        "step_id": "step_7",
-                        "required_fields": []
-                    },
-                    "description": {
-                        "task": "Thank the user for their time and close the interaction.",
-                        "description": "Thank the user for their time and close the interaction.",
-                        "step_id": "step_7",
-                        "required_fields": []
-                    },
-                    "step_id": "step_7",
-                    "required_fields": [],
-                    "resource": {
-                        "name": "SearchWorker",
-                        "description": "SearchWorker worker",
-                        "type": "worker"
-                    }
-                }
-            ],
-            "dependencies": [],
-            "required_resources": [],
-            "estimated_duration": "1 hour",
-            "priority": 3,
-            "level": 0,
-            "intent": "User wants to be updated on the latest news and product developments at Richtech Robotics"
+            "intent": "User needs assistance with warranty and return policy information for robots",
+            "level": 0
         }
     ],
     "role": "customer service assistant",
@@ -2307,13 +1507,31 @@
     "reusable_tasks": {
         "template_1": {
             "template_id": "template_1",
-            "name": "Provide information on specifications and features of different robots",
-            "description": "User intends to inquire about robot specifications and features",
+            "name": "Provide information about the specifications and capabilities of different robot products",
+            "description": "User inquiries about robot product specifications",
             "steps": [
                 {
-                    "task": "Execute Provide information on specifications and features of different robots",
-                    "description": "Execute: Execute Provide information on specifications and features of different robots",
+                    "task": "Greet the user and ask them to specify which robot product specifications or capabilities they are interested in.",
+                    "description": "Greet the user and ask them to specify which robot product specifications or capabilities they are interested in.",
                     "step_id": "step_1",
+                    "required_fields": []
+                },
+                {
+                    "task": "Utilize the RAGWorker to gather detailed information about the specified robot products from the company's internal documents, including specifications and capabilities.",
+                    "description": "Utilize the RAGWorker to gather detailed information about the specified robot products from the company's internal documents, including specifications and capabilities.",
+                    "step_id": "step_2",
+                    "required_fields": []
+                },
+                {
+                    "task": "Present the gathered information to the user, and ask if they need more details or have additional questions about the robots.",
+                    "description": "Present the gathered information to the user, and ask if they need more details or have additional questions about the robots.",
+                    "step_id": "step_3",
+                    "required_fields": []
+                },
+                {
+                    "task": "If the user has more questions, address them using the RAGWorker. Otherwise, thank them for their inquiry and conclude the interaction.",
+                    "description": "If the user has more questions, address them using the RAGWorker. Otherwise, thank them for their inquiry and conclude the interaction.",
+                    "step_id": "step_4",
                     "required_fields": []
                 }
             ],
@@ -2324,43 +1542,37 @@
         },
         "template_2": {
             "template_id": "template_2",
-            "name": "Offer guidance on purchasing or renting robotic products",
-            "description": "User wants assistance with purchasing or renting a robot",
+            "name": "Assist with robot maintenance, troubleshooting, and repair guidance",
+            "description": "User requests for product maintenance and troubleshooting",
             "steps": [
                 {
-                    "task": "Greet the user and ask how you can assist them today with purchasing or renting robotic products.",
-                    "description": "Greet the user and ask how you can assist them today with purchasing or renting robotic products.",
+                    "task": "Greet the user and ask them to describe the issue or the type of maintenance task they are looking to perform on their robot.",
+                    "description": "Greet the user and ask them to describe the issue or the type of maintenance task they are looking to perform on their robot.",
                     "step_id": "step_1",
                     "required_fields": []
                 },
                 {
-                    "task": "Listen to the user's specific needs or questions about products or renting options to understand their requirements.",
-                    "description": "Listen to the user's specific needs or questions about products or renting options to understand their requirements.",
+                    "task": "Use the RAGWorker to retrieve information relevant to the user's issue from the company's internal documentation, such as FAQs and maintenance guides.",
+                    "description": "Use the RAGWorker to retrieve information relevant to the user's issue from the company's internal documentation, such as FAQs and maintenance guides.",
                     "step_id": "step_2",
                     "required_fields": []
                 },
                 {
-                    "task": "Utilize RAGWorker to provide relevant information about robotic products, including purchase and rental policies based on the user's needs.",
-                    "description": "Utilize RAGWorker to provide relevant information about robotic products, including purchase and rental policies based on the user's needs.",
+                    "task": "Provide the user with troubleshooting steps or guidance based on the retrieved information, and ask if they need further clarification or additional help.",
+                    "description": "Provide the user with troubleshooting steps or guidance based on the retrieved information, and ask if they need further clarification or additional help.",
                     "step_id": "step_3",
                     "required_fields": []
                 },
                 {
-                    "task": "Clarify any doubts the user has about the products or policies and offer further assistance if needed.",
-                    "description": "Clarify any doubts the user has about the products or policies and offer further assistance if needed.",
+                    "task": "If the issue persists or more guidance is required, ask the user to provide detailed symptoms or error codes they may have encountered.",
+                    "description": "If the issue persists or more guidance is required, ask the user to provide detailed symptoms or error codes they may have encountered.",
                     "step_id": "step_4",
                     "required_fields": []
                 },
                 {
-                    "task": "Guide the user through the purchasing or renting process, and offer instructions on completing the transaction if they decide to proceed.",
-                    "description": "Guide the user through the purchasing or renting process, and offer instructions on completing the transaction if they decide to proceed.",
+                    "task": "Offer to connect the user with a human technician if the problem cannot be resolved through standard troubleshooting steps.",
+                    "description": "Offer to connect the user with a human technician if the problem cannot be resolved through standard troubleshooting steps.",
                     "step_id": "step_5",
-                    "required_fields": []
-                },
-                {
-                    "task": "Ask if there is anything else the user would like to know or needs assistance with regarding robotic products.",
-                    "description": "Ask if there is anything else the user would like to know or needs assistance with regarding robotic products.",
-                    "step_id": "step_6",
                     "required_fields": []
                 }
             ],
@@ -2371,43 +1583,37 @@
         },
         "template_3": {
             "template_id": "template_3",
-            "name": "Provide details on delivery schedules and shipping logistics",
-            "description": "User needs information about delivery times and shipping",
+            "name": "Provide detailed information about delivery schedules and processes for each robot type",
+            "description": "User seeks delivery information",
             "steps": [
                 {
-                    "task": "Greet the user and ask about the specific details or order for which they need delivery schedule information.",
-                    "description": "Greet the user and ask about the specific details or order for which they need delivery schedule information.",
+                    "task": "Greet the user and ask how you can assist with their inquiry about delivery schedules and processes.",
+                    "description": "Greet the user and ask how you can assist with their inquiry about delivery schedules and processes.",
                     "step_id": "step_1",
                     "required_fields": []
                 },
                 {
-                    "task": "Utilize RAGWorker to retrieve and provide standard delivery schedules and shipping logistics information from the company's internal documentation.",
-                    "description": "Utilize RAGWorker to retrieve and provide standard delivery schedules and shipping logistics information from the company's internal documentation.",
+                    "task": "Use the RAGWorker to retrieve specific information about delivery schedules and processes for the user's requested robot type from the company's internal documentation.",
+                    "description": "Use the RAGWorker to retrieve specific information about delivery schedules and processes for the user's requested robot type from the company's internal documentation.",
                     "step_id": "step_2",
                     "required_fields": []
                 },
                 {
-                    "task": "Ask the user if they need detailed information about a specific order's delivery timeline or if they have any particular shipping-related inquiries.",
-                    "description": "Ask the user if they need detailed information about a specific order's delivery timeline or if they have any particular shipping-related inquiries.",
+                    "task": "Present the information to the user regarding delivery schedules and processes, ensuring clarity and completeness.",
+                    "description": "Present the information to the user regarding delivery schedules and processes, ensuring clarity and completeness.",
                     "step_id": "step_3",
                     "required_fields": []
                 },
                 {
-                    "task": "If the user needs order-specific information, prompt the user to provide order details and fetch relevant information using RAGWorker.",
-                    "description": "If the user needs order-specific information, prompt the user to provide order details and fetch relevant information using RAGWorker.",
+                    "task": "Ask the user if they need further clarification or have additional questions about delivery schedules.",
+                    "description": "Ask the user if they need further clarification or have additional questions about delivery schedules.",
                     "step_id": "step_4",
                     "required_fields": []
                 },
                 {
-                    "task": "Confirm with the user if the information provided meets their needs or if they have further questions.",
-                    "description": "Confirm with the user if the information provided meets their needs or if they have further questions.",
+                    "task": "Provide further assistance or thank the user for reaching out if their query has been fully resolved.",
+                    "description": "Provide further assistance or thank the user for reaching out if their query has been fully resolved.",
                     "step_id": "step_5",
-                    "required_fields": []
-                },
-                {
-                    "task": "Provide appropriate next steps or additional assistance based on the user's response.",
-                    "description": "Provide appropriate next steps or additional assistance based on the user's response.",
-                    "step_id": "step_6",
                     "required_fields": []
                 }
             ],
@@ -2418,36 +1624,36 @@
         },
         "template_4": {
             "template_id": "template_4",
-            "name": "Assist in troubleshooting and resolving operational issues with robots",
-            "description": "User seeks customer support for robot operation issues",
+            "name": "Provide details on rental agreements, pricing, and availability of the ADAM robot",
+            "description": "User asks about renting options and availability",
             "steps": [
                 {
-                    "task": "Greet the user and inquire about the specific operational issue they are facing with the robot.",
-                    "description": "Greet the user and inquire about the specific operational issue they are facing with the robot.",
+                    "task": "Greet the user and inquire about their specific needs related to the ADAM robot (e.g., rental agreement details, pricing, availability).",
+                    "description": "Greet the user and inquire about their specific needs related to the ADAM robot (e.g., rental agreement details, pricing, availability).",
                     "step_id": "step_1",
                     "required_fields": []
                 },
                 {
-                    "task": "Use RAGWorker to access and provide relevant troubleshooting steps from the company's internal documentation.",
-                    "description": "Use RAGWorker to access and provide relevant troubleshooting steps from the company's internal documentation.",
+                    "task": "Use the RAGWorker to retrieve information from the company's internal documentation regarding the rental agreements, pricing, and availability of the ADAM robot.",
+                    "description": "Use the RAGWorker to retrieve information from the company's internal documentation regarding the rental agreements, pricing, and availability of the ADAM robot.",
                     "step_id": "step_2",
                     "required_fields": []
                 },
                 {
-                    "task": "Ask the user to follow the provided steps and report back the outcome.",
-                    "description": "Ask the user to follow the provided steps and report back the outcome.",
+                    "task": "Provide the retrieved information about the ADAM robot to the user, ensuring clarity and detail in response.",
+                    "description": "Provide the retrieved information about the ADAM robot to the user, ensuring clarity and detail in response.",
                     "step_id": "step_3",
                     "required_fields": []
                 },
                 {
-                    "task": "If the issue is not resolved, provide additional troubleshooting steps or escalate the issue per company policy using RAGWorker.",
-                    "description": "If the issue is not resolved, provide additional troubleshooting steps or escalate the issue per company policy using RAGWorker.",
+                    "task": "Ask if the user has any further questions or needs additional assistance regarding the rental process or details about the ADAM robot.",
+                    "description": "Ask if the user has any further questions or needs additional assistance regarding the rental process or details about the ADAM robot.",
                     "step_id": "step_4",
                     "required_fields": []
                 },
                 {
-                    "task": "Confirm with the user whether the operational issue has been successfully resolved or if further assistance is required.",
-                    "description": "Confirm with the user whether the operational issue has been successfully resolved or if further assistance is required.",
+                    "task": "Offer to help with the next steps if they are interested in proceeding with a rental, including directing them to appropriate contacts or forms.",
+                    "description": "Offer to help with the next steps if they are interested in proceeding with a rental, including directing them to appropriate contacts or forms.",
                     "step_id": "step_5",
                     "required_fields": []
                 }
@@ -2459,36 +1665,36 @@
         },
         "template_5": {
             "template_id": "template_5",
-            "name": "Share insights into use cases and applications of robots in business",
-            "description": "User is interested in learning about robot use cases and applications",
+            "name": "Share the latest news, updates, and innovations about Richtech Robotics' offerings and technological advancements",
+            "description": "User wishes to explore updates and innovations",
             "steps": [
                 {
-                    "task": "Greet the user and ask them to specify their interest in robots and business applications.",
-                    "description": "Greet the user and ask them to specify their interest in robots and business applications.",
+                    "task": "Greet the user and inquire if they are interested in learning about the latest news, updates, or innovations from Richtech Robotics.",
+                    "description": "Greet the user and inquire if they are interested in learning about the latest news, updates, or innovations from Richtech Robotics.",
                     "step_id": "step_1",
                     "required_fields": []
                 },
                 {
-                    "task": "Use RAGWorker to provide insights into general use cases and applications of robots in business based on company's internal documentation.",
-                    "description": "Use RAGWorker to provide insights into general use cases and applications of robots in business based on company's internal documentation.",
+                    "task": "Use the RAGWorker to retrieve the most recent news, updates, and technological advancements from the company's internal documentation.",
+                    "description": "Use the RAGWorker to retrieve the most recent news, updates, and technological advancements from the company's internal documentation.",
                     "step_id": "step_2",
                     "required_fields": []
                 },
                 {
-                    "task": "Ask the user if they have any specific questions or need more detailed information on certain applications.",
-                    "description": "Ask the user if they have any specific questions or need more detailed information on certain applications.",
+                    "task": "Share the retrieved information with the user, highlighting key advancements or innovations.",
+                    "description": "Share the retrieved information with the user, highlighting key advancements or innovations.",
                     "step_id": "step_3",
                     "required_fields": []
                 },
                 {
-                    "task": "Respond to specific inquiries with detailed answers using RAGWorker to retrieve information from internal documentation.",
-                    "description": "Respond to specific inquiries with detailed answers using RAGWorker to retrieve information from internal documentation.",
+                    "task": "Ask the user if they would like more detailed information on any specific topic or initiative.",
+                    "description": "Ask the user if they would like more detailed information on any specific topic or initiative.",
                     "step_id": "step_4",
                     "required_fields": []
                 },
                 {
-                    "task": "Offer further assistance or direct the user to additional resources for more detailed exploration.",
-                    "description": "Offer further assistance or direct the user to additional resources for more detailed exploration.",
+                    "task": "Depending on the user's interest, provide additional details or direct them to where they can find more information.",
+                    "description": "Depending on the user's interest, provide additional details or direct them to where they can find more information.",
                     "step_id": "step_5",
                     "required_fields": []
                 }
@@ -2500,131 +1706,13 @@
         },
         "template_6": {
             "template_id": "template_6",
-            "name": "Provide details on maintenance and servicing for robotics products",
-            "description": "User requests assistance with maintenance and servicing of robots",
+            "name": "Provide detailed warranty information and assist with return policy queries for the robots",
+            "description": "User needs assistance with warranty and return policies",
             "steps": [
                 {
-                    "task": "Utilize the MessageWorker to greet the user and ask for details about the specific robotics product they are inquiring about.",
-                    "description": "Utilize the MessageWorker to greet the user and ask for details about the specific robotics product they are inquiring about.",
+                    "task": "Execute Provide detailed warranty information and assist with return policy queries for the robots",
+                    "description": "Execute: Execute Provide detailed warranty information and assist with return policy queries for the robots",
                     "step_id": "step_1",
-                    "required_fields": []
-                },
-                {
-                    "task": "Leverage the RAGWorker to access the company's internal documentation and search for maintenance and servicing information specific to the mentioned robotics product.",
-                    "description": "Leverage the RAGWorker to access the company's internal documentation and search for maintenance and servicing information specific to the mentioned robotics product.",
-                    "step_id": "step_2",
-                    "required_fields": []
-                },
-                {
-                    "task": "Provide the user with the retrieved maintenance and servicing details, using the MessageWorker to ensure the information is easily understandable.",
-                    "description": "Provide the user with the retrieved maintenance and servicing details, using the MessageWorker to ensure the information is easily understandable.",
-                    "step_id": "step_3",
-                    "required_fields": []
-                },
-                {
-                    "task": "Ask the user if they have any further questions about the maintenance and servicing details provided or if they need additional assistance with their robotics product.",
-                    "description": "Ask the user if they have any further questions about the maintenance and servicing details provided or if they need additional assistance with their robotics product.",
-                    "step_id": "step_4",
-                    "required_fields": []
-                },
-                {
-                    "task": "Based on the user's response, either offer additional information using RAGWorker or conclude the interaction with predefined closing responses via MessageWorker.",
-                    "description": "Based on the user's response, either offer additional information using RAGWorker or conclude the interaction with predefined closing responses via MessageWorker.",
-                    "step_id": "step_5",
-                    "required_fields": []
-                }
-            ],
-            "parameters": {},
-            "examples": [],
-            "version": "1.0",
-            "category": "general"
-        },
-        "template_7": {
-            "template_id": "template_7",
-            "name": "Inform users about job opportunities and hiring processes",
-            "description": "User wants to learn about career opportunities at Richtech Robotics",
-            "steps": [
-                {
-                    "task": "Ask the user about their interest in job opportunities and which areas or positions they are interested in learning more about.",
-                    "description": "Ask the user about their interest in job opportunities and which areas or positions they are interested in learning more about.",
-                    "step_id": "step_1",
-                    "required_fields": []
-                },
-                {
-                    "task": "Use the RAGWorker to retrieve and provide information about current job openings and hiring processes relevant to the areas or positions the user specified.",
-                    "description": "Use the RAGWorker to retrieve and provide information about current job openings and hiring processes relevant to the areas or positions the user specified.",
-                    "step_id": "step_2",
-                    "required_fields": []
-                },
-                {
-                    "task": "Inquire if the user needs more information about specific job roles, the application process, or company policies related to hiring.",
-                    "description": "Inquire if the user needs more information about specific job roles, the application process, or company policies related to hiring.",
-                    "step_id": "step_3",
-                    "required_fields": []
-                },
-                {
-                    "task": "Address any additional questions or provide further details about the application process or specific job roles using RAGWorker.",
-                    "description": "Address any additional questions or provide further details about the application process or specific job roles using RAGWorker.",
-                    "step_id": "step_4",
-                    "required_fields": []
-                },
-                {
-                    "task": "Ask the user if they are interested in submitting an application or need assistance with the next steps.",
-                    "description": "Ask the user if they are interested in submitting an application or need assistance with the next steps.",
-                    "step_id": "step_5",
-                    "required_fields": []
-                }
-            ],
-            "parameters": {},
-            "examples": [],
-            "version": "1.0",
-            "category": "general"
-        },
-        "template_8": {
-            "template_id": "template_8",
-            "name": "Update users on the latest news and product developments at Richtech Robotics",
-            "description": "User wishes to know more about Richtech Robotics\u2019 latest news and developments",
-            "steps": [
-                {
-                    "task": "Greet the user and ask if they are interested in the latest news and product developments at Richtech Robotics.",
-                    "description": "Greet the user and ask if they are interested in the latest news and product developments at Richtech Robotics.",
-                    "step_id": "step_1",
-                    "required_fields": []
-                },
-                {
-                    "task": "If user shows interest, use the RAGWorker to retrieve the latest news and product developments from the company's internal documentation.",
-                    "description": "If user shows interest, use the RAGWorker to retrieve the latest news and product developments from the company's internal documentation.",
-                    "step_id": "step_2",
-                    "required_fields": []
-                },
-                {
-                    "task": "Provide the user with a summary of the latest news and product developments.",
-                    "description": "Provide the user with a summary of the latest news and product developments.",
-                    "step_id": "step_3",
-                    "required_fields": []
-                },
-                {
-                    "task": "Offer to answer any questions the user may have or provide more details on specific news or products.",
-                    "description": "Offer to answer any questions the user may have or provide more details on specific news or products.",
-                    "step_id": "step_4",
-                    "required_fields": []
-                },
-                {
-                    "task": "If the user has questions, use RAGWorker to provide answers based on the company's internal documentation.",
-                    "description": "If the user has questions, use RAGWorker to provide answers based on the company's internal documentation.",
-                    "step_id": "step_5",
-                    "required_fields": []
-                },
-                {
-                    "task": "Ask the user if they need any more assistance or information.",
-                    "description": "Ask the user if they need any more assistance or information.",
-                    "step_id": "step_6",
-                    "required_fields": []
-                },
-                {
-                    "task": "Thank the user for their time and close the interaction.",
-                    "description": "Thank the user for their time and close the interaction.",
-                    "step_id": "step_7",
                     "required_fields": []
                 }
             ],
@@ -2640,5 +1728,6 @@
             },
             "limit": 1
         }
-    }
+    },
+    "settings": {}
 }
