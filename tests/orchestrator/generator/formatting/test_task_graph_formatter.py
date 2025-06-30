@@ -2561,3 +2561,89 @@ class TestTaskGraphFormatter:
                 # Verify that the method completed successfully
                 assert result is not None
                 # The dict value should be converted to string representation
+
+
+class TestTaskGraphFormatterSpecificLineCoverage:
+    """Test specific missing lines in task_graph_formatter.py."""
+
+    def test_format_task_graph_else_branch_dict_value(
+        self, task_graph_formatter: TaskGraphFormatter
+    ) -> None:
+        """Test format_task_graph else branch for dict value (line 190)."""
+        # Create a task with a dict value that will trigger the else branch
+        tasks = [
+            {
+                "id": "task1",
+                "name": "Task 1",
+                "description": "First task",
+                "steps": [{"task": "step1"}],
+                "dependencies": [],
+                "required_resources": [],
+                "estimated_duration": "1 hour",
+                "priority": 3,
+            }
+        ]
+
+        # Mock _format_nodes to return a task node with dict value
+        with patch.object(task_graph_formatter, "_format_nodes") as mock_format_nodes:
+            mock_format_nodes.return_value = (
+                [["0", {"resource": {"id": "worker1", "name": "MessageWorker"}}]],
+                {"task1": "1"},
+                ["1"],
+            )
+
+            # Mock _format_edges to return edges
+            with patch.object(
+                task_graph_formatter, "_format_edges"
+            ) as mock_format_edges:
+                mock_format_edges.return_value = ([], [])
+
+                # Mock ensure_nested_graph_connectivity
+                with patch.object(
+                    task_graph_formatter, "ensure_nested_graph_connectivity"
+                ) as mock_ensure:
+                    mock_ensure.return_value = {"nodes": [], "edges": []}
+
+                    result = task_graph_formatter.format_task_graph(tasks)
+
+                    # Verify the method completed successfully
+                    assert result is not None
+                    mock_format_nodes.assert_called_once()
+                    mock_format_edges.assert_called_once()
+                    mock_ensure.assert_called_once()
+
+    def test_ensure_nested_graph_connectivity_else_branch(
+        self, task_graph_formatter: TaskGraphFormatter
+    ) -> None:
+        """Test ensure_nested_graph_connectivity else branch (line 648)."""
+        # Create a graph with nested graph nodes
+        graph = {
+            "nodes": [
+                ["0", {"resource": {"id": "nested_graph", "name": "NestedGraph"}}],
+                ["1", {"resource": {"id": "worker1", "name": "MessageWorker"}}],
+            ],
+            "edges": [],
+            "tasks": [
+                {
+                    "id": "task1",
+                    "steps": [
+                        {"description": "step1"},
+                        {"description": "step2"},
+                    ],
+                }
+            ],
+        }
+
+        # Mock the node_to_task_map to include the nested graph node
+        with patch.object(task_graph_formatter, "_format_nodes") as mock_format_nodes:
+            mock_format_nodes.return_value = (
+                [["0", {"resource": {"id": "nested_graph", "name": "NestedGraph"}}]],
+                {"task1_step0": "0", "task1_step1": "1"},
+                ["0"],
+            )
+
+            result = task_graph_formatter.ensure_nested_graph_connectivity(graph)
+
+            # Verify the method completed successfully
+            assert result is not None
+            assert "edges" in result
