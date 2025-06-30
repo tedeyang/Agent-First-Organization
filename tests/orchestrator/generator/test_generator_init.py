@@ -639,41 +639,137 @@ class TestBackwardCompatibility:
 
 
 def test_generator_init_importerror_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Remove ui from sys.modules if present
-    sys.modules.pop("arklex.orchestrator.generator.ui", None)
-    sys.modules.pop("arklex.orchestrator.generator.ui.input_modal", None)
-    sys.modules.pop("arklex.orchestrator.generator.ui.task_editor", None)
-    # Patch import to raise ImportError for .ui
-    import arklex.orchestrator.generator
+    # Store original modules to restore later
+    original_modules = {}
+    for modname in [
+        "arklex.orchestrator.generator",
+        "arklex.orchestrator.generator.ui",
+        "arklex.orchestrator.generator.ui.input_modal",
+        "arklex.orchestrator.generator.ui.task_editor",
+    ]:
+        if modname in sys.modules:
+            original_modules[modname] = sys.modules[modname]
+            del sys.modules[modname]
 
-    monkeypatch.setattr(arklex.orchestrator.generator, "ui", None, raising=False)
-    orig_import = __import__
+    try:
+        # Patch import to raise ImportError for .ui
 
-    def fake_import(name: str, *a: object, **k: object) -> object:
-        if name.endswith(".ui"):
-            raise ImportError
-        return orig_import(name, *a, **k)
+        # Don't set ui to None, just patch the import to fail
+        orig_import = __import__
 
-    monkeypatch.setattr("builtins.__import__", fake_import)
-    # Instead of reload, re-import using importlib.util
+        def fake_import(name: str, *a: object, **k: object) -> object:
+            if name.endswith(".ui"):
+                raise ImportError
+            return orig_import(name, *a, **k)
+
+        monkeypatch.setattr("builtins.__import__", fake_import)
+        # Instead of reload, re-import using importlib.util
+        import importlib.util
+        import os
+        import pathlib
+
+        module_name = "arklex.orchestrator.generator"
+        module_path = os.path.join(
+            pathlib.Path(__file__).parent.parent.parent.parent,
+            "arklex",
+            "orchestrator",
+            "generator",
+            "__init__.py",
+        )
+        spec = importlib.util.spec_from_file_location(module_name, module_path)
+        mod = importlib.util.module_from_spec(spec)
+        with contextlib.suppress(ImportError):
+            spec.loader.exec_module(mod)
+        # After import, ui should be a dummy module if ImportError was raised
+        if hasattr(mod, "ui"):
+            assert isinstance(mod.ui, types.ModuleType)
+        else:
+            pytest.skip("ui attribute not present due to import error simulation.")
+
+    finally:
+        # Clean up: restore original modules
+        for modname in [
+            "arklex.orchestrator.generator",
+            "arklex.orchestrator.generator.ui",
+            "arklex.orchestrator.generator.ui.input_modal",
+            "arklex.orchestrator.generator.ui.task_editor",
+        ]:
+            if modname in sys.modules:
+                del sys.modules[modname]
+
+        # Restore original modules
+        for modname, module in original_modules.items():
+            sys.modules[modname] = module
+
+
+def test_generator_init_ui_fallback_specific_lines(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test the fallback logic in generator __init__.py when UI import fails."""
     import importlib.util
     import os
     import pathlib
+    import sys
 
-    module_name = "arklex.orchestrator.generator"
-    module_path = os.path.join(
-        pathlib.Path(__file__).parent.parent.parent.parent,
-        "arklex",
-        "orchestrator",
-        "generator",
-        "__init__.py",
-    )
-    spec = importlib.util.spec_from_file_location(module_name, module_path)
-    mod = importlib.util.module_from_spec(spec)
-    with contextlib.suppress(ImportError):
+    # Store original modules to restore later
+    original_modules = {}
+    for modname in [
+        "arklex.orchestrator.generator",
+        "arklex.orchestrator.generator.ui",
+        "arklex.orchestrator.generator.ui.input_modal",
+        "arklex.orchestrator.generator.ui.task_editor",
+    ]:
+        if modname in sys.modules:
+            original_modules[modname] = sys.modules[modname]
+            del sys.modules[modname]
+
+    try:
+        # Insert a custom object into sys.modules that raises ImportError on attribute access
+        class ImportErrorModule:
+            def __getattr__(self, name: str) -> None:
+                raise ImportError("Simulated UI import failure")
+
+        sys.modules["arklex.orchestrator.generator.ui"] = ImportErrorModule()
+
+        module_name = "arklex.orchestrator.generator"
+        module_path = os.path.join(
+            pathlib.Path(__file__).parent.parent.parent.parent,
+            "arklex",
+            "orchestrator",
+            "generator",
+            "__init__.py",
+        )
+        spec = importlib.util.spec_from_file_location(module_name, module_path)
+        mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
-    # After import, ui should be a dummy module if ImportError was raised
-    if hasattr(mod, "ui"):
-        assert isinstance(mod.ui, types.ModuleType)
-    else:
-        pytest.skip("ui attribute not present due to import error simulation.")
+
+        # Verify the fallback behavior
+        assert hasattr(mod, "ui")
+        assert isinstance(mod.ui, type(sys))
+        assert mod.ui.__name__ == "ui"
+        assert hasattr(mod, "_UI_COMPONENTS")
+        assert mod._UI_COMPONENTS == []
+        assert hasattr(mod, "_UI_AVAILABLE")
+        assert mod._UI_AVAILABLE is False
+        assert "Generator" in mod.__all__
+        assert "core" in mod.__all__
+        assert "tasks" in mod.__all__
+        assert "docs" in mod.__all__
+        assert "formatting" in mod.__all__
+        assert (
+            "ui" not in mod.__all__
+        )  # UI should not be in __all__ when fallback is used
+
+    finally:
+        # Clean up: restore original modules
+        for modname in [
+            "arklex.orchestrator.generator.ui",
+            "arklex.orchestrator.generator.ui.input_modal",
+            "arklex.orchestrator.generator.ui.task_editor",
+        ]:
+            if modname in sys.modules:
+                del sys.modules[modname]
+
+        # Restore original modules
+        for modname, module in original_modules.items():
+            sys.modules[modname] = module
