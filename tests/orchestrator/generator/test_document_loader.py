@@ -7,7 +7,7 @@ and validation components of the Arklex framework.
 import json
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, mock_open, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -757,8 +757,6 @@ class TestDocumentLoader:
 
     def test_load_task_document_html_fallback_no_title(self) -> None:
         """Test load_task_document with HTML content without title."""
-        loader = DocumentLoader(cache_dir=Path("/tmp"), validate_documents=False)
-
         # Create HTML content without title
         html_content = """
         <html>
@@ -770,16 +768,43 @@ class TestDocumentLoader:
         """
 
         with (
-            patch("builtins.open", mock_open(read_data=html_content)),
-            patch("pathlib.Path.exists", return_value=True),
             patch("pathlib.Path.read_text", return_value=html_content),
+            patch("pathlib.Path.exists", return_value=True),
         ):
-            result = loader.load_task_document("test.html")
-            # Check that the HTML was parsed correctly with default title
-            assert result["task_id"] == "html_task"
-            assert result["name"] == "HTML Document"
-            assert result["description"] == "Document parsed from HTML"
-            assert len(result["steps"]) == 2
+            document_loader = DocumentLoader(cache_dir=Path("/tmp/cache"))
+            doc_path = Path("/path/to/document.html")
+            document = document_loader.load_task_document(doc_path)
+
+            # Should create a document with default title
+            assert document["task_id"] == "html_task"
+            assert document["name"] == "HTML Document"  # Default name when no title
+            assert document["description"] == "Document parsed from HTML"
+            assert len(document["steps"]) == 2
+
+    def test_load_task_document_html_fallback_exception_handling(self) -> None:
+        """Test load_task_document HTML fallback exception handling (line 110)."""
+        # Mock HTML content that will cause an exception during parsing
+        html_content = "Invalid HTML content that will cause parsing error"
+
+        with (
+            patch("pathlib.Path.read_text", return_value=html_content),
+            patch("pathlib.Path.exists", return_value=True),
+        ):
+            document_loader = DocumentLoader(cache_dir=Path("/tmp/cache"))
+            doc_path = Path("/path/to/document.html")
+
+            # Mock BeautifulSoup to raise an exception
+            with patch(
+                "arklex.orchestrator.generator.docs.document_loader.BeautifulSoup"
+            ) as mock_bs:
+                mock_bs.side_effect = Exception("BeautifulSoup parsing error")
+
+                # Should raise ValueError with specific error message
+                with pytest.raises(
+                    ValueError,
+                    match="Content at .* is neither valid JSON nor parseable HTML",
+                ):
+                    document_loader.load_task_document(doc_path)
 
 
 class TestDocumentProcessor:
