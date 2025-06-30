@@ -836,3 +836,143 @@ def test_all_list_construction_execution_coverage() -> None:
     # Should also include UI components
     assert "TaskEditorApp" in __all__
     assert "InputModal" in __all__
+
+
+def test_ui_components_placeholder_classes_instantiation_with_force_flag() -> None:
+    """Test placeholder classes instantiation with ARKLEX_FORCE_UI_IMPORT_ERROR flag (lines 86-104)."""
+    # Set environment variable to force UI import error
+    os.environ["ARKLEX_FORCE_UI_IMPORT_ERROR"] = "1"
+    try:
+        import importlib
+
+        if "arklex.orchestrator.generator" in importlib.sys.modules:
+            del importlib.sys.modules["arklex.orchestrator.generator"]
+
+        # Import the module to trigger the placeholder class creation
+        from arklex.orchestrator.generator import InputModal, TaskEditorApp
+
+        # Test that placeholder classes raise ImportError when instantiated
+        with pytest.raises(
+            ImportError,
+            match="TaskEditorApp requires 'textual' package to be installed",
+        ):
+            TaskEditorApp(tasks=[])
+
+        with pytest.raises(
+            ImportError, match="InputModal requires 'textual' package to be installed"
+        ):
+            InputModal(title="test", default="test")
+
+    finally:
+        # Clean up environment variable
+        os.environ.pop("ARKLEX_FORCE_UI_IMPORT_ERROR", None)
+
+
+def test_ui_components_placeholder_classes_with_force_flag() -> None:
+    """Test placeholder classes creation with ARKLEX_FORCE_UI_IMPORT_ERROR flag (lines 86-104)."""
+    # Set environment variable to force UI import error
+    os.environ["ARKLEX_FORCE_UI_IMPORT_ERROR"] = "1"
+    try:
+        import importlib
+
+        if "arklex.orchestrator.generator" in importlib.sys.modules:
+            del importlib.sys.modules["arklex.orchestrator.generator"]
+
+        # Import the module to trigger the placeholder class creation
+        import arklex.orchestrator.generator as gen_module
+
+        # Test that placeholder classes are created
+        assert hasattr(gen_module, "TaskEditorApp")
+        assert hasattr(gen_module, "InputModal")
+
+        # Test that _UI_COMPONENTS is empty when force flag is set
+        assert hasattr(gen_module, "_UI_COMPONENTS")
+        assert isinstance(gen_module._UI_COMPONENTS, list)
+        assert len(gen_module._UI_COMPONENTS) == 0
+
+    finally:
+        # Clean up environment variable
+        os.environ.pop("ARKLEX_FORCE_UI_IMPORT_ERROR", None)
+
+
+def test_ui_components_import_error_fallback() -> None:
+    """Test UI components import error fallback (lines 86-104)."""
+    # Set environment variable to force UI import error
+    os.environ["ARKLEX_FORCE_UI_IMPORT_ERROR"] = "1"
+    try:
+        import importlib
+
+        if "arklex.orchestrator.generator" in importlib.sys.modules:
+            del importlib.sys.modules["arklex.orchestrator.generator"]
+
+        # Import the module to trigger the fallback
+        from arklex.orchestrator.generator import InputModal, TaskEditorApp
+
+        # Test that placeholder classes are created
+        with pytest.raises(
+            ImportError,
+            match="TaskEditorApp requires 'textual' package to be installed",
+        ):
+            TaskEditorApp(tasks=[])
+
+        with pytest.raises(
+            ImportError, match="InputModal requires 'textual' package to be installed"
+        ):
+            InputModal(title="test", default="test")
+
+    finally:
+        # Clean up environment variable
+        os.environ.pop("ARKLEX_FORCE_UI_IMPORT_ERROR", None)
+
+
+def test_ui_components_other_exception_fallback() -> None:
+    """Test UI components other exception fallback (lines 86-104)."""
+    # Set environment variable to force UI import error
+    os.environ["ARKLEX_FORCE_UI_IMPORT_ERROR"] = "1"
+    try:
+        import importlib
+
+        if "arklex.orchestrator.generator" in importlib.sys.modules:
+            del importlib.sys.modules["arklex.orchestrator.generator"]
+
+        # Import the module to trigger the fallback
+        from arklex.orchestrator.generator import InputModal, TaskEditorApp
+
+        # Test that placeholder classes are created
+        with pytest.raises(
+            ImportError,
+            match="TaskEditorApp requires 'textual' package to be installed",
+        ):
+            TaskEditorApp(tasks=[])
+
+        with pytest.raises(
+            ImportError, match="InputModal requires 'textual' package to be installed"
+        ):
+            InputModal(title="test", default="test")
+
+    finally:
+        # Clean up environment variable
+        os.environ.pop("ARKLEX_FORCE_UI_IMPORT_ERROR", None)
+
+
+def test_ui_components_empty_list_assignment() -> None:
+    """Test _UI_COMPONENTS empty list assignment when UI components are not available (lines 86-104)."""
+    # Set environment variable to force UI import error
+    os.environ["ARKLEX_FORCE_UI_IMPORT_ERROR"] = "1"
+    try:
+        import importlib
+
+        if "arklex.orchestrator.generator" in importlib.sys.modules:
+            del importlib.sys.modules["arklex.orchestrator.generator"]
+
+        # Import the module to trigger the fallback
+        import arklex.orchestrator.generator as gen_module
+
+        # Test that _UI_COMPONENTS is empty
+        assert hasattr(gen_module, "_UI_COMPONENTS")
+        assert isinstance(gen_module._UI_COMPONENTS, list)
+        assert len(gen_module._UI_COMPONENTS) == 0
+
+    finally:
+        # Clean up environment variable
+        os.environ.pop("ARKLEX_FORCE_UI_IMPORT_ERROR", None)
