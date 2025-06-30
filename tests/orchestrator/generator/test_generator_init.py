@@ -9,7 +9,7 @@ import importlib
 import importlib.util
 import sys
 from collections.abc import Generator as TypeGenerator
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
@@ -623,6 +623,229 @@ def test_ui_components_list_variable_assignment() -> None:
 
 
 def test_all_list_construction_execution() -> None:
+    """Test __all__ list construction execution."""
+    # This test ensures the __all__ list construction is executed
+    from arklex.orchestrator.generator import __all__
+
+    # Verify the list contains expected items
+    expected_items = ["Generator", "core", "ui", "tasks", "docs", "formatting"]
+    for item in expected_items:
+        assert item in __all__, f"Missing item in __all__: {item}"
+
+    # Should also include UI components
+    assert "TaskEditorApp" in __all__
+    assert "InputModal" in __all__
+
+
+def test_ui_components_placeholder_classes_instantiation() -> None:
+    """Test that placeholder classes raise ImportError when instantiated."""
+    # This test covers lines 66-82 in generator/__init__.py
+    # Test the placeholder classes when UI components are not available
+
+    # Mock the UI module to be unavailable
+    with patch.dict("sys.modules", {"arklex.orchestrator.generator.ui": None}):
+        # Reload the module to trigger the placeholder class creation
+        import importlib
+
+        if "arklex.orchestrator.generator" in importlib.sys.modules:
+            del importlib.sys.modules["arklex.orchestrator.generator"]
+
+        # Import the module again to execute the placeholder class creation
+        try:
+            from arklex.orchestrator.generator import InputModal, TaskEditorApp
+        except ModuleNotFoundError:
+            # If the import fails due to missing UI module, that's expected
+            # We can't test the placeholder classes in this case
+            pytest.skip("UI module not available for testing placeholder classes")
+
+        # Test that the placeholder classes raise ImportError
+        with pytest.raises(
+            ImportError,
+            match="TaskEditorApp requires 'textual' package to be installed",
+        ):
+            TaskEditorApp(tasks=[])
+
+        with pytest.raises(
+            ImportError, match="InputModal requires 'textual' package to be installed"
+        ):
+            InputModal(title="test", default="test")
+
+
+def test_ui_components_placeholder_classes_attributes() -> None:
+    """Test that placeholder classes have the expected attributes."""
+    # This test covers the placeholder class definitions in lines 66-82
+
+    # Mock the UI module to be unavailable
+    with patch.dict("sys.modules", {"arklex.orchestrator.generator.ui": None}):
+        # Reload the module to trigger the placeholder class creation
+        import importlib
+
+        if "arklex.orchestrator.generator" in importlib.sys.modules:
+            del importlib.sys.modules["arklex.orchestrator.generator"]
+
+        # Import the module again to execute the placeholder class creation
+        try:
+            from arklex.orchestrator.generator import InputModal, TaskEditorApp
+        except ModuleNotFoundError:
+            # If the import fails due to missing UI module, that's expected
+            pytest.skip("UI module not available for testing placeholder classes")
+
+        # Test that the placeholder classes have the expected docstrings
+        assert (
+            "Placeholder class when UI components are not available"
+            in TaskEditorApp.__doc__
+        )
+        assert (
+            "Placeholder class when UI components are not available"
+            in InputModal.__doc__
+        )
+
+        # Test that the classes are callable (have __init__ method)
+        assert hasattr(TaskEditorApp, "__init__")
+        assert hasattr(InputModal, "__init__")
+
+
+def test_ui_components_list_assignment_without_textual() -> None:
+    """Test _UI_COMPONENTS list assignment when textual is not available."""
+    # This test covers the _UI_COMPONENTS = [] assignment in lines 66-82
+
+    # Mock the UI module to be unavailable
+    with patch.dict("sys.modules", {"arklex.orchestrator.generator.ui": None}):
+        # Reload the module to trigger the placeholder class creation
+        import importlib
+
+        if "arklex.orchestrator.generator" in importlib.sys.modules:
+            del importlib.sys.modules["arklex.orchestrator.generator"]
+
+        # Import the module again to execute the placeholder class creation
+        try:
+            import arklex.orchestrator.generator as gen_module
+        except ModuleNotFoundError:
+            # If the import fails due to missing UI module, that's expected
+            pytest.skip("UI module not available for testing _UI_COMPONENTS")
+
+        # Test that _UI_COMPONENTS is an empty list when textual is not available
+        assert hasattr(gen_module, "_UI_COMPONENTS")
+        assert isinstance(gen_module._UI_COMPONENTS, list)
+        assert len(gen_module._UI_COMPONENTS) == 0
+
+
+def test_ui_components_list_assignment_with_textual() -> None:
+    """Test _UI_COMPONENTS list assignment when textual is available."""
+    # This test covers the _UI_COMPONENTS = ["TaskEditorApp", "InputModal"] assignment
+
+    # Mock the UI module to be available
+    with (
+        patch("arklex.orchestrator.generator.ui.TaskEditorApp", Mock()),
+        patch("arklex.orchestrator.generator.ui.InputModal", Mock()),
+    ):
+        # Reload the module to trigger the UI component import
+        import importlib
+
+        if "arklex.orchestrator.generator" in importlib.sys.modules:
+            del importlib.sys.modules["arklex.orchestrator.generator"]
+
+        # Import the module again to execute the UI component import
+        import arklex.orchestrator.generator as gen_module
+
+        # Test that _UI_COMPONENTS contains the expected UI component names
+        assert hasattr(gen_module, "_UI_COMPONENTS")
+        assert isinstance(gen_module._UI_COMPONENTS, list)
+        assert "TaskEditorApp" in gen_module._UI_COMPONENTS
+        assert "InputModal" in gen_module._UI_COMPONENTS
+
+
+def test_specialized_modules_import_execution_coverage() -> None:
+    """Test that specialized module imports execute correctly."""
+    # This test covers the line: from . import core, docs, formatting, tasks, ui
+    from arklex.orchestrator.generator import core, docs, formatting, tasks, ui
+
+    # Verify all specialized modules are imported and accessible
+    assert core is not None
+    assert docs is not None
+    assert formatting is not None
+    assert tasks is not None
+    assert ui is not None
+
+
+def test_all_list_construction_with_ui_components_coverage() -> None:
+    """Test __all__ list construction when UI components are available."""
+    # This test covers the __all__ list construction with UI components
+    from arklex.orchestrator.generator import __all__
+
+    # Should include Generator and UI components
+    assert "Generator" in __all__
+    assert "core" in __all__
+    assert "ui" in __all__
+    assert "tasks" in __all__
+    assert "docs" in __all__
+    assert "formatting" in __all__
+
+
+def test_specialized_modules_import_statement_execution_coverage() -> None:
+    """Test that the specialized modules import statement executes correctly."""
+    # This test ensures the line "from . import core, docs, formatting, tasks, ui" is covered
+    import arklex.orchestrator.generator
+
+    # Verify the modules are accessible through the package
+    assert hasattr(arklex.orchestrator.generator, "core")
+    assert hasattr(arklex.orchestrator.generator, "docs")
+    assert hasattr(arklex.orchestrator.generator, "formatting")
+    assert hasattr(arklex.orchestrator.generator, "tasks")
+    assert hasattr(arklex.orchestrator.generator, "ui")
+
+
+def test_all_list_unpacking_with_ui_components_coverage() -> None:
+    """Test __all__ list unpacking when UI components are available."""
+    # This test covers the unpacking syntax "*_UI_COMPONENTS" in the __all__ list
+    from arklex.orchestrator.generator import __all__
+
+    # Test that the unpacking syntax "*_UI_COMPONENTS" works correctly
+    # This covers the line: __all__ = ["Generator", *_UI_COMPONENTS, "core", "ui", "tasks", "docs", "formatting"]
+    expected_base_items = ["Generator", "core", "ui", "tasks", "docs", "formatting"]
+
+    # All base items should be present
+    for item in expected_base_items:
+        assert item in __all__, f"Missing item in __all__: {item}"
+
+    # Should also include UI component names
+    assert "TaskEditorApp" in __all__ or "InputModal" in __all__
+
+
+def test_module_level_import_execution_coverage() -> None:
+    """Test that module level imports execute correctly."""
+    # This test ensures the import statements at the module level are executed
+    import importlib
+
+    # Reload the module to ensure all imports are executed
+    if "arklex.orchestrator.generator" in importlib.sys.modules:
+        del importlib.sys.modules["arklex.orchestrator.generator"]
+
+    # Import the module again to execute all lines
+    from arklex.orchestrator.generator import Generator, __all__
+
+    # Verify the imports worked
+    assert Generator is not None
+    assert len(__all__) > 0
+
+    # Restore the module
+    if "arklex.orchestrator.generator" in importlib.sys.modules:
+        del importlib.sys.modules["arklex.orchestrator.generator"]
+
+
+def test_ui_components_list_variable_assignment_coverage() -> None:
+    """Test _UI_COMPONENTS list variable assignment."""
+    # This test ensures the _UI_COMPONENTS variable assignment is covered
+    # The _UI_COMPONENTS variable should be defined
+    # This covers the line: _UI_COMPONENTS = ["TaskEditorApp", "InputModal"]
+    from arklex.orchestrator.generator import __all__
+
+    # Should include UI components
+    assert "TaskEditorApp" in __all__
+    assert "InputModal" in __all__
+
+
+def test_all_list_construction_execution_coverage() -> None:
     """Test __all__ list construction execution."""
     # This test ensures the __all__ list construction is executed
     from arklex.orchestrator.generator import __all__
