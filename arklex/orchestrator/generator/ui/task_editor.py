@@ -90,7 +90,7 @@ class TaskEditorApp(App):
             ComposeResult: The composed UI elements including the tree widget
                           and instruction label
         """
-        self.task_tree = Tree("Tasks")
+        self.task_tree = Tree("🎯 TASK EDITOR - Edit Your Tasks Below")
         # Check if root exists before trying to expand it
         if self.task_tree.root is not None:
             self.task_tree.root.expand()
@@ -111,7 +111,7 @@ class TaskEditorApp(App):
                         task_node.add_leaf(step_text)
         yield self.task_tree
         yield Label(
-            "Use 'a' to add nodes, 'd' to delete, 's' to save and exit, arrow keys to navigate"
+            "🎯 TASK EDITOR ACTIVE - Use 'a' to add nodes, 'd' to delete, 's' to save and exit, arrow keys to navigate"
         )
 
     def on_mount(self) -> None:
@@ -301,7 +301,7 @@ class TaskEditorApp(App):
             List[Dict[str, Any]]: The updated tasks list with any modifications
                                  made by the user during the editing session
         """
-        # Avoid calling super().run() to prevent Textual issues in testing
-        # In a real environment, this would start the app
-        # For testing purposes, we just return the tasks
+        # Run the actual Textual app
+        super().run()
+        # Return the tasks (which may have been modified during the session)
         return self.tasks
