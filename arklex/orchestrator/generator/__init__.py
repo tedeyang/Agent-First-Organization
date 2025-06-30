@@ -55,16 +55,14 @@ Usage:
     output_path = generator.save_task_graph(task_graph)
 """
 
+import os
+
 # Import main classes for backward compatibility
 from .core import Generator
 
 # Make UI components optional to avoid dependency issues
-try:
-    from .ui import InputModal, TaskEditorApp
-
-    _UI_COMPONENTS = ["TaskEditorApp", "InputModal"]
-except ImportError:
-    # Create placeholder classes when UI dependencies are not available
+if os.environ.get("ARKLEX_FORCE_UI_IMPORT_ERROR") == "1":
+    # Create placeholder classes when UI dependencies are not available (test hook)
     class TaskEditorApp:
         """Placeholder class when UI components are not available."""
 
@@ -80,6 +78,30 @@ except ImportError:
             raise ImportError("InputModal requires 'textual' package to be installed")
 
     _UI_COMPONENTS = []
+else:
+    try:
+        from .ui import InputModal, TaskEditorApp
+
+        _UI_COMPONENTS = ["TaskEditorApp", "InputModal"]
+    except ImportError:
+        # Create placeholder classes when UI dependencies are not available
+        class TaskEditorApp:
+            """Placeholder class when UI components are not available."""
+
+            def __init__(self, *args: object, **kwargs: object) -> None:
+                raise ImportError(
+                    "TaskEditorApp requires 'textual' package to be installed"
+                )
+
+        class InputModal:
+            """Placeholder class when UI components are not available."""
+
+            def __init__(self, *args: object, **kwargs: object) -> None:
+                raise ImportError(
+                    "InputModal requires 'textual' package to be installed"
+                )
+
+        _UI_COMPONENTS = []
 
 # Import specialized modules for advanced usage
 from . import core, docs, formatting, tasks, ui
