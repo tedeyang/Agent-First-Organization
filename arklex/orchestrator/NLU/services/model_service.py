@@ -66,8 +66,7 @@ class ModelService:
         self.model_config = model_config
         self._validate_config()
         try:
-            self.api_service = APIClientService(
-                base_url=self.model_config["endpoint"])
+            self.api_service = APIClientService(base_url=self.model_config["endpoint"])
             self.model = self._initialize_model()
             log_context.info(
                 "ModelService initialized successfully",
@@ -542,8 +541,7 @@ class ModelService:
         # Parse and validate verification response
         try:
             verification_data = json.loads(response.content)
-            validated_response = validate_verification_response(
-                verification_data)
+            validated_response = validate_verification_response(verification_data)
             log_context.info(
                 "Slot verification successful",
                 extra={
@@ -776,8 +774,7 @@ class ModelService:
                 raise ValueError("Empty response from model")
 
             if note:
-                log_context.info(
-                    f"Model response for {note}: {response.content}")
+                log_context.info(f"Model response for {note}: {response.content}")
 
             return response.content
         except Exception as e:
@@ -894,16 +891,14 @@ Please choose the most appropriate intent by providing the corresponding intent 
                 slot_name = slot.get("name", "")
                 slot_type = slot.get("type", "string")
                 description = slot.get("description", "")
-                required = "required" if slot.get(
-                    "required", False) else "optional"
+                required = "required" if slot.get("required", False) else "optional"
                 items = slot.get("items", {})
             else:
                 slot_name = getattr(slot, "name", "")
                 slot_type = getattr(slot, "type", "string")
                 description = getattr(slot, "description", "")
                 required = (
-                    "required" if getattr(
-                        slot, "required", False) else "optional"
+                    "required" if getattr(slot, "required", False) else "optional"
                 )
                 items = getattr(slot, "items", {})
 
@@ -964,8 +959,7 @@ Please choose the most appropriate intent by providing the corresponding intent 
             for slot in slots:
                 # Handle both dict and Pydantic model inputs
                 is_dict = isinstance(slot, dict)
-                slot_name = slot.get(
-                    "name") if is_dict else getattr(slot, "name")
+                slot_name = slot.get("name") if is_dict else slot.name
                 base_slot = deepcopy(slot)
 
                 if slot_name in extracted_values:
@@ -979,29 +973,27 @@ Please choose the most appropriate intent by providing the corresponding intent 
                             if is_dict:
                                 new_slot["value"] = item
                             else:
-                                setattr(new_slot, "value", item)
+                                new_slot.value = item
                             new_slots.append(new_slot)
                     else:
                         if is_dict:
                             base_slot["value"] = value
                         else:
-                            setattr(base_slot, "value", value)
+                            base_slot.value = value
                         new_slots.append(base_slot)
                 else:
                     if is_dict:
                         base_slot["value"] = None
                     else:
-                        setattr(base_slot, "value", None)
+                        base_slot.value = None
                     new_slots.append(base_slot)
 
             return new_slots
         except json.JSONDecodeError as e:
             log_context.error(f"Error parsing slot filling response: {str(e)}")
-            raise ValueError(
-                f"Failed to parse slot filling response: {str(e)}") from e
+            raise ValueError(f"Failed to parse slot filling response: {str(e)}") from e
         except Exception as e:
-            log_context.error(
-                f"Error processing slot filling response: {str(e)}")
+            log_context.error(f"Error processing slot filling response: {str(e)}")
             raise ValueError(
                 f"Failed to process slot filling response: {str(e)}"
             ) from e
@@ -1037,8 +1029,7 @@ Please choose the most appropriate intent by providing the corresponding intent 
             # Parse JSON response from formatters
             log_context.info(f"Verification response: {response}")
             response_data = json.loads(response)
-            verification_needed = response_data.get(
-                "verification_needed", True)
+            verification_needed = response_data.get("verification_needed", True)
             thought = response_data.get("thought", "No reasoning progivided")
             return verification_needed, thought
         except json.JSONDecodeError as e:

@@ -12,7 +12,6 @@ import json
 from typing import TypedDict
 
 import shopify
-from langchain_openai import ChatOpenAI
 
 from arklex.env.tools.shopify._exception_prompt import ShopifyExceptionPrompt
 from arklex.env.tools.shopify.utils import authorify_admin
@@ -28,7 +27,6 @@ from arklex.env.tools.shopify.utils_slots import (
 from arklex.env.tools.tools import register_tool
 from arklex.utils.exceptions import ToolExecutionError
 from arklex.utils.logging_utils import LogContext
-from arklex.utils.model_provider_config import PROVIDER_MAP
 
 log_context = LogContext(__name__)
 

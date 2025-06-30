@@ -10,19 +10,15 @@ import os
 import traceback
 import uuid
 from collections.abc import Callable
-from typing import Any, TypedDict, List, Dict
+from typing import Any, TypedDict
 
+from arklex.env.tools.utils import generate_multi_slot_cohesive_response
 from arklex.orchestrator.NLU.core.slot import SlotFiller
 from arklex.utils.exceptions import AuthenticationError, ToolExecutionError
-from arklex.env.tools.utils import generate_multi_slot_cohesive_response
 from arklex.utils.graph_state import MessageState, StatusEnum
 from arklex.utils.logging_utils import LogContext
 from arklex.utils.slot import Slot
 from arklex.utils.utils import format_chat_history
-from arklex.utils.exceptions import ToolExecutionError, AuthenticationError
-from arklex.utils.logging_utils import LogContext
-from arklex.orchestrator.NLU.services.model_service import ModelService
-from arklex.orchestrator.NLU.services.api_service import APIClientService
 
 log_context = LogContext(__name__)
 
@@ -67,8 +63,7 @@ def register_tool(
         # reformat the relative path to replace / and \\ with -, and remove .py, because the function calling in openai only allow the function name match the patter the pattern '^[a-zA-Z0-9_-]+$'
         # different file paths format in Windows and linux systems
         relative_path = (
-            relative_path.replace("/", "-").replace("\\",
-                                                    "-").replace(".py", "")
+            relative_path.replace("/", "-").replace("\\", "-").replace(".py", "")
         )
         key: str = f"{relative_path}-{func.__name__}"
 
@@ -250,8 +245,7 @@ class Tool:
         # init slot values saved in default slots
         self._init_slots(state)
         # do slotfilling
-        chat_history_str: str = format_chat_history(
-            state.function_calling_trajectory)
+        chat_history_str: str = format_chat_history(state.function_calling_trajectory)
         slots: list[Slot] = self.slotfiller.fill_slots(
             self.slots, chat_history_str, self.llm_config
         )
@@ -292,36 +286,33 @@ class Tool:
 
         # if all required slots are filled and verified, then execute the function
         tool_success: bool = False
-        all_responses: List = []
         if not missing_required:
             log_context.info("all required slots filled")
+
             try:
-                sig = inspect.signature(self.func)
-                required_args = [
-                    name
-                    for name, param in sig.parameters.items()
-                    if param.default == inspect.Parameter.empty
-                ]
-
-                # Call tool for each slot
-                for slot in slots:
-                    result = self._call_tool_for_slot(
-                        state, slot, fixed_args, required_args
-                    )
-                    all_responses.append(result)
-
-                # Combine individual slot responses
-                tool_success = all(r.get("success") for r in all_responses)
-                response = "\n".join(
-                    f"{r.get('response')}" for r in all_responses)
-                state.status = (
-                    StatusEnum.COMPLETE if tool_success else StatusEnum.INCOMPLETE
-                )
-
+                required_args = self._get_required_args()
             except Exception as e:
-                log_context.error(traceback.format_exc())
+                log_context.error(f"Failed to inspect function signature: {e}")
                 response = str(e)
                 state.status = StatusEnum.INCOMPLETE
+            else:
+                grouped_slots = self._group_slots_by_name(slots)
+                # Execute tool calls
+                try:
+                    all_responses = self.call_tool_for_grouped_slots(
+                        state, grouped_slots, fixed_args, required_args
+                    )
+                    tool_success = all(r.get("success") for r in all_responses)
+                    response = "\n".join(f"{r.get('response')}" for r in all_responses)
+                    state.status = (
+                        StatusEnum.COMPLETE if tool_success else StatusEnum.INCOMPLETE
+                    )
+                except Exception as e:
+                    log_context.error(
+                        f"Tool execution failed: {traceback.format_exc()}"
+                    )
+                    response = str(e)
+                    state.status = StatusEnum.INCOMPLETE
 
         state.trajectory[-1][-1].input = slots
         state.trajectory[-1][-1].output = response
@@ -348,8 +339,7 @@ class Tool:
         else:
             # Tool execution failed
             if slot_verification:
-                log_context.info(
-                    "Tool execution INCOMPLETE due to slot verification")
+                log_context.info("Tool execution INCOMPLETE due to slot verification")
                 state.message_flow = f"Context from {self.name} tool execution: {response}\n Focus on the '{reason}' to generate the verification request in response please and make sure the request appear in the response."
             else:
                 log_context.info(
@@ -362,61 +352,77 @@ class Tool:
         state.slots[self.name] = slots
         return state
 
-    def _call_tool_for_slot(
-        self, state: MessageState, slot: Slot, fixed_args: Any, required_args: Any
-    ) -> Dict[str, Any]:
-        """Call the tool function for a single slot and return the response."""
-        # Always include the slot value, even if None
-        kwargs: Dict[str, Any] = {
-            slot.name: slot.value if slot.value is not None else ""
-        }
-        combined_kwargs: Dict[str, Any] = {
-            **kwargs,
-            **fixed_args,
-            **self.llm_config,
-        }
+    def _get_required_args(self) -> list[str]:
+        """Extract the function signature to get required parameters"""
+        sig = inspect.signature(self.func)
+        return [
+            name
+            for name, param in sig.parameters.items()
+            if param.default == inspect.Parameter.empty
+        ]
 
-        # Ensure all required args are present
-        for arg in required_args:
-            if arg not in combined_kwargs:
-                combined_kwargs[arg] = ""
+    def _group_slots_by_name(self, slots: list[Slot]) -> dict[str, list[Slot]]:
+        grouped: dict[str, list[Slot]] = {}
+        for slot in slots:
+            grouped.setdefault(slot.name, []).append(slot)
+        return grouped
 
-        try:
-            response = self.func(**combined_kwargs)
+    def call_tool_for_grouped_slots(
+        self,
+        state: MessageState,
+        grouped_slots: dict[str, list[Slot]],
+        fixed_args: Any,
+        required_args: list,
+    ) -> list[dict[str, Any]]:
+        """Call the tool for grouped slots, making calls based on the maximum length of the slot lists."""
+
+        max_length = max(len(v) for v in grouped_slots.values())
+        all_responses = []
+
+        for i in range(max_length):
+            kwargs: dict[str, Any] = {}
+
+            # Extract values from grouped slot lists by index
+            kwargs = {
+                name: slots[i].value if i < len(slots) else None
+                for name, slots in grouped_slots.items()
+            }
+
+            combined_kwargs = {**kwargs, **fixed_args, **self.llm_config}
+            # Ensure all required arguments are present
+            combined_kwargs.update(
+                {arg: combined_kwargs.get(arg, "") for arg in required_args}
+            )
+
+            try:
+                response = self.func(**combined_kwargs)
+                tool_success = True
+            except ToolExecutionError as tee:
+                log_context.error(traceback.format_exc())
+                response = tee.extra_message
+                tool_success = False
+            except AuthenticationError as ae:
+                log_context.error(traceback.format_exc())
+                response = str(ae)
+                tool_success = False
+            except Exception as e:
+                log_context.error(traceback.format_exc())
+                response = str(e)
+                tool_success = False
+
             call_id = str(uuid.uuid4())
-            log_context.info(f"Tool {self.name} response: {response}")
+            log_context.info(f"Tool {self.name} response for iteration {i}: {response}")
             self._log_tool_call(state, kwargs, response, call_id)
 
-            return {
-                "slot": slot.name,
-                "value": slot.value,
-                "response": response,
-                "success": True,
-            }
-        except ToolExecutionError as tee:
-            log_context.error(traceback.format_exc())
-            return {
-                "slot": slot.name,
-                "value": slot.value,
-                "response": tee.extra_message,
-                "success": False,
-            }
-        except AuthenticationError as ae:
-            log_context.error(traceback.format_exc())
-            return {
-                "slot": slot.name,
-                "value": slot.value,
-                "response": str(ae),
-                "success": False,
-            }
-        except Exception as e:
-            log_context.error(traceback.format_exc())
-            return {
-                "slot": slot.name,
-                "value": slot.value,
-                "response": str(e),
-                "success": False,
-            }
+            all_responses.append(
+                {
+                    "slot": kwargs,
+                    "response": response,
+                    "success": tool_success,
+                }
+            )
+
+        return all_responses
 
     def _log_tool_call(
         self, state: MessageState, kwargs: Any, response: Any, call_id: str
@@ -443,7 +449,7 @@ class Tool:
                 "role": "tool",
                 "tool_call_id": call_id,
                 "name": self.name,
-                "content": response,
+                "content": str(response),
             }
         )
 

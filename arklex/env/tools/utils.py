@@ -9,8 +9,11 @@ provide flexible response generation capabilities.
 
 import inspect
 import json
-from typing import Dict, Any, List, Optional, Union, TypeVar, Generic, Protocol, TypedDict
-
+from typing import (
+    Any,
+    Protocol,
+    TypedDict,
+)
 
 from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
@@ -65,8 +68,7 @@ class ToolGenerator:
         )
         prompt: PromptTemplate = get_prompt_template(state, "generator_prompt")
         input_prompt: Any = prompt.invoke(
-            {"sys_instruct": state.sys_instruct,
-                "formatted_chat": user_message.history}
+            {"sys_instruct": state.sys_instruct, "formatted_chat": user_message.history}
         )
         log_context.info(f"Prompt: {input_prompt.text}")
         final_chain: Any = llm | StrOutputParser()
@@ -114,8 +116,7 @@ class ToolGenerator:
         )
 
         # generate answer based on the retrieved texts
-        prompt: PromptTemplate = get_prompt_template(
-            state, "context_generator_prompt")
+        prompt: PromptTemplate = get_prompt_template(state, "context_generator_prompt")
         input_prompt: Any = prompt.invoke(
             {
                 "sys_instruct": state.sys_instruct,
@@ -168,8 +169,7 @@ class ToolGenerator:
         )
 
         # generate answer based on the retrieved texts
-        prompt: PromptTemplate = get_prompt_template(
-            state, "context_generator_prompt")
+        prompt: PromptTemplate = get_prompt_template(state, "context_generator_prompt")
 
         input_prompt: Any = prompt.invoke(
             {
@@ -202,8 +202,7 @@ class ToolGenerator:
         )
         prompt: PromptTemplate = get_prompt_template(state, "generator_prompt")
         input_prompt: Any = prompt.invoke(
-            {"sys_instruct": state.sys_instruct,
-                "formatted_chat": user_message.history}
+            {"sys_instruct": state.sys_instruct, "formatted_chat": user_message.history}
         )
         final_chain: Any = llm | StrOutputParser()
         answer: str = ""
@@ -255,7 +254,7 @@ def execute_tool(self, tool_name: str, **kwargs: Any) -> Any:
 
 
 def generate_multi_slot_cohesive_response(
-    raw_data: str, llm_config: Dict[str, Any]
+    raw_data: str, llm_config: dict[str, Any]
 ) -> str:
     # combine raw data into a singular card list
     json_objects = raw_data.strip().split("\n")
