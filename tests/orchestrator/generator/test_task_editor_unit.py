@@ -252,8 +252,8 @@ class TestIntegration:
             mock_tree = Mock()
             app.task_tree = mock_tree
 
-            # Call compose (we'll just test the data manager call)
-            app._data_manager.populate_tree_from_tasks(mock_tree, tasks)
+            # Call the static method directly (since we removed the instance)
+            TaskDataManager.populate_tree_from_tasks(mock_tree, tasks)
 
             TaskDataManager.populate_tree_from_tasks.assert_called_once_with(
                 mock_tree, tasks
