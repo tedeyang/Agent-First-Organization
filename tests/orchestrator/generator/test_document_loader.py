@@ -7,7 +7,7 @@ and validation components of the Arklex framework.
 import json
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
@@ -782,29 +782,83 @@ class TestDocumentLoader:
             assert len(document["steps"]) == 2
 
     def test_load_task_document_html_fallback_exception_handling(self) -> None:
-        """Test load_task_document HTML fallback exception handling (line 110)."""
-        # Mock HTML content that will cause an exception during parsing
-        html_content = "Invalid HTML content that will cause parsing error"
+        """Test HTML fallback exception handling in load_task_document."""
+        from pathlib import Path
 
+        from arklex.orchestrator.generator.docs.document_loader import DocumentLoader
+
+        # Create a document loader
+        loader = DocumentLoader(cache_dir=Path("/tmp/cache"))
+
+        # Create a mock HTML content that will cause BeautifulSoup to fail
+        html_content = "<html><body><p>Invalid HTML with unclosed tags<p>"
+
+        # Mock the file system to return HTML content
         with (
-            patch("pathlib.Path.read_text", return_value=html_content),
+            patch("builtins.open", mock_open(read_data=html_content)),
             patch("pathlib.Path.exists", return_value=True),
-        ):
-            document_loader = DocumentLoader(cache_dir=Path("/tmp/cache"))
-            doc_path = Path("/path/to/document.html")
-
-            # Mock BeautifulSoup to raise an exception
-            with patch(
+            patch("pathlib.Path.read_text", return_value=html_content),
+            patch(
+                "json.loads", side_effect=json.JSONDecodeError("Invalid JSON", "", 0)
+            ),
+            patch(
                 "arklex.orchestrator.generator.docs.document_loader.BeautifulSoup"
-            ) as mock_bs:
-                mock_bs.side_effect = Exception("BeautifulSoup parsing error")
+            ) as mock_soup,
+        ):
+            # Make BeautifulSoup raise an exception
+            mock_soup.side_effect = Exception("BeautifulSoup parsing error")
 
-                # Should raise ValueError with specific error message
-                with pytest.raises(
-                    ValueError,
-                    match="Content at .* is neither valid JSON nor parseable HTML",
-                ):
-                    document_loader.load_task_document(doc_path)
+            # Test that the method raises a ValueError when HTML parsing fails
+            with pytest.raises(
+                ValueError,
+                match="Content at .* is neither valid JSON nor parseable HTML",
+            ):
+                loader.load_task_document(Path("/path/to/document.html"))
+
+    def test_load_task_document_html_fallback_with_paragraph_extraction(self) -> None:
+        """Test HTML fallback with paragraph extraction in load_task_document."""
+        from pathlib import Path
+
+        from arklex.orchestrator.generator.docs.document_loader import DocumentLoader
+
+        # Create a document loader
+        loader = DocumentLoader(cache_dir=Path("/tmp/cache"))
+
+        # Create HTML content with paragraphs
+        html_content = """
+        <html>
+        <head><title>Test Document</title></head>
+        <body>
+            <p>First paragraph content</p>
+            <p>Second paragraph content</p>
+            <p>Third paragraph content</p>
+        </body>
+        </html>
+        """
+
+        # Mock the file system to return HTML content
+        with (
+            patch("builtins.open", mock_open(read_data=html_content)),
+            patch("pathlib.Path.exists", return_value=True),
+            patch("pathlib.Path.read_text", return_value=html_content),
+            patch(
+                "json.loads", side_effect=json.JSONDecodeError("Invalid JSON", "", 0)
+            ),
+        ):
+            # Test that the method successfully parses HTML and extracts paragraphs
+            result = loader.load_task_document(Path("/path/to/document.html"))
+
+            # Verify the result structure
+            assert result["task_id"] == "html_task"
+            assert result["name"] == "Test Document"
+            assert result["description"] == "Document parsed from HTML"
+            assert len(result["steps"]) == 3
+            assert result["steps"][0]["step_id"] == 1
+            assert result["steps"][0]["description"] == "First paragraph content"
+            assert result["steps"][1]["step_id"] == 2
+            assert result["steps"][1]["description"] == "Second paragraph content"
+            assert result["steps"][2]["step_id"] == 3
+            assert result["steps"][2]["description"] == "Third paragraph content"
 
 
 class TestDocumentProcessor:
