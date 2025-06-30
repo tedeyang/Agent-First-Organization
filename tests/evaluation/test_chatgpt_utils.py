@@ -828,3 +828,34 @@ class TestChatGPTUtils:
         assert result == "goal"
         assert called["messages"]
         assert called["client"] is client
+
+    def test_generate_goals_return_line(
+        self, monkeypatch: pytest.MonkeyPatch, mock_client: Mock
+    ) -> None:
+        from arklex.evaluation import chatgpt_utils
+
+        # Patch generate_goal to return a fixed value
+        monkeypatch.setattr(chatgpt_utils, "generate_goal", lambda doc, client: "goal")
+        documents = [{"content": "doc1"}, {"content": "doc2"}]
+        params = {"num_goals": 2}
+        result = chatgpt_utils.generate_goals(documents, params, mock_client)
+        assert result == ["goal", "goal"]
+
+    def test_filter_convo_return_line_edge_case(self) -> None:
+        from arklex.evaluation.chatgpt_utils import filter_convo
+
+        # Edge case: convo with only two turns (should skip both)
+        convo = [
+            {"role": "user", "content": "hi"},
+            {"role": "assistant", "content": "hello"},
+        ]
+        result = filter_convo(convo)
+        assert result == []
+        # Edge case: convo with a user message after two turns
+        convo = [
+            {"role": "user", "content": "hi"},
+            {"role": "assistant", "content": "hello"},
+            {"role": "user", "content": "user content\nextra"},
+        ]
+        result = filter_convo(convo)
+        assert result[0]["content"] == "user content"
