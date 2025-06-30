@@ -4128,3 +4128,191 @@ class TestTaskGraphFinalCoverage:
 
                 # Should return the random node from handle_random_next_node
                 assert node_info.node_id == "task_node"
+
+
+class TestTaskGraphRemainingCoverage:
+    """Test remaining uncovered lines in task_graph.py."""
+
+    def test_handle_leaf_node_with_flow_stack_and_global_intent(
+        self,
+        patched_sample_config: dict[str, Any],
+        sample_llm_config: LLMConfig,
+        always_valid_mock_model: Mock,
+        sample_params: Params,
+    ) -> None:
+        """Test handle_leaf_node with flow stack and global intent (lines 680-681)."""
+        task_graph = TaskGraph(
+            "test_graph",
+            patched_sample_config,
+            sample_llm_config,
+            model_service=always_valid_mock_model,
+        )
+
+        # Mock get_last_flow_stack_node to return a PathNode with global_intent
+        mock_path_node = Mock()
+        mock_path_node.node_id = "flow_stack_node"
+        mock_path_node.global_intent = "test_global_intent"
+
+        with patch.object(task_graph, "get_last_flow_stack_node") as mock_last_flow:
+            mock_last_flow.return_value = mock_path_node
+
+            # Mock NestedGraph.get_nested_graph_component_node to return None
+            with patch(
+                "arklex.orchestrator.task_graph.NestedGraph.get_nested_graph_component_node"
+            ) as mock_nested:
+                mock_nested.return_value = (None, sample_params)
+
+                curr_node, params = task_graph.handle_leaf_node(
+                    "leaf_node", sample_params
+                )
+
+                # Should return flow_stack_node and set global_intent
+                assert curr_node == "flow_stack_node"
+                assert params.taskgraph.curr_global_intent == "test_global_intent"
+
+    def test_get_node_with_random_next_node_return(
+        self,
+        patched_sample_config: dict[str, Any],
+        sample_llm_config: LLMConfig,
+        always_valid_mock_model: Mock,
+        sample_params: Params,
+    ) -> None:
+        """Test get_node with random next node return (lines 804-808)."""
+        task_graph = TaskGraph(
+            "test_graph",
+            patched_sample_config,
+            sample_llm_config,
+            model_service=always_valid_mock_model,
+        )
+
+        # Patch get_local_intent at the class level to always return {}
+        with (
+            patch(
+                "arklex.orchestrator.task_graph.TaskGraph.get_local_intent",
+                return_value={},
+            ),
+            patch.object(task_graph, "handle_random_next_node") as mock_random,
+        ):
+            mock_node_info = Mock()
+            mock_node_info.node_id = "random_node"
+            mock_random.return_value = (
+                True,
+                mock_node_info,
+                sample_params,
+            )
+
+            # Mock other methods to ensure the random next node path is taken
+            with patch.object(task_graph, "get_current_node") as mock_get_current:
+                mock_get_current.return_value = ("task_node", sample_params)
+            with patch.object(task_graph, "handle_multi_step_node") as mock_multi_step:
+                mock_multi_step.return_value = (False, None, sample_params)
+            with patch.object(task_graph, "handle_leaf_node") as mock_leaf:
+                mock_leaf.return_value = ("task_node", sample_params)
+            with patch.object(
+                task_graph, "get_available_global_intents"
+            ) as mock_available:
+                mock_available.return_value = {}
+            with patch.object(task_graph, "update_node_limit") as mock_limit:
+                mock_limit.return_value = sample_params
+            with patch.object(task_graph, "handle_incomplete_node") as mock_incomplete:
+                mock_incomplete.return_value = (False, None, sample_params)
+            with patch.object(task_graph, "global_intent_prediction") as mock_global:
+                mock_global.return_value = (False, None, None, sample_params)
+            with patch.object(task_graph, "local_intent_prediction") as mock_local_pred:
+                mock_local_pred.return_value = (False, {}, sample_params)
+            with patch.object(task_graph, "handle_unknown_intent") as mock_unknown:
+                mock_unknown.return_value = (Mock(), sample_params)
+
+            inputs = {
+                "text": "test text",
+                "chat_history_str": "",
+                "parameters": sample_params,
+                "allow_global_intent_switch": False,
+            }
+
+            node_info, params = task_graph.get_node(inputs)
+
+            # Should return the random node from handle_random_next_node
+            assert node_info.node_id == "random_node"
+
+    def test_create_graph_with_else_branch(
+        self,
+        sample_llm_config: LLMConfig,
+        always_valid_mock_model: Mock,
+    ) -> None:
+        """Test create_graph with else branch (line 875)."""
+        config = {
+            "nodes": [
+                # This will trigger the else branch in create_graph
+                "invalid_node_format",
+            ],
+            "edges": [],
+        }
+
+        task_graph = TaskGraph(
+            "test_graph",
+            config,
+            sample_llm_config,
+            model_service=always_valid_mock_model,
+        )
+
+        # Should not raise an exception and should add the node as-is
+        assert "invalid_node_format" in task_graph.graph.nodes
+
+    def test_local_intent_prediction_with_nlu_records_no_intent(
+        self,
+        patched_sample_config: dict[str, Any],
+        sample_llm_config: LLMConfig,
+        always_valid_mock_model: Mock,
+        sample_params: Params,
+    ) -> None:
+        """Test local_intent_prediction with nlu_records no_intent (line 550)."""
+        task_graph = TaskGraph(
+            "test_graph",
+            patched_sample_config,
+            sample_llm_config,
+            model_service=always_valid_mock_model,
+        )
+
+        # Set up nlu_records
+        sample_params.taskgraph.nlu_records = [{"test": "record"}]
+
+        # Set the text attribute that local_intent_prediction expects
+        task_graph.text = "test text"
+        task_graph.chat_history_str = "test chat history"
+
+        # Add 'next_node' to the test graph with proper structure
+        task_graph.graph.add_node(
+            "next_node",
+            node_id="next_node",
+            type="task",
+            attributes={},
+            resource={"name": "test_resource", "id": "test_id"},
+            attribute={},  # Add the required attribute key
+        )
+
+        # Mock intent_detector to return a found intent
+        with patch.object(task_graph.intent_detector, "execute") as mock_execute:
+            mock_execute.return_value = "found_intent"
+
+            # Mock _postprocess_intent to return found=False (no intent found)
+            with patch.object(task_graph, "_postprocess_intent") as mock_postprocess:
+                mock_postprocess.return_value = (False, "found_intent", 0)
+
+                # Mock graph.out_edges to return an edge with the found intent
+                with patch.object(task_graph.graph, "out_edges") as mock_out_edges:
+                    mock_out_edges.return_value = [
+                        ("curr_node", "next_node", "found_intent")
+                    ]
+
+                    is_found, node_info, params = task_graph.local_intent_prediction(
+                        "curr_node",
+                        sample_params,
+                        {"found_intent": [{"test": "data"}]},
+                    )
+
+                    # Should return False since no intent was found
+                    assert is_found is False
+                    # The nlu_record should have no_intent=False initially (set in local_intent_prediction)
+                    # The no_intent=True is set in handle_unknown_intent when this method returns False
+                    assert params.taskgraph.nlu_records[-1]["no_intent"] is False
