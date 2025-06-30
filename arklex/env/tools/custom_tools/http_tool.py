@@ -22,13 +22,12 @@ log_context = LogContext(__name__)
     outputs=["response"],
     isResponse=False,
 )
-def http_tool(**kwargs: dict[str, Any]) -> str:
+def http_tool(slots: list[dict[str, Any]] | None = None, **kwargs: dict[str, Any]) -> str:
     """Make an HTTP request and return the response"""
     func_name: str = inspect.currentframe().f_code.co_name
     try:
         params: HTTPParams = HTTPParams(**kwargs)
-        slots = kwargs.get("slots")
-        log_context.info(f"HTTPTool execution called with args: {kwargs}")
+        log_context.info(f"HTTPTool execution called with args: {kwargs}, slots: {slots}")
         if slots:
             # Process slots based on their target
             for slot in slots:
