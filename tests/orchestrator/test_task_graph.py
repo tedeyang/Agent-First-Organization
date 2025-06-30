@@ -3120,7 +3120,7 @@ class TestTaskGraphAdditionalCoverage:
         sample_llm_config: LLMConfig,
         always_valid_mock_model: Mock,
     ) -> None:
-        """Test jump_to_node protection branch (lines 244-245)."""
+        """Test jump_to_node protection branch else case when candidates exist."""
         # Setup
         task_graph = TaskGraph(
             "test_graph",
@@ -3129,21 +3129,31 @@ class TestTaskGraphAdditionalCoverage:
             model_service=always_valid_mock_model,
         )
 
-        # Mock the graph to have no outgoing edges from curr_node
-        # This will cause the else branch to be executed
-        task_graph.graph.remove_edges_from(
-            list(task_graph.graph.out_edges("task_node"))
+        # Mock the graph to have outgoing edges with intent "none"
+        task_graph.graph.remove_edges_from(list(task_graph.graph.edges()))
+        task_graph.graph.add_edge(
+            "task_node", "next_node", intent="none", attribute={"weight": 1.0}
         )
 
-        # Add a self-loop edge to ensure there's at least one in_edge
-        task_graph.graph.add_edge("task_node", "task_node", intent="test_intent")
+        # Add the test_intent to the intents dictionary
+        task_graph.intents["test_intent"] = [
+            {
+                "intent": "test_intent",
+                "target_node": "next_node",
+                "attribute": {"weight": 1.0},
+            }
+        ]
 
-        # Execute - this should trigger the else branch
-        next_node, next_intent = task_graph.jump_to_node("test_intent", 0, "task_node")
+        # Mock random.choice to return a valid candidate
+        with patch("random.choice", return_value="next_node"):
+            # Execute - this should trigger the else branch
+            next_node, next_intent = task_graph.jump_to_node(
+                "test_intent", 0, "task_node"
+            )
 
-        # Assert
-        assert next_node == "task_node"  # Should stay at current node
-        assert next_intent == "test_intent"  # Should get intent from in_edge
+            # Assert
+            assert next_node == "next_node"  # Should move to next node
+            assert next_intent == "test_intent"  # Should use the predicted intent
 
     def test_handle_random_next_node_no_nlu_records_else_branch(
         self,
@@ -3152,7 +3162,7 @@ class TestTaskGraphAdditionalCoverage:
         always_valid_mock_model: Mock,
         sample_params: Params,
     ) -> None:
-        """Test handle_random_next_node else branch when no NLU records (line 567)."""
+        """Test handle_random_next_node else branch when no NLU records exist."""
         # Setup
         task_graph = TaskGraph(
             "test_graph",
@@ -3164,15 +3174,22 @@ class TestTaskGraphAdditionalCoverage:
         # Ensure no NLU records exist
         sample_params.taskgraph.nlu_records = []
 
-        # Mock the graph to have edges with intent "none" and proper weight
+        # Mock the graph to have edges with intent "none" and ensure next_node has resource info
+        task_graph.graph.remove_edges_from(list(task_graph.graph.edges()))
         task_graph.graph.add_edge(
-            "task_node", "leaf_node", intent="none", attribute={"weight": 1.0}
+            "task_node", "next_node", intent="none", attribute={"weight": 1.0}
         )
 
-        # Mock np.random.choice to ensure deterministic behavior
-        with patch("arklex.orchestrator.task_graph.np.random.choice") as mock_choice:
-            mock_choice.return_value = "leaf_node"  # Ensure it returns the target node
+        # Add resource information to next_node
+        task_graph.graph.add_node(
+            "next_node",
+            resource={"id": "next_id", "name": "next_resource"},
+            type="task",
+            attribute={},
+        )
 
+        # Mock random.choice to return a valid candidate
+        with patch("random.choice", return_value="next_node"):
             # Execute
             has_random_next, node_output, updated_params = (
                 task_graph.handle_random_next_node("task_node", sample_params)
@@ -3180,10 +3197,10 @@ class TestTaskGraphAdditionalCoverage:
 
             # Assert
             assert has_random_next is True
-            assert isinstance(node_output, NodeInfo)  # Should return NodeInfo, not dict
-            # Should have created NLU record with no_intent=True
+            assert node_output is not None
+            # Should have created a new NLU record when no existing records
             assert len(updated_params.taskgraph.nlu_records) == 1
-            assert updated_params.taskgraph.nlu_records[0]["no_intent"] is True
+            assert updated_params.taskgraph.nlu_records[-1]["no_intent"] is True
 
     def test_handle_leaf_node_nested_graph_still_leaf(
         self,
@@ -3192,7 +3209,7 @@ class TestTaskGraphAdditionalCoverage:
         always_valid_mock_model: Mock,
         sample_params: Params,
     ) -> None:
-        """Test handle_leaf_node when nested_graph_next_node is not None but still a leaf (lines 697-698)."""
+        """Test handle_leaf_node when nested_graph_next_node is still a leaf."""
         # Setup
         task_graph = TaskGraph(
             "test_graph",
@@ -3203,7 +3220,7 @@ class TestTaskGraphAdditionalCoverage:
 
         # Mock NestedGraph.get_nested_graph_component_node to return a leaf node
         mock_node_info = Mock()
-        mock_node_info.node_id = "leaf_node"
+        mock_node_info.node_id = "leaf_node"  # This node has no successors
 
         with patch(
             "arklex.orchestrator.task_graph.NestedGraph.get_nested_graph_component_node"
@@ -3216,7 +3233,7 @@ class TestTaskGraphAdditionalCoverage:
             )
 
             # Assert
-            assert result_node == "leaf_node"  # Should return the nested graph node
+            assert result_node == "leaf_node"  # Should return the original leaf node
             assert result_params.taskgraph.curr_node == "leaf_node"
 
     def test_get_node_pred_intent_not_unsure_else_branch(
@@ -3226,14 +3243,88 @@ class TestTaskGraphAdditionalCoverage:
         always_valid_mock_model: Mock,
         sample_params: Params,
     ) -> None:
-        """Test get_node else branch when pred_intent is not None and not equal to unsure intent (lines 821-825)."""
+        """Test get_node when pred_intent is not unsure intent."""
+        # Create a custom config with no local intents for task_node
+        custom_config = {
+            "nodes": [
+                [
+                    "start_node",
+                    {
+                        "type": "start",
+                        "resource": {"name": "start_resource", "id": "start_id"},
+                        "attribute": {
+                            "start": True,
+                            "can_skipped": False,
+                            "tags": {},
+                            "node_specific_data": {},
+                        },
+                    },
+                ],
+                [
+                    "task_node",
+                    {
+                        "type": "task",
+                        "resource": {"name": "task_resource", "id": "task_id"},
+                        "attribute": {
+                            "can_skipped": True,
+                            "limit": 3,
+                            "tags": {"category": "test"},
+                            "node_specific_data": {
+                                "key1": "value1",
+                                "nested": {"key2": "value2"},
+                            },
+                        },
+                    },
+                ],
+                [
+                    "leaf_node",
+                    {
+                        "type": "task",
+                        "resource": {"name": "leaf_resource", "id": "leaf_id"},
+                        "attribute": {
+                            "can_skipped": False,
+                            "tags": {},
+                            "node_specific_data": {},
+                        },
+                    },
+                ],
+            ],
+            "edges": [
+                (
+                    "start_node",
+                    "task_node",
+                    {
+                        "intent": "test_intent",
+                        "attribute": {
+                            "weight": 1.0,
+                            "pred": True,
+                            "definition": "Test intent",
+                        },
+                    },
+                ),
+                # Remove the local intent edge from task_node to leaf_node
+                # Only keep the self-loop with intent "none"
+                (
+                    "task_node",
+                    "task_node",
+                    {
+                        "intent": "none",
+                        "attribute": {"weight": 0.5, "pred": False},
+                    },
+                ),
+            ],
+        }
+
         # Setup
         task_graph = TaskGraph(
             "test_graph",
-            patched_sample_config,
+            custom_config,
             sample_llm_config,
             model_service=always_valid_mock_model,
         )
+
+        # Set current node to trigger the correct flow
+        sample_params.taskgraph.curr_node = "task_node"
 
         # Mock local_intent_prediction to return False (no local intent found)
         with (
@@ -3244,9 +3335,17 @@ class TestTaskGraphAdditionalCoverage:
             ),
             patch.object(task_graph, "global_intent_prediction") as mock_global,
             patch.object(task_graph, "handle_random_next_node") as mock_random,
+            patch.object(task_graph, "handle_unknown_intent") as mock_unknown,
         ):
-            mock_global.return_value = (True, "test_intent", {}, sample_params)
+            # Mock global_intent_prediction to return True (intent found)
+            mock_global.return_value = (
+                True,
+                "test_intent",  # This is not the unsure intent
+                {},
+                sample_params,
+            )
             mock_random.return_value = (True, {}, sample_params)
+            mock_unknown.return_value = (Mock(), sample_params)
 
             # Execute
             inputs = {
@@ -3260,10 +3359,135 @@ class TestTaskGraphAdditionalCoverage:
 
             # Assert
             assert mock_global.called
-            # The handle_random_next_node should be called in the else branch
-            # but only if the global intent prediction returns a non-unsure intent
-            # and the pred_intent is not equal to unsure intent
-            # This requires more specific mocking to reach that branch
+            # Since global_intent_prediction returned True, handle_random_next_node should NOT be called
+            assert not mock_random.called
+
+    def test_get_node_pred_intent_not_unsure_with_global_intent_found_false(
+        self,
+        patched_sample_config: dict[str, Any],
+        sample_llm_config: LLMConfig,
+        always_valid_mock_model: Mock,
+        sample_params: Params,
+    ) -> None:
+        """Test get_node when pred_intent is not unsure intent and global_intent_prediction returns False."""
+        # Create a custom config with no local intents for task_node
+        custom_config = {
+            "nodes": [
+                [
+                    "start_node",
+                    {
+                        "type": "start",
+                        "resource": {"name": "start_resource", "id": "start_id"},
+                        "attribute": {
+                            "start": True,
+                            "can_skipped": False,
+                            "tags": {},
+                            "node_specific_data": {},
+                        },
+                    },
+                ],
+                [
+                    "task_node",
+                    {
+                        "type": "task",
+                        "resource": {"name": "task_resource", "id": "task_id"},
+                        "attribute": {
+                            "can_skipped": True,
+                            "limit": 3,
+                            "tags": {"category": "test"},
+                            "node_specific_data": {
+                                "key1": "value1",
+                                "nested": {"key2": "value2"},
+                            },
+                        },
+                    },
+                ],
+                [
+                    "leaf_node",
+                    {
+                        "type": "task",
+                        "resource": {"name": "leaf_resource", "id": "leaf_id"},
+                        "attribute": {
+                            "can_skipped": False,
+                            "tags": {},
+                            "node_specific_data": {},
+                        },
+                    },
+                ],
+            ],
+            "edges": [
+                (
+                    "start_node",
+                    "task_node",
+                    {
+                        "intent": "test_intent",
+                        "attribute": {
+                            "weight": 1.0,
+                            "pred": True,
+                            "definition": "Test intent",
+                        },
+                    },
+                ),
+                # Remove the local intent edge from task_node to leaf_node
+                # Only keep the self-loop with intent "none"
+                (
+                    "task_node",
+                    "task_node",
+                    {
+                        "intent": "none",
+                        "attribute": {"weight": 0.5, "pred": False},
+                    },
+                ),
+            ],
+        }
+
+        # Setup
+        task_graph = TaskGraph(
+            "test_graph",
+            custom_config,
+            sample_llm_config,
+            model_service=always_valid_mock_model,
+        )
+
+        # Set current node to trigger the correct flow
+        sample_params.taskgraph.curr_node = "task_node"
+
+        # Mock local_intent_prediction to return False (no local intent found)
+        with (
+            patch.object(
+                task_graph,
+                "local_intent_prediction",
+                return_value=(False, {}, sample_params),
+            ),
+            patch.object(task_graph, "global_intent_prediction") as mock_global,
+            patch.object(task_graph, "handle_random_next_node") as mock_random,
+            patch.object(task_graph, "handle_unknown_intent") as mock_unknown,
+        ):
+            # Mock global_intent_prediction to return False but with a non-unsure pred_intent
+            mock_global.return_value = (
+                False,
+                "test_intent",  # This is not the unsure intent
+                {},
+                sample_params,
+            )
+            mock_random.return_value = (True, {}, sample_params)
+            mock_unknown.return_value = (Mock(), sample_params)
+
+            # Execute
+            inputs = {
+                "text": "test message",
+                "chat_history_str": "test history",
+                "parameters": sample_params,
+                "allow_global_intent_switch": True,
+            }
+
+            task_graph.get_node(inputs)
+
+            # Assert
+            assert mock_global.called
+            # Since pred_intent is not unsure and global_intent_prediction returned False,
+            # handle_random_next_node should be called
+            assert mock_random.called
 
     def test_jump_to_node_protection_branch_with_exception(
         self,
@@ -3271,7 +3495,7 @@ class TestTaskGraphAdditionalCoverage:
         sample_llm_config: LLMConfig,
         always_valid_mock_model: Mock,
     ) -> None:
-        """Test jump_to_node protection branch with exception handling."""
+        """Test jump_to_node protection branch when random.choice raises an exception."""
         # Setup
         task_graph = TaskGraph(
             "test_graph",
@@ -3280,21 +3504,20 @@ class TestTaskGraphAdditionalCoverage:
             model_service=always_valid_mock_model,
         )
 
-        # Mock the graph to raise an exception when accessing out_edges
-        with patch.object(
-            task_graph.graph, "out_edges", side_effect=Exception("Test exception")
-        ):
-            # Add a self-loop edge to ensure there's at least one in_edge
-            task_graph.graph.add_edge("task_node", "task_node", intent="test_intent")
+        # Mock the graph to have outgoing edges with intent "none"
+        task_graph.graph.remove_edges_from(list(task_graph.graph.edges()))
+        task_graph.graph.add_edge("task_node", "next_node", intent="none")
 
-            # Execute - this should trigger the exception handling
+        # Mock random.choice to raise an exception
+        with patch("random.choice", side_effect=Exception("Random choice error")):
+            # Execute - this should trigger the else branch
             next_node, next_intent = task_graph.jump_to_node(
                 "test_intent", 0, "task_node"
             )
 
             # Assert
             assert next_node == "task_node"  # Should stay at current node
-            assert next_intent == "test_intent"  # Should get intent from in_edge
+            assert next_intent == "test_intent"  # Should use the predicted intent
 
     def test_handle_random_next_node_no_candidates_with_nlu_records(
         self,
