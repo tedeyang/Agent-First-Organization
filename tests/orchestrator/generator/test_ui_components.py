@@ -382,165 +382,183 @@ class TestInputModalUI:
         assert hasattr(modal, "on_button_pressed")
         assert callable(modal.on_button_pressed)
 
-    def test_input_modal_on_button_pressed_no_callback(self) -> None:
-        """Test InputModal on_button_pressed method without callback."""
-        from arklex.orchestrator.generator.ui.input_modal import InputModal
-
-        modal = InputModal("Test Title", "default value")
-
-        # Mock the app property
-        mock_app = Mock()
-        mock_app.pop_screen = Mock()
-        with patch.object(
-            InputModal, "app", new_callable=PropertyMock, return_value=mock_app
-        ):
-            # Mock the input field
-            mock_input = Mock()
-            mock_input.value = "new value"
-            modal.query_one = Mock(return_value=mock_input)
-
-            # Create a mock event for submit button
-            mock_event = Mock()
-            mock_event.button.id = "submit"
-
-            modal.on_button_pressed(mock_event)
-
-            assert modal.result == "new value"
-            mock_app.pop_screen.assert_called_once()
-
     def test_input_modal_on_button_pressed_cancel_button(self) -> None:
         """Test InputModal on_button_pressed method with cancel button."""
+        # This test covers the line: if event.button.id == "submit":
         from arklex.orchestrator.generator.ui.input_modal import InputModal
 
-        modal = InputModal("Test Title", "default value")
+        # Create InputModal
+        modal = InputModal(
+            title="Test Modal", default="default value", node=None, callback=None
+        )
 
-        # Mock the app property
+        # Mock the app and its pop_screen method
         mock_app = Mock()
-        mock_app.pop_screen = Mock()
         with patch.object(
-            InputModal, "app", new_callable=PropertyMock, return_value=mock_app
+            type(modal), "app", new_callable=PropertyMock, return_value=mock_app
         ):
-            # Mock the input field
-            mock_input = Mock()
-            mock_input.value = "new value"
-            modal.query_one = Mock(return_value=mock_input)
-
-            # Create a mock event for cancel button
+            # Create a mock button press event for cancel
             mock_event = Mock()
             mock_event.button.id = "cancel"
 
+            # Call on_button_pressed method
             modal.on_button_pressed(mock_event)
 
-            # Result should remain as default since cancel button doesn't update it
+            # Verify that the result was not changed (should remain default)
             assert modal.result == "default value"
-            mock_app.pop_screen.assert_called_once()
 
-    def test_input_modal_on_button_pressed_with_callback(self) -> None:
-        """Test InputModal on_button_pressed method with callback function."""
-        from arklex.orchestrator.generator.ui.input_modal import InputModal
-
-        callback_called = False
-        callback_result = None
-        callback_node = None
-
-        def mock_callback(result: str, node: TreeNode | None) -> None:
-            nonlocal callback_called, callback_result, callback_node
-            callback_called = True
-            callback_result = result
-            callback_node = node
-
-        modal = InputModal("Test Title", "default value", callback=mock_callback)
-
-        # Mock the app property
-        mock_app = Mock()
-        mock_app.pop_screen = Mock()
-        with patch.object(
-            InputModal, "app", new_callable=PropertyMock, return_value=mock_app
-        ):
-            # Mock the input field
-            mock_input = Mock()
-            mock_input.value = "new value"
-            modal.query_one = Mock(return_value=mock_input)
-
-            # Create a mock event for submit button
-            mock_event = Mock()
-            mock_event.button.id = "submit"
-
-            modal.on_button_pressed(mock_event)
-
-            assert modal.result == "new value"
-            assert callback_called
-            assert callback_result == "new value"
-            assert callback_node is None
+            # Verify that pop_screen was called
             mock_app.pop_screen.assert_called_once()
 
     def test_input_modal_on_button_pressed_with_callback_and_node(self) -> None:
         """Test InputModal on_button_pressed method with callback and node."""
+        # This test covers the line: self.callback(self.result, self.node)
         from arklex.orchestrator.generator.ui.input_modal import InputModal
 
-        callback_called = False
-        callback_result = None
-        callback_node = None
+        # Create a mock callback
+        mock_callback = Mock()
 
-        def mock_callback(result: str, node: TreeNode | None) -> None:
-            nonlocal callback_called, callback_result, callback_node
-            callback_called = True
-            callback_result = result
-            callback_node = node
-
+        # Create a mock node
         mock_node = Mock()
+
+        # Create InputModal with callback and node
         modal = InputModal(
-            "Test Title", "default value", node=mock_node, callback=mock_callback
+            title="Test Modal",
+            default="default value",
+            node=mock_node,
+            callback=mock_callback,
         )
 
-        # Mock the app property
-        mock_app = Mock()
-        mock_app.pop_screen = Mock()
-        with patch.object(
-            InputModal, "app", new_callable=PropertyMock, return_value=mock_app
-        ):
-            # Mock the input field
-            mock_input = Mock()
-            mock_input.value = "new value"
-            modal.query_one = Mock(return_value=mock_input)
+        # Mock the input field
+        mock_input = Mock()
+        mock_input.value = "new value"
 
-            # Create a mock event for submit button
+        mock_app = Mock()
+        with (
+            patch.object(
+                type(modal), "app", new_callable=PropertyMock, return_value=mock_app
+            ),
+            patch.object(modal, "query_one", return_value=mock_input),
+        ):
+            # Create a mock button press event
             mock_event = Mock()
             mock_event.button.id = "submit"
 
+            # Call on_button_pressed method
             modal.on_button_pressed(mock_event)
 
+            # Verify that the callback was called with the correct parameters
+            mock_callback.assert_called_once_with("new value", mock_node)
+
+            # Verify that the result was updated
             assert modal.result == "new value"
-            assert callback_called
-            assert callback_result == "new value"
-            assert callback_node == mock_node
+
+            # Verify that pop_screen was called
+            mock_app.pop_screen.assert_called_once()
+
+    def test_input_modal_on_button_pressed_with_callback_no_node(self) -> None:
+        """Test InputModal on_button_pressed method with callback but no node."""
+        # This test covers the line: self.callback(self.result, self.node)
+        from arklex.orchestrator.generator.ui.input_modal import InputModal
+
+        # Create a mock callback
+        mock_callback = Mock()
+
+        # Create InputModal with callback but no node
+        modal = InputModal(
+            title="Test Modal",
+            default="default value",
+            node=None,
+            callback=mock_callback,
+        )
+
+        # Mock the input field
+        mock_input = Mock()
+        mock_input.value = "new value"
+
+        mock_app = Mock()
+        with (
+            patch.object(
+                type(modal), "app", new_callable=PropertyMock, return_value=mock_app
+            ),
+            patch.object(modal, "query_one", return_value=mock_input),
+        ):
+            # Create a mock button press event
+            mock_event = Mock()
+            mock_event.button.id = "submit"
+
+            # Call on_button_pressed method
+            modal.on_button_pressed(mock_event)
+
+            # Verify that the callback was called with None as the node
+            mock_callback.assert_called_once_with("new value", None)
+
+            # Verify that the result was updated
+            assert modal.result == "new value"
+
+            # Verify that pop_screen was called
+            mock_app.pop_screen.assert_called_once()
+
+    def test_input_modal_on_button_pressed_without_callback(self) -> None:
+        """Test InputModal on_button_pressed method without callback."""
+        # This test covers the line: if self.callback:
+        from arklex.orchestrator.generator.ui.input_modal import InputModal
+
+        # Create InputModal without callback
+        modal = InputModal(
+            title="Test Modal", default="default value", node=None, callback=None
+        )
+
+        # Mock the input field
+        mock_input = Mock()
+        mock_input.value = "new value"
+
+        mock_app = Mock()
+        with (
+            patch.object(
+                type(modal), "app", new_callable=PropertyMock, return_value=mock_app
+            ),
+            patch.object(modal, "query_one", return_value=mock_input),
+        ):
+            # Create a mock button press event
+            mock_event = Mock()
+            mock_event.button.id = "submit"
+
+            # Call on_button_pressed method
+            modal.on_button_pressed(mock_event)
+
+            # Verify that the result was updated
+            assert modal.result == "new value"
+
+            # Verify that pop_screen was called
             mock_app.pop_screen.assert_called_once()
 
     def test_input_modal_on_button_pressed_other_button_id(self) -> None:
-        """Test InputModal on_button_pressed method with other button ID."""
+        """Test InputModal on_button_pressed method with other button id."""
+        # This test covers the line: if event.button.id == "submit":
         from arklex.orchestrator.generator.ui.input_modal import InputModal
 
-        modal = InputModal("Test Title", "default value")
+        # Create InputModal
+        modal = InputModal(
+            title="Test Modal", default="default value", node=None, callback=None
+        )
 
-        # Mock the app property
+        # Mock the app and its pop_screen method
         mock_app = Mock()
-        mock_app.pop_screen = Mock()
         with patch.object(
-            InputModal, "app", new_callable=PropertyMock, return_value=mock_app
+            type(modal), "app", new_callable=PropertyMock, return_value=mock_app
         ):
-            # Mock the input field
-            mock_input = Mock()
-            mock_input.value = "new value"
-            modal.query_one = Mock(return_value=mock_input)
-
-            # Create a mock event for other button
+            # Create a mock button press event for unknown button
             mock_event = Mock()
-            mock_event.button.id = "other"
+            mock_event.button.id = "unknown"
 
+            # Call on_button_pressed method
             modal.on_button_pressed(mock_event)
 
-            # Result should remain as default since it's not a submit button
+            # Verify that the result was not changed (should remain default)
             assert modal.result == "default value"
+
+            # Verify that pop_screen was called
             mock_app.pop_screen.assert_called_once()
 
 
@@ -581,3 +599,185 @@ class FakeApp:
 
     def run(self) -> list:
         return []
+
+
+class TestInputModalFinalCoverage:
+    """Test cases to cover the final missing lines in input_modal.py."""
+
+    def test_input_modal_on_button_pressed_with_callback_and_node(self) -> None:
+        """Test InputModal on_button_pressed method with callback and node."""
+        # This test covers the line: self.callback(self.result, self.node)
+        from arklex.orchestrator.generator.ui.input_modal import InputModal
+
+        # Create a mock callback
+        mock_callback = Mock()
+
+        # Create a mock node
+        mock_node = Mock()
+
+        # Create InputModal with callback and node
+        modal = InputModal(
+            title="Test Modal",
+            default="default value",
+            node=mock_node,
+            callback=mock_callback,
+        )
+
+        # Mock the input field
+        mock_input = Mock()
+        mock_input.value = "new value"
+        mock_app = Mock()
+        with (
+            patch.object(
+                type(modal), "app", new_callable=PropertyMock, return_value=mock_app
+            ),
+            patch.object(modal, "query_one", return_value=mock_input),
+        ):
+            # Create a mock button press event
+            mock_event = Mock()
+            mock_event.button.id = "submit"
+
+            # Call on_button_pressed method
+            modal.on_button_pressed(mock_event)
+
+            # Verify that the callback was called with the correct parameters
+            mock_callback.assert_called_once_with("new value", mock_node)
+
+            # Verify that the result was updated
+            assert modal.result == "new value"
+
+            # Verify that pop_screen was called
+            mock_app.pop_screen.assert_called_once()
+
+    def test_input_modal_on_button_pressed_with_callback_no_node(self) -> None:
+        """Test InputModal on_button_pressed method with callback but no node."""
+        # This test covers the line: self.callback(self.result, self.node)
+        from arklex.orchestrator.generator.ui.input_modal import InputModal
+
+        # Create a mock callback
+        mock_callback = Mock()
+
+        # Create InputModal with callback but no node
+        modal = InputModal(
+            title="Test Modal",
+            default="default value",
+            node=None,
+            callback=mock_callback,
+        )
+
+        # Mock the input field
+        mock_input = Mock()
+        mock_input.value = "new value"
+
+        mock_app = Mock()
+        with (
+            patch.object(
+                type(modal), "app", new_callable=PropertyMock, return_value=mock_app
+            ),
+            patch.object(modal, "query_one", return_value=mock_input),
+        ):
+            # Create a mock button press event
+            mock_event = Mock()
+            mock_event.button.id = "submit"
+
+            # Call on_button_pressed method
+            modal.on_button_pressed(mock_event)
+
+            # Verify that the callback was called with None as the node
+            mock_callback.assert_called_once_with("new value", None)
+
+            # Verify that the result was updated
+            assert modal.result == "new value"
+
+            # Verify that pop_screen was called
+            mock_app.pop_screen.assert_called_once()
+
+    def test_input_modal_on_button_pressed_without_callback(self) -> None:
+        """Test InputModal on_button_pressed method without callback."""
+        # This test covers the line: if self.callback:
+        from arklex.orchestrator.generator.ui.input_modal import InputModal
+
+        # Create InputModal without callback
+        modal = InputModal(
+            title="Test Modal", default="default value", node=None, callback=None
+        )
+
+        # Mock the input field
+        mock_input = Mock()
+        mock_input.value = "new value"
+
+        mock_app = Mock()
+        with (
+            patch.object(
+                type(modal), "app", new_callable=PropertyMock, return_value=mock_app
+            ),
+            patch.object(modal, "query_one", return_value=mock_input),
+        ):
+            # Create a mock button press event
+            mock_event = Mock()
+            mock_event.button.id = "submit"
+
+            # Call on_button_pressed method
+            modal.on_button_pressed(mock_event)
+
+            # Verify that the result was updated
+            assert modal.result == "new value"
+
+            # Verify that pop_screen was called
+            mock_app.pop_screen.assert_called_once()
+
+    def test_input_modal_on_button_pressed_cancel_button(self) -> None:
+        """Test InputModal on_button_pressed method with cancel button."""
+        # This test covers the line: if event.button.id == "submit":
+        from arklex.orchestrator.generator.ui.input_modal import InputModal
+
+        # Create InputModal
+        modal = InputModal(
+            title="Test Modal", default="default value", node=None, callback=None
+        )
+
+        # Mock the app and its pop_screen method
+        mock_app = Mock()
+        with patch.object(
+            type(modal), "app", new_callable=PropertyMock, return_value=mock_app
+        ):
+            # Create a mock button press event for cancel
+            mock_event = Mock()
+            mock_event.button.id = "cancel"
+
+            # Call on_button_pressed method
+            modal.on_button_pressed(mock_event)
+
+            # Verify that the result was not changed (should remain default)
+            assert modal.result == "default value"
+
+            # Verify that pop_screen was called
+            mock_app.pop_screen.assert_called_once()
+
+    def test_input_modal_on_button_pressed_other_button_id(self) -> None:
+        """Test InputModal on_button_pressed method with other button id."""
+        # This test covers the line: if event.button.id == "submit":
+        from arklex.orchestrator.generator.ui.input_modal import InputModal
+
+        # Create InputModal
+        modal = InputModal(
+            title="Test Modal", default="default value", node=None, callback=None
+        )
+
+        # Mock the app and its pop_screen method
+        mock_app = Mock()
+        with patch.object(
+            type(modal), "app", new_callable=PropertyMock, return_value=mock_app
+        ):
+            # Create a mock button press event for unknown button
+            mock_event = Mock()
+            mock_event.button.id = "unknown"
+
+            # Call on_button_pressed method
+            modal.on_button_pressed(mock_event)
+
+            # Verify that the result was not changed (should remain default)
+            assert modal.result == "default value"
+
+            # Verify that pop_screen was called
+            mock_app.pop_screen.assert_called_once()
