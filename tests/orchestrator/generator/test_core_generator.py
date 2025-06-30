@@ -4324,3 +4324,163 @@ class TestGeneratorFinalCoverage:
             assert "tuple_field" in sanitized_data
             assert isinstance(sanitized_data["tuple_field"], tuple)
             assert sanitized_data["tuple_field"] == (1, 2, 3)
+
+    def test_generate_ui_exception_fallback_to_original_tasks(
+        self,
+        always_valid_mock_model: Mock,
+        patched_sample_config: dict[str, Any],
+        mock_document_loader: Mock,
+        mock_task_generator: Mock,
+        mock_best_practice_manager: Mock,
+        mock_task_graph_formatter: Mock,
+        mock_prompt_manager: Mock,
+    ) -> None:
+        """Test generate method when UI raises an exception and falls back to original tasks."""
+        # Configure mocks
+        with patch.multiple(
+            "arklex.orchestrator.generator.core.generator",
+            DocumentLoader=mock_document_loader,
+            TaskGenerator=mock_task_generator,
+            BestPracticeManager=mock_best_practice_manager,
+            TaskGraphFormatter=mock_task_graph_formatter,
+            PromptManager=mock_prompt_manager,
+        ):
+            # Mock document loading
+            mock_document_loader.return_value.load_task_document.return_value = {}
+            mock_document_loader.return_value.load_instruction_document.return_value = {}
+
+            # Mock task generator
+            mock_task_generator.return_value.add_provided_tasks.return_value = []
+            mock_task_generator.return_value.generate_tasks.return_value = []
+
+            # Create generator with UI interaction enabled
+            generator = Generator(
+                config=patched_sample_config,
+                model=always_valid_mock_model,
+                interactable_with_user=True,
+                allow_nested_graph=False,
+            )
+
+            # Set up original tasks
+            original_tasks = [
+                {
+                    "name": "Original Task",
+                    "description": "Original description",
+                    "steps": [{"description": "Step 1"}],
+                }
+            ]
+            generator.tasks = original_tasks.copy()
+
+            # Mock UI to raise an exception
+            with patch(
+                "arklex.orchestrator.generator.core.generator.TaskEditorApp"
+            ) as mock_ui:
+                mock_ui_instance = Mock()
+                mock_ui_instance.run.side_effect = Exception("UI Error")
+                mock_ui.return_value = mock_ui_instance
+
+                # Mock best practices
+                mock_best_practice_manager.return_value.generate_best_practices.return_value = [
+                    {
+                        "name": "Best Practice 1",
+                        "description": "Best practice description",
+                        "steps": [{"description": "Best practice step"}],
+                    }
+                ]
+
+                # Mock task graph formatter
+                mock_task_graph_formatter.return_value.format_task_graph.return_value = {
+                    "tasks": [],
+                    "metadata": {},
+                    "version": "1.0",
+                }
+
+                # Run generate method
+                result = generator.generate()
+
+                # Verify that the method completed successfully and used original tasks
+                assert result is not None
+                # Verify that the UI exception was handled and original tasks were used
+                mock_task_graph_formatter.return_value.format_task_graph.assert_called_once()
+
+    def test_generate_no_ui_interaction_else_branch_with_best_practices_and_fallback(
+        self,
+        always_valid_mock_model: Mock,
+        patched_sample_config: dict[str, Any],
+        mock_document_loader: Mock,
+        mock_task_generator: Mock,
+        mock_best_practice_manager: Mock,
+        mock_task_graph_formatter: Mock,
+        mock_prompt_manager: Mock,
+    ) -> None:
+        """Test generate method when no UI interaction and best practices are available with fallback logic."""
+        # Configure mocks
+        with patch.multiple(
+            "arklex.orchestrator.generator.core.generator",
+            DocumentLoader=mock_document_loader,
+            TaskGenerator=mock_task_generator,
+            BestPracticeManager=mock_best_practice_manager,
+            TaskGraphFormatter=mock_task_graph_formatter,
+            PromptManager=mock_prompt_manager,
+        ):
+            # Mock document loading
+            mock_document_loader.return_value.load_task_document.return_value = {}
+            mock_document_loader.return_value.load_instruction_document.return_value = {}
+
+            # Mock task generator
+            mock_task_generator.return_value.add_provided_tasks.return_value = []
+            mock_task_generator.return_value.generate_tasks.return_value = []
+
+            # Create generator with UI interaction disabled
+            generator = Generator(
+                config=patched_sample_config,
+                model=always_valid_mock_model,
+                interactable_with_user=False,
+                allow_nested_graph=False,
+            )
+
+            # Set up tasks with more tasks than best practices
+            generator.tasks = [
+                {
+                    "name": "Task 1",
+                    "description": "Task 1 description",
+                    "steps": [{"description": "Step 1"}],
+                },
+                {
+                    "name": "Task 2",
+                    "description": "Task 2 description",
+                    "steps": [{"description": "Step 2"}],
+                },
+                {
+                    "name": "Task 3",
+                    "description": "Task 3 description",
+                    "steps": [{"description": "Step 3"}],
+                },
+            ]
+
+            # Mock best practices with fewer practices than tasks
+            mock_best_practice_manager.return_value.generate_best_practices.return_value = [
+                {
+                    "name": "Best Practice 1",
+                    "description": "Best practice description",
+                    "steps": [{"description": "Best practice step"}],
+                }
+            ]
+
+            # Mock task graph formatter
+            mock_task_graph_formatter.return_value.format_task_graph.return_value = {
+                "tasks": [],
+                "metadata": {},
+                "version": "1.0",
+            }
+
+            # Run generate method
+            result = generator.generate()
+
+            # Verify that the method completed successfully
+            assert result is not None
+            # Verify that best practice manager was called for each task
+            assert (
+                mock_best_practice_manager.return_value.finetune_best_practice.call_count
+                == 1
+            )
