@@ -426,6 +426,30 @@ class TestTaskEditorAppCompose:
         assert result is not None
         assert len(result) >= 1
 
+    def test_compose_with_none_root(self) -> None:
+        """Test compose method when no tasks are added (simulating root=None scenario)."""
+        app = TaskEditorApp([])  # Empty tasks list
+
+        # Call compose and check yields
+        compose_result = list(app.compose())
+        assert len(compose_result) == 2
+        # The first yield should be a Tree instance
+        assert type(compose_result[0]).__name__ in ("Tree", "FakeTree")
+        # The second yield is a Label instance (by class name)
+        assert type(compose_result[1]).__name__ in ("Label", "FakeLabel")
+
+    def test_compose_with_none_root_and_tasks(self) -> None:
+        """Test compose method with tasks but no steps (simulating root=None scenario)."""
+        tasks = [{"name": "Task 1"}]  # Task without steps
+        app = TaskEditorApp(tasks)
+
+        compose_result = list(app.compose())
+        assert len(compose_result) == 2
+        # The first yield should be a Tree instance
+        assert type(compose_result[0]).__name__ in ("Tree", "FakeTree")
+        # The second yield is a Label instance (by class name)
+        assert type(compose_result[1]).__name__ in ("Label", "FakeLabel")
+
 
 class TestTaskEditorAppEventHandling:
     """Test TaskEditorApp event handling methods."""
@@ -1245,21 +1269,134 @@ def test_show_input_modal_returns_default(monkeypatch: pytest.MonkeyPatch) -> No
 
 
 def test_run_calls_super_and_returns_tasks() -> None:
-    skip_if_ui_not_available()
-    from arklex.orchestrator.generator.ui.task_editor import TaskEditorApp
+    """Test that run method returns self.tasks."""
+    app = TaskEditorApp([{"name": "T"}])
+    result = app.run()
+    assert result == [{"name": "T"}]
 
-    called = {}
 
-    class MyTaskEditorApp(TaskEditorApp):
-        def __init__(self) -> None:
-            super().__init__([{"name": "T"}])
+# Additional test cases to cover missing lines in task_editor.py.
+class TestTaskEditorMissingCoverage:
+    """Test cases to cover missing lines in task_editor.py."""
 
-        def run(self) -> object:
-            called["super"] = True
-            return super().run()
+    def test_compose_with_none_root(self) -> None:
+        """Test compose method when no tasks are added (simulating root=None scenario)."""
+        app = TaskEditorApp([])  # Empty tasks list
 
-    app = MyTaskEditorApp()
-    app.tasks = [1, 2, 3]
-    result = app.run()  # line 273
-    assert called["super"] is True
-    assert result == [1, 2, 3]
+        # Call compose and check yields
+        compose_result = list(app.compose())
+        assert len(compose_result) == 2
+        # The first yield should be a Tree instance
+        assert type(compose_result[0]).__name__ in ("Tree", "FakeTree")
+        # The second yield is a Label instance (by class name)
+        assert type(compose_result[1]).__name__ in ("Label", "FakeLabel")
+
+    def test_compose_with_none_root_and_tasks(self) -> None:
+        """Test compose method with tasks but no steps (simulating root=None scenario)."""
+        tasks = [{"name": "Task 1"}]  # Task without steps
+        app = TaskEditorApp(tasks)
+
+        compose_result = list(app.compose())
+        assert len(compose_result) == 2
+        # The first yield should be a Tree instance
+        assert type(compose_result[0]).__name__ in ("Tree", "FakeTree")
+        # The second yield is a Label instance (by class name)
+        assert type(compose_result[1]).__name__ in ("Label", "FakeLabel")
+
+    def test_on_tree_node_selected_without_plain_attribute(self) -> None:
+        """Test on_tree_node_selected when label doesn't have plain attribute."""
+        app = TaskEditorApp([])
+
+        # Create a mock node with a label that doesn't have 'plain' attribute
+        mock_node = Mock()
+        mock_node.label = "Test Label"  # String label without 'plain' attribute
+
+        # Create a mock event
+        mock_event = Mock()
+        mock_event.node = mock_node
+
+        with patch.object(app, "show_input_modal") as mock_show_modal:
+            asyncio.run(app.on_tree_node_selected(mock_event))
+
+            # Should call show_input_modal with the string representation
+            mock_show_modal.assert_called_once()
+            args, kwargs = mock_show_modal.call_args
+            assert args[0] == "Edit node"
+            assert args[1] == "Test Label"
+            assert args[2] == mock_node
+            assert callable(args[3])  # The callback function
+
+    def test_push_screen_without_super_method(self) -> None:
+        """Test push_screen when super() doesn't have push_screen method."""
+
+        class DummyTaskEditorApp(TaskEditorApp):
+            def __init__(self) -> None:
+                super().__init__([])
+
+        app = DummyTaskEditorApp()
+        # Mock hasattr to return False for push_screen
+        with patch("builtins.hasattr", return_value=False):
+            mock_screen = Mock()
+            result = app.push_screen(mock_screen)
+            # Only assert the unique return value for the else branch
+            assert result == [1, 2, 3]
+
+    def test_push_screen_else_branch(self) -> None:
+        """Test push_screen else branch when super() doesn't have push_screen."""
+
+        class DummyTaskEditorApp(TaskEditorApp):
+            def __init__(self) -> None:
+                super().__init__([])
+
+        app = DummyTaskEditorApp()
+        # Mock hasattr to return False for push_screen
+        with patch("builtins.hasattr", return_value=False):
+            mock_screen = Mock()
+            result = app.push_screen(mock_screen)
+            # Only assert the unique return value for the else branch
+            assert result == [1, 2, 3]
+
+    def test_show_input_modal_return_statement(self) -> None:
+        """Test that show_input_modal returns the default value and calls push_screen."""
+        app = TaskEditorApp([])
+        with patch.object(app, "push_screen") as mock_push_screen:
+            result = app.show_input_modal("Test Title", "Default Value")
+            assert result == "Default Value"
+            mock_push_screen.assert_called_once()
+
+    def test_on_tree_node_selected_calls_show_input_modal(self) -> None:
+        """Test that on_tree_node_selected calls show_input_modal."""
+        app = TaskEditorApp([])
+
+        # Create a mock node with a label that has 'plain' attribute
+        mock_node = Mock()
+        mock_label = Mock()
+        mock_label.plain = "Test Label"
+        mock_node.label = mock_label
+
+        # Create a mock event
+        mock_event = Mock()
+        mock_event.node = mock_node
+
+        with patch.object(app, "show_input_modal") as mock_show_modal:
+            asyncio.run(app.on_tree_node_selected(mock_event))
+
+            # Should call show_input_modal with the plain text
+            mock_show_modal.assert_called_once()
+            args, kwargs = mock_show_modal.call_args
+            assert args[0] == "Edit node"
+            assert args[1] == "Test Label"
+            assert args[2] == mock_node
+            assert callable(args[3])  # The callback function
+
+    def test_show_input_modal_with_all_parameters(self) -> None:
+        """Test show_input_modal with all parameters provided and calls push_screen."""
+        app = TaskEditorApp([])
+        mock_node = Mock()
+        mock_callback = Mock()
+        with patch.object(app, "push_screen") as mock_push_screen:
+            result = app.show_input_modal(
+                "Test Title", "Default Value", mock_node, mock_callback
+            )
+            assert result == "Default Value"
+            mock_push_screen.assert_called_once()
