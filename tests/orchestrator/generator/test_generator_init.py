@@ -7,6 +7,7 @@ ensuring all functionality is properly tested including import handling and UI c
 import contextlib
 import importlib
 import importlib.util
+import os
 import sys
 from collections.abc import Generator as TypeGenerator
 from unittest.mock import MagicMock, Mock, patch
@@ -639,58 +640,40 @@ def test_all_list_construction_execution() -> None:
 
 def test_ui_components_placeholder_classes_instantiation() -> None:
     """Test that placeholder classes raise ImportError when instantiated."""
-    # This test covers lines 66-82 in generator/__init__.py
-    # Test the placeholder classes when UI components are not available
-
-    # Mock the UI module to be unavailable
-    with patch.dict("sys.modules", {"arklex.orchestrator.generator.ui": None}):
-        # Reload the module to trigger the placeholder class creation
+    # Set environment variable to force UI import error
+    os.environ["ARKLEX_FORCE_UI_IMPORT_ERROR"] = "1"
+    try:
         import importlib
 
         if "arklex.orchestrator.generator" in importlib.sys.modules:
             del importlib.sys.modules["arklex.orchestrator.generator"]
+        from arklex.orchestrator.generator import InputModal, TaskEditorApp
 
-        # Import the module again to execute the placeholder class creation
-        try:
-            from arklex.orchestrator.generator import InputModal, TaskEditorApp
-        except ModuleNotFoundError:
-            # If the import fails due to missing UI module, that's expected
-            # We can't test the placeholder classes in this case
-            pytest.skip("UI module not available for testing placeholder classes")
-
-        # Test that the placeholder classes raise ImportError
         with pytest.raises(
             ImportError,
             match="TaskEditorApp requires 'textual' package to be installed",
         ):
             TaskEditorApp(tasks=[])
-
         with pytest.raises(
             ImportError, match="InputModal requires 'textual' package to be installed"
         ):
             InputModal(title="test", default="test")
+    finally:
+        # Clean up environment variable
+        os.environ.pop("ARKLEX_FORCE_UI_IMPORT_ERROR", None)
 
 
 def test_ui_components_placeholder_classes_attributes() -> None:
     """Test that placeholder classes have the expected attributes."""
-    # This test covers the placeholder class definitions in lines 66-82
-
-    # Mock the UI module to be unavailable
-    with patch.dict("sys.modules", {"arklex.orchestrator.generator.ui": None}):
-        # Reload the module to trigger the placeholder class creation
+    # Set environment variable to force UI import error
+    os.environ["ARKLEX_FORCE_UI_IMPORT_ERROR"] = "1"
+    try:
         import importlib
 
         if "arklex.orchestrator.generator" in importlib.sys.modules:
             del importlib.sys.modules["arklex.orchestrator.generator"]
+        from arklex.orchestrator.generator import InputModal, TaskEditorApp
 
-        # Import the module again to execute the placeholder class creation
-        try:
-            from arklex.orchestrator.generator import InputModal, TaskEditorApp
-        except ModuleNotFoundError:
-            # If the import fails due to missing UI module, that's expected
-            pytest.skip("UI module not available for testing placeholder classes")
-
-        # Test that the placeholder classes have the expected docstrings
         assert (
             "Placeholder class when UI components are not available"
             in TaskEditorApp.__doc__
@@ -699,35 +682,30 @@ def test_ui_components_placeholder_classes_attributes() -> None:
             "Placeholder class when UI components are not available"
             in InputModal.__doc__
         )
-
-        # Test that the classes are callable (have __init__ method)
         assert hasattr(TaskEditorApp, "__init__")
         assert hasattr(InputModal, "__init__")
+    finally:
+        # Clean up environment variable
+        os.environ.pop("ARKLEX_FORCE_UI_IMPORT_ERROR", None)
 
 
 def test_ui_components_list_assignment_without_textual() -> None:
     """Test _UI_COMPONENTS list assignment when textual is not available."""
-    # This test covers the _UI_COMPONENTS = [] assignment in lines 66-82
-
-    # Mock the UI module to be unavailable
-    with patch.dict("sys.modules", {"arklex.orchestrator.generator.ui": None}):
-        # Reload the module to trigger the placeholder class creation
+    # Set environment variable to force UI import error
+    os.environ["ARKLEX_FORCE_UI_IMPORT_ERROR"] = "1"
+    try:
         import importlib
 
         if "arklex.orchestrator.generator" in importlib.sys.modules:
             del importlib.sys.modules["arklex.orchestrator.generator"]
+        import arklex.orchestrator.generator as gen_module
 
-        # Import the module again to execute the placeholder class creation
-        try:
-            import arklex.orchestrator.generator as gen_module
-        except ModuleNotFoundError:
-            # If the import fails due to missing UI module, that's expected
-            pytest.skip("UI module not available for testing _UI_COMPONENTS")
-
-        # Test that _UI_COMPONENTS is an empty list when textual is not available
         assert hasattr(gen_module, "_UI_COMPONENTS")
         assert isinstance(gen_module._UI_COMPONENTS, list)
         assert len(gen_module._UI_COMPONENTS) == 0
+    finally:
+        # Clean up environment variable
+        os.environ.pop("ARKLEX_FORCE_UI_IMPORT_ERROR", None)
 
 
 def test_ui_components_list_assignment_with_textual() -> None:
