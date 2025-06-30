@@ -1131,3 +1131,45 @@ class TestAgentOrgImportFallback:
         assert agent.product_kwargs["role"] == "test_role"
         # The import fallback should have been triggered
         mock_typing_extensions_unpack.assert_not_called()  # It's imported, not called
+
+
+class TestAgentOrgAdditionalCoverage:
+    """Additional test cases to cover missing lines in orchestrator.py."""
+
+    def test_init_with_dict_config_and_planner(
+        self, basic_config: dict[str, Any]
+    ) -> None:
+        """Test initialization with dict config and planner enabled."""
+        # Add planner to the config
+        basic_config["workers"] = [{"name": "planner", "enabled": True}]
+
+        # Mock the Environment to return an environment with planner
+        with patch("arklex.orchestrator.orchestrator.Environment") as mock_env_class:
+            mock_env = Mock()
+            mock_env.planner = Mock()
+            mock_env.planner.set_llm_config_and_build_resource_library = Mock()
+            mock_env_class.return_value = mock_env
+
+            agent = AgentOrg(basic_config, None)
+
+            # Verify planner was set up
+            assert agent.env.planner is not None
+            agent.env.planner.set_llm_config_and_build_resource_library.assert_called_once()
+
+    def test_init_with_dict_config_and_no_planner(
+        self, basic_config: dict[str, Any]
+    ) -> None:
+        """Test initialization with dict config and no planner."""
+        # Ensure no planner in workers
+        basic_config["workers"] = []
+
+        # Mock the Environment to return an environment without planner
+        with patch("arklex.orchestrator.orchestrator.Environment") as mock_env_class:
+            mock_env = Mock()
+            mock_env.planner = None
+            mock_env_class.return_value = mock_env
+
+            agent = AgentOrg(basic_config, None)
+
+            # Verify no planner setup was attempted
+            assert agent.env.planner is None
