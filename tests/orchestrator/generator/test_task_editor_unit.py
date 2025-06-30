@@ -24,6 +24,12 @@ from arklex.orchestrator.generator.ui.protocols import (
     TreeProtocol,
 )
 from arklex.orchestrator.generator.ui.task_editor import TaskEditorApp
+from tests.orchestrator.generator.test_protocol_implementations import (
+    ConcreteTreeNode,
+    create_test_input_modal,
+    create_test_tree,
+    create_test_tree_node,
+)
 
 
 class TestTaskDataManager:
@@ -261,6 +267,104 @@ class TestIntegration:
         finally:
             # Restore original method
             TaskDataManager.populate_tree_from_tasks = original_populate
+
+
+class TestConcreteProtocolImplementations:
+    """Test concrete implementations to ensure protocol methods get covered."""
+
+    def test_concrete_tree_node_operations(self) -> None:
+        """Test all TreeNodeProtocol methods with concrete implementation."""
+        # Create a tree node
+        node = create_test_tree_node("Root")
+
+        # Test add method
+        child = node.add("Child")
+        assert isinstance(child, ConcreteTreeNode)
+        assert child.label == "Child"
+        assert child.parent == node
+
+        # Test add_leaf method
+        leaf = node.add_leaf("Leaf")
+        assert isinstance(leaf, ConcreteTreeNode)
+        assert leaf.label == "Leaf"
+
+        # Test set_label method
+        node.set_label("New Root")
+        assert node.label == "New Root"
+
+        # Test expand method
+        node.expand()  # Should not raise any exception
+
+        # Test children property
+        assert len(node.children) == 2
+        assert all(isinstance(child, ConcreteTreeNode) for child in node.children)
+
+        # Test parent property
+        assert child.parent == node
+        assert node.parent is None
+
+        # Test remove method
+        child.remove()
+        assert child.parent is None
+        assert child not in node.children
+
+    def test_concrete_tree_operations(self) -> None:
+        """Test all TreeProtocol methods with concrete implementation."""
+        tree = create_test_tree()
+
+        # Test focus method
+        tree.focus()  # Should not raise any exception
+
+        # Test root property
+        assert tree.root is None
+
+        # Test cursor_node property
+        assert tree.cursor_node is None
+
+    def test_concrete_input_modal_operations(self) -> None:
+        """Test InputModalProtocol methods with concrete implementation."""
+        node = create_test_tree_node("Test Node")
+
+        def test_callback(text: str, node: TreeNodeProtocol | None) -> None:
+            pass
+
+        modal = create_test_input_modal("Test Title", "Default", node, test_callback)
+
+        assert modal.title == "Test Title"
+        assert modal.default == "Default"
+        assert modal.node == node
+        assert modal.callback == test_callback
+
+    def test_concrete_implementations_with_task_data_manager(self) -> None:
+        """Test that concrete implementations work with TaskDataManager."""
+        # Create a tree structure using concrete implementations
+        root = create_test_tree_node("Root")
+        root.add("Task 1")
+        task2 = root.add("Task 2")
+        task2.add_leaf("Step 1")
+        task2.add_leaf("Step 2")
+
+        # Test build_tasks_from_tree with concrete implementation
+        result = TaskDataManager.build_tasks_from_tree(root)
+
+        expected = [
+            {"name": "Task 1"},
+            {"name": "Task 2", "steps": ["Step 1", "Step 2"]},
+        ]
+        assert result == expected
+
+    def test_concrete_tree_population(self) -> None:
+        """Test populating a concrete tree with tasks."""
+        tree = create_test_tree()
+        tree._root = create_test_tree_node("Root")  # Set root for testing
+
+        tasks = [
+            {"name": "Task 1", "steps": ["Step 1", "Step 2"]},
+            {"name": "Task 2", "steps": [{"description": "Complex step"}]},
+        ]
+
+        # This should not raise any exception
+        TaskDataManager.populate_tree_from_tasks(tree, tasks)
 
 
 if __name__ == "__main__":
