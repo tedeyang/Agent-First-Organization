@@ -27,7 +27,7 @@ class TaskEditorApp(App):
 
     Attributes:
         tasks (list): List of task dictionaries containing task names and steps
-        task_tree (Tree): The tree widget displaying tasks and steps
+        task_tree (Tree | None): The tree widget displaying tasks and steps, initialized as None
 
     Methods:
         compose(): Creates the main UI components
@@ -37,6 +37,7 @@ class TaskEditorApp(App):
         action_add_node(): Adds new nodes to the tree
         show_input_modal(): Displays the input modal dialog
         update_tasks(): Updates the tasks list from the tree structure
+        run(): Runs the app and returns the updated tasks list
     """
 
     def __init__(self, tasks: list[dict[str, Any]]) -> None:
@@ -172,6 +173,8 @@ class TaskEditorApp(App):
         """Show an input modal dialog.
 
         Creates and displays an input modal with the given title and default value.
+        The actual result will be handled by the callback function when the user
+        submits or cancels the modal.
 
         Args:
             title (str): The title of the modal
@@ -180,7 +183,7 @@ class TaskEditorApp(App):
             callback (Callable[[str, TreeNode | None], None] | None): Callback function
 
         Returns:
-            str: The result from the modal input
+            str: The default value (the actual result is handled by the callback)
         """
         modal = InputModal(title, default, node, callback)
         self.push_screen(modal)
