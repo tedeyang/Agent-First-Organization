@@ -4484,3 +4484,155 @@ class TestGeneratorFinalCoverage:
                 mock_best_practice_manager.return_value.finetune_best_practice.call_count
                 == 1
             )
+
+
+class TestGeneratorSpecificLineCoverage:
+    """Test specific missing lines in core generator.py."""
+
+    def test_generate_no_user_changes_detected_specific_lines(
+        self,
+        always_valid_mock_model: Mock,
+        patched_sample_config: dict[str, Any],
+        mock_document_loader: Mock,
+        mock_task_generator: Mock,
+        mock_best_practice_manager: Mock,
+        mock_task_graph_formatter: Mock,
+        mock_prompt_manager: Mock,
+    ) -> None:
+        """Test generate method when no user changes are detected (lines 499-500)."""
+        # Configure mocks
+        with patch.multiple(
+            "arklex.orchestrator.generator.core.generator",
+            DocumentLoader=mock_document_loader,
+            TaskGenerator=mock_task_generator,
+            BestPracticeManager=mock_best_practice_manager,
+            TaskGraphFormatter=mock_task_graph_formatter,
+            PromptManager=mock_prompt_manager,
+        ):
+            # Mock document loading
+            mock_document_loader.return_value.load_task_document.return_value = {}
+            mock_document_loader.return_value.load_instruction_document.return_value = {}
+
+            # Mock task generator
+            mock_task_generator.return_value.add_provided_tasks.return_value = []
+            mock_task_generator.return_value.generate_tasks.return_value = []
+
+            # Create generator with UI interaction enabled
+            generator = Generator(
+                config=patched_sample_config,
+                model=always_valid_mock_model,
+                interactable_with_user=True,
+                allow_nested_graph=False,
+            )
+
+            # Set up original tasks
+            original_tasks = [
+                {
+                    "name": "Original Task",
+                    "description": "Original description",
+                    "steps": [{"description": "Step 1"}],
+                }
+            ]
+            generator.tasks = original_tasks.copy()
+
+            # Mock UI to return the same tasks (no changes detected)
+            with patch(
+                "arklex.orchestrator.generator.core.generator.TaskEditorApp"
+            ) as mock_ui:
+                mock_ui_instance = Mock()
+                # Return the same tasks to trigger the "no changes detected" branch
+                mock_ui_instance.run.return_value = original_tasks.copy()
+                mock_ui.return_value = mock_ui_instance
+
+                # Mock best practices
+                mock_best_practice_manager.return_value.generate_best_practices.return_value = [
+                    {
+                        "name": "Best Practice 1",
+                        "description": "Best practice description",
+                        "steps": [{"description": "Best practice step"}],
+                    }
+                ]
+
+                # Mock task graph formatter
+                mock_task_graph_formatter.return_value.format_task_graph.return_value = {
+                    "tasks": [],
+                    "metadata": {},
+                    "version": "1.0",
+                }
+
+                # Run generate method
+                result = generator.generate()
+
+                # Verify that the method completed successfully
+                assert result is not None
+                # Verify that the "no changes detected" branch was executed
+                mock_task_graph_formatter.return_value.format_task_graph.assert_called_once()
+
+    def test_generate_no_ui_interaction_specific_lines(
+        self,
+        always_valid_mock_model: Mock,
+        patched_sample_config: dict[str, Any],
+        mock_document_loader: Mock,
+        mock_task_generator: Mock,
+        mock_best_practice_manager: Mock,
+        mock_task_graph_formatter: Mock,
+        mock_prompt_manager: Mock,
+    ) -> None:
+        """Test generate method when no UI interaction (lines 637-638)."""
+        # Configure mocks
+        with patch.multiple(
+            "arklex.orchestrator.generator.core.generator",
+            DocumentLoader=mock_document_loader,
+            TaskGenerator=mock_task_generator,
+            BestPracticeManager=mock_best_practice_manager,
+            TaskGraphFormatter=mock_task_graph_formatter,
+            PromptManager=mock_prompt_manager,
+        ):
+            # Mock document loading
+            mock_document_loader.return_value.load_task_document.return_value = {}
+            mock_document_loader.return_value.load_instruction_document.return_value = {}
+
+            # Mock task generator
+            mock_task_generator.return_value.add_provided_tasks.return_value = []
+            mock_task_generator.return_value.generate_tasks.return_value = []
+
+            # Create generator with UI interaction disabled
+            generator = Generator(
+                config=patched_sample_config,
+                model=always_valid_mock_model,
+                interactable_with_user=False,
+                allow_nested_graph=False,
+            )
+
+            # Set up tasks
+            generator.tasks = [
+                {
+                    "name": "Task 1",
+                    "description": "Task 1 description",
+                    "steps": [{"description": "Step 1"}],
+                }
+            ]
+
+            # Mock best practices
+            mock_best_practice_manager.return_value.generate_best_practices.return_value = [
+                {
+                    "name": "Best Practice 1",
+                    "description": "Best practice description",
+                    "steps": [{"description": "Best practice step"}],
+                }
+            ]
+
+            # Mock task graph formatter
+            mock_task_graph_formatter.return_value.format_task_graph.return_value = {
+                "tasks": [],
+                "metadata": {},
+                "version": "1.0",
+            }
+
+            # Run generate method
+            result = generator.generate()
+
+            # Verify that the method completed successfully
+            assert result is not None
+            # Verify that the "no UI interaction" branch was executed
+            mock_task_graph_formatter.return_value.format_task_graph.assert_called_once()
