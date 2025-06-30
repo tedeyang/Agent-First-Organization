@@ -5,9 +5,8 @@ It includes input validation and callback handling for user interactions.
 """
 
 from collections.abc import Callable
-from typing import Union
 
-from textual.app import ComposeResult
+from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
 from textual.widgets import Button, Input, Static
@@ -28,9 +27,9 @@ class InputModal(Screen):
         title (str): The title of the modal dialog
         default (str): Default value for the input field
         result (str): The final result after user interaction
-        node (TreeNode): The tree node being edited
-        callback (callable): Function to call after user interaction
-        app: The parent app instance
+        node (TreeNode | None): The tree node being edited
+        callback (Callable[[str, TreeNode | None], None] | None): Function to call after user interaction
+        app (App | None): The parent app instance
 
     Methods:
         compose(): Creates the modal UI components
@@ -41,8 +40,8 @@ class InputModal(Screen):
         self,
         title: str,
         default: str = "",
-        node: Union["TreeNode", None] = None,
-        callback: Callable[[str, "TreeNode"], None] | None = None,
+        node: "TreeNode" | None = None,
+        callback: Callable[[str, "TreeNode" | None], None] | None = None,
     ) -> None:
         """Initialize the InputModal instance.
 
@@ -61,12 +60,12 @@ class InputModal(Screen):
         self._app = None
 
     @property
-    def app(self) -> "Screen":
+    def app(self) -> "App":
         """Get the app instance."""
         return self._app
 
     @app.setter
-    def app(self, value: "Screen") -> None:
+    def app(self, value: "App") -> None:
         """Set the app instance."""
         self._app = value
 
