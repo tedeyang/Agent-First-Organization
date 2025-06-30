@@ -217,13 +217,20 @@ def complex_tasks() -> list[dict[str, Any]]:
     """Complex tasks with mixed step formats for testing."""
     return [
         {
-            "name": "Complex Task",
+            "name": "Complex Task 1",
             "steps": [
-                {"description": "Step with dict"},
-                "Step as string",
-                {"other_field": "Not description"},
+                {"name": "Sub-step 1", "description": "Detailed step"},
+                "Simple step 2",
+                {"name": "Sub-step 3", "requirements": ["req1", "req2"]},
             ],
-        }
+        },
+        {
+            "name": "Complex Task 2",
+            "steps": [
+                "Simple step 1",
+                {"name": "Sub-step 2", "timeout": 30},
+            ],
+        },
     ]
 
 
