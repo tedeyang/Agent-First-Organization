@@ -6,6 +6,8 @@ extraction, document loading with caching, and handling different document types
 
 from unittest.mock import MagicMock, Mock, patch
 
+import pytest
+
 from arklex.evaluation import get_documents
 from arklex.utils.loader import CrawledObject, SourceType
 
@@ -47,6 +49,16 @@ class TestGetDomainInfo:
         ]
         result = get_documents.get_domain_info(documents)
         assert result == "First summary"
+
+    def test_get_domain_info_no_summary(self) -> None:
+        """Explicitly test get_domain_info for missing summary (lines 57-58)."""
+        from arklex.evaluation.get_documents import get_domain_info
+
+        docs = [
+            {"URL": "https://foo.com", "content": "foo"},
+            {"URL": "https://bar.com", "content": "bar"},
+        ]
+        assert get_domain_info(docs) is None
 
 
 class TestLoadDocs:
@@ -224,7 +236,22 @@ class TestLoadDocs:
         """Test loading documents with missing rag_docs and task_docs."""
         doc_config = {"other_key": "value"}
 
-        # The function prints an error and returns empty list, doesn't raise ValueError
+        # The function raises ValueError when neither rag_docs nor task_docs is present
+        with pytest.raises(
+            ValueError,
+            match="The config json file must have a key 'rag_docs' or 'task_docs' with a list of documents to load.",
+        ):
+            get_documents.load_docs("./temp_files", doc_config, 10)
+
+    def test_load_docs_empty_rag_docs(self) -> None:
+        """Test loading documents with empty rag_docs array."""
+        doc_config = {"rag_docs": []}
+        result = get_documents.load_docs("./temp_files", doc_config, 10)
+        assert result == []
+
+    def test_load_docs_empty_task_docs(self) -> None:
+        """Test loading documents with empty task_docs array."""
+        doc_config = {"task_docs": []}
         result = get_documents.load_docs("./temp_files", doc_config, 10)
         assert result == []
 
@@ -374,23 +401,22 @@ class TestLoadDocs:
 
     @patch("pickle.load")
     @patch("os.path.exists")
+    @patch("builtins.open", create=True)
     def test_load_docs_invalid_crawled_objects(
-        self, mock_exists: Mock, mock_pickle_load: Mock
+        self, mock_open: Mock, mock_exists: Mock, mock_pickle_load: Mock
     ) -> None:
-        """Test loading documents with invalid crawled objects."""
+        """Test load_docs raises ValueError for non-CrawledObject docs."""
         mock_exists.return_value = True
-        # Return a list of dicts instead of CrawledObject instances
-        mock_pickle_load.return_value = [
-            {"url": "https://example.com", "content": "Example content"}
-        ]
+        mock_pickle_load.return_value = [{"not": "CrawledObject"}]
+        mock_file = MagicMock()
+        mock_open.return_value = mock_file
 
-        doc_config = {
-            "task_docs": [{"source": "https://example.com", "type": "url", "num": 1}]
-        }
+        doc_config = {"task_docs": [{"source": "foo", "type": "url", "num": 1}]}
 
-        # The function prints an error and returns empty list, doesn't raise ValueError
-        result = get_documents.load_docs("./temp_files", doc_config, 10)
-        assert result == []
+        with pytest.raises(
+            ValueError, match="The documents must be a list of CrawledObject objects"
+        ):
+            get_documents.load_docs("/tmp", doc_config, 10)
 
     @patch("pickle.load")
     @patch("os.path.exists")
