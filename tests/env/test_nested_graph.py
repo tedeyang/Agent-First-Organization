@@ -798,3 +798,24 @@ class TestNestedGraph:
 
         with suppress(AttributeError):
             NestedGraph.get_nested_graph_component_node(params, is_leaf_func)
+
+    def test_get_nested_graph_component_node_not_leaf_branch(self) -> None:
+        """Covers the branch where is_leaf_func returns False, triggering the return at line 92."""
+        params = Params()
+        # Create a path with two nodes, the second is a nested graph component
+        path_node1 = PathNode(node_id="node1")
+        path_node2 = PathNode(node_id="node2", nested_graph_node_value="node1")
+        params.taskgraph.path = [path_node1, path_node2]
+        params.taskgraph.node_status = {}
+
+        def is_leaf_func(node_id: str) -> bool:
+            # Always return False to trigger the branch
+            return False
+
+        result_node, result_params = NestedGraph.get_nested_graph_component_node(
+            params, is_leaf_func
+        )
+        # Should return the nested graph component node (node2) and params
+        assert result_node is not None
+        assert result_node.node_id == "node2"
+        assert result_params == params
