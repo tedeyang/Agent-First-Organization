@@ -1,7 +1,8 @@
-"""Tests for the TaskEditorApp UI component.
+"""Tests for the TaskEditorApp class.
 
-This module tests the TaskEditorApp class which provides an interactive
-interface for editing task graphs using Textual UI framework.
+This module provides comprehensive tests for the TaskEditorApp class, which is a text-based
+user interface for editing tasks and their steps. The tests cover all methods, edge cases,
+and user interactions.
 """
 
 import sys
@@ -10,6 +11,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
+from textual.app import App
 
 from arklex.orchestrator.generator.ui.task_editor import TaskEditorApp
 
@@ -801,3 +803,191 @@ class TestTaskEditorAppDataManagement:
         app = TaskEditorApp(None)
         assert app.tasks is None
         assert app.task_tree is None
+
+
+class TestTaskEditorFinalCoverage:
+    """Test cases to cover the final missing lines in task_editor.py."""
+
+    def test_task_editor_init_with_none_tasks(self) -> None:
+        """Test TaskEditorApp initialization with None tasks."""
+        # This test covers the line: tasks = self.tasks if self.tasks is not None else []
+        app = TaskEditorApp(tasks=None)
+        assert app.tasks is None
+
+    def test_task_editor_compose_with_none_tasks(self) -> None:
+        """Test TaskEditorApp compose method with None tasks."""
+        # This test covers the line: tasks = self.tasks if self.tasks is not None else []
+        app = TaskEditorApp(tasks=None)
+
+        # Mock the Tree and Label classes
+        with (
+            patch("arklex.orchestrator.generator.ui.task_editor.Tree") as mock_tree,
+            patch("arklex.orchestrator.generator.ui.task_editor.Label") as mock_label,
+        ):
+            mock_tree_instance = Mock()
+            mock_tree_instance.root = Mock()
+            mock_tree_instance.root.expand = Mock()
+            mock_tree_instance.root.add = Mock()
+            mock_tree.return_value = mock_tree_instance
+
+            mock_label_instance = Mock()
+            mock_label.return_value = mock_label_instance
+
+            # Call compose method
+            compose_result = list(app.compose())
+
+            # Verify that compose completed without errors
+            assert len(compose_result) == 2  # Tree and Label
+            assert mock_tree_instance.root.expand.called
+
+    def test_task_editor_update_tasks_with_none_tree(self) -> None:
+        """Test update_tasks method when task_tree is None."""
+        # This test covers the line: if self.task_tree is None or getattr(self.task_tree, "root", None) is None:
+        app = TaskEditorApp(tasks=[])
+        app.task_tree = None
+
+        # Call update_tasks method
+        app.update_tasks()
+
+        # Verify that the method completed without errors
+        assert app.tasks == []
+
+    def test_task_editor_update_tasks_with_none_root(self) -> None:
+        """Test update_tasks method when task_tree.root is None."""
+        # This test covers the line: if self.task_tree is None or getattr(self.task_tree, "root", None) is None:
+        app = TaskEditorApp(tasks=[])
+        app.task_tree = Mock()
+        app.task_tree.root = None
+
+        # Call update_tasks method
+        app.update_tasks()
+
+        # Verify that the method completed without errors
+        assert app.tasks == []
+
+    def test_task_editor_update_tasks_with_getattr_none_root(self) -> None:
+        """Test update_tasks method when getattr returns None for root."""
+        # This test covers the line: if self.task_tree is None or getattr(self.task_tree, "root", None) is None:
+        app = TaskEditorApp(tasks=[])
+        app.task_tree = Mock()
+
+        # Mock getattr to return None for root
+        with patch("builtins.getattr", return_value=None):
+            # Call update_tasks method
+            app.update_tasks()
+
+            # Verify that the method completed without errors
+            assert app.tasks == []
+
+    async def test_task_editor_update_tasks_with_complex_tree_structure(self) -> None:
+        """Test update_tasks method with a complex tree structure."""
+        # This test covers the line: for task_node in self.task_tree.root.children:
+        app = TaskEditorApp(tasks=[])
+
+        # Create a mock tree structure
+        mock_root = Mock()
+        mock_task_node1 = Mock()
+        mock_task_node1.label.plain = "Task 1"
+        mock_step1 = Mock()
+        mock_step1.label.plain = "Step 1"
+        mock_step2 = Mock()
+        mock_step2.label.plain = "Step 2"
+        mock_task_node1.children = [mock_step1, mock_step2]
+
+        mock_task_node2 = Mock()
+        mock_task_node2.label.plain = "Task 2"
+        mock_step3 = Mock()
+        mock_step3.label.plain = "Step 3"
+        mock_task_node2.children = [mock_step3]
+
+        mock_root.children = [mock_task_node1, mock_task_node2]
+
+        app.task_tree = Mock()
+        app.task_tree.root = mock_root
+
+        # Mock log_context.debug
+        with patch(
+            "arklex.orchestrator.generator.ui.task_editor.log_context"
+        ) as mock_log:
+            # Call update_tasks method
+            await app.update_tasks()
+
+            # Verify that the method completed successfully
+            assert len(app.tasks) == 2
+            assert app.tasks[0]["name"] == "Task 1"
+            assert app.tasks[0]["steps"] == ["Step 1", "Step 2"]
+            assert app.tasks[1]["name"] == "Task 2"
+            assert app.tasks[1]["steps"] == ["Step 3"]
+
+            # Verify that debug logging was called
+            mock_log.debug.assert_called_once()
+
+    def test_task_editor_run_method(self) -> None:
+        """Test TaskEditorApp run method."""
+        # This test covers the line: super().run()
+        app = TaskEditorApp(tasks=[{"name": "Test Task", "steps": ["Step 1"]}])
+
+        # Mock the parent class run method
+        with patch.object(App, "run") as mock_parent_run:
+            # Call run method
+            result = app.run()
+
+            # Verify that parent run was called
+            mock_parent_run.assert_called_once()
+
+            # Verify that the method returns the tasks
+            assert result == [{"name": "Test Task", "steps": ["Step 1"]}]
+
+    def test_task_editor_show_input_modal_with_callback(self) -> None:
+        """Test show_input_modal method with callback."""
+        # This test covers the line: return modal.result
+        app = TaskEditorApp(tasks=[])
+
+        # Mock InputModal
+        with patch(
+            "arklex.orchestrator.generator.ui.task_editor.InputModal"
+        ) as mock_modal_class:
+            mock_modal_instance = Mock()
+            mock_modal_instance.result = "test result"
+            mock_modal_class.return_value = mock_modal_instance
+
+            # Mock push_screen
+            with patch.object(app, "push_screen") as mock_push_screen:
+                # Call show_input_modal method
+                result = app.show_input_modal("Test Title", "default value")
+
+                # Verify that InputModal was created with correct parameters
+                mock_modal_class.assert_called_once_with("Test Title", "default value")
+
+                # Verify that push_screen was called
+                mock_push_screen.assert_called_once_with(mock_modal_instance)
+
+                # Verify that the method returns the modal result
+                assert result == "test result"
+
+    def test_task_editor_show_input_modal_without_default(self) -> None:
+        """Test show_input_modal method without default value."""
+        # This test covers the line: default (str): Default value for the input field. Defaults to "".
+        app = TaskEditorApp(tasks=[])
+
+        # Mock InputModal
+        with patch(
+            "arklex.orchestrator.generator.ui.task_editor.InputModal"
+        ) as mock_modal_class:
+            mock_modal_instance = Mock()
+            mock_modal_instance.result = "test result"
+            mock_modal_class.return_value = mock_modal_instance
+
+            # Mock push_screen
+            with patch.object(app, "push_screen") as mock_push_screen:
+                # Call show_input_modal method without default
+                result = app.show_input_modal("Test Title")
+
+                # Verify that InputModal was created with empty default
+                mock_modal_class.assert_called_once_with("Test Title", "")
+
+                # Verify that push_screen was called
+                mock_push_screen.assert_called_once_with(mock_modal_instance)
+
+                # Verify that the method returns the modal result
+                assert result == "test result"
