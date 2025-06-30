@@ -1164,6 +1164,29 @@ class TestTools:
                 == "Context from test_tool tool execution: Result: test_value\n"
             )
 
+    def test_validate_intent_response_fallback(self) -> None:
+        from arklex.orchestrator.NLU.utils import validators
+
+        # Should return 'others' for unknown response
+        result = validators.validate_intent_response("not_in_map", {"1": "intent1"})
+        assert result == "others"
+
+    def test_validate_slot_response_invalid_json(self) -> None:
+        from arklex.orchestrator.NLU.utils import validators
+        from arklex.utils.slot import Slot
+
+        # Should return original slots on JSON error
+        slots = [Slot(name="foo", value=None, type="str")]
+        result = validators.validate_slot_response("not a json", slots)
+        assert result == slots
+
+    def test_validate_verification_response_invalid_json(self) -> None:
+        from arklex.orchestrator.NLU.utils import validators
+
+        # Should return (False, 'No need to verify') on JSON error
+        result = validators.validate_verification_response("not a json")
+        assert result == (False, "No need to verify")
+
     def test_load_slots_with_new_slots(self) -> None:
         """Test load_slots method with completely new slots."""
 
@@ -1432,3 +1455,4 @@ class TestTools:
             assert result.status.value == "complete"
             # Should use previous slots since configuration didn't change
             assert tool.slots == previous_slots
+

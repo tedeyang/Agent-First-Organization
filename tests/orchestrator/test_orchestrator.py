@@ -1114,3 +1114,20 @@ class TestAgentOrgEdgeCases:
 
         assert response_state.is_stream is False
         assert response_state.stream_type is None
+
+
+class TestAgentOrgImportFallback:
+    """Test AgentOrg import fallback scenarios."""
+
+    @patch("arklex.orchestrator.orchestrator.Unpack", new=None)
+    @patch("typing_extensions.Unpack")
+    def test_import_fallback_unpack_type(
+        self, mock_typing_extensions_unpack: Mock, basic_config: dict[str, Any]
+    ) -> None:
+        """Test that the import fallback for Unpack type works correctly."""
+        # This test ensures that when Unpack is not available in typing,
+        # it falls back to typing_extensions
+        agent = AgentOrg(basic_config, None)
+        assert agent.product_kwargs["role"] == "test_role"
+        # The import fallback should have been triggered
+        mock_typing_extensions_unpack.assert_not_called()  # It's imported, not called
