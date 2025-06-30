@@ -3988,3 +3988,339 @@ class TestCompleteLineCoverage:
             ImportError, match="UI components require 'textual' package to be installed"
         ):
             TaskEditorApp(tasks=[])
+
+
+class TestGeneratorFinalCoverage:
+    """Test cases to cover the final missing lines in generator.py."""
+
+    def test_generate_task_changes_detection_with_different_step_counts(
+        self,
+        always_valid_mock_model: Mock,
+        patched_sample_config: dict[str, Any],
+        mock_document_loader: Mock,
+        mock_task_generator: Mock,
+        mock_best_practice_manager: Mock,
+        mock_task_graph_formatter: Mock,
+        mock_prompt_manager: Mock,
+    ) -> None:
+        """Test generate method when user changes are detected due to different step counts."""
+        # Configure mocks
+        with patch.multiple(
+            "arklex.orchestrator.generator.core.generator",
+            DocumentLoader=mock_document_loader,
+            TaskGenerator=mock_task_generator,
+            BestPracticeManager=mock_best_practice_manager,
+            TaskGraphFormatter=mock_task_graph_formatter,
+            PromptManager=mock_prompt_manager,
+        ):
+            # Mock document loading
+            mock_document_loader.return_value.load_task_document.return_value = {}
+            mock_document_loader.return_value.load_instruction_document.return_value = {}
+
+            # Mock task generator
+            mock_task_generator.return_value.add_provided_tasks.return_value = [
+                {
+                    "name": "Original Task",
+                    "description": "Original description",
+                    "steps": [{"description": "Step 1"}, {"description": "Step 2"}],
+                }
+            ]
+            mock_task_generator.return_value.generate_tasks.return_value = []
+
+            # Create generator with UI interaction enabled
+            generator = Generator(
+                config=patched_sample_config,
+                model=always_valid_mock_model,
+                interactable_with_user=True,
+                allow_nested_graph=False,
+            )
+
+            # Set up original tasks with 2 steps
+            generator.tasks = [
+                {
+                    "name": "Original Task",
+                    "description": "Original description",
+                    "steps": [{"description": "Step 1"}, {"description": "Step 2"}],
+                }
+            ]
+
+            # Mock UI to return tasks with different step count (3 steps)
+            mock_ui_result = [
+                {
+                    "name": "Original Task",
+                    "description": "Original description",
+                    "steps": [
+                        {"description": "Step 1"},
+                        {"description": "Step 2"},
+                        {"description": "Step 3"},  # Different step count
+                    ],
+                }
+            ]
+
+            with patch(
+                "arklex.orchestrator.generator.core.generator.TaskEditorApp"
+            ) as mock_ui:
+                mock_ui_instance = Mock()
+                mock_ui_instance.run.return_value = mock_ui_result
+                mock_ui.return_value = mock_ui_instance
+
+                # Mock best practices
+                mock_best_practice_manager.return_value.generate_best_practices.return_value = [
+                    {
+                        "name": "Best Practice 1",
+                        "description": "Best practice description",
+                        "steps": [{"description": "Best practice step"}],
+                    }
+                ]
+
+                # Mock task graph formatter
+                mock_task_graph_formatter.return_value.format_task_graph.return_value = {
+                    "tasks": [],
+                    "metadata": {},
+                    "version": "1.0",
+                }
+
+                # Run generate method
+                result = generator.generate()
+
+                # Verify that the method completed successfully
+                assert result is not None
+
+    def test_generate_task_changes_detection_with_different_names(
+        self,
+        always_valid_mock_model: Mock,
+        patched_sample_config: dict[str, Any],
+        mock_document_loader: Mock,
+        mock_task_generator: Mock,
+        mock_best_practice_manager: Mock,
+        mock_task_graph_formatter: Mock,
+        mock_prompt_manager: Mock,
+    ) -> None:
+        """Test generate method when user changes are detected due to different task names."""
+        # Configure mocks
+        with patch.multiple(
+            "arklex.orchestrator.generator.core.generator",
+            DocumentLoader=mock_document_loader,
+            TaskGenerator=mock_task_generator,
+            BestPracticeManager=mock_best_practice_manager,
+            TaskGraphFormatter=mock_task_graph_formatter,
+            PromptManager=mock_prompt_manager,
+        ):
+            # Mock document loading
+            mock_document_loader.return_value.load_task_document.return_value = {}
+            mock_document_loader.return_value.load_instruction_document.return_value = {}
+
+            # Mock task generator
+            mock_task_generator.return_value.add_provided_tasks.return_value = [
+                {
+                    "name": "Original Task",
+                    "description": "Original description",
+                    "steps": [{"description": "Step 1"}],
+                }
+            ]
+            mock_task_generator.return_value.generate_tasks.return_value = []
+
+            # Create generator with UI interaction enabled
+            generator = Generator(
+                config=patched_sample_config,
+                model=always_valid_mock_model,
+                interactable_with_user=True,
+                allow_nested_graph=False,
+            )
+
+            # Set up original tasks
+            generator.tasks = [
+                {
+                    "name": "Original Task",
+                    "description": "Original description",
+                    "steps": [{"description": "Step 1"}],
+                }
+            ]
+
+            # Mock UI to return tasks with different name
+            mock_ui_result = [
+                {
+                    "name": "Modified Task",  # Different name
+                    "description": "Original description",
+                    "steps": [{"description": "Step 1"}],
+                }
+            ]
+
+            with patch(
+                "arklex.orchestrator.generator.core.generator.TaskEditorApp"
+            ) as mock_ui:
+                mock_ui_instance = Mock()
+                mock_ui_instance.run.return_value = mock_ui_result
+                mock_ui.return_value = mock_ui_instance
+
+                # Mock best practices
+                mock_best_practice_manager.return_value.generate_best_practices.return_value = [
+                    {
+                        "name": "Best Practice 1",
+                        "description": "Best practice description",
+                        "steps": [{"description": "Best practice step"}],
+                    }
+                ]
+
+                # Mock task graph formatter
+                mock_task_graph_formatter.return_value.format_task_graph.return_value = {
+                    "tasks": [],
+                    "metadata": {},
+                    "version": "1.0",
+                }
+
+                # Run generate method
+                result = generator.generate()
+
+                # Verify that the method completed successfully
+                assert result is not None
+
+    def test_generate_no_ui_interaction_else_branch_with_best_practices(
+        self,
+        always_valid_mock_model: Mock,
+        patched_sample_config: dict[str, Any],
+        mock_document_loader: Mock,
+        mock_task_generator: Mock,
+        mock_best_practice_manager: Mock,
+        mock_task_graph_formatter: Mock,
+        mock_prompt_manager: Mock,
+    ) -> None:
+        """Test generate method when no UI interaction and best practices are available."""
+        # Configure mocks
+        with patch.multiple(
+            "arklex.orchestrator.generator.core.generator",
+            DocumentLoader=mock_document_loader,
+            TaskGenerator=mock_task_generator,
+            BestPracticeManager=mock_best_practice_manager,
+            TaskGraphFormatter=mock_task_graph_formatter,
+            PromptManager=mock_prompt_manager,
+        ):
+            # Mock document loading
+            mock_document_loader.return_value.load_task_document.return_value = {}
+            mock_document_loader.return_value.load_instruction_document.return_value = {}
+
+            # Mock task generator
+            mock_task_generator.return_value.add_provided_tasks.return_value = [
+                {
+                    "name": "Task 1",
+                    "description": "Task 1 description",
+                    "steps": [{"description": "Step 1"}],
+                }
+            ]
+            mock_task_generator.return_value.generate_tasks.return_value = []
+
+            # Create generator with UI interaction disabled
+            generator = Generator(
+                config=patched_sample_config,
+                model=always_valid_mock_model,
+                interactable_with_user=False,
+                allow_nested_graph=False,
+            )
+
+            # Set up tasks
+            generator.tasks = [
+                {
+                    "name": "Task 1",
+                    "description": "Task 1 description",
+                    "steps": [{"description": "Step 1"}],
+                }
+            ]
+
+            # Mock best practices
+            mock_best_practice_manager.return_value.generate_best_practices.return_value = [
+                {
+                    "name": "Best Practice 1",
+                    "description": "Best practice description",
+                    "steps": [{"description": "Best practice step"}],
+                }
+            ]
+
+            # Mock task graph formatter
+            mock_task_graph_formatter.return_value.format_task_graph.return_value = {
+                "tasks": [],
+                "metadata": {},
+                "version": "1.0",
+            }
+
+            # Run generate method
+            result = generator.generate()
+
+            # Verify that the method completed successfully
+            assert result is not None
+
+    def test_save_task_graph_with_debug_logging(
+        self, always_valid_mock_model: Mock, patched_sample_config: dict[str, Any]
+    ) -> None:
+        """Test save_task_graph method with debug logging for non-serializable fields."""
+        # Create generator
+        generator = Generator(
+            config=patched_sample_config,
+            model=always_valid_mock_model,
+            output_dir="/tmp",
+        )
+
+        # Create task graph with non-serializable objects
+        task_graph = {
+            "tasks": [],
+            "metadata": {},
+            "non_serializable_field": lambda x: x,  # Callable object
+            "another_field": 123,
+        }
+
+        # Mock the open function and json.dump
+        with (
+            patch("builtins.open", mock_open()) as mock_file,
+            patch("json.dump") as mock_json_dump,
+            patch(
+                "arklex.orchestrator.generator.core.generator.log_context"
+            ) as mock_log,
+        ):
+            # Run save_task_graph method
+            result = generator.save_task_graph(task_graph)
+
+            # Verify that the method completed successfully
+            assert result is not None
+            assert mock_file.called
+            assert mock_json_dump.called
+
+            # Verify that debug logging was called for non-serializable fields
+            mock_log.debug.assert_called()
+
+    def test_save_task_graph_sanitize_with_tuple(
+        self, always_valid_mock_model: Mock, patched_sample_config: dict[str, Any]
+    ) -> None:
+        """Test save_task_graph sanitize function with tuple objects."""
+        # Create generator
+        generator = Generator(
+            config=patched_sample_config,
+            model=always_valid_mock_model,
+            output_dir="/tmp",
+        )
+
+        # Create task graph with tuple objects
+        task_graph = {
+            "tasks": [],
+            "metadata": {},
+            "tuple_field": (1, 2, 3),
+            "nested_tuple": ({"key": "value"}, (4, 5)),
+        }
+
+        # Mock the open function and json.dump
+        with (
+            patch("builtins.open", mock_open()) as mock_file,
+            patch("json.dump") as mock_json_dump,
+        ):
+            # Run save_task_graph method
+            result = generator.save_task_graph(task_graph)
+
+            # Verify that the method completed successfully
+            assert result is not None
+            assert mock_file.called
+            assert mock_json_dump.called
+
+            # Verify that the sanitized data was passed to json.dump
+            call_args = mock_json_dump.call_args[0]
+            sanitized_data = call_args[0]
+            assert "tuple_field" in sanitized_data
+            assert isinstance(sanitized_data["tuple_field"], tuple)
+            assert sanitized_data["tuple_field"] == (1, 2, 3)
