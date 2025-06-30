@@ -1737,3 +1737,20 @@ class TestBuildUserProfiles:
         out = build_user_profiles.augment_attributes(predefined, mock_config, docs)
         assert "cat" in out and "aug1" in out["cat"] and "aug2" in out["cat"]
         assert called["prompt"]
+
+    def test_build_user_profiles_return_line(self) -> None:
+        from arklex.evaluation.build_user_profiles import build_user_profiles
+
+        # Should always return an empty list, even with non-empty input
+        result = build_user_profiles([{"foo": "bar"}])
+        assert result == []
+
+    def test_attributes_to_text_return_line_edge_case(self) -> None:
+        from arklex.evaluation.build_user_profiles import attributes_to_text
+
+        # Edge case: attribute dict with one key-value
+        result = attributes_to_text([{"a": 1}])
+        assert result == ["a: 1"]
+        # Edge case: attribute dict with multiple key-values
+        result = attributes_to_text([{"a": 1, "b": 2}])
+        assert all(isinstance(s, str) for s in result)
