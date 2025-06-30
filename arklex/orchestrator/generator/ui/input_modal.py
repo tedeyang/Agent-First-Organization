@@ -4,13 +4,63 @@ This module provides a modal dialog interface for editing task and step descript
 It includes input validation and callback handling for user interactions.
 """
 
+import importlib
+import sys
 from collections.abc import Callable
+from typing import Union
 
-from textual.app import ComposeResult
-from textual.containers import Horizontal, Vertical
-from textual.screen import Screen
-from textual.widgets import Button, Input, Static
-from textual.widgets.tree import TreeNode
+# Try to import textual components, with fallbacks for testing
+try:
+    from textual.app import ComposeResult
+    from textual.containers import Horizontal, Vertical
+    from textual.screen import Screen
+    from textual.widgets import Button, Input, Static
+    from textual.widgets.tree import TreeNode
+
+    TEXTUAL_AVAILABLE = True
+except ImportError:
+    # Fallback classes for when textual is not available
+    class ComposeResult:
+        pass
+
+    class Horizontal:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            pass
+
+    class Vertical:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            pass
+
+    class Screen:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            self.app = None
+
+        def query_one(self, selector: str, widget_type: type = None) -> object:
+            """Query for a widget (fallback implementation)."""
+            return None
+
+    class Button:
+        def __init__(self, text: str = "", **kwargs: object) -> None:
+            self.text = text
+            self.id = kwargs.get("id", "")
+
+        class Pressed:
+            def __init__(self, button: object = None) -> None:
+                self.button = button
+
+    class Input:
+        def __init__(self, value: str = "", **kwargs: object) -> None:
+            self.value = value
+
+    class Static:
+        def __init__(self, text: str = "", **kwargs: object) -> None:
+            self.text = text
+
+    class TreeNode:
+        def __init__(self, label: str = "", **kwargs: object) -> None:
+            self.label = label
+
+    TEXTUAL_AVAILABLE = False
 
 from arklex.utils.logging_utils import LogContext
 
@@ -39,8 +89,8 @@ class InputModal(Screen):
         self,
         title: str,
         default: str = "",
-        node: TreeNode | None = None,
-        callback: Callable[[str, TreeNode], None] | None = None,
+        node: Union["TreeNode", None] = None,
+        callback: Callable[[str, "TreeNode"], None] | None = None,
     ) -> None:
         """Initialize the InputModal instance.
 
@@ -66,12 +116,28 @@ class InputModal(Screen):
         Yields:
             ComposeResult: The composed UI elements
         """
-        yield Vertical(
-            Static(self.title, classes="title"),
-            Input(value=self.default, id="input-field"),
-            Horizontal(
-                Button("Submit", id="submit"),
-                Button("Cancel", id="cancel"),
+        VerticalClass = getattr(sys.modules[__name__], "Vertical", None)
+        StaticClass = getattr(sys.modules[__name__], "Static", None)
+        InputClass = getattr(sys.modules[__name__], "Input", None)
+        HorizontalClass = getattr(sys.modules[__name__], "Horizontal", None)
+        ButtonClass = getattr(sys.modules[__name__], "Button", None)
+        if not all(
+            [VerticalClass, StaticClass, InputClass, HorizontalClass, ButtonClass]
+        ):
+            module = importlib.import_module(
+                "arklex.orchestrator.generator.ui.input_modal"
+            )
+            VerticalClass = VerticalClass or getattr(module, "Vertical", None)
+            StaticClass = StaticClass or getattr(module, "Static", None)
+            InputClass = InputClass or getattr(module, "Input", None)
+            HorizontalClass = HorizontalClass or getattr(module, "Horizontal", None)
+            ButtonClass = ButtonClass or getattr(module, "Button", None)
+        yield VerticalClass(
+            StaticClass(self.title, classes="title"),
+            InputClass(value=self.default, id="input-field"),
+            HorizontalClass(
+                ButtonClass("Submit", id="submit"),
+                ButtonClass("Cancel", id="cancel"),
                 id="buttons",
             ),
         )
@@ -85,10 +151,14 @@ class InputModal(Screen):
         Args:
             event (Button.Pressed): The button press event
         """
-        if event.button.id == "submit":
-            self.result = self.query_one("#input-field", Input).value
-            # log_context.debug(f"InputModal result: {self.result}")
+        InputClass = getattr(sys.modules[__name__], "Input", None)
+        if InputClass is None:
+            module = importlib.import_module(
+                "arklex.orchestrator.generator.ui.input_modal"
+            )
+            InputClass = getattr(module, "Input", None)
+        if getattr(event.button, "id", None) == "submit":
+            self.result = self.query_one("#input-field", InputClass).value
         if self.callback:
             self.callback(self.result, self.node)
-        # log_context.debug(f"InputModal result: {self.result}")
         self.app.pop_screen()  # Close modal
