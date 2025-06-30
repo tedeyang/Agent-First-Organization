@@ -223,17 +223,11 @@ class TaskGraph(TaskGraphBase):
             candidates_nodes_weights: list[float] = [
                 node["attribute"]["weight"] for node in candidates_nodes
             ]
-            if candidates_nodes:
-                next_node: str = np.random.choice(
-                    [node["target_node"] for node in candidates_nodes],
-                    p=normalize(candidates_nodes_weights),
-                )
-                next_intent: str = pred_intent
-            else:  # This is for protection, logically shouldn't enter this branch
-                next_node: str = curr_node
-                next_intent: str = list(self.graph.in_edges(curr_node, data="intent"))[
-                    0
-                ][2]
+            next_node: str = np.random.choice(
+                [node["target_node"] for node in candidates_nodes],
+                p=normalize(candidates_nodes_weights),
+            )
+            next_intent: str = pred_intent
         except Exception as e:
             log_context.error(f"Error in jump_to_node: {e}")
             next_node: str = curr_node
