@@ -6,25 +6,23 @@ reusable tasks.
 
 The module has been refactored into specialized components:
 - Core: Main orchestration logic (Generator class)
-- UI: Interactive components for task editing
+- UI: Interactive components for task editing (TaskEditorApp, InputModal)
 - Tasks: Task generation, best practices, and reusable tasks
 - Docs: Document loading and processing
 - Formatting: Task graph structure formatting
 
 Key Components:
 - Generator: Main class for creating task graphs based on user objectives and documentation
-- TaskEditorApp: Text-based UI for editing tasks and their steps
-- InputModal: Modal dialog for editing task and step descriptions
+- TaskEditorApp: Text-based UI for editing tasks and their steps in a tree structure
+- InputModal: Modal dialog for editing task and step descriptions with callback support
 
 Features:
-- Natural language task generation
-- Interactive task editing
-- Reusable task management
-- Best practice integration
-- Documentation processing
-- Resource initialization
-- Task graph formatting
-- Configuration management
+- Natural language task generation from user objectives
+- Interactive task editing with keyboard shortcuts
+- Reusable task management and best practice integration
+- Documentation processing and resource initialization
+- Task graph formatting and configuration management
+- Graceful fallback when UI components are unavailable
 
 Usage:
     from arklex.orchestrator.generator import Generator
@@ -71,9 +69,9 @@ try:
     ui.InputModal = InputModal
     ui.TaskEditorApp = TaskEditorApp
 except ImportError:
-    # UI components not available
+    # UI components not available (e.g., textual not installed)
     _UI_COMPONENTS = []
-    # Create a dummy ui module
+    # Create a dummy ui module to prevent import errors
     import types
 
     ui = types.ModuleType("ui")
