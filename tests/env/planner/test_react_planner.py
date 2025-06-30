@@ -1308,6 +1308,7 @@ class TestReactPlanner:
         assert state.response == "test_response"
         assert action == "test_action"
         assert history == mock_msg_history
+        mock_plan_method.assert_called_once_with(mock_message_state, mock_msg_history)
 
     def test_get_num_resource_retrievals_with_exception_handling(
         self, react_planner: ReactPlanner
@@ -1428,6 +1429,49 @@ class TestReactPlanner:
         assert len(result) == 3
         assert result[1] == "test_tool"  # action name
         assert result[2] == "tool result"  # observation
+
+    def test_plan_fallback_return_exhausts_steps(
+        self,
+        configured_react_planner: ReactPlanner,
+        mock_message_state: MessageState,
+        mock_msg_history: list[dict[str, Any]],
+        patched_sample_config: dict[str, Any],
+        mock_planning_methods: dict[str, Mock],
+    ) -> None:
+        # Patch step to never return RESPOND_ACTION
+        original_step = configured_react_planner.step
+
+        def never_respond_action(action: Action, state: MessageState) -> EnvResponse:
+            # Always return a non-RESPOND_ACTION name
+            action.name = "not_respond_action"
+            return EnvResponse(observation="fallback_observation")
+
+        configured_react_planner.step = never_respond_action
+        # Patch message_to_actions to always return a non-RESPOND_ACTION action
+        original_message_to_actions = configured_react_planner.message_to_actions
+
+        def always_non_respond_action(message: dict[str, Any]) -> list[Action]:
+            return [Action(name="not_respond_action", kwargs={})]
+
+        configured_react_planner.message_to_actions = always_non_respond_action
+        # Patch _parse_response_action_to_json to return a dummy action
+        configured_react_planner._parse_response_action_to_json = lambda x: {
+            "name": "not_respond_action",
+            "arguments": {},
+        }
+        # Patch aimessage_to_dict to return a dummy message
+        patched_sample_config["mock_aimessage_to_dict"].return_value = {
+            "content": "dummy"
+        }
+        # Run plan with max_num_steps=2 to force fallback
+        msg_history, action_name, response = configured_react_planner.plan(
+            mock_message_state, mock_msg_history, max_num_steps=2
+        )
+        assert action_name == "not_respond_action"
+        assert response == "fallback_observation"
+        # Restore original methods
+        configured_react_planner.step = original_step
+        configured_react_planner.message_to_actions = original_message_to_actions
 
 
 class TestReactPlannerIntegration:
