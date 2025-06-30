@@ -53,7 +53,8 @@ Usage:
     output_path = generator.save_task_graph(task_graph)
 """
 
-from . import core, docs, formatting, tasks
+# Import the generator module for backward compatibility
+from . import core, docs, formatting, generator, tasks
 from .core import Generator
 
 # Import UI components if available
@@ -68,6 +69,7 @@ try:
     # Also expose the components directly on the ui module for backward compatibility
     ui.InputModal = InputModal
     ui.TaskEditorApp = TaskEditorApp
+    _UI_AVAILABLE = True
 except ImportError:
     # UI components not available (e.g., textual not installed)
     _UI_COMPONENTS = []
@@ -76,13 +78,18 @@ except ImportError:
 
     ui = types.ModuleType("ui")
     globals()["ui"] = ui
+    _UI_AVAILABLE = False
 
 __all__ = [
     "Generator",
     *_UI_COMPONENTS,
     "core",
-    "ui",
     "tasks",
     "docs",
     "formatting",
+    "generator",
 ]
+
+# Only add "ui" to __all__ if UI components are available
+if _UI_AVAILABLE:
+    __all__.append("ui")
