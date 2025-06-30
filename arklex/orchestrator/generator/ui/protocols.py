@@ -13,38 +13,38 @@ class TreeNodeProtocol(Protocol):
 
     def add(self, label: str) -> "TreeNodeProtocol":
         """Add a child node."""
-        ...
+        pass
 
     def add_leaf(self, label: str) -> "TreeNodeProtocol":
         """Add a leaf node."""
-        ...
+        pass
 
     def remove(self) -> None:
         """Remove this node."""
-        ...
+        pass
 
     def set_label(self, label: str) -> None:
         """Set the node label."""
-        ...
+        pass
 
     def expand(self) -> None:
         """Expand the node."""
-        ...
+        pass
 
     @property
     def children(self) -> list["TreeNodeProtocol"]:
         """Get child nodes."""
-        ...
+        pass
 
     @property
     def parent(self) -> "TreeNodeProtocol | None":
         """Get parent node."""
-        ...
+        pass
 
     @property
     def label(self) -> str | object:
         """Get node label."""
-        ...
+        pass
 
 
 class TreeProtocol(Protocol):
@@ -52,17 +52,17 @@ class TreeProtocol(Protocol):
 
     def focus(self) -> None:
         """Focus the tree."""
-        ...
+        pass
 
     @property
     def root(self) -> TreeNodeProtocol | None:
         """Get root node."""
-        ...
+        pass
 
     @property
     def cursor_node(self) -> TreeNodeProtocol | None:
         """Get currently selected node."""
-        ...
+        pass
 
 
 class InputModalProtocol(Protocol):
@@ -76,4 +76,4 @@ class InputModalProtocol(Protocol):
         callback: Callable[[str, TreeNodeProtocol | None], None] | None,
     ) -> None:
         """Initialize the modal."""
-        ...
+        pass
