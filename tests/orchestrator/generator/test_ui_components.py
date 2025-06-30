@@ -760,6 +760,37 @@ class TestInputModalUI:
         # Verify pop_screen was called
         modal.app.pop_screen.assert_called_once()
 
+    def test_input_modal_on_button_pressed_without_app_pop_screen(self) -> None:
+        skip_if_ui_not_available()
+        from arklex.orchestrator.generator.ui.input_modal import InputModal
+
+        """Test InputModal on_button_pressed method when app doesn't have pop_screen."""
+        modal = InputModal("Test Title", "default value")
+
+        # Mock the query_one method
+        modal.query_one = Mock()
+        mock_input = Mock()
+        mock_input.value = "test input"
+        modal.query_one.return_value = mock_input
+
+        # Mock the app without pop_screen method
+        modal.app = Mock()
+        del modal.app.pop_screen  # Remove pop_screen method
+
+        # Create a mock button press event
+        mock_button = Mock()
+        mock_button.id = "submit"
+        mock_event = FallbackButton.Pressed(mock_button)
+
+        # Test button press - should not raise an exception
+        modal.on_button_pressed(mock_event)
+
+        # Verify the result was updated
+        assert modal.result == "test input"
+
+        # Verify no pop_screen was called since it doesn't exist
+        assert not hasattr(modal.app, "pop_screen")
+
 
 class TestUIErrorHandling:
     """Test UI error handling scenarios."""
@@ -975,6 +1006,37 @@ class TestInputModalFinalCoverage:
 
         # Verify pop_screen was called
         modal.app.pop_screen.assert_called_once()
+
+    def test_input_modal_on_button_pressed_without_app_pop_screen(self) -> None:
+        skip_if_ui_not_available()
+        from arklex.orchestrator.generator.ui.input_modal import InputModal
+
+        """Test InputModal on_button_pressed method when app doesn't have pop_screen."""
+        modal = InputModal("Test Title", "default value")
+
+        # Mock the query_one method
+        modal.query_one = Mock()
+        mock_input = Mock()
+        mock_input.value = "test input"
+        modal.query_one.return_value = mock_input
+
+        # Mock the app without pop_screen method
+        modal.app = Mock()
+        del modal.app.pop_screen  # Remove pop_screen method
+
+        # Create a mock button press event
+        mock_button = Mock()
+        mock_button.id = "submit"
+        mock_event = FallbackButton.Pressed(mock_button)
+
+        # Test button press - should not raise an exception
+        modal.on_button_pressed(mock_event)
+
+        # Verify the result was updated
+        assert modal.result == "test input"
+
+        # Verify no pop_screen was called since it doesn't exist
+        assert not hasattr(modal.app, "pop_screen")
 
 
 # Cleanup function to be called after tests
