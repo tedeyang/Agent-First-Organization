@@ -14,8 +14,8 @@ from textual.widgets.tree import TreeNode
 
 from arklex.utils.logging_utils import LogContext
 
+from .data_manager import TaskDataManager
 from .input_modal import InputModal
-from .testing import TaskDataManager
 
 log_context = LogContext(__name__)
 
