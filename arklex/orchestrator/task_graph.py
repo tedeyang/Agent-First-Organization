@@ -193,17 +193,6 @@ class TaskGraph(TaskGraphBase):
         else:
             self.slotfillapi: SlotFiller = SlotFiller(slotfillapi)
 
-    def create_graph(self) -> None:
-        nodes: list[dict[str, Any]] = self.product_kwargs["nodes"]
-        edges: list[tuple[str, str, dict[str, Any]]] = self.product_kwargs["edges"]
-        # convert the intent into lowercase
-        for edge in edges:
-            edge[2]["intent"] = (
-                edge[2]["intent"].lower() if edge[2]["intent"] else "none"
-            )
-        self.graph.add_nodes_from(nodes)
-        self.graph.add_edges_from(edges)
-
     def get_initial_flow(self) -> str | None:
         services_nodes: dict[str, str] | None = self.product_kwargs.get(
             "services_nodes", None
@@ -874,3 +863,21 @@ class TaskGraph(TaskGraphBase):
                 extra={"node": node},
             )
             raise TaskGraphError("Node next must be a list")
+
+    def create_graph(self) -> None:
+        nodes: list[dict[str, Any]] = self.product_kwargs["nodes"]
+        edges: list[tuple[str, str, dict[str, Any]]] = self.product_kwargs["edges"]
+        for edge in edges:
+            edge[2]["intent"] = (
+                edge[2]["intent"].lower() if edge[2]["intent"] else "none"
+            )
+        formatted_nodes = []
+        for node in nodes:
+            if isinstance(node, list | tuple) and len(node) == 2:
+                formatted_nodes.append(node)
+            elif isinstance(node, dict) and "id" in node:
+                formatted_nodes.append((node["id"], node))
+            else:
+                formatted_nodes.append(node)
+        self.graph.add_nodes_from(formatted_nodes)
+        self.graph.add_edges_from(edges)
