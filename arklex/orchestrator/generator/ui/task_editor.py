@@ -4,111 +4,19 @@ This module provides the TaskEditor class that handles the UI for editing
 task definitions.
 """
 
-import contextlib
-import importlib
-import sys
+from collections.abc import Callable
 from typing import Any
 
-# Try to import textual components, with fallbacks for testing
-try:
-    from textual.app import App, ComposeResult
-    from textual.events import Key
-    from textual.widgets import Label, Tree
-    from textual.widgets.tree import TreeNode
-
-    TEXTUAL_AVAILABLE = True
-except ImportError:
-    # Fallback classes for when textual is not available
-    class App:
-        def __init__(self, *args: object, **kwargs: object) -> None:
-            pass
-
-        def run(self) -> None:
-            pass
-
-        def exit(self, result: object = None) -> None:
-            """Exit the app (fallback implementation)."""
-            pass
-
-        def push_screen(self, screen: object) -> None:
-            """Push a screen (fallback implementation)."""
-            pass
-
-        def call_later(self, callback: object) -> None:
-            """Call a callback later (fallback implementation)."""
-            pass
-
-    class ComposeResult:
-        pass
-
-    class Key:
-        def __init__(self, key: object = None) -> None:
-            self.key = key
-
-    class Label:
-        def __init__(self, text: str = "", **kwargs: object) -> None:
-            self.text = text
-
-    class Tree:
-        def __init__(self, title: str = "", **kwargs: object) -> None:
-            self.title = title
-            self.root = TreeNode("root")
-            self.cursor_node = None
-
-        def focus(self) -> None:
-            """Focus the tree (fallback implementation)."""
-            pass
-
-        def query_one(self, selector: str, widget_type: type = None) -> object:
-            """Query for a widget (fallback implementation)."""
-            return None
-
-        class NodeSelected:
-            def __init__(self, node: object = None) -> None:
-                self.node = node
-
-    class TreeNode:
-        def __init__(self, label: str = "", **kwargs: object) -> None:
-            self.label = label
-            self.children = []
-            self.parent = None
-
-        def expand(self) -> None:
-            """Expand the node (fallback implementation)."""
-            pass
-
-        def add(self, label: str) -> "TreeNode":
-            """Add a child node (fallback implementation)."""
-            child = TreeNode(label)
-            child.parent = self
-            self.children.append(child)
-            return child
-
-        def add_leaf(self, label: str) -> "TreeNode":
-            """Add a leaf node (fallback implementation)."""
-            return self.add(label)
-
-        def set_label(self, label: str) -> None:
-            """Set the node label (fallback implementation)."""
-            self.label = label
-
-        def remove(self) -> None:
-            """Remove this node from its parent (fallback implementation)."""
-            if self.parent and self.parent.children:
-                with contextlib.suppress(ValueError):
-                    self.parent.children.remove(self)
-
-    TEXTUAL_AVAILABLE = False
+from textual.app import App, ComposeResult
+from textual.events import Key
+from textual.widgets import Label, Tree
+from textual.widgets.tree import TreeNode
 
 from arklex.utils.logging_utils import LogContext
 
 from .input_modal import InputModal
 
 log_context = LogContext(__name__)
-
-# Set as module attributes for dynamic patching in tests
-sys.modules[__name__].Label = Label
-sys.modules[__name__].Tree = Tree
 
 
 class TaskEditorApp(App):
@@ -150,16 +58,7 @@ class TaskEditorApp(App):
         Yields:
             ComposeResult: The composed UI elements
         """
-        # Always resolve Tree and Label at runtime for patching
-        TreeClass = getattr(sys.modules[__name__], "Tree", None)
-        LabelClass = getattr(sys.modules[__name__], "Label", None)
-        if TreeClass is None or LabelClass is None:
-            module = importlib.import_module(
-                "arklex.orchestrator.generator.ui.task_editor"
-            )
-            TreeClass = TreeClass or getattr(module, "Tree", None)
-            LabelClass = LabelClass or getattr(module, "Label", None)
-        self.task_tree = TreeClass("Tasks")
+        self.task_tree = Tree("Tasks")
         self.task_tree.root.expand()
         tasks = self.tasks if self.tasks is not None else []
         for task in tasks:
@@ -172,7 +71,7 @@ class TaskEditorApp(App):
                         step_text = str(step)
                     task_node.add_leaf(step_text)
         yield self.task_tree
-        yield LabelClass(
+        yield Label(
             "Use 'a' to add nodes, 'd' to delete, 's' to save and exit, arrow keys to navigate"
         )
 
@@ -200,19 +99,17 @@ class TaskEditorApp(App):
                 result (str): The result from the modal input
                 node (TreeNode): The tree node being edited
             """
-            if result is not None:  # Check if the user submitted a valid result
-                node.set_label(result)  # Update the tree node's label
-                self.call_later(
-                    self.update_tasks
-                )  # Ensure task sync runs after UI update
+            if result and result.strip():
+                node.set_label(result.strip())
 
-        self.push_screen(
-            InputModal(
-                f"Edit '{selected_node.label}'",
-                default=str(selected_node.label),
-                node=selected_node,
-                callback=handle_modal_result,
-            )
+        # Get the current label value
+        if hasattr(selected_node.label, "plain"):
+            current_label = selected_node.label.plain
+        else:
+            current_label = str(selected_node.label)
+
+        self.show_input_modal(
+            "Edit node", current_label, selected_node, handle_modal_result
         )
 
     async def on_key(self, event: Key) -> None:
@@ -222,117 +119,114 @@ class TaskEditorApp(App):
         and saving and exiting ('s').
 
         Args:
-            event: The keyboard event
+            event (Key): The keyboard event
         """
-        selected_node = self.task_tree.cursor_node
-        if event.key == "a" and selected_node and selected_node.parent is not None:
-            await self.action_add_node(selected_node)
-        elif event.key == "d" and selected_node and selected_node.parent is not None:
-            selected_node.remove()
-            await self.update_tasks()
+        if event.key == "a":
+            await self.action_add_node(self.task_tree.cursor_node)
+        elif event.key == "d":
+            if self.task_tree.cursor_node and self.task_tree.cursor_node.parent:
+                self.task_tree.cursor_node.remove()
         elif event.key == "s":
+            await self.update_tasks()
             self.exit(self.tasks)
 
     async def action_add_node(self, node: TreeNode) -> None:
-        """Add new nodes to the tree.
+        """Add a new node to the tree.
 
-        Determines whether to add a task or step based on the selected node and
-        shows an input modal for entering the new item.
+        Shows an input modal to get the new node's label and adds it as a child
+        of the currently selected node.
 
         Args:
-            node (TreeNode): The currently selected tree node
+            node (TreeNode): The parent node to add the new node to
         """
-        # if the node is a step node
-        if node.parent.parent is not None:
-            leaf = True
-            node = node.parent
-            title = f"Add new step under '{node.label.plain}'"
-        else:  # if the node is a task node
-            if node.is_expanded:  # add step
-                leaf = True
-                node = node
-                title = f"Enter new step under '{node.label.plain}'"
-            else:
-                leaf = False
-                node = node.parent
-                title = f"Add new task under '{node.label.plain}'"
+        if not node:
+            return
 
-        def handle_modal_result(result: str, node: TreeNode) -> None:
-            """Handle the result from the input modal for adding nodes.
+        def handle_modal_result(result: str, parent_node: TreeNode) -> None:
+            """Handle the result from the input modal.
 
             Args:
                 result (str): The result from the modal input
-                node (TreeNode): The tree node to add the new item to
+                parent_node (TreeNode): The parent node for the new node
             """
-            if result is not None:  # Check if the user submitted a valid result
-                if leaf:
-                    node.add_leaf(result)
-                else:
-                    node.add(result, expand=True)
-                self.call_later(
-                    self.update_tasks
-                )  # Ensure task sync runs after UI update
+            if result and result.strip():
+                parent_node.add(result.strip())
 
-        self.push_screen(
-            InputModal(title, default="", node=node, callback=handle_modal_result)
-        )
+        self.show_input_modal("Add new node", "", node, handle_modal_result)
 
     def push_screen(self, screen: "InputModal") -> None:
         """Push a screen to the app.
 
-        This is a placeholder method for testing purposes.
-        In a real Textual app, this would be inherited from the App class.
+        Args:
+            screen (InputModal): The screen to push
         """
-        pass
+        super().push_screen(screen)
 
-    def show_input_modal(self, title: str, default: str = "") -> str:
-        """Display the input modal dialog.
+    def show_input_modal(
+        self,
+        title: str,
+        default: str = "",
+        node: TreeNode | None = None,
+        callback: Callable[[str, TreeNode | None], None] | None = None,
+    ) -> str:
+        """Show an input modal dialog.
+
+        Creates and displays an input modal with the given title and default value.
 
         Args:
-            title (str): Title for the modal dialog
-            default (str): Default value for the input field. Defaults to "".
+            title (str): The title of the modal
+            default (str): The default value for the input field
+            node (TreeNode | None): The tree node being edited
+            callback (Callable[[str, TreeNode | None], None] | None): Callback function
 
         Returns:
-            str: The result from the modal
+            str: The result from the modal input
         """
-        InputModalClass = getattr(sys.modules[__name__], "InputModal", None)
-        if InputModalClass is None:
-            module = importlib.import_module(
-                "arklex.orchestrator.generator.ui.task_editor"
-            )
-            InputModalClass = getattr(module, "InputModal", None)
-        modal = InputModalClass(title, default)
+        modal = InputModal(title, default, node, callback)
         self.push_screen(modal)
-        return modal.result
+        # Return the default value as the immediate result
+        # The actual result will be handled by the callback
+        return default
 
     async def update_tasks(self) -> None:
         """Update the tasks list from the tree structure.
 
-        Synchronizes the internal tasks list with the current state of the tree widget,
-        extracting task names and their associated steps.
+        Traverses the tree structure and updates the tasks list to reflect
+        the current state of the tree.
         """
-        self.tasks = []
-        if self.task_tree is None or getattr(self.task_tree, "root", None) is None:
+        if not self.task_tree or not self.task_tree.root:
             return
 
+        updated_tasks = []
         for task_node in self.task_tree.root.children:
-            task_name = task_node.label.plain
-            steps = []
-            for step in task_node.children:
-                if step.label is not None and hasattr(step.label, "plain"):
-                    steps.append(step.label.plain)
-            self.tasks.append({"name": task_name, "steps": steps})
+            # Handle different label formats
+            if hasattr(task_node.label, "plain"):
+                task_name = task_node.label.plain
+            else:
+                task_name = str(task_node.label)
 
-        log_message = f"Updated Tasks: {self.tasks}"
-        log_context.debug(log_message)
+            task = {"name": task_name}
+            steps = []
+            for step_node in task_node.children:
+                # Handle different label formats for steps too
+                if hasattr(step_node.label, "plain"):
+                    step_name = step_node.label.plain
+                else:
+                    step_name = str(step_node.label)
+                steps.append(step_name)
+            if steps:
+                task["steps"] = steps
+            updated_tasks.append(task)
+
+        self.tasks = updated_tasks
 
     def run(self) -> list[dict[str, Any]]:
         """Run the task editor app.
 
+        Starts the app and returns the updated tasks list.
+
         Returns:
             List[Dict[str, Any]]: The updated tasks list
         """
-        # Try to call the parent run method, but don't fail if it doesn't work
-        with contextlib.suppress(Exception):
-            super().run()
+        super().run()
         return self.tasks
