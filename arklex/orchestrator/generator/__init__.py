@@ -45,7 +45,7 @@ Usage:
         config=config,
         model=language_model,
         output_dir="output",
-        resource_inizializer=DefaultResourceInitializer()
+        resource_initializer=DefaultResourceInitializer()
     )
 
     # Generate task graph
