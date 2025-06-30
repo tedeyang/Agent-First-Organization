@@ -5,6 +5,7 @@ user interface for editing tasks and their steps. The tests cover all methods, e
 and user interactions.
 """
 
+import asyncio
 import contextlib
 import sys
 import types
@@ -13,7 +14,6 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-# Now import the code under test
 from arklex.orchestrator.generator.ui.task_editor import TaskEditorApp
 
 
@@ -36,7 +36,8 @@ class FakeStatic:
 
 
 class FakeLabel:
-    pass
+    def __init__(self, plain: str) -> None:
+        self.plain = plain
 
 
 class FakeTree:
@@ -648,14 +649,8 @@ class TestTaskEditorAppNodeManagement:
 
         # Create a dummy modal class for testing
         class DummyModal:
-            def __init__(
-                self,
-                title: str,
-                default: str = "",
-                node: object = None,
-                callback: object = None,
-            ) -> None:
-                self.result = "test result"
+            def __init__(self, *a: object, **k: object) -> None:
+                pass
 
         app = TaskEditorApp([])
         app.push_screen = Mock()
@@ -820,8 +815,6 @@ class TestTaskEditorFinalCoverage:
         app.task_tree = None
 
         # Should not raise any exception
-        import asyncio
-
         asyncio.run(app.update_tasks())
 
     def test_task_editor_update_tasks_with_none_root(self) -> None:
@@ -831,8 +824,6 @@ class TestTaskEditorFinalCoverage:
         app.task_tree.root = None
 
         # Should not raise any exception
-        import asyncio
-
         asyncio.run(app.update_tasks())
 
     def test_task_editor_update_tasks_with_getattr_none_root(self) -> None:
@@ -842,8 +833,6 @@ class TestTaskEditorFinalCoverage:
         app.task_tree.root = None
 
         # Should not raise any exception
-        import asyncio
-
         asyncio.run(app.update_tasks())
 
     async def test_task_editor_update_tasks_with_complex_tree_structure(self) -> None:
@@ -856,8 +845,8 @@ class TestTaskEditorFinalCoverage:
                 self.plain = plain
 
         class FakeNode:
-            def __init__(self, label: str, children: list | None = None) -> None:
-                self.label = FakeLabel(label)
+            def __init__(self, label: object, children: list | None = None) -> None:
+                self.label = label
                 self.children = children or []
 
         # Mock the task_tree
@@ -930,3 +919,96 @@ class TestTaskEditorFinalCoverage:
             app.push_screen.assert_called_once()
             # Verify the result is returned correctly
             assert result == ""
+
+
+def test_update_tasks_handles_no_task_tree_or_root() -> None:
+    app = TaskEditorApp([])
+    app.task_tree = None
+    # Should return early (line 139)
+    assert asyncio.run(app.update_tasks()) is None
+    app.task_tree = Mock()
+    app.task_tree.root = None
+    # Should return early (line 140)
+    assert asyncio.run(app.update_tasks()) is None
+
+
+def test_update_tasks_handles_various_label_types() -> None:
+    app = TaskEditorApp([])
+
+    class FakeLabel:
+        def __init__(self, plain: str) -> None:
+            self.plain = plain
+
+    class FakeNode:
+        def __init__(self, label: object, children: list | None = None) -> None:
+            self.label = label
+            self.children = children or []
+
+    # Step label with and without 'plain'
+    app.task_tree = Mock()
+    app.task_tree.root = Mock()
+    app.task_tree.root.children = [
+        FakeNode(FakeLabel("Task1"), [FakeNode(FakeLabel("Step1")), FakeNode("Step2")]),
+        FakeNode("Task2", [FakeNode("Step3")]),
+    ]
+    asyncio.run(app.update_tasks())  # lines 145, 200-201
+    assert app.tasks[0]["name"] == "Task1"
+    assert app.tasks[0]["steps"] == ["Step1", "Step2"]
+    assert app.tasks[1]["name"] == "Task2"
+    assert app.tasks[1]["steps"] == ["Step3"]
+
+
+def test_push_screen_calls_super() -> None:
+    called = {}
+
+    class MyTaskEditorApp(TaskEditorApp):
+        def __init__(self) -> None:
+            super().__init__([])
+
+        def push_screen(self, screen: object) -> object:
+            called["super"] = screen
+            return super().push_screen(screen)
+
+    app = MyTaskEditorApp()
+    # Patch the superclass push_screen to avoid event loop error
+    import unittest.mock
+
+    with unittest.mock.patch.object(
+        TaskEditorApp.__bases__[0], "push_screen", return_value=None
+    ) as mock_super:
+        app.push_screen("test_screen")  # line 214
+        assert called["super"] == "test_screen"
+        mock_super.assert_called_once_with("test_screen")
+
+
+def test_show_input_modal_returns_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    app = TaskEditorApp([])
+
+    class DummyModal:
+        def __init__(self, *a: object, **k: object) -> None:
+            pass
+
+    monkeypatch.setattr(
+        "arklex.orchestrator.generator.ui.task_editor.InputModal", DummyModal
+    )
+    app.push_screen = Mock()
+    result = app.show_input_modal("title", "default")  # line 264
+    assert result == "default"
+
+
+def test_run_calls_super_and_returns_tasks() -> None:
+    called = {}
+
+    class MyTaskEditorApp(TaskEditorApp):
+        def __init__(self) -> None:
+            super().__init__([{"name": "T"}])
+
+        def run(self) -> object:
+            called["super"] = True
+            return super().run()
+
+    app = MyTaskEditorApp()
+    app.tasks = [1, 2, 3]
+    result = app.run()  # line 273
+    assert called["super"] is True
+    assert result == [1, 2, 3]
