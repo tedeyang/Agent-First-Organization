@@ -79,7 +79,6 @@ class TaskEditorApp(App):
         super().__init__()
         self.tasks = tasks
         self.task_tree: Tree | None = None
-        self._data_manager = TaskDataManager()
         self._input_modal_class = input_modal_class
 
     def compose(self) -> ComposeResult:
@@ -99,7 +98,7 @@ class TaskEditorApp(App):
                           and instruction label
         """
         self.task_tree = Tree("🎯 TASK EDITOR - Edit Your Tasks Below")
-        self._data_manager.populate_tree_from_tasks(self.task_tree, self.tasks)
+        TaskDataManager.populate_tree_from_tasks(self.task_tree, self.tasks)
 
         yield self.task_tree
         yield Label(
@@ -136,7 +135,7 @@ class TaskEditorApp(App):
             if result and result.strip():
                 node.set_label(result.strip())
 
-        current_label = self._data_manager.extract_label_text(selected_node.label)
+        current_label = TaskDataManager.extract_label_text(selected_node.label)
 
         self.show_input_modal(
             "Edit node", current_label, selected_node, handle_modal_result
@@ -264,7 +263,7 @@ class TaskEditorApp(App):
         if not self.task_tree:
             return
 
-        self.tasks = self._data_manager.build_tasks_from_tree(self.task_tree.root)
+        self.tasks = TaskDataManager.build_tasks_from_tree(self.task_tree.root)
 
     def run(self) -> list[dict[str, Any]]:
         """Run the task editor app.
