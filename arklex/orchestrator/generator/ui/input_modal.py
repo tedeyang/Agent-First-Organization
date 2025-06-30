@@ -7,6 +7,7 @@ interface for text input with submit and cancel options.
 """
 
 from collections.abc import Callable
+from typing import Union
 
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
@@ -34,9 +35,9 @@ class InputModal(Screen):
         title (str): The title of the modal dialog displayed to the user
         default (str): Default value for the input field, shown when modal opens
         result (str): The final result after user interaction (submit value or default)
-        node (TreeNode | None): The tree node being edited, passed to callback
-        callback (Callable[[str, TreeNode | None], None] | None): Function to call after user interaction
-        app (App | None): The parent app instance for screen management
+        node (Union[TreeNode, None]): The tree node being edited, passed to callback
+        callback (Union[Callable[[str, Union[TreeNode, None]], None], None]): Function to call after user interaction
+        app (Union[App, None]): The parent app instance for screen management
 
     Methods:
         compose(): Creates the modal UI components with title, input, and buttons
@@ -47,17 +48,17 @@ class InputModal(Screen):
         self,
         title: str,
         default: str = "",
-        node: "TreeNode" | None = None,
-        callback: Callable[[str, "TreeNode" | None], None] | None = None,
+        node: Union["TreeNode", None] = None,
+        callback: Callable[[str, Union["TreeNode", None]], None] | None = None,
     ) -> None:
         """Initialize the InputModal instance.
 
         Args:
             title (str): The title of the modal dialog displayed at the top
             default (str): Default value for the input field. Defaults to "".
-            node (TreeNode | None): The tree node being edited. Passed to callback function.
+            node (Union[TreeNode, None]): The tree node being edited. Passed to callback function.
                                    Defaults to None.
-            callback (Callable[[str, TreeNode | None], None] | None): Function to call after
+            callback (Union[Callable[[str, Union[TreeNode, None]], None], None]): Function to call after
                 user interaction. Receives the result string and node as parameters.
                 Defaults to None.
         """
@@ -70,7 +71,7 @@ class InputModal(Screen):
         self._app = None
 
     @property
-    def app(self) -> "App":
+    def app(self) -> Union["App", None]:
         """Get the app instance.
 
         Returns the parent app instance for screen management operations.
