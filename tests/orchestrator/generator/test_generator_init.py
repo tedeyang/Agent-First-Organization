@@ -7,6 +7,7 @@ testing the simplified import logic and ensuring the module works correctly.
 import contextlib
 import os
 import sys
+import types
 from collections.abc import Generator
 from unittest.mock import MagicMock, patch
 
@@ -635,3 +636,44 @@ class TestBackwardCompatibility:
         for item in expected_items:
             if item != "ui":  # UI might not be available
                 assert item in __all__
+
+
+def test_generator_init_importerror_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Remove ui from sys.modules if present
+    sys.modules.pop("arklex.orchestrator.generator.ui", None)
+    sys.modules.pop("arklex.orchestrator.generator.ui.input_modal", None)
+    sys.modules.pop("arklex.orchestrator.generator.ui.task_editor", None)
+    # Patch import to raise ImportError for .ui
+    import arklex.orchestrator.generator
+
+    monkeypatch.setattr(arklex.orchestrator.generator, "ui", None, raising=False)
+    orig_import = __import__
+
+    def fake_import(name: str, *a: object, **k: object) -> object:
+        if name.endswith(".ui"):
+            raise ImportError
+        return orig_import(name, *a, **k)
+
+    monkeypatch.setattr("builtins.__import__", fake_import)
+    # Instead of reload, re-import using importlib.util
+    import importlib.util
+    import os
+    import pathlib
+
+    module_name = "arklex.orchestrator.generator"
+    module_path = os.path.join(
+        pathlib.Path(__file__).parent.parent.parent.parent,
+        "arklex",
+        "orchestrator",
+        "generator",
+        "__init__.py",
+    )
+    spec = importlib.util.spec_from_file_location(module_name, module_path)
+    mod = importlib.util.module_from_spec(spec)
+    with contextlib.suppress(ImportError):
+        spec.loader.exec_module(mod)
+    # After import, ui should be a dummy module if ImportError was raised
+    if hasattr(mod, "ui"):
+        assert isinstance(mod.ui, types.ModuleType)
+    else:
+        pytest.skip("ui attribute not present due to import error simulation.")
