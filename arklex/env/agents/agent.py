@@ -35,9 +35,11 @@ class BaseAgent(ABC):
 
     Attributes:
         description (Optional[str]): Description of the agent's functionality.
+        name (str): The name of the agent class.
     """
 
     description: str | None = None
+    name: str
 
     def __str__(self) -> str:
         """Get a string representation of the agent.
@@ -87,11 +89,12 @@ class BaseAgent(ABC):
         try:
             response_return: dict[str, Any] = self._execute(msg_state, **kwargs)
             response_state: MessageState = MessageState.model_validate(response_return)
-            response_state.trajectory[-1][-1].output = (
-                response_state.response
-                if response_state.response
-                else response_state.message_flow
-            )
+            if response_state.trajectory and response_state.trajectory[-1]:
+                response_state.trajectory[-1][-1].output = (
+                    response_state.response
+                    if response_state.response
+                    else response_state.message_flow
+                )
             return response_state
         except Exception:
             log_context.error(traceback.format_exc())
@@ -105,10 +108,14 @@ class BaseAgent(ABC):
         try:
             if msg_state.status == StatusEnum.INCOMPLETE:
                 msg_state.status = StatusEnum.COMPLETE
-            log_context.info(f"Ending agent {self.name} with status {msg_state.status}")
+            log_context.info(
+                f"Ending agent {getattr(self, 'name', self.__class__.__name__)} with status {msg_state.status}"
+            )
         except Exception as e:
             log_context.error(f"Error when ending agent : {traceback.format_exc()}")
             msg_state.status = StatusEnum.INCOMPLETE
             msg_state.response = str(e)
-            log_context.error(f"Agent {self.name} ended with error: {e}")
+            log_context.error(
+                f"Agent {getattr(self, 'name', self.__class__.__name__)} ended with error: {e}"
+            )
         return msg_state
