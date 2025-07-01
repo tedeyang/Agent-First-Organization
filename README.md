@@ -13,16 +13,16 @@
 
 - [Overview](#overview)
 - [Key Features](#key-features)
-- [Architecture](#architecture)
+- [Core Concepts](#core-concepts)
 - [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Configuration](#configuration)
+- [Getting Started](#getting-started)
 - [Examples](#examples)
-- [Use Cases](#use-cases)
-- [Supported Providers](#supported-providers)
+- [Configuration](#configuration)
 - [API Reference](#api-reference)
 - [Evaluation & Testing](#evaluation--testing)
-- [Production Features](#production-features)
+- [Production Deployment](#production-deployment)
+- [Supported Providers](#supported-providers)
+- [Development Setup](#development-setup)
 - [Documentation](#documentation)
 - [Contributing](#contributing)
 - [Support](#support)
@@ -34,6 +34,8 @@
 
 **Arklex AI** is a modular, production-grade framework for building intelligent agents powered by LLMs, retrieval, and task graphs. Designed for developers and researchers, Arklex makes it easy to compose, run, and evaluate LLM-powered pipelines at scale.
 
+Whether you're building customer service bots, booking systems, or complex multi-agent workflows, Arklex provides the tools and infrastructure to create robust, scalable AI applications.
+
 ---
 
 ## Key Features
@@ -44,17 +46,39 @@
 - 🧪 **Built-in evaluation** — synthetic tests, A/B runs, metrics tracking
 - 🚀 **FastAPI backend** with observability, OpenAPI docs, and error handling
 - 📊 **Production-ready** — structured logging, monitoring, and error handling
+- 🔄 **Auto-scaling** — Handle variable load with intelligent scaling
+- 🛡️ **Security** — Input validation, rate limiting, authentication
 
 ---
 
-## Architecture
+## Core Concepts
 
-Arklex AI is designed for scalable, flexible agent development:
+Arklex AI is built around four key architectural components:
 
-- **Task Graph** — Declarative DAG for agent workflows
-- **Orchestrator** — Core runtime managing state and task flow
-- **Workers** — Modular building blocks (e.g., RAG, Database, Browser)
-- **Tools** — Atomic utilities for functional and logic extensions
+### Task Graph
+
+Declarative DAG (Directed Acyclic Graph) that defines agent workflows. Each node represents a task, and edges define dependencies and data flow.
+
+### Orchestrator
+
+Core runtime that manages state, task execution, and workflow coordination. Handles error recovery, retries, and monitoring.
+
+### Workers
+
+Modular building blocks for specific tasks:
+
+- **RAG Worker** — Document retrieval and question answering
+- **Database Worker** — SQL operations and data persistence
+- **Browser Worker** — Web automation and scraping
+- **Custom Workers** — Extensible for domain-specific needs
+
+### Tools
+
+Atomic utilities for functional and logic extensions:
+
+- API integrations (Shopify, HubSpot, Google Calendar)
+- Data processing and transformation
+- External service connectors
 
 ---
 
@@ -92,7 +116,7 @@ pip install arklex[milvus,shopify,hubspot]
 
 ---
 
-## Quick Start
+## Getting Started
 
 ### 1. Configure Environment
 
@@ -111,7 +135,7 @@ TAVILY_API_KEY=your_tavily_key_here
 MILVUS_URI=your_milvus_uri_here
 ```
 
-### 2. Launch Your First Agent
+### 2. Create Your First Agent
 
 ```bash
 # Create a customer service agent
@@ -126,6 +150,37 @@ python run.py --input-dir ./examples/customer_service
 ✅ Your agent is now live and ready to use!
 
 ▶️ [Video: Build a Customer Service Agent in 20 Minutes](https://youtu.be/y1P2Ethvy0I)
+
+### 3. Start the API Server (Optional)
+
+```bash
+# Start FastAPI server for programmatic access
+python model_api.py --input-dir ./examples/customer_service
+```
+
+The server will be available at `http://localhost:8000` with auto-generated OpenAPI documentation.
+
+---
+
+## Examples
+
+Explore our comprehensive examples to get started quickly:
+
+| Example | Description | Use Case |
+|---------|-------------|----------|
+| [Customer Service Agent](./examples/customer_service/) | RAG-powered support with database memory | Customer support automation |
+| [Shopify Integration](./examples/shopify/) | E-commerce order management | E-commerce operations |
+| [HubSpot CRM](./examples/hubspot/) | Contact and deal management | CRM automation |
+| [Calendar Booking](./examples/calendar/) | Multi-step scheduling system | Appointment booking |
+| [Syllabus Assistant](./examples/syllabus_assistant/) | Document processing and Q&A | Content management |
+| [Human-in-the-Loop](./examples/hitl_server/) | Interactive agent workflows | Complex decision making |
+
+Each example includes:
+
+- Complete configuration files
+- Ready-to-run code
+- Documentation and tutorials
+- Best practices and patterns
 
 ---
 
@@ -184,51 +239,6 @@ python model_api.py \
 
 ---
 
-## Examples
-
-Explore our comprehensive examples to get started quickly:
-
-- [Customer Service Agent](./examples/customer_service/) - RAG-powered support with database memory
-- [Shopify Integration](./examples/shopify/) - E-commerce order management
-- [HubSpot CRM](./examples/hubspot/) - Contact and deal management
-- [Calendar Booking](./examples/calendar/) - Multi-step scheduling system
-- [Syllabus Assistant](./examples/syllabus_assistant/) - Document processing and Q&A
-- [Human-in-the-Loop](./examples/hitl_server/) - Interactive agent workflows
-
-Each example includes:
-
-- Complete configuration files
-- Ready-to-run code
-- Documentation and tutorials
-- Best practices and patterns
-
----
-
-## Use Cases
-
-| Use Case           | Description                                            | Example |
-|--------------------|--------------------------------------------------------|---------|
-| Customer Support   | RAG-powered agents with database memory                | [Customer Service](./examples/customer_service/) |
-| Booking Systems    | Calendar integrations and multi-step scheduling        | [Calendar](./examples/calendar/) |
-| E-commerce         | Shopify integration for order management               | [Shopify](./examples/shopify/) |
-| CRM Integration    | HubSpot contact and deal management                    | [HubSpot](./examples/hubspot/) |
-| Data Analysis      | LLM pipelines with code generation and visualization   | [Multiple Choice](./examples/multiple_choice/) |
-| Content Generation | AI co-writing for docs, blogs, and editorial workflows | [Syllabus Assistant](./examples/syllabus_assistant/) |
-
----
-
-## Supported Providers
-
-| Provider      | Models Supported                        | Status |
-|---------------|-----------------------------------------|--------|
-| OpenAI        | `gpt-4o`, `gpt-4o-mini`                 | ✅ Stable |
-| Anthropic     | `claude-3-5-haiku`, `claude-3-5-sonnet` | ✅ Stable |
-| Google        | `gemini-2.0-flash`                      | ✅ Stable |
-| Mistral       | All `mistral-*` models                  | ✅ Stable |
-| Hugging Face  | Any open-source models                  | ✅ Stable |
-
----
-
 ## API Reference
 
 ### Core Components
@@ -268,14 +278,70 @@ python eval.py \
 
 ---
 
-## Production Features
+## Production Deployment
+
+Arklex AI includes enterprise-grade features for production deployments:
+
+### Monitoring & Observability
 
 - ✅ **Structured Logging** — JSON logs, trace IDs, log rotation
 - 📈 **Monitoring Hooks** — Health checks, metrics, fallbacks
+- 🔍 **Distributed Tracing** — Track requests across services
+
+### Security & Reliability
+
 - 🔐 **Secure API Server** — Auto-generated docs, CORS, security headers
 - ⚙️ **Robust Error Handling** — Typed exceptions, retries, fallbacks
-- 🔄 **Auto-scaling** — Handle variable load with intelligent scaling
 - 🛡️ **Security** — Input validation, rate limiting, authentication
+
+### Scalability
+
+- 🔄 **Auto-scaling** — Handle variable load with intelligent scaling
+- 📊 **Performance Monitoring** — Real-time metrics and alerts
+- 🚀 **High Availability** — Fault tolerance and failover support
+
+---
+
+## Supported Providers
+
+| Provider      | Models Supported                        | Status |
+|---------------|-----------------------------------------|--------|
+| OpenAI        | `gpt-4o`, `gpt-4o-mini`                 | ✅ Stable |
+| Anthropic     | `claude-3-5-haiku`, `claude-3-5-sonnet` | ✅ Stable |
+| Google        | `gemini-2.0-flash`                      | ✅ Stable |
+| Mistral       | All `mistral-*` models                  | ✅ Stable |
+| Hugging Face  | Any open-source models                  | ✅ Stable |
+
+---
+
+## Development Setup
+
+### Prerequisites for Development
+
+```bash
+# Clone the repository
+git clone https://github.com/arklexai/Agent-First-Organization.git
+cd Agent-First-Organization
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install development dependencies
+pip install -e ".[dev]"
+```
+
+### Running Tests
+
+```bash
+# Run all tests
+pytest
+
+# Run specific test categories
+pytest tests/env/
+pytest tests/orchestrator/
+pytest tests/utils/
+```
 
 ---
 
