@@ -11,34 +11,32 @@
 
 ## 📋 Table of Contents
 
-- [Overview](#-overview)
-- [Key Features](#-key-features)
-- [Architecture](#-architecture)
-- [Getting Started](#-getting-started)
-  - [Prerequisites](#-prerequisites)
-  - [Installation](#-installation)
-  - [Quick Start](#-quick-start)
-- [Configuration](#-configuration)
-- [API Reference](#-api-reference)
-- [Use Cases](#-use-cases)
-- [Supported Providers](#-supported-providers)
-- [Examples](#-examples)
-- [Evaluation & Testing](#-evaluation--testing)
-- [Production Features](#-production-features)
-- [Documentation](#-documentation)
-- [Contributing](#-contributing)
-- [Support](#-support)
-- [License](#-license)
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [Architecture](#architecture)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Configuration](#configuration)
+- [Examples](#examples)
+- [Use Cases](#use-cases)
+- [Supported Providers](#supported-providers)
+- [API Reference](#api-reference)
+- [Evaluation & Testing](#evaluation--testing)
+- [Production Features](#production-features)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
+- [Support](#support)
+- [License](#license)
 
 ---
 
-## 🎯 Overview
+## Overview
 
 **Arklex AI** is a modular, production-grade framework for building intelligent agents powered by LLMs, retrieval, and task graphs. Designed for developers and researchers, Arklex makes it easy to compose, run, and evaluate LLM-powered pipelines at scale.
 
 ---
 
-## ✨ Key Features
+## Key Features
 
 - 🧠 **Multi-agent orchestration** using structured DAGs
 - 🧩 **Composable modules** for tools, databases, APIs, and browsers
@@ -49,7 +47,7 @@
 
 ---
 
-## 🧱 Architecture
+## Architecture
 
 Arklex AI is designed for scalable, flexible agent development:
 
@@ -60,23 +58,21 @@ Arklex AI is designed for scalable, flexible agent development:
 
 ---
 
-## 🚀 Getting Started
+## Installation
 
-### 📋 Prerequisites
+### Prerequisites
 
 - **Python 3.10+** (required)
 - **API Keys** for your chosen LLM providers
 - **Optional**: Vector database (Milvus), SQL database (MySQL), web search API (Tavily)
 
-### 📦 Installation
-
-#### Basic Installation
+### Basic Installation
 
 ```bash
 pip install arklex
 ```
 
-#### Optional Dependencies
+### Optional Dependencies
 
 For specific integrations, install additional packages:
 
@@ -94,9 +90,11 @@ pip install arklex[hubspot]
 pip install arklex[milvus,shopify,hubspot]
 ```
 
-### ⚡ Quick Start
+---
 
-#### 1. Configure Environment
+## Quick Start
+
+### 1. Configure Environment
 
 Create a `.env` file with your API keys:
 
@@ -113,7 +111,7 @@ TAVILY_API_KEY=your_tavily_key_here
 MILVUS_URI=your_milvus_uri_here
 ```
 
-#### 2. Launch Your First Agent
+### 2. Launch Your First Agent
 
 ```bash
 # Create a customer service agent
@@ -131,7 +129,7 @@ python run.py --input-dir ./examples/customer_service
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 ### Environment Variables
 
@@ -186,52 +184,7 @@ python model_api.py \
 
 ---
 
-## 🔌 API Reference
-
-### Core Components
-
-- **`create.py`** — Generate agent workflows from configuration
-- **`run.py`** — Execute agent workflows with input data
-- **`model_api.py`** — Start FastAPI server for agent interactions
-- **`eval.py`** — Run evaluation and testing suites
-
-### Key Classes
-
-- **`Orchestrator`** — Main runtime for agent execution
-- **`TaskGraph`** — DAG representation of agent workflows
-- **`Worker`** — Modular components for specific tasks
-- **`Tool`** — Atomic utilities for agent operations
-
-For detailed API documentation, visit our [API Reference](https://www.arklex.ai/qa/open-source).
-
----
-
-## 🛠 Use Cases
-
-| Use Case           | Description                                            | Example |
-|--------------------|--------------------------------------------------------|---------|
-| Customer Support   | RAG-powered agents with database memory                | [Customer Service](./examples/customer_service/) |
-| Booking Systems    | Calendar integrations and multi-step scheduling        | [Calendar](./examples/calendar/) |
-| E-commerce         | Shopify integration for order management               | [Shopify](./examples/shopify/) |
-| CRM Integration    | HubSpot contact and deal management                    | [HubSpot](./examples/hubspot/) |
-| Data Analysis      | LLM pipelines with code generation and visualization   | [Multiple Choice](./examples/multiple_choice/) |
-| Content Generation | AI co-writing for docs, blogs, and editorial workflows | [Syllabus Assistant](./examples/syllabus_assistant/) |
-
----
-
-## 🤖 Supported Providers
-
-| Provider      | Models Supported                        | Status |
-|---------------|-----------------------------------------|--------|
-| OpenAI        | `gpt-4o`, `gpt-4o-mini`                 | ✅ Stable |
-| Anthropic     | `claude-3-5-haiku`, `claude-3-5-sonnet` | ✅ Stable |
-| Google        | `gemini-2.0-flash`                      | ✅ Stable |
-| Mistral       | All `mistral-*` models                  | ✅ Stable |
-| Hugging Face  | Any open-source models                  | ✅ Stable |
-
----
-
-## 📚 Examples
+## Examples
 
 Explore our comprehensive examples to get started quickly:
 
@@ -251,7 +204,52 @@ Each example includes:
 
 ---
 
-## 🧪 Evaluation & Testing
+## Use Cases
+
+| Use Case           | Description                                            | Example |
+|--------------------|--------------------------------------------------------|---------|
+| Customer Support   | RAG-powered agents with database memory                | [Customer Service](./examples/customer_service/) |
+| Booking Systems    | Calendar integrations and multi-step scheduling        | [Calendar](./examples/calendar/) |
+| E-commerce         | Shopify integration for order management               | [Shopify](./examples/shopify/) |
+| CRM Integration    | HubSpot contact and deal management                    | [HubSpot](./examples/hubspot/) |
+| Data Analysis      | LLM pipelines with code generation and visualization   | [Multiple Choice](./examples/multiple_choice/) |
+| Content Generation | AI co-writing for docs, blogs, and editorial workflows | [Syllabus Assistant](./examples/syllabus_assistant/) |
+
+---
+
+## Supported Providers
+
+| Provider      | Models Supported                        | Status |
+|---------------|-----------------------------------------|--------|
+| OpenAI        | `gpt-4o`, `gpt-4o-mini`                 | ✅ Stable |
+| Anthropic     | `claude-3-5-haiku`, `claude-3-5-sonnet` | ✅ Stable |
+| Google        | `gemini-2.0-flash`                      | ✅ Stable |
+| Mistral       | All `mistral-*` models                  | ✅ Stable |
+| Hugging Face  | Any open-source models                  | ✅ Stable |
+
+---
+
+## API Reference
+
+### Core Components
+
+- **`create.py`** — Generate agent workflows from configuration
+- **`run.py`** — Execute agent workflows with input data
+- **`model_api.py`** — Start FastAPI server for agent interactions
+- **`eval.py`** — Run evaluation and testing suites
+
+### Key Classes
+
+- **`Orchestrator`** — Main runtime for agent execution
+- **`TaskGraph`** — DAG representation of agent workflows
+- **`Worker`** — Modular components for specific tasks
+- **`Tool`** — Atomic utilities for agent operations
+
+For detailed API documentation, visit our [API Reference](https://www.arklex.ai/qa/open-source).
+
+---
+
+## Evaluation & Testing
 
 Built-in tools for robust validation and debugging:
 
@@ -270,7 +268,7 @@ python eval.py \
 
 ---
 
-## 🛡️ Production Features
+## Production Features
 
 - ✅ **Structured Logging** — JSON logs, trace IDs, log rotation
 - 📈 **Monitoring Hooks** — Health checks, metrics, fallbacks
@@ -281,7 +279,7 @@ python eval.py \
 
 ---
 
-## 📖 Documentation
+## Documentation
 
 - 📖 [Getting Started](https://arklexai.github.io/Agent-First-Organization/docs/intro)
 - 🧪 [Tutorials](https://arklexai.github.io/Agent-First-Organization/docs/tutorials/intro)
@@ -292,7 +290,7 @@ python eval.py \
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions, questions, and feature ideas!
 
@@ -313,7 +311,7 @@ We welcome contributions, questions, and feature ideas!
 
 ---
 
-## 🆘 Support
+## Support
 
 ### Getting Help
 
@@ -330,12 +328,12 @@ We welcome contributions, questions, and feature ideas!
 
 ---
 
-## 📄 License
+## License
 
 Arklex AI is released under the MIT License. See [LICENSE](LICENSE) for details.
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 Thanks to all our contributors and the open-source community for making this project possible!
