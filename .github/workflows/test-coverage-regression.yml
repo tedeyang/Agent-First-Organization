@@ -85,12 +85,12 @@ jobs:
           # Check if coverage.xml exists and has data
           if [ -f "coverage.xml" ]; then
             # Extract overall coverage percentage from XML
-            COVERAGE=$(python -c "
+            COVERAGE=$(python -c |
               import xml.etree.ElementTree as ET
               tree = ET.parse('coverage.xml')
               coverage = float(tree.getroot().attrib['line-rate']) * 100
               print(f'{coverage:.1f}')
-            ")
+            )
 
             echo "Extracted coverage: $COVERAGE%"
 
@@ -106,8 +106,8 @@ jobs:
             echo "Setting badge color to: $COLOR"
 
             # Update README badge with color coding
-            # This assumes a badge format like: ![Coverage](https://img.shields.io/badge/Coverage-XX.X%25-COLOR)
-            sed -i "s/Coverage-[0-9]\+\.[0-9]%25-[a-z]*/Coverage-${COVERAGE}%25-${COLOR}/g" README.md
+            # This assumes a badge format like: ![Coverage](https://img.shields.io/badge/coverage-XX.X%25-COLOR)
+            sed -i "s/coverage-[0-9]\+\.[0-9]%25-[a-z]*/coverage-${COVERAGE}%25-${COLOR}/g" README.md
 
             # Commit and push if README changed
             if git diff --quiet; then
