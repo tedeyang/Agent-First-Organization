@@ -2,9 +2,9 @@
 
 ![Arklex AI Logo](Arklex_AI__logo.jpeg)
 
-[![Release](https://img.shields.io/github/release/arklexai/Agent-First-Organization?logo=github)](https://github.com/arklexai/Agent-First-Organization/releases)
-[![PyPI](https://img.shields.io/pypi/v/arklex.svg)](https://pypi.org/project/arklex)
-[![Python](https://img.shields.io/pypi/pyversions/arklex)](https://pypi.org/project/arklex)
+[![Release](https://img.shields.io/github/release/arklexai/Agent-First-Organization?logo=github)](https://github.com/arklexai/Agent-First-Organization/releases){:target="_blank" rel="noopener noreferrer"}
+[![PyPI](https://img.shields.io/pypi/v/arklex.svg)](https://pypi.org/project/arklex){:target="_blank" rel="noopener noreferrer"}
+[![Python](https://img.shields.io/pypi/pyversions/arklex)](https://pypi.org/project/arklex){:target="_blank" rel="noopener noreferrer"}
 
 **Arklex AI** is a modular, agent-first framework built to orchestrate intelligent agents through structured task graphs. Designed for developers, researchers, and AI product teams, Arklex AI provides a powerful foundation for building multi-agent systems with LLMs, vector search, databases, and automated evaluation baked in.
 
@@ -55,9 +55,9 @@ python run.py --input-dir ./examples/customer_service
 
 ## 📚 Documentation
 
-- 📖 [Getting Started](https://arklexai.github.io/Agent-First-Organization/docs/intro) — Install & configure
-- 🧪 [Tutorials](https://arklexai.github.io/Agent-First-Organization/docs/tutorials/intro) — Step-by-step walkthroughs
-- ⚙️ [API Reference](https://www.arklex.ai/qa/open-source) — CLI, Python APIs, and configs
+- 📖 [Getting Started](https://arklexai.github.io/Agent-First-Organization/docs/intro){:target="_blank" rel="noopener noreferrer"} — Install & configure
+- 🧪 [Tutorials](https://arklexai.github.io/Agent-First-Organization/docs/tutorials/intro){:target="_blank" rel="noopener noreferrer"} — Step-by-step walkthroughs
+- ⚙️ [API Reference](https://www.arklex.ai/qa/open-source){:target="_blank" rel="noopener noreferrer"} — CLI, Python APIs, and configs
 
 ---
 
@@ -70,7 +70,7 @@ python run.py --input-dir ./examples/customer_service
 | Data Analysis      | LLM-driven pipelines with code generation and visualization |
 | Content Generation | Assistive co-writing tools for docs, blogs, and more        |
 
-▶️ [Watch: Build a Customer Service Agent in 20 Minutes](https://youtu.be/y1P2Ethvy0I)
+▶️ [Watch: Build a Customer Service Agent in 20 Minutes](https://youtu.be/y1P2Ethvy0I){:target="_blank" rel="noopener noreferrer"}
 
 ---
 
@@ -184,18 +184,18 @@ python model_api.py \
 
 We’d love your input!
 
-- 📖 [Contribution Guide](CONTRIBUTING.md)
-- 📝 [File an Issue](https://github.com/arklexai/Agent-First-Organization/issues)
-- 💬 [Join the Discussion](https://github.com/arklexai/Agent-First-Organization/discussions)
+- 📖 [Contribution Guide](CONTRIBUTING.md){:target="_blank" rel="noopener noreferrer"}
+- 📝 [File an Issue](https://github.com/arklexai/Agent-First-Organization/issues){:target="_blank" rel="noopener noreferrer"}
+- 💬 [Join the Discussion](https://github.com/arklexai/Agent-First-Organization/discussions){:target="_blank" rel="noopener noreferrer"}
 
 ---
 
 ## 📄 License
 
-Licensed under the MIT License. See [LICENSE](LICENSE) for details.
+Licensed under the MIT License. See [LICENSE](LICENSE){:target="_blank" rel="noopener noreferrer"} for details.
 
 ---
 
 ## 📬 Support
 
-- 🌐 [Full Docs](arklex.ai/docs)
+- 🌐 [Full Docs](arklex.ai/docs){:target="_blank" rel="noopener noreferrer"}
