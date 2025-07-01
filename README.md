@@ -271,9 +271,43 @@ We welcome contributions from the community! See our [Contributing Guide](CONTRI
 
 ---
 
+---
+
 ## 📄 License
 
 Arklex AI is released under the **MIT License**. See [LICENSE](LICENSE) for details.
+
+This means you can:
+
+- ✅ Use Arklex AI for commercial projects
+- ✅ Modify and distribute the code
+- ✅ Use it in proprietary applications
+- ✅ Sell applications built with Arklex AI
+
+The only requirement is that you include the original license and copyright notice.
+
+---
+
+## 🙏 Acknowledgments
+
+Thanks to all our contributors and the open-source community for making this project possible!
+
+### 🌟 Contributors
+
+<a href="https://github.com/arklexai/Agent-First-Organization/graphs/contributors">
+  <img src="https://contributors-img.web.app/image?repo=arklexai/Agent-First-Organization" />
+</a>
+
+### 🤝 Open Source Dependencies
+
+Arklex AI builds on the shoulders of giants:
+
+- **LangChain** — LLM framework and tooling
+- **FastAPI** — Modern web framework
+- **Pydantic** — Data validation
+- **SQLAlchemy** — Database ORM
+- **Milvus** — Vector database
+- **And many more...**
 
 ---
 
