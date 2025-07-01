@@ -1,4 +1,4 @@
-# 🧠 Arklex AI · Agent-First Framework for Intelligent Automation
+# 🧠 Arklex AI · The Ultimate Agent-First Framework
 
 <div align="center">
 
@@ -14,35 +14,17 @@
 [![Discord](https://img.shields.io/badge/discord-join%20community-7289da?logo=discord)](https://discord.gg/arklex)
 [![Twitter](https://img.shields.io/badge/twitter-follow%20us-1da1f2?logo=twitter)](https://twitter.com/arklexai)
 
-[Quick Start](#-quick-start) • [Documentation](https://arklex.ai/docs) • [Examples](./examples/) • [Community](https://github.com/arklexai/Agent-First-Organization/discussions)
+[🚀 Quick Start](#-get-started-in-5-minutes) • [📚 Documentation](https://arklex.ai/docs) • [💡 Examples](./examples/) • [💬 Community](https://github.com/arklexai/Agent-First-Organization/discussions)
 
 </div>
 
 ---
 
-## 📋 Table of Contents
-
-- [🚀 Overview](#-overview)
-- [✨ Key Features](#-key-features)
-- [🏗️ Architecture](#️-architecture)
-- [💡 Use Cases](#-use-cases)
-- [⚡ Quick Start](#-quick-start)
-- [📦 Installation](#-installation)
-- [🔧 Configuration](#-configuration)
-- [📚 Examples](#-examples)
-- [🔍 API Reference](#-api-reference)
-- [🧪 Evaluation & Testing](#-evaluation--testing)
-- [🚀 Production Deployment](#-production-deployment)
-- [🤝 Contributing](#-contributing)
-- [📞 Support](#-support)
-
----
-
-## 🚀 Overview
+## 🎯 What is Arklex AI?
 
 **Arklex AI** is the definitive framework for building production-ready intelligent agents. Whether you're creating customer service bots, booking systems, or complex multi-agent workflows, Arklex provides the enterprise-grade tools and infrastructure you need to succeed.
 
-### Why Choose Arklex AI?
+### ✨ Why Developers Choose Arklex AI
 
 <div align="center">
 
@@ -56,7 +38,7 @@
 
 </div>
 
-### 🎯 What Makes Arklex Special?
+### 🚀 Key Advantages
 
 - **🧠 Agent-First Design** — Purpose-built for multi-agent orchestration with declarative workflows
 - **🚀 Production Ready** — Enterprise-grade features including monitoring, logging, and error handling
@@ -67,44 +49,67 @@
 
 ---
 
-## ✨ Key Features
+## 🚀 Get Started in 5 Minutes
 
-### 🧠 Multi-Agent Orchestration
+### Step 1: Install Arklex AI
 
-- **Declarative DAGs** — Define complex workflows with simple JSON configuration
-- **State Management** — Built-in state persistence and recovery
-- **Error Handling** — Automatic retries, fallbacks, and graceful degradation
-- **Parallel Execution** — Optimize performance with concurrent task execution
+```bash
+# Install the core framework
+pip install arklex
 
-### 🧩 Composable Architecture
-
-- **Modular Workers** — RAG, Database, Browser, and Custom workers
-- **Extensible Tools** — 50+ pre-built tools with easy custom tool creation
-- **Plugin System** — Add new capabilities without modifying core code
-- **API Integrations** — Shopify, HubSpot, Google Calendar, and more
-
-### 🔌 Model Agnostic
-
-```python
-# Switch between providers seamlessly
-orchestrator = Orchestrator(
-    llm_provider="openai",      # or "anthropic", "gemini", "mistral"
-    model="gpt-4o",            # any model from your chosen provider
-    api_key=os.getenv("OPENAI_API_KEY")
-)
+# Or install with all features
+pip install arklex[all]
 ```
 
-### 📊 Enterprise Features
+### Step 2: Set Up Your Environment
 
-- **Structured Logging** — JSON logs with trace IDs and correlation
-- **Monitoring & Metrics** — Real-time performance tracking and alerts
-- **API Documentation** — Auto-generated OpenAPI/Swagger docs
-- **Rate Limiting** — Built-in protection against abuse
-- **Authentication** — JWT-based auth with role-based access control
+Create a `.env` file with your API keys:
+
+```env
+# Choose your preferred LLM provider
+OPENAI_API_KEY=your_openai_key_here
+# OR
+ANTHROPIC_API_KEY=your_anthropic_key_here
+# OR
+GEMINI_API_KEY=your_gemini_key_here
+```
+
+### Step 3: Create Your First Agent
+
+```bash
+# Create a customer service agent with RAG capabilities
+python create.py \
+  --config ./examples/customer_service/customer_service_config.json \
+  --output-dir ./examples/customer_service \
+  --llm_provider openai \
+  --model gpt-4o-mini
+```
+
+### Step 4: Run Your Agent
+
+```bash
+# Start your agent with a test query
+python run.py \
+  --input-dir ./examples/customer_service \
+  --llm_provider openai \
+  --model gpt-4o \
+  --query "How do I reset my password?"
+```
+
+### Step 5: Deploy as API (Optional)
+
+```bash
+# Start FastAPI server for programmatic access
+python model_api.py --input-dir ./examples/customer_service
+```
+
+Your agent is now available at `http://localhost:8000` with auto-generated OpenAPI documentation!
+
+▶️ **[Watch: Build a Customer Service Agent in 20 Minutes](https://youtu.be/y1P2Ethvy0I)**
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Architecture Overview
 
 Arklex AI is built around four core architectural components that work together seamlessly:
 
@@ -122,9 +127,11 @@ graph TB
     D --> K[External Tools]
 ```
 
-### 🎯 Task Graph
+### 🎯 Core Components
 
-The **Task Graph** is a declarative DAG (Directed Acyclic Graph) that defines your agent workflow. Each node represents a task, and edges define dependencies and data flow.
+#### **Task Graph** - Declarative DAG Workflows
+
+Define complex workflows with simple JSON configuration:
 
 ```json
 {
@@ -150,18 +157,23 @@ The **Task Graph** is a declarative DAG (Directed Acyclic Graph) that defines yo
 }
 ```
 
-### ⚙️ Orchestrator
+#### **Orchestrator** - Core Runtime Engine
 
-The **Orchestrator** is the core runtime that manages:
+Manages state, execution, error recovery, and monitoring:
 
-- **State Management** — Persistent workflow state across executions
-- **Task Execution** — Parallel and sequential task scheduling
-- **Error Recovery** — Automatic retries with exponential backoff
-- **Monitoring** — Real-time metrics and health checks
+```python
+from arklex import Orchestrator
 
-### 🔧 Workers
+orchestrator = Orchestrator(
+    llm_provider="openai",
+    model="gpt-4o",
+    api_key=os.getenv("OPENAI_API_KEY")
+)
+```
 
-**Workers** are modular building blocks for specific tasks:
+#### **Workers** - Modular Building Blocks
+
+Specialized components for specific tasks:
 
 | Worker Type | Purpose | Use Cases |
 |-------------|---------|-----------|
@@ -170,9 +182,9 @@ The **Orchestrator** is the core runtime that manages:
 | **Browser Worker** | Web automation and scraping | Data collection, form filling |
 | **Custom Workers** | Domain-specific logic | Business rules, integrations |
 
-### 🛠️ Tools
+#### **Tools** - Atomic Utilities
 
-**Tools** are atomic utilities that extend agent capabilities:
+Extend agent capabilities with pre-built integrations:
 
 ```python
 # Pre-built tools for common tasks
@@ -188,7 +200,7 @@ tools = [
 
 ---
 
-## 💡 Use Cases
+## 💡 Use Cases & Examples
 
 Arklex AI excels in these intelligent automation scenarios:
 
@@ -222,229 +234,7 @@ Arklex AI excels in these intelligent automation scenarios:
 
 ---
 
-## ⚡ Quick Start
-
-Get your first intelligent agent running in **under 5 minutes**:
-
-### 🚀 Step 1: Install Arklex AI
-
-```bash
-# Install the core framework
-pip install arklex
-
-# Install with optional dependencies for enhanced functionality
-pip install arklex[all]
-```
-
-### 🔑 Step 2: Set Up Your Environment
-
-Create a `.env` file with your API keys:
-
-```env
-# Choose your preferred LLM provider
-OPENAI_API_KEY=your_openai_key_here
-# OR
-ANTHROPIC_API_KEY=your_anthropic_key_here
-# OR
-GEMINI_API_KEY=your_gemini_key_here
-
-# Optional: Vector database for RAG
-MILVUS_URI=your_milvus_uri_here
-
-# Optional: SQL database for persistence
-MYSQL_USERNAME=your_username
-MYSQL_PASSWORD=your_password
-MYSQL_HOSTNAME=localhost
-MYSQL_DB_NAME=arklex_db
-```
-
-### 🎯 Step 3: Create Your First Agent
-
-```bash
-# Create a customer service agent with RAG capabilities
-python create.py \
-  --config ./examples/customer_service/customer_service_config.json \
-  --output-dir ./examples/customer_service \
-  --llm_provider openai \
-  --model gpt-4o-mini
-```
-
-### 🏃‍♂️ Step 4: Run Your Agent
-
-```bash
-# Start your agent with a test query
-python run.py \
-  --input-dir ./examples/customer_service \
-  --llm_provider openai \
-  --model gpt-4o \
-  --query "How do I reset my password?"
-```
-
-### 🌐 Step 5: Deploy as API (Optional)
-
-```bash
-# Start FastAPI server for programmatic access
-python model_api.py --input-dir ./examples/customer_service
-```
-
-Your agent is now available at `http://localhost:8000` with auto-generated OpenAPI documentation!
-
-▶️ **[Watch: Build a Customer Service Agent in 20 Minutes](https://youtu.be/y1P2Ethvy0I)**
-
----
-
-## 📦 Installation
-
-### System Requirements
-
-- **Python 3.10+** (required)
-- **8GB RAM** (recommended for production)
-- **API Keys** for your chosen LLM providers
-- **Optional**: Vector database (Milvus), SQL database (MySQL), web search API (Tavily)
-
-### Installation Options
-
-```bash
-# Basic installation (core functionality)
-pip install arklex
-
-# With vector database support
-pip install arklex[milvus]
-
-# With e-commerce integrations
-pip install arklex[shopify]
-
-# With CRM integrations
-pip install arklex[hubspot]
-
-# Complete installation with all features
-pip install arklex[all]
-```
-
-### Development Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/arklexai/Agent-First-Organization.git
-cd Agent-First-Organization
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install in development mode
-pip install -e ".[dev]"
-```
-
----
-
-## 🔧 Configuration
-
-### Environment Variables
-
-Arklex AI uses environment variables for configuration. Create a `.env` file in your project root:
-
-```env
-# =============================================================================
-# REQUIRED: Choose at least one LLM provider
-# =============================================================================
-
-# OpenAI (recommended for production)
-OPENAI_API_KEY=your_openai_key_here
-OPENAI_ORG_ID=your_org_id_here  # Optional
-
-# Anthropic (alternative)
-ANTHROPIC_API_KEY=your_anthropic_key_here
-
-# Google Gemini (alternative)
-GEMINI_API_KEY=your_gemini_key_here
-
-# Mistral (alternative)
-MISTRAL_API_KEY=your_mistral_key_here
-
-# Hugging Face (for open-source models)
-HUGGINGFACE_API_KEY=your_huggingface_key_here
-
-# =============================================================================
-# OPTIONAL: Enhanced functionality
-# =============================================================================
-
-# LangChain integration
-LANGCHAIN_API_KEY=your_langchain_key_here
-LANGCHAIN_PROJECT=AgentOrg
-LANGCHAIN_TRACING_V2=false
-
-# Vector Database (Milvus)
-MILVUS_URI=your_milvus_uri_here
-MILVUS_USERNAME=your_milvus_username
-MILVUS_PASSWORD=your_milvus_password
-
-# SQL Database (MySQL)
-MYSQL_USERNAME=your_mysql_username
-MYSQL_PASSWORD=your_mysql_password
-MYSQL_HOSTNAME=localhost
-MYSQL_PORT=3306
-MYSQL_DB_NAME=arklex_db
-MYSQL_CONNECTION_TIMEOUT=10
-
-# Web Search (Tavily)
-TAVILY_API_KEY=your_tavily_key_here
-
-# =============================================================================
-# OPTIONAL: Production settings
-# =============================================================================
-
-# Logging
-LOG_LEVEL=INFO
-LOG_FORMAT=json
-
-# API Server
-API_HOST=0.0.0.0
-API_PORT=8000
-API_WORKERS=4
-
-# Security
-JWT_SECRET=your_jwt_secret_here
-RATE_LIMIT_PER_MINUTE=100
-```
-
-### Configuration Files
-
-Create agent-specific configuration files in JSON format:
-
-```json
-{
-  "name": "Customer Service Agent",
-  "description": "RAG-powered support agent with database memory",
-  "version": "1.0.0",
-  "orchestrator": {
-    "llm_provider": "openai",
-    "model": "gpt-4o",
-    "temperature": 0.7,
-    "max_tokens": 1000
-  },
-  "workers": {
-    "rag_worker": {
-      "enabled": true,
-      "vector_db": "milvus",
-      "collection_name": "customer_support_docs"
-    },
-    "database_worker": {
-      "enabled": true,
-      "connection_string": "mysql://user:pass@localhost/arklex_db"
-    }
-  },
-  "tools": [
-    "shopify_tool",
-    "hubspot_tool",
-    "calculator_tool"
-  ]
-}
-```
-
----
-
-## 📚 Examples
+## 📚 Ready-to-Run Examples
 
 Explore our comprehensive examples to get started quickly:
 
@@ -516,6 +306,138 @@ Each example includes:
 - ✅ **Step-by-step tutorials**
 - ✅ **Best practices and patterns**
 - ✅ **Testing and evaluation scripts**
+
+---
+
+## 🔧 Configuration & Setup
+
+### System Requirements
+
+- **Python 3.10+** (required)
+- **8GB RAM** (recommended for production)
+- **API Keys** for your chosen LLM providers
+- **Optional**: Vector database (Milvus), SQL database (MySQL), web search API (Tavily)
+
+### Installation Options
+
+```bash
+# Basic installation (core functionality)
+pip install arklex
+
+# With vector database support
+pip install arklex[milvus]
+
+# With e-commerce integrations
+pip install arklex[shopify]
+
+# With CRM integrations
+pip install arklex[hubspot]
+
+# Complete installation with all features
+pip install arklex[all]
+```
+
+### Environment Configuration
+
+Create a `.env` file in your project root:
+
+```env
+# =============================================================================
+# REQUIRED: Choose at least one LLM provider
+# =============================================================================
+
+# OpenAI (recommended for production)
+OPENAI_API_KEY=your_openai_key_here
+OPENAI_ORG_ID=your_org_id_here  # Optional
+
+# Anthropic (alternative)
+ANTHROPIC_API_KEY=your_anthropic_key_here
+
+# Google Gemini (alternative)
+GEMINI_API_KEY=your_gemini_key_here
+
+# Mistral (alternative)
+MISTRAL_API_KEY=your_mistral_key_here
+
+# Hugging Face (for open-source models)
+HUGGINGFACE_API_KEY=your_huggingface_key_here
+
+# =============================================================================
+# OPTIONAL: Enhanced functionality
+# =============================================================================
+
+# LangChain integration
+LANGCHAIN_API_KEY=your_langchain_key_here
+LANGCHAIN_PROJECT=AgentOrg
+LANGCHAIN_TRACING_V2=false
+
+# Vector Database (Milvus)
+MILVUS_URI=your_milvus_uri_here
+MILVUS_USERNAME=your_milvus_username
+MILVUS_PASSWORD=your_milvus_password
+
+# SQL Database (MySQL)
+MYSQL_USERNAME=your_mysql_username
+MYSQL_PASSWORD=your_mysql_password
+MYSQL_HOSTNAME=localhost
+MYSQL_PORT=3306
+MYSQL_DB_NAME=arklex_db
+MYSQL_CONNECTION_TIMEOUT=10
+
+# Web Search (Tavily)
+TAVILY_API_KEY=your_tavily_key_here
+
+# =============================================================================
+# OPTIONAL: Production settings
+# =============================================================================
+
+# Logging
+LOG_LEVEL=INFO
+LOG_FORMAT=json
+
+# API Server
+API_HOST=0.0.0.0
+API_PORT=8000
+API_WORKERS=4
+
+# Security
+JWT_SECRET=your_jwt_secret_here
+RATE_LIMIT_PER_MINUTE=100
+```
+
+### Agent Configuration
+
+Create agent-specific configuration files in JSON format:
+
+```json
+{
+  "name": "Customer Service Agent",
+  "description": "RAG-powered support agent with database memory",
+  "version": "1.0.0",
+  "orchestrator": {
+    "llm_provider": "openai",
+    "model": "gpt-4o",
+    "temperature": 0.7,
+    "max_tokens": 1000
+  },
+  "workers": {
+    "rag_worker": {
+      "enabled": true,
+      "vector_db": "milvus",
+      "collection_name": "customer_support_docs"
+    },
+    "database_worker": {
+      "enabled": true,
+      "connection_string": "mysql://user:pass@localhost/arklex_db"
+    }
+  },
+  "tools": [
+    "shopify_tool",
+    "hubspot_tool",
+    "calculator_tool"
+  ]
+}
+```
 
 ---
 
@@ -936,7 +858,7 @@ We're here to help you succeed with Arklex AI!
 #### 💬 Community Support
 
 - 💬 [GitHub Discussions](https://github.com/arklexai/Agent-First-Organization/discussions)
-- 🐦 [Twitter](https://twitter.com/arklexai)
+- �� [Twitter](https://twitter.com/arklexai)
 - 💼 [LinkedIn](https://www.linkedin.com/company/arklex)
 - 📺 [YouTube](https://youtube.com/@arklexai)
 
