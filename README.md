@@ -8,29 +8,6 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/status-production%20ready-brightgreen)](https://github.com/arklexai/Agent-First-Organization)
 
----
-
-## 📋 Table of Contents
-
-- [Overview](#overview)
-- [Key Features](#key-features)
-- [Core Concepts](#core-concepts)
-- [Installation](#installation)
-- [Getting Started](#getting-started)
-- [Examples](#examples)
-- [Configuration](#configuration)
-- [API Reference](#api-reference)
-- [Evaluation & Testing](#evaluation--testing)
-- [Production Deployment](#production-deployment)
-- [Supported Providers](#supported-providers)
-- [Development Setup](#development-setup)
-- [Documentation](#documentation)
-- [Contributing](#contributing)
-- [Support](#support)
-- [License](#license)
-
----
-
 ## Overview
 
 **Arklex AI** is a modular, production-grade framework for building intelligent agents powered by LLMs, retrieval, and task graphs. Designed for developers and researchers, Arklex makes it easy to compose, run, and evaluate LLM-powered pipelines at scale.
@@ -52,7 +29,29 @@ Whether you're building customer service bots, booking systems, or complex multi
 
 ---
 
-## Core Concepts
+## Quick Start
+
+Get up and running in under 5 minutes:
+
+```bash
+# Install Arklex
+pip install arklex
+
+# Set up your API key
+export OPENAI_API_KEY="your-api-key-here"
+
+# Create and run a customer service agent
+python create.py \
+  --config ./examples/customer_service/customer_service_config.json \
+  --output-dir ./my_agent
+python run.py --input-dir ./my_agent
+```
+
+▶️ [Video: Build a Customer Service Agent in 20 Minutes](https://youtu.be/y1P2Ethvy0I)
+
+---
+
+## Architecture
 
 Arklex AI is built around four key architectural components:
 
@@ -85,7 +84,7 @@ Atomic utilities for functional and logic extensions:
 
 ## Installation
 
-### Prerequisites
+### System Requirements
 
 - **Python 3.10+** (required)
 - **API Keys** for your chosen LLM providers
@@ -117,9 +116,9 @@ pip install arklex[milvus,shopify,hubspot]
 
 ---
 
-## Getting Started
+## Configuration
 
-### 1. Configure Environment
+### Environment Variables
 
 Create a `.env` file with your API keys:
 
@@ -130,29 +129,55 @@ OPENAI_API_KEY=your_openai_key_here
 ANTHROPIC_API_KEY=your_anthropic_key_here
 # OR
 GEMINI_API_KEY=your_gemini_key_here
+# OR
+MISTRAL_API_KEY=your_mistral_key_here
+# OR
+HUGGINGFACE_API_KEY=your_huggingface_key_here
 
-# Optional: Additional services
-TAVILY_API_KEY=your_tavily_key_here
+# LangChain (optional)
+LANGCHAIN_API_KEY=your_langchain_key_here
+LANGCHAIN_PROJECT=AgentOrg
+LANGCHAIN_TRACING_V2=false
+
+# Vector Database (e.g., Milvus)
 MILVUS_URI=your_milvus_uri_here
+
+# SQL Database (MySQL)
+MYSQL_USERNAME=your_mysql_username
+MYSQL_PASSWORD=your_mysql_password
+MYSQL_HOSTNAME=localhost
+MYSQL_PORT=3306
+MYSQL_DB_NAME=your_database_name
+MYSQL_CONNECTION_TIMEOUT=10
+
+# Web Search
+TAVILY_API_KEY=your_tavily_key_here
 ```
 
-### 2. Create Your First Agent
+---
+
+## Getting Started
+
+### 1. Create Your First Agent
 
 ```bash
 # Create a customer service agent
 python create.py \
   --config ./examples/customer_service/customer_service_config.json \
-  --output-dir ./examples/customer_service
+  --output-dir ./examples/customer_service \
+  --llm_provider openai \
+  --model gpt-4o-mini
 
 # Run the agent
-python run.py --input-dir ./examples/customer_service
+python run.py \
+  --input-dir ./examples/customer_service \
+  --llm_provider openai \
+  --model gpt-4o
 ```
 
 ✅ Your agent is now live and ready to use!
 
-▶️ [Video: Build a Customer Service Agent in 20 Minutes](https://youtu.be/y1P2Ethvy0I)
-
-### 3. Start the API Server (Optional)
+### 2. Start the API Server (Optional)
 
 ```bash
 # Start FastAPI server for programmatic access
@@ -160,6 +185,27 @@ python model_api.py --input-dir ./examples/customer_service
 ```
 
 The server will be available at `http://localhost:8000` with auto-generated OpenAPI documentation.
+
+### 3. CLI Commands Reference
+
+```bash
+# Create a new agent workflow
+python create.py \
+  --config ./examples/customer_service/customer_service_config.json \
+  --output-dir ./examples/customer_service \
+  --llm_provider openai \
+  --model gpt-4o-mini
+
+# Run the agent
+python run.py \
+  --input-dir ./examples/customer_service \
+  --llm_provider openai \
+  --model gpt-4o
+
+# Start the model API server
+python model_api.py \
+  --input-dir ./examples/customer_service
+```
 
 ---
 
@@ -182,61 +228,6 @@ Each example includes:
 - Ready-to-run code
 - Documentation and tutorials
 - Best practices and patterns
-
----
-
-## Configuration
-
-### Environment Variables
-
-```env
-# LLM Providers (choose one or more)
-OPENAI_API_KEY=...
-ANTHROPIC_API_KEY=...
-GEMINI_API_KEY=...
-MISTRAL_API_KEY=...
-HUGGINGFACE_API_KEY=...
-
-# LangChain (optional)
-LANGCHAIN_API_KEY=...
-LANGCHAIN_PROJECT=AgentOrg
-LANGCHAIN_TRACING_V2=false
-
-# Vector Database (e.g., Milvus)
-MILVUS_URI=...
-
-# SQL Database (MySQL)
-MYSQL_USERNAME=...
-MYSQL_PASSWORD=...
-MYSQL_HOSTNAME=...
-MYSQL_PORT=3306
-MYSQL_DB_NAME=...
-MYSQL_CONNECTION_TIMEOUT=10
-
-# Web Search
-TAVILY_API_KEY=...
-```
-
-### CLI Commands
-
-```bash
-# Create a new agent workflow
-python create.py \
-  --config ./examples/customer_service/customer_service_config.json \
-  --output-dir ./examples/customer_service \
-  --llm_provider openai \
-  --model gpt-4o-mini
-
-# Run the agent
-python run.py \
-  --input-dir ./examples/customer_service \
-  --llm_provider openai \
-  --model gpt-4o
-
-# Start the model API server
-python model_api.py \
-  --input-dir ./examples/customer_service
-```
 
 ---
 
@@ -312,6 +303,41 @@ Arklex AI includes enterprise-grade features for production deployments:
 | Google        | `gemini-2.0-flash`                      | ✅ Stable |
 | Mistral       | All `mistral-*` models                  | ✅ Stable |
 | Hugging Face  | Any open-source models                  | ✅ Stable |
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+**API Key Errors**
+
+```bash
+# Ensure your API key is set correctly
+export OPENAI_API_KEY="your-actual-key-here"
+echo $OPENAI_API_KEY  # Verify it's set
+```
+
+**Import Errors**
+
+```bash
+# Reinstall with all dependencies
+pip uninstall arklex
+pip install arklex[all]
+```
+
+**Database Connection Issues**
+
+```bash
+# Check your MySQL connection
+mysql -u username -p -h hostname -P port database_name
+```
+
+### Getting Help
+
+- 📖 [Documentation](https://arklexai.github.io/Agent-First-Organization/docs/intro)
+- 💬 [GitHub Discussions](https://github.com/arklexai/Agent-First-Organization/discussions)
+- 🐛 [Bug Reports](https://github.com/arklexai/Agent-First-Organization/issues)
 
 ---
 
