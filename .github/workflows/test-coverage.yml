@@ -41,54 +41,22 @@ jobs:
           coverage run -m pytest tests/
           coverage xml
           coverage html
+          coverage report
           
           # Check if coverage.xml exists and has data
           if [ -f "coverage.xml" ]; then
             # Extract coverage percentage from the XML report
-            python -c |
-              import xml.etree.ElementTree as ET
-              import os
-              
-              try:
-                  tree = ET.parse('coverage.xml')
-                  root = tree.getroot()
-                  coverage = float(root.attrib['line-rate']) * 100
-                  print(f'Coverage: {coverage:.1f}%')
-                  
-                  # Get minimum coverage threshold from environment variable
-                  min_coverage = float(os.environ.get('MIN_COVERAGE_THRESHOLD', '99.1'))
-                  print(f'Minimum coverage threshold: {min_coverage}%')
-                  
-                  if coverage < min_coverage:
-                      print(f'❌ Coverage ({coverage:.1f}%) is below minimum threshold ({min_coverage}%)')
-                      print('This PR will be blocked until coverage is improved.')
-                      exit(1)
-                  else:
-                      print(f'✅ Coverage ({coverage:.1f}%) meets minimum threshold ({min_coverage}%)')
-              except Exception as e:
-                  print(f'Error reading coverage data: {e}')
-                  print('❌ Could not determine coverage. Please check the test output.')
-                  exit(1)
+            python -c "import xml.etree.ElementTree as ET; import os; tree = ET.parse('coverage.xml'); root = tree.getroot(); coverage = float(root.attrib['line-rate']) * 100; print(f'Coverage: {coverage:.1f}%'); min_coverage = float(os.environ.get('MIN_COVERAGE_THRESHOLD', '99.1')); print(f'Minimum coverage threshold: {min_coverage}%'); exit(1) if coverage < min_coverage else None; print(f'✅ Coverage ({coverage:.1f}%) meets minimum threshold ({min_coverage}%)')"
+            
+            # Check if the above command failed (coverage below threshold)
+            if [ $? -ne 0 ]; then
+              echo "❌ Coverage is below minimum threshold. This PR will be blocked until coverage is improved."
+              exit 1
+            fi
           else
             echo "No coverage.xml file found. This might happen if no tests were run or no code was executed."
             echo "✅ Skipping coverage threshold check - no coverage data available"
           fi
-
-      - name: Upload coverage report
-        if: hashFiles('coverage.xml') != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: coverage.xml
-        continue-on-error: true
-
-      - name: Upload HTML coverage report
-        if: hashFiles('htmlcov/') != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: htmlcov
-          path: htmlcov/
-        continue-on-error: true
 
       - name: Check for coverage data
         id: coverage_check
@@ -100,6 +68,33 @@ jobs:
             echo "COVERAGE_EXISTS=false" >> $GITHUB_ENV
             echo "❌ No coverage.xml file found"
           fi
+
+      - name: Show current coverage status
+        run: |
+          echo "📊 Current Coverage Status:"
+          if [ -f "coverage.xml" ]; then
+            # Extract and display overall coverage percentage
+            COVERAGE=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); coverage = float(tree.getroot().attrib['line-rate']) * 100; print(f'{coverage:.1f}')")
+            echo "✅ Overall coverage: ${COVERAGE}%"
+          else
+            echo "❌ No coverage data available"
+          fi
+
+      - name: Upload coverage report
+        if: env.COVERAGE_EXISTS == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
+        continue-on-error: true
+
+      - name: Upload HTML coverage report
+        if: env.COVERAGE_EXISTS == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: htmlcov
+          path: htmlcov/
+        continue-on-error: true
 
       - name: Combine coverage data
         if: env.COVERAGE_EXISTS == 'true'
@@ -122,12 +117,7 @@ jobs:
           # Check if coverage.xml exists and has data
           if [ -f "coverage.xml" ]; then
             # Extract overall coverage percentage from XML
-            COVERAGE=$(python -c |
-              import xml.etree.ElementTree as ET
-              tree = ET.parse('coverage.xml')
-              coverage = float(tree.getroot().attrib['line-rate']) * 100
-              print(f'{coverage:.1f}')
-            )
+            COVERAGE=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); coverage = float(tree.getroot().attrib['line-rate']) * 100; print(f'{coverage:.1f}')")
 
             echo "Extracted coverage: $COVERAGE%"
 
