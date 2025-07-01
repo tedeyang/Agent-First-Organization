@@ -12,17 +12,19 @@
 ## 📋 Table of Contents
 
 - [Overview](#-overview)
-- [Features](#-features)
+- [Key Features](#-key-features)
 - [Architecture](#-architecture)
-- [Prerequisites](#-prerequisites)
-- [Installation](#-installation)
-- [Quick Start](#-quick-start)
+- [Getting Started](#-getting-started)
+  - [Prerequisites](#-prerequisites)
+  - [Installation](#-installation)
+  - [Quick Start](#-quick-start)
 - [Configuration](#-configuration)
+- [API Reference](#-api-reference)
 - [Use Cases](#-use-cases)
 - [Supported Providers](#-supported-providers)
+- [Examples](#-examples)
 - [Evaluation & Testing](#-evaluation--testing)
 - [Production Features](#-production-features)
-- [Examples](#-examples)
 - [Documentation](#-documentation)
 - [Contributing](#-contributing)
 - [Support](#-support)
@@ -34,7 +36,9 @@
 
 **Arklex AI** is a modular, production-grade framework for building intelligent agents powered by LLMs, retrieval, and task graphs. Designed for developers and researchers, Arklex makes it easy to compose, run, and evaluate LLM-powered pipelines at scale.
 
-### ✨ Key Features
+---
+
+## ✨ Key Features
 
 - 🧠 **Multi-agent orchestration** using structured DAGs
 - 🧩 **Composable modules** for tools, databases, APIs, and browsers
@@ -56,23 +60,23 @@ Arklex AI is designed for scalable, flexible agent development:
 
 ---
 
-## 📋 Prerequisites
+## 🚀 Getting Started
+
+### 📋 Prerequisites
 
 - **Python 3.10+** (required)
 - **API Keys** for your chosen LLM providers
 - **Optional**: Vector database (Milvus), SQL database (MySQL), web search API (Tavily)
 
----
+### 📦 Installation
 
-## 🚀 Installation
-
-### Basic Installation
+#### Basic Installation
 
 ```bash
 pip install arklex
 ```
 
-### Optional Dependencies
+#### Optional Dependencies
 
 For specific integrations, install additional packages:
 
@@ -90,11 +94,9 @@ pip install arklex[hubspot]
 pip install arklex[milvus,shopify,hubspot]
 ```
 
----
+### ⚡ Quick Start
 
-## ⚡ Quick Start
-
-### 1. Configure Environment
+#### 1. Configure Environment
 
 Create a `.env` file with your API keys:
 
@@ -111,7 +113,7 @@ TAVILY_API_KEY=your_tavily_key_here
 MILVUS_URI=your_milvus_uri_here
 ```
 
-### 2. Launch Your First Agent
+#### 2. Launch Your First Agent
 
 ```bash
 # Create a customer service agent
@@ -184,6 +186,26 @@ python model_api.py \
 
 ---
 
+## 🔌 API Reference
+
+### Core Components
+
+- **`create.py`** — Generate agent workflows from configuration
+- **`run.py`** — Execute agent workflows with input data
+- **`model_api.py`** — Start FastAPI server for agent interactions
+- **`eval.py`** — Run evaluation and testing suites
+
+### Key Classes
+
+- **`Orchestrator`** — Main runtime for agent execution
+- **`TaskGraph`** — DAG representation of agent workflows
+- **`Worker`** — Modular components for specific tasks
+- **`Tool`** — Atomic utilities for agent operations
+
+For detailed API documentation, visit our [API Reference](https://www.arklex.ai/qa/open-source).
+
+---
+
 ## 🛠 Use Cases
 
 | Use Case           | Description                                            | Example |
@@ -206,6 +228,26 @@ python model_api.py \
 | Google        | `gemini-2.0-flash`                      | ✅ Stable |
 | Mistral       | All `mistral-*` models                  | ✅ Stable |
 | Hugging Face  | Any open-source models                  | ✅ Stable |
+
+---
+
+## 📚 Examples
+
+Explore our comprehensive examples to get started quickly:
+
+- [Customer Service Agent](./examples/customer_service/) - RAG-powered support with database memory
+- [Shopify Integration](./examples/shopify/) - E-commerce order management
+- [HubSpot CRM](./examples/hubspot/) - Contact and deal management
+- [Calendar Booking](./examples/calendar/) - Multi-step scheduling system
+- [Syllabus Assistant](./examples/syllabus_assistant/) - Document processing and Q&A
+- [Human-in-the-Loop](./examples/hitl_server/) - Interactive agent workflows
+
+Each example includes:
+
+- Complete configuration files
+- Ready-to-run code
+- Documentation and tutorials
+- Best practices and patterns
 
 ---
 
@@ -236,26 +278,6 @@ python eval.py \
 - ⚙️ **Robust Error Handling** — Typed exceptions, retries, fallbacks
 - 🔄 **Auto-scaling** — Handle variable load with intelligent scaling
 - 🛡️ **Security** — Input validation, rate limiting, authentication
-
----
-
-## 📚 Examples
-
-Explore our comprehensive examples to get started quickly:
-
-- [Customer Service Agent](./examples/customer_service/) - RAG-powered support with database memory
-- [Shopify Integration](./examples/shopify/) - E-commerce order management
-- [HubSpot CRM](./examples/hubspot/) - Contact and deal management
-- [Calendar Booking](./examples/calendar/) - Multi-step scheduling system
-- [Syllabus Assistant](./examples/syllabus_assistant/) - Document processing and Q&A
-- [Human-in-the-Loop](./examples/hitl_server/) - Interactive agent workflows
-
-Each example includes:
-
-- Complete configuration files
-- Ready-to-run code
-- Documentation and tutorials
-- Best practices and patterns
 
 ---
 
