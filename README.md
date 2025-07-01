@@ -14,6 +14,14 @@
 
 Whether you're building customer service bots, booking systems, or complex multi-agent workflows, Arklex provides the tools and infrastructure to create robust, scalable AI applications.
 
+### Why Arklex AI?
+
+- **🧠 Agent-First Design** — Built specifically for multi-agent orchestration
+- **🚀 Production Ready** — Enterprise-grade features out of the box
+- **🔌 Model Agnostic** — Works with any LLM provider
+- **📊 Built-in Evaluation** — Comprehensive testing and metrics
+- **🛡️ Security Focused** — Secure by design with proper validation
+
 ---
 
 ## Key Features
@@ -29,25 +37,33 @@ Whether you're building customer service bots, booking systems, or complex multi
 
 ---
 
-## Quick Start
+## Use Cases
 
-Get up and running in under 5 minutes:
+Arklex AI is designed for a wide range of intelligent automation scenarios:
 
-```bash
-# Install Arklex
-pip install arklex
+### Customer Service & Support
 
-# Set up your API key
-export OPENAI_API_KEY="your-api-key-here"
+- **RAG-powered chatbots** with document knowledge
+- **Multi-step support workflows** with human-in-the-loop
+- **Automated ticket routing** and resolution
 
-# Create and run a customer service agent
-python create.py \
-  --config ./examples/customer_service/customer_service_config.json \
-  --output-dir ./my_agent
-python run.py --input-dir ./my_agent
-```
+### E-commerce & Retail
 
-▶️ [Video: Build a Customer Service Agent in 20 Minutes](https://youtu.be/y1P2Ethvy0I)
+- **Order management** and inventory tracking
+- **Customer onboarding** and account management
+- **Product recommendations** and personalization
+
+### Business Process Automation
+
+- **Appointment scheduling** and calendar management
+- **CRM integration** and lead management
+- **Document processing** and data extraction
+
+### Research & Development
+
+- **Multi-agent research workflows**
+- **Data analysis** and reporting automation
+- **A/B testing** and model evaluation
 
 ---
 
@@ -116,49 +132,27 @@ pip install arklex[milvus,shopify,hubspot]
 
 ---
 
-## Configuration
+## Quick Start
 
-### Environment Variables
+Get up and running in under 5 minutes:
 
-Create a `.env` file with your API keys:
+```bash
+# Install Arklex
+pip install arklex
 
-```env
-# Required: Choose at least one LLM provider
-OPENAI_API_KEY=your_openai_key_here
-# OR
-ANTHROPIC_API_KEY=your_anthropic_key_here
-# OR
-GEMINI_API_KEY=your_gemini_key_here
-# OR
-MISTRAL_API_KEY=your_mistral_key_here
-# OR
-HUGGINGFACE_API_KEY=your_huggingface_key_here
+# Set up your API key
+export OPENAI_API_KEY="your-api-key-here"
 
-# LangChain (optional)
-LANGCHAIN_API_KEY=your_langchain_key_here
-LANGCHAIN_PROJECT=AgentOrg
-LANGCHAIN_TRACING_V2=false
-
-# Vector Database (e.g., Milvus)
-MILVUS_URI=your_milvus_uri_here
-
-# SQL Database (MySQL)
-MYSQL_USERNAME=your_mysql_username
-MYSQL_PASSWORD=your_mysql_password
-MYSQL_HOSTNAME=localhost
-MYSQL_PORT=3306
-MYSQL_DB_NAME=your_database_name
-MYSQL_CONNECTION_TIMEOUT=10
-
-# Web Search
-TAVILY_API_KEY=your_tavily_key_here
+# Create and run a customer service agent
+python create.py \
+  --config ./examples/customer_service/customer_service_config.json \
+  --output-dir ./my_agent
+python run.py --input-dir ./my_agent
 ```
 
----
+▶️ [Video: Build a Customer Service Agent in 20 Minutes](https://youtu.be/y1P2Ethvy0I)
 
-## Getting Started
-
-### 1. Create Your First Agent
+### Your First Agent
 
 ```bash
 # Create a customer service agent
@@ -177,7 +171,7 @@ python run.py \
 
 ✅ Your agent is now live and ready to use!
 
-### 2. Start the API Server (Optional)
+### Start the API Server (Optional)
 
 ```bash
 # Start FastAPI server for programmatic access
@@ -227,6 +221,46 @@ Each example includes:
 - **`Tool`** — Atomic utilities for agent operations
 
 For detailed API documentation, visit our [API Reference](https://www.arklex.ai/qa/open-source).
+
+---
+
+## Configuration
+
+### Environment Variables
+
+Create a `.env` file with your API keys:
+
+```env
+# Required: Choose at least one LLM provider
+OPENAI_API_KEY=your_openai_key_here
+# OR
+ANTHROPIC_API_KEY=your_anthropic_key_here
+# OR
+GEMINI_API_KEY=your_gemini_key_here
+# OR
+MISTRAL_API_KEY=your_mistral_key_here
+# OR
+HUGGINGFACE_API_KEY=your_huggingface_key_here
+
+# LangChain (optional)
+LANGCHAIN_API_KEY=your_langchain_key_here
+LANGCHAIN_PROJECT=AgentOrg
+LANGCHAIN_TRACING_V2=false
+
+# Vector Database (e.g., Milvus)
+MILVUS_URI=your_milvus_uri_here
+
+# SQL Database (MySQL)
+MYSQL_USERNAME=your_mysql_username
+MYSQL_PASSWORD=your_mysql_password
+MYSQL_HOSTNAME=localhost
+MYSQL_PORT=3306
+MYSQL_DB_NAME=your_database_name
+MYSQL_CONNECTION_TIMEOUT=10
+
+# Web Search
+TAVILY_API_KEY=your_tavily_key_here
+```
 
 ---
 
@@ -285,36 +319,7 @@ Arklex AI includes enterprise-grade features for production deployments:
 
 ---
 
-## Troubleshooting
-
-### Common Issues
-
-**API Key Errors**
-
-```bash
-# Ensure your API key is set correctly
-export OPENAI_API_KEY="your-actual-key-here"
-echo $OPENAI_API_KEY  # Verify it's set
-```
-
-**Import Errors**
-
-```bash
-# Reinstall with all dependencies
-pip uninstall arklex
-pip install arklex[all]
-```
-
-**Database Connection Issues**
-
-```bash
-# Check your MySQL connection
-mysql -u username -p -h hostname -P port database_name
-```
-
----
-
-## Development Setup
+## Development
 
 ### Prerequisites for Development
 
@@ -351,6 +356,33 @@ ruff arklex/
 ```
 
 ---
+
+## Troubleshooting
+
+### Common Issues
+
+**API Key Errors**
+
+```bash
+# Ensure your API key is set correctly
+export OPENAI_API_KEY="your-actual-key-here"
+echo $OPENAI_API_KEY  # Verify it's set
+```
+
+**Import Errors**
+
+```bash
+# Reinstall with all dependencies
+pip uninstall arklex
+pip install arklex[all]
+```
+
+**Database Connection Issues**
+
+```bash
+# Check your MySQL connection
+mysql -u username -p -h hostname -P port database_name
+```
 
 ---
 
