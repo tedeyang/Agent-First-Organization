@@ -22,52 +22,7 @@ Whether you're building customer service bots, booking systems, or complex multi
 - **📊 Built-in Evaluation** — Comprehensive testing and metrics
 - **🛡️ Security Focused** — Secure by design with proper validation
 
----
-
-## Key Features
-
-- 🧠 **Multi-agent orchestration** using structured DAGs
-- 🧩 **Composable modules** for tools, databases, APIs, and browsers
-- 🔌 **Model-agnostic** — OpenAI, Anthropic, Gemini, Mistral, Hugging Face
-- 🧪 **Built-in evaluation** — synthetic tests, A/B runs, metrics tracking
-- 🚀 **FastAPI backend** with observability, OpenAPI docs, and error handling
-- 📊 **Production-ready** — structured logging, monitoring, and error handling
-- 🔄 **Auto-scaling** — Handle variable load with intelligent scaling
-- 🛡️ **Security** — Input validation, rate limiting, authentication
-
----
-
-## Use Cases
-
-Arklex AI is designed for a wide range of intelligent automation scenarios:
-
-### Customer Service & Support
-
-- **RAG-powered chatbots** with document knowledge
-- **Multi-step support workflows** with human-in-the-loop
-- **Automated ticket routing** and resolution
-
-### E-commerce & Retail
-
-- **Order management** and inventory tracking
-- **Customer onboarding** and account management
-- **Product recommendations** and personalization
-
-### Business Process Automation
-
-- **Appointment scheduling** and calendar management
-- **CRM integration** and lead management
-- **Document processing** and data extraction
-
-### Research & Development
-
-- **Multi-agent research workflows**
-- **Data analysis** and reporting automation
-- **A/B testing** and model evaluation
-
----
-
-## Architecture
+## Core Concepts
 
 Arklex AI is built around four key architectural components:
 
@@ -96,7 +51,44 @@ Atomic utilities for functional and logic extensions:
 - Data processing and transformation
 - External service connectors
 
----
+## Key Features
+
+- 🧠 **Multi-agent orchestration** using structured DAGs
+- 🧩 **Composable modules** for tools, databases, APIs, and browsers
+- 🔌 **Model-agnostic** — OpenAI, Anthropic, Gemini, Mistral, Hugging Face
+- 🧪 **Built-in evaluation** — synthetic tests, A/B runs, metrics tracking
+- 🚀 **FastAPI backend** with observability, OpenAPI docs, and error handling
+- 📊 **Production-ready** — structured logging, monitoring, and error handling
+- 🔄 **Auto-scaling** — Handle variable load with intelligent scaling
+- 🛡️ **Security** — Input validation, rate limiting, authentication
+
+## Use Cases
+
+Arklex AI is designed for a wide range of intelligent automation scenarios:
+
+### Customer Service & Support
+
+- **RAG-powered chatbots** with document knowledge
+- **Multi-step support workflows** with human-in-the-loop
+- **Automated ticket routing** and resolution
+
+### E-commerce & Retail
+
+- **Order management** and inventory tracking
+- **Customer onboarding** and account management
+- **Product recommendations** and personalization
+
+### Business Process Automation
+
+- **Appointment scheduling** and calendar management
+- **CRM integration** and lead management
+- **Document processing** and data extraction
+
+### Research & Development
+
+- **Multi-agent research workflows**
+- **Data analysis** and reporting automation
+- **A/B testing** and model evaluation
 
 ## Installation
 
@@ -130,11 +122,11 @@ pip install arklex[hubspot]
 pip install arklex[milvus,shopify,hubspot]
 ```
 
----
-
-## Quick Start
+## Getting Started
 
 Get up and running in under 5 minutes:
+
+### Step 1: Set Up Environment
 
 ```bash
 # Install Arklex
@@ -142,17 +134,9 @@ pip install arklex
 
 # Set up your API key
 export OPENAI_API_KEY="your-api-key-here"
-
-# Create and run a customer service agent
-python create.py \
-  --config ./examples/customer_service/customer_service_config.json \
-  --output-dir ./my_agent
-python run.py --input-dir ./my_agent
 ```
 
-▶️ [Video: Build a Customer Service Agent in 20 Minutes](https://youtu.be/y1P2Ethvy0I)
-
-### Your First Agent
+### Step 2: Create Your First Agent
 
 ```bash
 # Create a customer service agent
@@ -161,7 +145,11 @@ python create.py \
   --output-dir ./examples/customer_service \
   --llm_provider openai \
   --model gpt-4o-mini
+```
 
+### Step 3: Run Your Agent
+
+```bash
 # Run the agent
 python run.py \
   --input-dir ./examples/customer_service \
@@ -171,7 +159,7 @@ python run.py \
 
 ✅ Your agent is now live and ready to use!
 
-### Start the API Server (Optional)
+### Step 4: Start the API Server (Optional)
 
 ```bash
 # Start FastAPI server for programmatic access
@@ -180,7 +168,7 @@ python model_api.py --input-dir ./examples/customer_service
 
 The server will be available at `http://localhost:8000` with auto-generated OpenAPI documentation.
 
----
+▶️ [Video: Build a Customer Service Agent in 20 Minutes](https://youtu.be/y1P2Ethvy0I)
 
 ## Examples
 
@@ -201,28 +189,6 @@ Each example includes:
 - Ready-to-run code
 - Documentation and tutorials
 - Best practices and patterns
-
----
-
-## API Reference
-
-### Core Components
-
-- **`create.py`** — Generate agent workflows from configuration
-- **`run.py`** — Execute agent workflows with input data
-- **`model_api.py`** — Start FastAPI server for agent interactions
-- **`eval.py`** — Run evaluation and testing suites
-
-### Key Classes
-
-- **`Orchestrator`** — Main runtime for agent execution
-- **`TaskGraph`** — DAG representation of agent workflows
-- **`Worker`** — Modular components for specific tasks
-- **`Tool`** — Atomic utilities for agent operations
-
-For detailed API documentation, visit our [API Reference](https://www.arklex.ai/qa/open-source).
-
----
 
 ## Configuration
 
@@ -262,7 +228,23 @@ MYSQL_CONNECTION_TIMEOUT=10
 TAVILY_API_KEY=your_tavily_key_here
 ```
 
----
+## API Reference
+
+### Core Components
+
+- **`create.py`** — Generate agent workflows from configuration
+- **`run.py`** — Execute agent workflows with input data
+- **`model_api.py`** — Start FastAPI server for agent interactions
+- **`eval.py`** — Run evaluation and testing suites
+
+### Key Classes
+
+- **`Orchestrator`** — Main runtime for agent execution
+- **`TaskGraph`** — DAG representation of agent workflows
+- **`Worker`** — Modular components for specific tasks
+- **`Tool`** — Atomic utilities for agent operations
+
+For detailed API documentation, visit our [API Reference](https://www.arklex.ai/qa/open-source).
 
 ## Evaluation & Testing
 
@@ -280,8 +262,6 @@ python eval.py \
   --documents_dir ./examples/customer_service \
   --output-dir ./examples/customer_service
 ```
-
----
 
 ## Production Deployment
 
@@ -305,8 +285,6 @@ Arklex AI includes enterprise-grade features for production deployments:
 - 📊 **Performance Monitoring** — Real-time metrics and alerts
 - 🚀 **High Availability** — Fault tolerance and failover support
 
----
-
 ## Supported Providers
 
 | Provider      | Models Supported                        | Status |
@@ -316,8 +294,6 @@ Arklex AI includes enterprise-grade features for production deployments:
 | Google        | `gemini-2.0-flash`                      | ✅ Stable |
 | Mistral       | All `mistral-*` models                  | ✅ Stable |
 | Hugging Face  | Any open-source models                  | ✅ Stable |
-
----
 
 ## Development
 
@@ -355,8 +331,6 @@ pytest tests/utils/
 ruff arklex/
 ```
 
----
-
 ## Troubleshooting
 
 ### Common Issues
@@ -384,8 +358,6 @@ pip install arklex[all]
 mysql -u username -p -h hostname -P port database_name
 ```
 
----
-
 ## Contributing
 
 We welcome contributions, questions, and feature ideas!
@@ -405,8 +377,6 @@ We welcome contributions, questions, and feature ideas!
 - 💬 [Start a Discussion](https://github.com/arklexai/Agent-First-Organization/discussions)
 - 📋 [Code of Conduct](CODE_OF_CONDUCT.md)
 
----
-
 ## Support
 
 ### Getting Help
@@ -425,13 +395,9 @@ We welcome contributions, questions, and feature ideas!
 - 💼 [LinkedIn](https://www.linkedin.com/company/arklex)
 - 📺 [YouTube](https://youtube.com/@arklexai)
 
----
-
 ## License
 
 Arklex AI is released under the MIT License. See [LICENSE](LICENSE) for details.
-
----
 
 ## Acknowledgments
 
