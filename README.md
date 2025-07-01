@@ -129,7 +129,7 @@ print(result.response)
 
 ## 🔧 Configuration
 
-**Requirements:** Python 3.10+, 8GB RAM, API keys
+**Requirements:** Python 3.10+, API keys
 
 ```env
 # Required: Choose one LLM provider
@@ -158,8 +158,9 @@ TAVILY_API_KEY=your_tavily_key
 ## 🤝 Community
 
 - 🐛 [Report Issues](https://github.com/arklexai/Agent-First-Organization/issues)
-- 💬 [Discussions](https://github.com/arklexai/Agent-First-Organization/discussions)
+- 💬 [Discord](https://discord.gg/kJkefzkRg5)
 - 🐦 [Twitter](https://twitter.com/arklexai)
+- 💼 [LinkedIn](https://www.linkedin.com/company/arklex)
 - 📧 [Email Support](mailto:support@arklex.ai)
 
 ---
@@ -206,6 +207,6 @@ Arklex AI builds on the shoulders of giants:
 
 **Made with ❤️ by the Arklex AI Team**
 
-[Website](https://arklex.ai) • [Documentation](https://arklexai.github.io/Agent-First-Organization/) • [GitHub](https://github.com/arklexai/Agent-First-Organization) • [Discord](https://discord.gg/arklex)
+[Website](https://arklex.ai) • [Documentation](https://arklexai.github.io/Agent-First-Organization/) • [GitHub](https://github.com/arklexai/Agent-First-Organization) • [Discord](https://discord.gg/arklex) • [LinkedIn](https://www.linkedin.com/company/arklex)
 
 </div>
