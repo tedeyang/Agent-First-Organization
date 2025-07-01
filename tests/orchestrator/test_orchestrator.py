@@ -1173,3 +1173,47 @@ class TestAgentOrgAdditionalCoverage:
 
             # Verify no planner setup was attempted
             assert agent.env.planner is None
+
+
+def test_agentorg_env_none_valid_config() -> None:
+    from arklex.orchestrator.orchestrator import AgentOrg
+
+    config = {
+        "model": {"model_type_or_path": "gpt-4", "llm_provider": "openai"},
+        "workers": [],
+        "tools": [],
+        "nodes": [],
+        "edges": [],
+        "role": "test_role",
+        "user_objective": "test objective",
+        "builder_objective": "test builder objective",
+        "intro": "test intro",
+    }
+    agent = AgentOrg(config, None)
+    assert hasattr(agent, "env")
+    assert hasattr(agent, "task_graph")
+
+
+def test_agentorg_hitl_proposal_enabled_valid_config() -> None:
+    from arklex.orchestrator.orchestrator import AgentOrg
+
+    config = {
+        "model": {"model_type_or_path": "gpt-4", "llm_provider": "openai"},
+        "workers": [
+            {
+                "id": "hitl_worker",
+                "name": "HITLWorkerChatFlag",
+                "path": "hitl_worker.py",
+            }
+        ],
+        "tools": [],
+        "settings": {"hitl_proposal": True},
+        "nodes": [],
+        "edges": [],
+        "role": "test_role",
+        "user_objective": "test objective",
+        "builder_objective": "test builder objective",
+        "intro": "test intro",
+    }
+    agent = AgentOrg(config, None)
+    assert agent.hitl_proposal_enabled is True
