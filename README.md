@@ -1,9 +1,8 @@
 # Arklex Agent First Organization
 
 ![Release](https://img.shields.io/github/release/arklexai/Agent-First-Organization?logo=github)
-![PyPI version](https://img.shields.io/pypi/v/arklex.svg)](https://pypi.org/project/arklex)
+![PyPI version](https://img.shields.io/pypi/v/arklex.svg)(<https://pypi.org/project/arklex>)
 ![Python version](https://img.shields.io/pypi/pyversions/arklex)
-
 
 A modular framework for building AI agents that complete complex tasks through structured multi-agent workflows. Arklex enables developers to create customizable workers and tools that collaborate seamlessly under intelligent orchestration.
 
@@ -108,10 +107,10 @@ MILVUS_URI=<your-milvus-db-uri>
 | Mistral       | All Mistral models                          |
 | Hugging Face  | Open source models                          |
 
-
 ## Core Commands
 
 ### Create Agent Workflow
+
 ```bash
 python create.py \
   --config ./examples/customer_service/customer_service_config.json \
@@ -121,6 +120,7 @@ python create.py \
 ```
 
 ### Run Agent
+
 ```bash
 python run.py \
   --input-dir ./examples/customer_service \
@@ -129,12 +129,14 @@ python run.py \
 ```
 
 ### Start API Service
+
 ```bash
 python model_api.py \
   --input-dir ./examples/customer_service
 ```
 
 ### Run Evaluation
+
 ```bash
 python eval.py \
 --model_api http://127.0.0.1:8000/eval/chat \
@@ -146,6 +148,7 @@ python eval.py \
 ## Architecture
 
 Arklex follows a centralized orchestration with distributed execution model:
+
 * Task Graph: Defines workflow structure and dependencies
 * Orchestrator: Manages agent coordination and task routing
 * Workers: Specialized components (RAG, Database, API calls)
@@ -154,6 +157,7 @@ Arklex follows a centralized orchestration with distributed execution model:
 ## Evaluation & Testing
 
 Arklex includes comprehensive evaluation tools:
+
 * Synthetic Conversations: Generate realistic test scenarios
 * Performance Metrics: Track response quality and task completion
 * A/B Testing: Compare different agent configurations
@@ -162,30 +166,36 @@ Arklex includes comprehensive evaluation tools:
 ## Production Features
 
 ### Logging & Monitoring
+
 * Structured logging with request tracking
 * Configurable log levels and rotation
 * Request ID correlation across services
 * Performance timing and metrics
 
 ### Error Handling
+
 * Custom exception hierarchy
 * Automatic retry mechanisms
 * Graceful degradation
 * Circuit breaker patterns
 
 ### API Service
+
 * FastAPI-based REST endpoints
 * Automatic OpenAPI documentation
 * CORS support and security headers
 * Health checks and status monitoring
 
 ## Contributing
+
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
 ## License
+
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Support
+
 * [Documentation](arklex.ai/docs)
 * [GitHub Issues](https://github.com/arklexai/Agent-First-Organization/issues)
 * [GitHub Discussions](https://github.com/arklexai/Agent-First-Organization/discussions)
