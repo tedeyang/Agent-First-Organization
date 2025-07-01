@@ -258,7 +258,7 @@ class TestOrchestrator:
 
 ### Documentation Structure
 
-```
+```bash
 docs/
 ├── API.md              # API reference
 ├── ARCHITECTURE.md     # System architecture
