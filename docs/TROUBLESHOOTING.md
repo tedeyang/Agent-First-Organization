@@ -618,7 +618,7 @@ Include the following information:
 
 ### Support Channels
 
-- 📖 [Documentation](https://arklex.ai/docs)
+- 📖 [Documentation](https://arklexai.github.io/Agent-First-Organization/)
 - 💬 [GitHub Discussions](https://github.com/arklexai/Agent-First-Organization/discussions)
 - 🐛 [Bug Reports](https://github.com/arklexai/Agent-First-Organization/issues)
 - 📧 [Email Support](mailto:support@arklex.ai)
