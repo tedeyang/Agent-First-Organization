@@ -22,6 +22,17 @@ Whether you're building customer service bots, booking systems, or complex multi
 - **📊 Built-in Evaluation** — Comprehensive testing and metrics
 - **🛡️ Security Focused** — Secure by design with proper validation
 
+## Key Features
+
+- 🧠 **Multi-agent orchestration** using structured DAGs
+- 🧩 **Composable modules** for tools, databases, APIs, and browsers
+- 🔌 **Model-agnostic** — OpenAI, Anthropic, Gemini, Mistral, Hugging Face
+- 🧪 **Built-in evaluation** — synthetic tests, A/B runs, metrics tracking
+- 🚀 **FastAPI backend** with observability, OpenAPI docs, and error handling
+- 📊 **Production-ready** — structured logging, monitoring, and error handling
+- 🔄 **Auto-scaling** — Handle variable load with intelligent scaling
+- 🛡️ **Security** — Input validation, rate limiting, authentication
+
 ## Core Concepts
 
 Arklex AI is built around four key architectural components:
@@ -50,17 +61,6 @@ Atomic utilities for functional and logic extensions:
 - API integrations (Shopify, HubSpot, Google Calendar)
 - Data processing and transformation
 - External service connectors
-
-## Key Features
-
-- 🧠 **Multi-agent orchestration** using structured DAGs
-- 🧩 **Composable modules** for tools, databases, APIs, and browsers
-- 🔌 **Model-agnostic** — OpenAI, Anthropic, Gemini, Mistral, Hugging Face
-- 🧪 **Built-in evaluation** — synthetic tests, A/B runs, metrics tracking
-- 🚀 **FastAPI backend** with observability, OpenAPI docs, and error handling
-- 📊 **Production-ready** — structured logging, monitoring, and error handling
-- 🔄 **Auto-scaling** — Handle variable load with intelligent scaling
-- 🛡️ **Security** — Input validation, rate limiting, authentication
 
 ## Use Cases
 
@@ -122,74 +122,6 @@ pip install arklex[hubspot]
 pip install arklex[milvus,shopify,hubspot]
 ```
 
-## Getting Started
-
-Get up and running in under 5 minutes:
-
-### Step 1: Set Up Environment
-
-```bash
-# Install Arklex
-pip install arklex
-
-# Set up your API key
-export OPENAI_API_KEY="your-api-key-here"
-```
-
-### Step 2: Create Your First Agent
-
-```bash
-# Create a customer service agent
-python create.py \
-  --config ./examples/customer_service/customer_service_config.json \
-  --output-dir ./examples/customer_service \
-  --llm_provider openai \
-  --model gpt-4o-mini
-```
-
-### Step 3: Run Your Agent
-
-```bash
-# Run the agent
-python run.py \
-  --input-dir ./examples/customer_service \
-  --llm_provider openai \
-  --model gpt-4o
-```
-
-✅ Your agent is now live and ready to use!
-
-### Step 4: Start the API Server (Optional)
-
-```bash
-# Start FastAPI server for programmatic access
-python model_api.py --input-dir ./examples/customer_service
-```
-
-The server will be available at `http://localhost:8000` with auto-generated OpenAPI documentation.
-
-▶️ [Video: Build a Customer Service Agent in 20 Minutes](https://youtu.be/y1P2Ethvy0I)
-
-## Examples
-
-Explore our comprehensive examples to get started quickly:
-
-| Example | Description | Use Case |
-|---------|-------------|----------|
-| [Customer Service Agent](./examples/customer_service/) | RAG-powered support with database memory | Customer support automation |
-| [Shopify Integration](./examples/shopify/) | E-commerce order management | E-commerce operations |
-| [HubSpot CRM](./examples/hubspot/) | Contact and deal management | CRM automation |
-| [Calendar Booking](./examples/calendar/) | Multi-step scheduling system | Appointment booking |
-| [Syllabus Assistant](./examples/syllabus_assistant/) | Document processing and Q&A | Content management |
-| [Human-in-the-Loop](./examples/hitl_server/) | Interactive agent workflows | Complex decision making |
-
-Each example includes:
-
-- Complete configuration files
-- Ready-to-run code
-- Documentation and tutorials
-- Best practices and patterns
-
 ## Configuration
 
 ### Environment Variables
@@ -227,6 +159,64 @@ MYSQL_CONNECTION_TIMEOUT=10
 # Web Search
 TAVILY_API_KEY=your_tavily_key_here
 ```
+
+## Quick Start
+
+Get up and running in under 5 minutes:
+
+### Step 1: Create Your First Agent
+
+```bash
+# Create a customer service agent
+python create.py \
+  --config ./examples/customer_service/customer_service_config.json \
+  --output-dir ./examples/customer_service \
+  --llm_provider openai \
+  --model gpt-4o-mini
+```
+
+### Step 2: Run Your Agent
+
+```bash
+# Run the agent
+python run.py \
+  --input-dir ./examples/customer_service \
+  --llm_provider openai \
+  --model gpt-4o
+```
+
+✅ Your agent is now live and ready to use!
+
+### Step 3: Start the API Server (Optional)
+
+```bash
+# Start FastAPI server for programmatic access
+python model_api.py --input-dir ./examples/customer_service
+```
+
+The server will be available at `http://localhost:8000` with auto-generated OpenAPI documentation.
+
+▶️ [Video: Build a Customer Service Agent in 20 Minutes](https://youtu.be/y1P2Ethvy0I)
+
+## Examples
+
+Explore our comprehensive examples to get started quickly:
+
+| Example | Description | Use Case |
+|---------|-------------|----------|
+| [Customer Service Agent](./examples/customer_service/) | RAG-powered support with database memory | Customer support automation |
+| [Shopify Integration](./examples/shopify/) | E-commerce order management | E-commerce operations |
+| [HubSpot CRM](./examples/hubspot/) | Contact and deal management | CRM automation |
+| [Calendar Booking](./examples/calendar/) | Multi-step scheduling system | Appointment booking |
+| [Syllabus Assistant](./examples/syllabus_assistant/) | Document processing and Q&A | Content management |
+| [Human-in-the-Loop](./examples/hitl_server/) | Interactive agent workflows | Complex decision making |
+
+Each example includes:
+
+- Complete configuration files
+- Ready-to-run code
+- Documentation and tutorials
+- Best practices and patterns
 
 ## API Reference
 
