@@ -8,7 +8,7 @@ from collections.abc import Callable
 from typing import Protocol
 
 
-class TreeNodeProtocol(Protocol):
+class TreeNodeProtocol(Protocol):  # pragma: no cover
     """Protocol for tree node operations to enable better testing."""
 
     def add(self, label: str) -> "TreeNodeProtocol":
@@ -47,7 +47,7 @@ class TreeNodeProtocol(Protocol):
         pass
 
 
-class TreeProtocol(Protocol):
+class TreeProtocol(Protocol):  # pragma: no cover
     """Protocol for tree operations to enable better testing."""
 
     def focus(self) -> None:
@@ -65,7 +65,7 @@ class TreeProtocol(Protocol):
         pass
 
 
-class InputModalProtocol(Protocol):
+class InputModalProtocol(Protocol):  # pragma: no cover
     """Protocol for input modal operations."""
 
     def __init__(
