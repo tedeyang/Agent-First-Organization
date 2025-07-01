@@ -38,34 +38,35 @@ jobs:
         run: |
           # Run tests with coverage and generate all reports
           pytest tests/ --cov=arklex --cov-report=term-missing --cov-report=html --cov-report=xml --no-cov-on-fail
-          
+
           # Enforce absolute uncovered lines threshold
-          python -c "
-            import xml.etree.ElementTree as ET
+          python <<EOF
+import xml.etree.ElementTree as ET
 
-            UNCOVERED_LINES_THRESHOLD = 52  # Set your maximum allowed uncovered lines
+UNCOVERED_LINES_THRESHOLD = 52  # Set your maximum allowed uncovered lines
 
-            try:
-                tree = ET.parse("coverage.xml")
-                root = tree.getroot()
+try:
+    tree = ET.parse("coverage.xml")
+    root = tree.getroot()
 
-                total_lines = int(root.attrib["lines-valid"])
-                covered_lines = int(root.attrib["lines-covered"])
-                uncovered_lines = total_lines - covered_lines
+    total_lines = int(root.attrib["lines-valid"])
+    covered_lines = int(root.attrib["lines-covered"])
+    uncovered_lines = total_lines - covered_lines
 
-                print(f"Total lines: {total_lines}")
-                print(f"Covered lines: {covered_lines}")
-                print(f"Uncovered lines: {uncovered_lines}")
-                print(f"Maximum allowed uncovered lines: {UNCOVERED_LINES_THRESHOLD}")
+    print(f"Total lines: {total_lines}")
+    print(f"Covered lines: {covered_lines}")
+    print(f"Uncovered lines: {uncovered_lines}")
+    print(f"Maximum allowed uncovered lines: {UNCOVERED_LINES_THRESHOLD}")
 
-                if uncovered_lines >= UNCOVERED_LINES_THRESHOLD:
-                    print(f"❌ Uncovered lines ({uncovered_lines}) exceed threshold ({UNCOVERED_LINES_THRESHOLD})")
-                    exit(1)
-                else:
-                    print(f"✅ Uncovered lines ({uncovered_lines}) within acceptable limit")
-            except Exception as e:
-                print(f"Error parsing coverage.xml: {e}")
-                exit(1)"
+    if uncovered_lines >= UNCOVERED_LINES_THRESHOLD:
+        print(f"❌ Uncovered lines ({uncovered_lines}) exceed threshold ({UNCOVERED_LINES_THRESHOLD})")
+        exit(1)
+    else:
+        print(f"✅ Uncovered lines ({uncovered_lines}) within acceptable limit")
+except Exception as e:
+    print(f"Error parsing coverage.xml: {e}")
+    exit(1)
+EOF
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
