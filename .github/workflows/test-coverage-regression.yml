@@ -7,7 +7,7 @@ on:
 jobs:
   check-regression:
     name: Detect Coverage Regression by File
-    if: github.base_ref == 'main' && github.event.label.name == 'check-coverage-regression'
+    if: github.base_ref == 'main' && github.event.label.name == 'run-coverage-regression-test'
 
     runs-on: ubuntu-latest
 
