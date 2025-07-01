@@ -14,8 +14,8 @@
 
 - 🧠 **Multi-agent orchestration** using structured DAGs
 - 🧩 **Composable modules** for tools, databases, APIs, and browsers
-- 🔌 **Model-agnostic**: OpenAI, Anthropic, Gemini, Mistral, Hugging Face
-- 🧪 **Built-in evaluation**: synthetic tests, A/B runs, metrics tracking
+- 🔌 **Model-agnostic** — OpenAI, Anthropic, Gemini, Mistral, Hugging Face
+- 🧪 **Built-in evaluation** — synthetic tests, A/B runs, metrics tracking
 - 🚀 **FastAPI backend** with observability, OpenAPI docs, and error handling
 
 ---
@@ -24,7 +24,7 @@
 
 **Arklex AI** empowers developers and researchers to build intelligent systems through structured task graphs, robust evaluation tools, and modular design.
 
-Whether you're building customer support agents, data analysis workflows, or co-writing assistants, Arklex makes it easy to compose, run, and evaluate LLM-powered pipelines — at scale.
+Whether you're building customer support agents, data analysis workflows, or co-writing assistants, Arklex makes it easy to compose, run, and evaluate LLM-powered pipelines at scale.
 
 ---
 
@@ -38,12 +38,12 @@ pip install arklex
 
 ### 2. Set Up Environment
 
-Create a `.env` file with your provider keys:
+Create a `.env` file with your API keys:
 
 ```env
 OPENAI_API_KEY=...
 ANTHROPIC_API_KEY=...
-# More env vars below ↓
+# See full configuration options below ↓
 ```
 
 ### 3. Launch an Agent
@@ -56,15 +56,7 @@ python create.py \
 python run.py --input-dir ./examples/customer_service
 ```
 
-✅ Done — your agent is live.
-
----
-
-## 📚 Docs & Tutorials
-
-- 📖 [Getting Started](https://arklexai.github.io/Agent-First-Organization/docs/intro)
-- 🧪 [Tutorials](https://arklexai.github.io/Agent-First-Organization/docs/tutorials/intro)
-- ⚙️ [API Reference](https://www.arklex.ai/qa/open-source)
+✅ Your agent is now live and ready to use!
 
 ---
 
@@ -72,12 +64,20 @@ python run.py --input-dir ./examples/customer_service
 
 | Use Case           | Description                                            |
 |--------------------|--------------------------------------------------------|
-| Customer Support   | RAG-powered agents with DB memory                      |
+| Customer Support   | RAG-powered agents with database memory                |
 | Booking Systems    | Calendar integrations and multi-step scheduling        |
 | Data Analysis      | LLM pipelines with code generation and visualization   |
 | Content Generation | AI co-writing for docs, blogs, and editorial workflows |
 
 ▶️ [Video: Build a Customer Service Agent in 20 Minutes](https://youtu.be/y1P2Ethvy0I)
+
+---
+
+## 📚 Documentation
+
+- 📖 [Getting Started](https://arklexai.github.io/Agent-First-Organization/docs/intro)
+- 🧪 [Tutorials](https://arklexai.github.io/Agent-First-Organization/docs/tutorials/intro)
+- ⚙️ [API Reference](https://www.arklex.ai/qa/open-source)
 
 ---
 
@@ -87,7 +87,7 @@ Arklex AI is designed for scalable, flexible agent development:
 
 - **Task Graph** — Declarative DAG for agent workflows
 - **Orchestrator** — Core runtime managing state and task flow
-- **Workers** — Modular building blocks (e.g., RAG, DB, Browser)
+- **Workers** — Modular building blocks (e.g., RAG, Database, Browser)
 - **Tools** — Atomic utilities for functional and logic extensions
 
 ---
@@ -104,7 +104,7 @@ Arklex AI is designed for scalable, flexible agent development:
 
 ---
 
-## 🔐 `.env` Config Example
+## 🔐 Environment Configuration
 
 ```env
 # LLM Providers
@@ -119,10 +119,10 @@ LANGCHAIN_API_KEY=...
 LANGCHAIN_PROJECT=AgentOrg
 LANGCHAIN_TRACING_V2=false
 
-# Vector DB (e.g. Milvus)
+# Vector Database (e.g., Milvus)
 MILVUS_URI=...
 
-# SQL DB (MySQL)
+# SQL Database (MySQL)
 MYSQL_USERNAME=...
 MYSQL_PASSWORD=...
 MYSQL_HOSTNAME=...
@@ -138,10 +138,10 @@ TAVILY_API_KEY=...
 
 ## 🧪 Built-In Evaluation Tools
 
-- 🔁 Synthetic Testing — Realistic user simulation
-- 🧪 A/B Comparison — Compare models, chains, and prompts
-- 📊 Metrics Dashboard — Track latency, success rates, and quality
-- 🐛 Debug Suite — Logs, retries, tracebacks, and more
+- 🔁 **Synthetic Testing** — Realistic user simulation
+- 🧪 **A/B Comparison** — Compare models, chains, and prompts
+- 📊 **Metrics Dashboard** — Track latency, success rates, and quality
+- 🐛 **Debug Suite** — Logs, retries, tracebacks, and more
 
 ```bash
 python eval.py \
@@ -178,9 +178,9 @@ python model_api.py \
 
 ## 🛡️ Production Ready
 
-- ✅ **Structured Logging** — JSON logs, trace IDs, rotation
+- ✅ **Structured Logging** — JSON logs, trace IDs, log rotation
 - 📈 **Monitoring Hooks** — Health checks, metrics, fallbacks
-- 🔐 **Secure API Server** — Auto docs, CORS, security headers
+- 🔐 **Secure API Server** — Auto-generated docs, CORS, security headers
 - ⚙️ **Robust Error Handling** — Typed exceptions, retries, fallbacks
 
 ---
@@ -204,4 +204,4 @@ Arklex AI is released under the MIT License. See [LICENSE](LICENSE) for details.
 ## 💡 Need Help?
 
 - 🌐 [Full Documentation](arklex.ai/docs)
-- 📬 Reach out or open an issue — we're here to help.
+- 📬 Reach out or open an issue — we're here to help!
