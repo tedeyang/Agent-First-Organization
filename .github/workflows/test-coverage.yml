@@ -19,7 +19,6 @@ jobs:
     env:
       SHOPIFY_FIXED_ARGS: ${{ secrets.SHOPIFY_FIXED_ARGS }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      MIN_COVERAGE_THRESHOLD: '99.1'
 
     steps:
       - name: Checkout
@@ -40,32 +39,33 @@ jobs:
           # Run tests with coverage and generate all reports
           pytest tests/ --cov=arklex --cov-report=term-missing --cov-report=html --cov-report=xml --no-cov-on-fail
           
-          # Extract coverage percentage from the XML report
+          # Enforce absolute uncovered lines threshold
           python -c "
-          import xml.etree.ElementTree as ET
-          import os
-          
-          try:
-              tree = ET.parse('coverage.xml')
-              root = tree.getroot()
-              coverage = float(root.attrib['line-rate']) * 100
-              print(f'Coverage: {coverage:.1f}%')
-              
-              # Get minimum coverage threshold from environment variable
-              min_coverage = float(os.environ.get('MIN_COVERAGE_THRESHOLD', '99.1'))
-              print(f'Minimum coverage threshold: {min_coverage}%')
-              
-              if coverage < min_coverage:
-                  print(f'❌ Coverage ({coverage:.1f}%) is below minimum threshold ({min_coverage}%)')
-                  print('This PR will be blocked until coverage is improved.')
-                  exit(1)
-              else:
-                  print(f'✅ Coverage ({coverage:.1f}%) meets minimum threshold ({min_coverage}%)')
-          except Exception as e:
-              print(f'Error reading coverage data: {e}')
-              print('❌ Could not determine coverage. Please check the test output.')
-              exit(1)
-          "
+            import xml.etree.ElementTree as ET
+
+            UNCOVERED_LINES_THRESHOLD = 52  # Set your maximum allowed uncovered lines
+
+            try:
+                tree = ET.parse("coverage.xml")
+                root = tree.getroot()
+
+                total_lines = int(root.attrib["lines-valid"])
+                covered_lines = int(root.attrib["lines-covered"])
+                uncovered_lines = total_lines - covered_lines
+
+                print(f"Total lines: {total_lines}")
+                print(f"Covered lines: {covered_lines}")
+                print(f"Uncovered lines: {uncovered_lines}")
+                print(f"Maximum allowed uncovered lines: {UNCOVERED_LINES_THRESHOLD}")
+
+                if uncovered_lines >= UNCOVERED_LINES_THRESHOLD:
+                    print(f"❌ Uncovered lines ({uncovered_lines}) exceed threshold ({UNCOVERED_LINES_THRESHOLD})")
+                    exit(1)
+                else:
+                    print(f"✅ Uncovered lines ({uncovered_lines}) within acceptable limit")
+            except Exception as e:
+                print(f"Error parsing coverage.xml: {e}")
+                exit(1)"
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
