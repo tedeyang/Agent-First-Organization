@@ -186,27 +186,6 @@ python model_api.py --input-dir ./examples/customer_service
 
 The server will be available at `http://localhost:8000` with auto-generated OpenAPI documentation.
 
-### 3. CLI Commands Reference
-
-```bash
-# Create a new agent workflow
-python create.py \
-  --config ./examples/customer_service/customer_service_config.json \
-  --output-dir ./examples/customer_service \
-  --llm_provider openai \
-  --model gpt-4o-mini
-
-# Run the agent
-python run.py \
-  --input-dir ./examples/customer_service \
-  --llm_provider openai \
-  --model gpt-4o
-
-# Start the model API server
-python model_api.py \
-  --input-dir ./examples/customer_service
-```
-
 ---
 
 ## Examples
@@ -284,7 +263,7 @@ Arklex AI includes enterprise-grade features for production deployments:
 
 - 🔐 **Secure API Server** — Auto-generated docs, CORS, security headers
 - ⚙️ **Robust Error Handling** — Typed exceptions, retries, fallbacks
-- 🛡️ **Security** — Input validation, rate limiting, authentication
+- 🛡️ **Input Validation** — Rate limiting, authentication, sanitization
 
 ### Scalability
 
@@ -333,12 +312,6 @@ pip install arklex[all]
 mysql -u username -p -h hostname -P port database_name
 ```
 
-### Getting Help
-
-- 📖 [Documentation](https://arklexai.github.io/Agent-First-Organization/docs/intro)
-- 💬 [GitHub Discussions](https://github.com/arklexai/Agent-First-Organization/discussions)
-- 🐛 [Bug Reports](https://github.com/arklexai/Agent-First-Organization/issues)
-
 ---
 
 ## Development Setup
@@ -379,15 +352,6 @@ ruff arklex/
 
 ---
 
-## Documentation
-
-- 📖 [Getting Started](https://arklexai.github.io/Agent-First-Organization/docs/intro)
-- 🧪 [Tutorials](https://arklexai.github.io/Agent-First-Organization/docs/tutorials/intro)
-- ⚙️ [API Reference](https://www.arklex.ai/qa/open-source)
-- 🛠️ [Tools Documentation](https://arklexai.github.io/Agent-First-Organization/docs/Tools)
-- 🏗️ [Task Graph Generation](https://arklexai.github.io/Agent-First-Organization/docs/Taskgraph/intro)
-- 👥 [Workers Guide](https://arklexai.github.io/Agent-First-Organization/docs/Workers/intro)
-
 ---
 
 ## Contributing
@@ -419,6 +383,9 @@ We welcome contributions, questions, and feature ideas!
 - 📧 [Email Support](mailto:support@arklex.ai)
 - 💬 [GitHub Discussions](https://github.com/arklexai/Agent-First-Organization/discussions)
 - 🐛 [Bug Reports](https://github.com/arklexai/Agent-First-Organization/issues)
+- 📖 [Getting Started Guide](https://arklexai.github.io/Agent-First-Organization/docs/intro)
+- 🧪 [Tutorials](https://arklexai.github.io/Agent-First-Organization/docs/tutorials/intro)
+- 🛠️ [Tools Documentation](https://arklexai.github.io/Agent-First-Organization/docs/Tools)
 
 ### Community
 
