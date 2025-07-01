@@ -6,6 +6,7 @@
 [![PyPI](https://img.shields.io/pypi/v/arklex.svg)](https://pypi.org/project/arklex)
 [![Python](https://img.shields.io/pypi/pyversions/arklex)](https://pypi.org/project/arklex)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Status](https://img.shields.io/badge/status-production%20ready-brightgreen)](https://github.com/arklexai/Agent-First-Organization)
 
 ---
 
@@ -341,6 +342,13 @@ pytest
 pytest tests/env/
 pytest tests/orchestrator/
 pytest tests/utils/
+```
+
+### Code Quality
+
+```bash
+# Linter
+ruff arklex/
 ```
 
 ---
