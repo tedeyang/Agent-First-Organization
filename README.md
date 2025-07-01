@@ -1,7 +1,9 @@
 # Arklex Agent First Organization
 
+![Arklex AI](Arklex_AI__logo.jpeg)
+
 ![Release](https://img.shields.io/github/release/arklexai/Agent-First-Organization?logo=github)
-![PyPI version](https://img.shields.io/pypi/v/arklex.svg)(<https://pypi.org/project/arklex>)
+![PyPI version](https://img.shields.io/pypi/v/arklex.svg)
 ![Python version](https://img.shields.io/pypi/pyversions/arklex)
 
 A modular framework for building AI agents that complete complex tasks through structured multi-agent workflows. Arklex enables developers to create customizable workers and tools that collaborate seamlessly under intelligent orchestration.
