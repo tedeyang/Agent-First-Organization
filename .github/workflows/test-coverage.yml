@@ -6,10 +6,8 @@ on:
 
 jobs:
   test:
-    name: run tests and display coverage
-
+    name: Run tests and display coverage
     if: github.base_ref == 'main' && github.event.label.name == 'run-coverage-tests'
-
     runs-on: ubuntu-latest
 
     permissions:
@@ -35,76 +33,46 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e '.[milvus,shopify,hubspot]' --quiet
 
-      - name: Run tests and check coverage threshold
+      - name: Run tests and collect coverage
+        id: coverage
         run: |
-          # Run tests with coverage and generate all reports
+          # Run tests with coverage
           coverage run -m pytest tests/
+          
+          # Generate coverage reports
           coverage xml
           coverage html
           coverage report
           
-          # Check if coverage.xml exists and has data
+          # Extract coverage percentage
           if [ -f "coverage.xml" ]; then
-            # Extract coverage percentage from the XML report
-            python -c "import xml.etree.ElementTree as ET; import os; tree = ET.parse('coverage.xml'); root = tree.getroot(); coverage = float(root.attrib['line-rate']) * 100; print(f'Coverage: {coverage:.1f}%'); min_coverage = float(os.environ.get('MIN_COVERAGE_THRESHOLD', '99.1')); print(f'Minimum coverage threshold: {min_coverage}%'); exit(1) if coverage < min_coverage else None; print(f'✅ Coverage ({coverage:.1f}%) meets minimum threshold ({min_coverage}%)')"
+            COVERAGE=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); print(f'{float(tree.getroot().attrib[\"line-rate\"]) * 100:.1f}')")
+            echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
+            echo "✅ Coverage: ${COVERAGE}%"
             
-            # Check if the above command failed (coverage below threshold)
-            if [ $? -ne 0 ]; then
-              echo "❌ Coverage is below minimum threshold. This PR will be blocked until coverage is improved."
+            # Check against threshold
+            MIN_COVERAGE=${{ env.MIN_COVERAGE_THRESHOLD }}
+            if (( $(echo "$COVERAGE < $MIN_COVERAGE" | bc -l) )); then
+              echo "❌ Coverage (${COVERAGE}%) is below threshold (${MIN_COVERAGE}%)"
               exit 1
+            else
+              echo "✅ Coverage (${COVERAGE}%) meets threshold (${MIN_COVERAGE}%)"
             fi
           else
-            echo "No coverage.xml file found. This might happen if no tests were run or no code was executed."
-            echo "✅ Skipping coverage threshold check - no coverage data available"
+            echo "❌ No coverage data collected"
+            exit 1
           fi
 
-      - name: Check for coverage data
-        id: coverage_check
-        run: |
-          if [ -f "coverage.xml" ]; then
-            echo "COVERAGE_EXISTS=true" >> $GITHUB_ENV
-            echo "✅ Coverage XML file found"
-          else
-            echo "COVERAGE_EXISTS=false" >> $GITHUB_ENV
-            echo "❌ No coverage.xml file found"
-          fi
-
-      - name: Show current coverage status
-        run: |
-          echo "📊 Current Coverage Status:"
-          if [ -f "coverage.xml" ]; then
-            # Extract and display overall coverage percentage
-            COVERAGE=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); coverage = float(tree.getroot().attrib['line-rate']) * 100; print(f'{coverage:.1f}')")
-            echo "✅ Overall coverage: ${COVERAGE}%"
-          else
-            echo "❌ No coverage data available"
-          fi
-
-      - name: Upload coverage report
-        if: env.COVERAGE_EXISTS == 'true'
+      - name: Upload coverage artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-report
-          path: coverage.xml
+          name: coverage-reports
+          path: |
+            coverage.xml
+            htmlcov/
         continue-on-error: true
 
-      - name: Upload HTML coverage report
-        if: env.COVERAGE_EXISTS == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: htmlcov
-          path: htmlcov/
-        continue-on-error: true
-
-      - name: Combine coverage data
-        if: env.COVERAGE_EXISTS == 'true'
-        run: |
-          # Combine any existing coverage data files
-          coverage combine || true
-          echo "✅ Coverage data combined"
-
-      - name: Display coverage
-        if: env.COVERAGE_EXISTS == 'true'
+      - name: Display coverage in PR
         uses: py-cov-action/python-coverage-comment-action@v3
         with:
           GITHUB_TOKEN: ${{ github.token }}
@@ -112,16 +80,12 @@ jobs:
           MINIMUM_ORANGE: 70
         continue-on-error: true
 
-      - name: Update README with latest coverage
+      - name: Update README badge
         run: |
-          # Check if coverage.xml exists and has data
           if [ -f "coverage.xml" ]; then
-            # Extract overall coverage percentage from XML
-            COVERAGE=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); coverage = float(tree.getroot().attrib['line-rate']) * 100; print(f'{coverage:.1f}')")
-
-            echo "Extracted coverage: $COVERAGE%"
-
-            # Determine badge color based on coverage percentage
+            COVERAGE=${{ steps.coverage.outputs.coverage }}
+            
+            # Determine badge color
             if (( $(echo "$COVERAGE < 90" | bc -l) )); then
               COLOR="red"
             elif (( $(echo "$COVERAGE < 99" | bc -l) )); then
@@ -129,24 +93,17 @@ jobs:
             else
               COLOR="green"
             fi
-
-            echo "Setting badge color to: $COLOR"
-
-            # Update README badge with color coding
-            # This assumes a badge format like: ![Coverage](https://img.shields.io/badge/coverage-XX.X%25-COLOR)
+            
+            # Update README badge
             sed -i "s/coverage-[0-9]\+\.[0-9]%25-[a-z]*/coverage-${COVERAGE}%25-${COLOR}/g" README.md
-
-            # Commit and push if README changed
-            if git diff --quiet; then
-              echo "No README change needed."
-            else
+            
+            # Commit if changed
+            if ! git diff --quiet; then
               git config user.name "github-actions[bot]"
               git config user.email "github-actions[bot]@users.noreply.github.com"
               git add README.md
-              git commit -m "chore: update README with ${COVERAGE}% test coverage (${COLOR} badge)"
+              git commit -m "chore: update README with ${COVERAGE}% test coverage"
               git push
             fi
-          else
-            echo "No coverage.xml file found. Skipping README update."
           fi
   

@@ -8,7 +8,6 @@ jobs:
   check-regression:
     name: Detect Coverage Regression by File
     if: github.base_ref == 'main' && github.event.label.name == 'run-coverage-regression-test'
-
     runs-on: ubuntu-latest
 
     permissions:
@@ -36,73 +35,67 @@ jobs:
           pip install -e '.[milvus,shopify,hubspot]' --quiet
           pip install diff-cover coverage
 
-      - name: Run tests with coverage
+      - name: Run tests and collect coverage
+        id: coverage
         run: |
+          # Run tests with coverage
           coverage run -m pytest tests/
+          
+          # Generate coverage reports
           coverage xml
+          coverage html
           coverage report
-
-      - name: Compare coverage with base branch
-        run: |
-          # Always check for Python file changes for regression testing
-          if git diff --name-only origin/main | grep -q '\.py$'; then
-            echo "Python files changed, checking coverage regression..."
-            # diff-cover will return non-zero exit if any new lines lack coverage
-            diff-cover coverage.xml --compare-branch origin/main --fail-under=100
-          else
-            echo "No Python files changed in this PR. Coverage regression check not needed."
-            echo "✅ No coverage regression check needed - no Python files modified"
-          fi
-
-      - name: Show current coverage status
-        run: |
-          echo "📊 Current Coverage Status:"
+          
+          # Extract coverage percentage
           if [ -f "coverage.xml" ]; then
-            # Extract and display overall coverage percentage
-            COVERAGE=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); coverage = float(tree.getroot().attrib['line-rate']) * 100; print(f'{coverage:.1f}')")
-            echo "✅ Overall coverage: ${COVERAGE}%"
+            COVERAGE=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); print(f'{float(tree.getroot().attrib[\"line-rate\"]) * 100:.1f}')")
+            echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
+            echo "✅ Coverage: ${COVERAGE}%"
           else
-            echo "❌ No coverage data available"
+            echo "❌ No coverage data collected"
+            exit 1
           fi
 
-      - name: Upload detailed diff report
-        if: failure()
+      - name: Check for Python file changes
+        id: changes
         run: |
-          # Only generate diff report if there are Python files to compare
           if git diff --name-only origin/main | grep -q '\.py$'; then
-            diff-cover coverage.xml --compare-branch origin/main --html-report diff_coverage.html || true
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "✅ Python files changed - will check coverage regression"
           else
-            echo "No Python files changed, skipping diff report generation"
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "ℹ️ No Python files changed - skipping regression check"
           fi
 
-      - name: Upload HTML diff coverage report
-        if: failure()
+      - name: Check coverage regression
+        if: steps.changes.outputs.has_changes == 'true'
+        run: |
+          echo "🔍 Checking coverage regression..."
+          diff-cover coverage.xml --compare-branch origin/main --fail-under=100
+
+      - name: Generate diff coverage report
+        if: steps.changes.outputs.has_changes == 'true' && failure()
+        run: |
+          diff-cover coverage.xml --compare-branch origin/main --html-report diff_coverage.html || true
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: |
+            coverage.xml
+            htmlcov/
+        continue-on-error: true
+
+      - name: Upload diff coverage report
+        if: steps.changes.outputs.has_changes == 'true' && failure()
         uses: actions/upload-artifact@v4
         with:
           name: diff-coverage-report
           path: diff_coverage.html
         continue-on-error: true
 
-      - name: Check for coverage data
-        id: coverage_check
-        run: |
-          if [ -f "coverage.xml" ]; then
-            echo "COVERAGE_EXISTS=true" >> $GITHUB_ENV
-            echo "✅ Coverage XML file found"
-          else
-            echo "COVERAGE_EXISTS=false" >> $GITHUB_ENV
-            echo "❌ No coverage.xml file found"
-          fi
-
-      - name: Combine coverage data
-        if: env.COVERAGE_EXISTS == 'true'
-        run: |
-          # Combine any existing coverage data files
-          coverage combine || true
-          echo "✅ Coverage data combined"
-
-      - name: Display coverage
-        if: env.COVERAGE_EXISTS == 'true'
+      - name: Display coverage in PR
         uses: py-cov-action/python-coverage-comment-action@v3
         with:
           GITHUB_TOKEN: ${{ github.token }}
@@ -110,31 +103,12 @@ jobs:
           MINIMUM_ORANGE: 70
         continue-on-error: true
 
-      - name: Generate coverage report
-        if: env.COVERAGE_EXISTS == 'true'
+      - name: Update README badge
         run: |
-          # Generate HTML coverage report for better visibility
-          coverage html
-          echo "✅ HTML coverage report generated"
-
-      - name: Upload HTML coverage report
-        if: env.COVERAGE_EXISTS == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: htmlcov/
-        continue-on-error: true
-
-      - name: Update README with latest coverage
-        run: |
-          # Check if coverage.xml exists and has data
           if [ -f "coverage.xml" ]; then
-            # Extract overall coverage percentage from XML
-            COVERAGE=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); coverage = float(tree.getroot().attrib['line-rate']) * 100; print(f'{coverage:.1f}')")
-
-            echo "Extracted coverage: $COVERAGE%"
-
-            # Determine badge color based on coverage percentage
+            COVERAGE=${{ steps.coverage.outputs.coverage }}
+            
+            # Determine badge color
             if (( $(echo "$COVERAGE < 90" | bc -l) )); then
               COLOR="red"
             elif (( $(echo "$COVERAGE < 99" | bc -l) )); then
@@ -142,23 +116,16 @@ jobs:
             else
               COLOR="green"
             fi
-
-            echo "Setting badge color to: $COLOR"
-
-            # Update README badge with color coding
-            # This assumes a badge format like: ![Coverage](https://img.shields.io/badge/coverage-XX.X%25-COLOR)
+            
+            # Update README badge
             sed -i "s/coverage-[0-9]\+\.[0-9]%25-[a-z]*/coverage-${COVERAGE}%25-${COLOR}/g" README.md
-
-            # Commit and push if README changed
-            if git diff --quiet; then
-              echo "No README change needed."
-            else
+            
+            # Commit if changed
+            if ! git diff --quiet; then
               git config user.name "github-actions[bot]"
               git config user.email "github-actions[bot]@users.noreply.github.com"
               git add README.md
-              git commit -m "chore: update README with ${COVERAGE}% test coverage (${COLOR} badge)"
+              git commit -m "chore: update README with ${COVERAGE}% test coverage"
               git push
             fi
-          else
-            echo "No coverage.xml file found. Skipping README update."
           fi
