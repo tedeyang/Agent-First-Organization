@@ -207,6 +207,6 @@ Arklex AI builds on the shoulders of giants:
 
 **Made with ❤️ by the Arklex AI Team**
 
-[Website](https://arklex.ai) • [Documentation](https://arklexai.github.io/Agent-First-Organization/) • [GitHub](https://github.com/arklexai/Agent-First-Organization) • [Discord](https://discord.gg/arklex) • [LinkedIn](https://www.linkedin.com/company/arklex)
+[Website](https://arklex.ai) • [Documentation](https://arklexai.github.io/Agent-First-Organization/) • [GitHub](https://github.com/arklexai/Agent-First-Organization) • [Discord](https://discord.gg/kJkefzkRg5) • [LinkedIn](https://www.linkedin.com/company/arklex)
 
 </div>
