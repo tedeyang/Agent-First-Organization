@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, Optional
+from typing import Any
 
 from langchain.prompts import PromptTemplate
 from langchain_core.language_models import BaseChatModel
@@ -55,11 +55,11 @@ class OpenAIAgent(BaseAgent):
     ) -> None:
         super().__init__()
         self.action_graph: StateGraph = self._create_action_graph()
-        self.llm: Optional[BaseChatModel] = None
-        self.available_tools: Dict[str, Dict[str, Any]] = {}
+        self.llm: BaseChatModel | None = None
+        self.available_tools: dict[str, dict[str, Any]] = {}
         self.tool_map = {}
         self.tool_defs = []
-        self.tool_args: Dict[str, Any] = {}
+        self.tool_args: dict[str, Any] = {}
 
         self._load_tools(successors=successors, predecessors=predecessors, tools=tools)
         self._configure_tools()
@@ -77,7 +77,7 @@ class OpenAIAgent(BaseAgent):
                     if not orchestrator_message.message
                     else orchestrator_message.message
                 )
-                prompts: Dict[str, str] = load_prompts(state.bot_config)
+                prompts: dict[str, str] = load_prompts(state.bot_config)
                 prompt: PromptTemplate = PromptTemplate.from_template(
                     prompts["function_calling_agent_prompt"]
                 )
@@ -147,7 +147,7 @@ class OpenAIAgent(BaseAgent):
 
         return workflow
 
-    def _execute(self, msg_state: MessageState, **kwargs: Any) -> Dict[str, Any]:
+    def _execute(self, msg_state: MessageState, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         self.llm = PROVIDER_MAP.get(
             msg_state.bot_config.llm_config.llm_provider, ChatOpenAI
         )(model=msg_state.bot_config.llm_config.model_type_or_path)
@@ -171,7 +171,7 @@ class OpenAIAgent(BaseAgent):
         Configure tools for the agent.
         This method is called during the initialization of the agent.
         """
-        for tool_id, tool in self.available_tools.items():
+        for _tool_id, tool in self.available_tools.items():
             tool_object = tool["execute"]()
             tool_def = tool_object.to_openai_tool_def_v2()
             self.tool_defs.append(tool_object.to_openai_tool_def_v2())

@@ -1,7 +1,6 @@
-import logging
 import traceback
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional, Type, TypeVar
+from typing import Any, TypeVar
 
 from arklex.utils.graph_state import MessageState, StatusEnum
 from arklex.utils.logging_utils import LogContext
@@ -11,7 +10,7 @@ log_context = LogContext(__name__)
 T = TypeVar("T")
 
 
-def register_agent(cls: Type[T]) -> Type[T]:
+def register_agent(cls: type[T]) -> type[T]:
     """Register an agent class with the Arklex framework.
 
     This decorator registers an agent class and automatically sets its name
@@ -38,7 +37,7 @@ class BaseAgent(ABC):
         description (Optional[str]): Description of the agent's functionality.
     """
 
-    description: Optional[str] = None
+    description: str | None = None
 
     def __str__(self) -> str:
         """Get a string representation of the agent.
@@ -57,7 +56,7 @@ class BaseAgent(ABC):
         return f"{self.__class__.__name__}"
 
     @abstractmethod
-    def _execute(self, msg_state: MessageState, **kwargs: Any) -> Dict[str, Any]:
+    def _execute(self, msg_state: MessageState, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         """Execute the agent's core functionality.
 
         This abstract method must be implemented by concrete agent classes to
@@ -72,7 +71,7 @@ class BaseAgent(ABC):
         """
         pass
 
-    def execute(self, msg_state: MessageState, **kwargs: Any) -> MessageState:
+    def execute(self, msg_state: MessageState, **kwargs: Any) -> MessageState:  # noqa: ANN401
         """Execute the agent with error handling and state management.
 
         This method wraps the agent's execution with error handling and state
@@ -86,7 +85,7 @@ class BaseAgent(ABC):
             MessageState: The updated message state after execution.
         """
         try:
-            response_return: Dict[str, Any] = self._execute(msg_state, **kwargs)
+            response_return: dict[str, Any] = self._execute(msg_state, **kwargs)
             response_state: MessageState = MessageState.model_validate(response_return)
             response_state.trajectory[-1][-1].output = (
                 response_state.response
@@ -94,11 +93,11 @@ class BaseAgent(ABC):
                 else response_state.message_flow
             )
             return response_state
-        except Exception as e:
+        except Exception:
             log_context.error(traceback.format_exc())
             return msg_state
 
-    def complete_state(self, msg_state: MessageState, **kwargs: Any) -> MessageState:
+    def complete_state(self, msg_state: MessageState, **kwargs: Any) -> MessageState:  # noqa: ANN401
         """Clean up resources or perform any final actions when the agent is no longer needed.
 
         This method can be overridden by subclasses to implement specific cleanup logic.
