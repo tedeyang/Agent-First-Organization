@@ -51,11 +51,15 @@ python run.py --input-dir ./examples/customer_service
 
 ✅ Your agent is now live and handling tasks.
 
+---
+
 ## Documentation
 
 - [Getting Started Guide](https://arklexai.github.io/Agent-First-Organization/docs/intro) — Framework overview & setup
 - [Tutorials](https://arklexai.github.io/Agent-First-Organization/docs/tutorials/intro) — Hands-on use cases
 - [API Reference](https://www.arklex.ai/qa/open-source) — Full API and CLI documentation
+
+---
 
 ## 🛠 Supported Use Cases
 
@@ -68,6 +72,8 @@ python run.py --input-dir ./examples/customer_service
 
 ▶️ [Watch Tutorial: Build a Customer Service Agent in 20 Minutes](https://youtu.be/y1P2Ethvy0I)
 
+---
+
 ## 🧱 Core Architecture
 
 Arklex AI uses centralized orchestration + distributed execution:
@@ -76,6 +82,8 @@ Arklex AI uses centralized orchestration + distributed execution:
 - **Orchestrator**: Coordinates agents based on input and logic
 - **Workers**: Modular components (e.g., DB, RAG, API, browser)
 - **Tools**: Atomic functions usable across workflows
+
+---
 
 ## ⚙️ Configuration
 
@@ -115,6 +123,8 @@ MYSQL_CONNECTION_TIMEOUT=<your-mysql-db-timeout>
 MILVUS_URI=<your-milvus-db-uri>
 ```
 
+---
+
 ## 🧪 Evaluation & Testing
 
 Arklex AI includes a full testing suite:
@@ -133,6 +143,8 @@ python eval.py \
   --documents_dir ./examples/customer_service \
   --output-dir ./examples/customer_service
 ```
+
+---
 
 ## 🔌 Core Commands
 
@@ -155,12 +167,16 @@ python model_api.py \
   --input-dir ./examples/customer_service
 ```
 
+---
+
 ## 🔐 Production-Grade Features
 
 - **Logging**: Request-level tracing, log rotation, structured logs
 - **Monitoring**: Metrics, health checks, circuit breakers
 - **API**: FastAPI with `/docs`, `/redoc`, CORS, and security headers
 - **Error Handling**: Retry logic, graceful fallbacks, typed exceptions
+
+---
 
 ## 🤝 Contributing
 
@@ -170,9 +186,13 @@ We welcome community contributions!
 - 📝 [Open an Issue](https://github.com/arklexai/Agent-First-Organization/issues)
 - 💬 [Join Discussions](https://github.com/arklexai/Agent-First-Organization/discussions)
 
+---
+
 ## 📄 License
 
 MIT License. See [LICENSE](LICENSE) for full text.
+
+---
 
 ## 📬 Support
 
