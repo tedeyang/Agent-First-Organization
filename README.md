@@ -2,9 +2,9 @@
 
 ![Arklex AI Logo](Arklex_AI__logo.jpeg)
 
-<a href="https://github.com/arklexai/Agent-First-Organization/releases" target="_blank" rel="noopener noreferrer">![Release](https://img.shields.io/github/release/arklexai/Agent-First-Organization?logo=github)</a>
-<a href="https://pypi.org/project/arklex" target="_blank" rel="noopener noreferrer">![PyPI](https://img.shields.io/pypi/v/arklex.svg)</a>
-<a href="https://pypi.org/project/arklex" target="_blank" rel="noopener noreferrer">![Python](https://img.shields.io/pypi/pyversions/arklex)</a>
+<a href="https://github.com/arklexai/Agent-First-Organization/releases" class="external-link">![Release](https://img.shields.io/github/release/arklexai/Agent-First-Organization?logo=github)</a>
+<a href="https://pypi.org/project/arklex" class="external-link">![PyPI](https://img.shields.io/pypi/v/arklex.svg)</a>
+<a href="https://pypi.org/project/arklex" class="external-link">![Python](https://img.shields.io/pypi/pyversions/arklex)</a>
 
 **Arklex AI** is a modular, agent-first framework built to orchestrate intelligent agents through structured task graphs. Designed for developers, researchers, and AI product teams, Arklex AI provides a powerful foundation for building multi-agent systems with LLMs, vector search, databases, and automated evaluation baked in.
 
@@ -55,9 +55,9 @@ python run.py --input-dir ./examples/customer_service
 
 ## 📚 Documentation
 
-- 📖 <a href="https://arklexai.github.io/Agent-First-Organization/docs/intro" target="_blank" rel="noopener noreferrer">Getting Started</a> — Install & configure
-- 🧪 <a href="https://arklexai.github.io/Agent-First-Organization/docs/tutorials/intro" target="_blank" rel="noopener noreferrer">Tutorials</a> — Step-by-step walkthroughs
-- ⚙️ <a href="https://www.arklex.ai/qa/open-source" target="_blank" rel="noopener noreferrer">API Reference</a> — CLI, Python APIs, and configs
+- 📖 <a href="https://arklexai.github.io/Agent-First-Organization/docs/intro" class="external-link">Getting Started</a> — Install & configure
+- 🧪 <a href="https://arklexai.github.io/Agent-First-Organization/docs/tutorials/intro" class="external-link">Tutorials</a> — Step-by-step walkthroughs
+- ⚙️ <a href="https://www.arklex.ai/qa/open-source" class="external-link">API Reference</a> — CLI, Python APIs, and configs
 
 ---
 
@@ -70,7 +70,7 @@ python run.py --input-dir ./examples/customer_service
 | Data Analysis      | LLM-driven pipelines with code generation and visualization |
 | Content Generation | Assistive co-writing tools for docs, blogs, and more        |
 
-▶️ <a href="https://youtu.be/y1P2Ethvy0I" target="_blank" rel="noopener noreferrer">Watch: Build a Customer Service Agent in 20 Minutes</a>
+▶️ <a href="https://youtu.be/y1P2Ethvy0I" class="external-link">Watch: Build a Customer Service Agent in 20 Minutes</a>
 
 ---
 
@@ -184,18 +184,31 @@ python model_api.py \
 
 We’d love your input!
 
-- 📖 <a href="CONTRIBUTING.md" target="_blank" rel="noopener noreferrer">Contribution Guide</a>
-- 📝 <a href="https://github.com/arklexai/Agent-First-Organization/issues" target="_blank" rel="noopener noreferrer">File an Issue</a>
-- 💬 <a href="https://github.com/arklexai/Agent-First-Organization/discussions" target="_blank" rel="noopener noreferrer">Join the Discussion</a>
+- 📖 <a href="CONTRIBUTING.md" class="external-link">Contribution Guide</a>
+- 📝 <a href="https://github.com/arklexai/Agent-First-Organization/issues" class="external-link">File an Issue</a>
+- 💬 <a href="https://github.com/arklexai/Agent-First-Organization/discussions" class="external-link">Join the Discussion</a>
 
 ---
 
 ## 📄 License
 
-Licensed under the MIT License. See <a href="LICENSE" target="_blank" rel="noopener noreferrer">LICENSE</a> for details.
+Licensed under the MIT License. See <a href="LICENSE" class="external-link">LICENSE</a> for details.
 
 ---
 
 ## 📬 Support
 
-- 🌐 <a href="arklex.ai/docs" target="_blank" rel="noopener noreferrer">Full Docs</a>
+- 🌐 <a href="arklex.ai/docs" class="external-link">Full Docs</a>
+
+<script>
+// Make all external links open in new windows
+document.addEventListener('DOMContentLoaded', function() {
+    const externalLinks = document.querySelectorAll('.external-link');
+    externalLinks.forEach(function(link) {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            window.open(this.href, '_blank', 'noopener,noreferrer');
+        });
+    });
+});
+</script>
