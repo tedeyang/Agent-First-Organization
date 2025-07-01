@@ -1,79 +1,95 @@
 # Arklex Agent First Organization
 
-![Arklex AI](Arklex_AI__logo.jpeg)
+![Arklex AI Logo](Arklex_AI__logo.jpeg)
 
-![Release](https://img.shields.io/github/release/arklexai/Agent-First-Organization?logo=github)
-![PyPI version](https://img.shields.io/pypi/v/arklex.svg)
-![Python version](https://img.shields.io/pypi/pyversions/arklex)
+[![Release](https://img.shields.io/github/release/arklexai/Agent-First-Organization?logo=github)](https://github.com/arklexai/Agent-First-Organization/releases)
+[![PyPI](https://img.shields.io/pypi/v/arklex.svg)](https://pypi.org/project/arklex)
+[![Python](https://img.shields.io/pypi/pyversions/arklex)](https://pypi.org/project/arklex)
 
-A modular framework for building AI agents that complete complex tasks through structured multi-agent workflows. Arklex enables developers to create customizable workers and tools that collaborate seamlessly under intelligent orchestration.
+**Arklex AI** is a modular framework for building AI agents that can handle complex, multi-step tasks through graph-based orchestration. Designed for developers, researchers, and AI product teams, Arklex enables intelligent agent workflows using customizable workers, multi-LLM support, and built-in evaluation.
 
-## Key Features
+---
 
-* Multi-Agent Orchestration: Coordinate multiple specialized agents through graph-based task management
-* Modular Architecture: Extensible workers and tools for diverse use cases
-* Multi-LLM Support: OpenAI, Anthropic, Google Gemini, Mistral, and Hugging Face integration
-* Built-in RAG & Database Workers: Vector search and database operations out of the box
-* Comprehensive Evaluation: Automated testing with synthetic conversation generation
-* Production-Ready API: Robust logging, error handling, and monitoring
+## ✨ Highlights
 
-## Quick Start
+- **Multi-Agent Graphs**: Coordinate agents through directed task graphs.
+- **Modular Workers & Tools**: Compose agents with reusable components.
+- **Multi-LLM Support**: Plug-and-play with OpenAI, Anthropic, Google Gemini, Mistral, and Hugging Face.
+- **Built-in RAG & DB Support**: Out-of-the-box vector search and relational DB access.
+- **Automated Evaluation**: Synthetic conversation testing and A/B comparison.
+- **API-Ready**: Robust FastAPI backend with logging, monitoring, and OpenAPI docs.
 
-### Installation
+---
+
+## 🚀 Quick Start
+
+### 1. Install Arklex AI
 
 ```bash
 pip install arklex
 ```
 
-### Build Your First Agent in 3 Steps
+### 2. Configure Your Environment
 
-1. Set up your environment
-
-Create a `.env` file in the root directory with the following information:
+Create a `.env` file with your API keys and database credentials:
 
 ```env
-OPENAI_API_KEY=<your-openai-api-key>
-# Add other API keys as needed
+OPENAI_API_KEY=...
+ANTHROPIC_API_KEY=...
+# See full list of supported variables below ↓
 ```
 
-2. Create your agent configuration
+### 3. Create and Run Your Agent
 
 ```bash
-python create.py --config ./examples/customer_service/customer_service_config.json --output-dir ./examples/customer_service
-```
+python create.py \
+  --config ./examples/customer_service/customer_service_config.json \
+  --output-dir ./examples/customer_service
 
-3. Start chatting
-
-```bash
 python run.py --input-dir ./examples/customer_service
 ```
 
-That's it! Your AI agent is ready to handle customer service interactions.
+✅ Your agent is now live and handling tasks.
 
 ## Documentation
 
-* [Getting Started Guide](https://arklexai.github.io/Agent-First-Organization/docs/intro): Framework overview and core concepts
-* [Tutorials](https://arklexai.github.io/Agent-First-Organization/docs/tutorials/intro): Step-by-step guides for common use cases
-* [API Reference](https://www.arklex.ai/qa/open-source): Complete documentation and examples
+- [Getting Started Guide](https://arklexai.github.io/Agent-First-Organization/docs/intro) — Framework overview & setup
+- [Tutorials](https://arklexai.github.io/Agent-First-Organization/docs/tutorials/intro) — Hands-on use cases
+- [API Reference](https://www.arklex.ai/qa/open-source) — Full API and CLI documentation
 
-## Use Cases
+## 🛠 Supported Use Cases
 
-### Customer Service Agent
+| Use Case           | Description                                                 |
+|--------------------|-------------------------------------------------------------|
+| Customer Support   | Conversational agent with RAG + DB memory                   |
+| Booking Systems    | Schedule appointments with calendar tool integration        |
+| Data Analysis      | Step-by-step analysis workflows with LLM + visualization    |
+| Content Generation | Co-writing agents for blogs, documentation, and more        |
 
-Build an intelligent customer service bot with contextual understanding and database integration.
+▶️ [Watch Tutorial: Build a Customer Service Agent in 20 Minutes](https://youtu.be/y1P2Ethvy0I)
 
-Watch the tutorial: [Build a Customer Service Agent in 20 minutes](https://youtu.be/y1P2Ethvy0I)
+## 🧱 Core Architecture
 
-### Supported Scenarios
+Arklex AI uses centralized orchestration + distributed execution:
 
-* Customer Support: Automated help desk with knowledge base integration
-* Booking Systems: Appointment scheduling with calendar management
-* Data Analysis: Multi-step analytical workflows with visualization
-* Content Generation: Collaborative writing and editing workflows
+- **Task Graph**: Defines task dependencies between nodes (workers)
+- **Orchestrator**: Coordinates agents based on input and logic
+- **Workers**: Modular components (e.g., DB, RAG, API, browser)
+- **Tools**: Atomic functions usable across workflows
 
-## Configuration
+## ⚙️ Configuration
 
-### Environment Setup
+### Supported Models
+
+| Provider      | Models Supported                      |
+|---------------|---------------------------------------|
+| OpenAI        | gpt-4o, gpt-4o-mini                   |
+| Anthropic     | claude-3-5-haiku, claude-3-5-sonnet   |
+| Google        | gemini-2.0-flash                      |
+| Mistral       | All mistral-* models                  |
+| Hugging Face  | Any open-source models                |
+
+### `.env` Environment Variables
 
 ```env
 OPENAI_API_KEY=<your-openai-api-key>
@@ -99,112 +115,65 @@ MYSQL_CONNECTION_TIMEOUT=<your-mysql-db-timeout>
 MILVUS_URI=<your-milvus-db-uri>
 ```
 
-### Supported Models
+## 🧪 Evaluation & Testing
 
-| Provider      | Models                                      |
-|---------------|---------------------------------------------|
-| OpenAI        | gpt-4o, gpt-4o-mini                         |
-| Anthropic     | claude-3-5-haiku, claude-3-5-sonnet         |
-| Google        | gemini-2.0-flash                            |
-| Mistral       | All Mistral models                          |
-| Hugging Face  | Open source models                          |
+Arklex AI includes a full testing suite:
 
-## Core Commands
+- 🔄 Synthetic Conversations: Auto-generated test data
+- 📊 Performance Metrics: Task accuracy, latency, and quality
+- 🧪 A/B Testing: Compare agent variants
+- 🐞 Debugging Tools: Logging, trace IDs, retries
 
-### Create Agent Workflow
+Run an evaluation:
 
 ```bash
+python eval.py \
+  --model_api http://127.0.0.1:8000/eval/chat \
+  --config ./examples/customer_service/customer_service_config.json \
+  --documents_dir ./examples/customer_service \
+  --output-dir ./examples/customer_service
+```
+
+## 🔌 Core Commands
+
+```bash
+# Create an agent workflow
 python create.py \
   --config ./examples/customer_service/customer_service_config.json \
   --output-dir ./examples/customer_service \
   --llm_provider openai \
   --model gpt-4o-mini
-```
 
-### Run Agent
-
-```bash
+# Run an agent
 python run.py \
   --input-dir ./examples/customer_service \
   --llm_provider openai \
   --model gpt-4o
-```
 
-### Start API Service
-
-```bash
+# Start API server
 python model_api.py \
   --input-dir ./examples/customer_service
 ```
 
-### Run Evaluation
+## 🔐 Production-Grade Features
 
-```bash
-python eval.py \
---model_api http://127.0.0.1:8000/eval/chat \
---config ./examples/customer_service/customer_service_config.json \
---documents_dir ./examples/customer_service \
---output-dir ./examples/customer_service
-```
+- **Logging**: Request-level tracing, log rotation, structured logs
+- **Monitoring**: Metrics, health checks, circuit breakers
+- **API**: FastAPI with `/docs`, `/redoc`, CORS, and security headers
+- **Error Handling**: Retry logic, graceful fallbacks, typed exceptions
 
-## Architecture
+## 🤝 Contributing
 
-Arklex follows a centralized orchestration with distributed execution model:
+We welcome community contributions!
 
-* Task Graph: Defines workflow structure and dependencies
-* Orchestrator: Manages agent coordination and task routing
-* Workers: Specialized components (RAG, Database, API calls)
-* Tools: Atomic functions for specific operations
+- 📖 [Contributing Guide](CONTRIBUTING.md)
+- 📝 [Open an Issue](https://github.com/arklexai/Agent-First-Organization/issues)
+- 💬 [Join Discussions](https://github.com/arklexai/Agent-First-Organization/discussions)
 
-## Evaluation & Testing
+## 📄 License
 
-Arklex includes comprehensive evaluation tools:
+MIT License. See [LICENSE](LICENSE) for full text.
 
-* Synthetic Conversations: Generate realistic test scenarios
-* Performance Metrics: Track response quality and task completion
-* A/B Testing: Compare different agent configurations
-* Error Analysis: Detailed logging and debugging support
+## 📬 Support
 
-## Production Features
-
-### Logging & Monitoring
-
-* Structured logging with request tracking
-* Configurable log levels and rotation
-* Request ID correlation across services
-* Performance timing and metrics
-
-### Error Handling
-
-* Custom exception hierarchy
-* Automatic retry mechanisms
-* Graceful degradation
-* Circuit breaker patterns
-
-### API Service
-
-* FastAPI-based REST endpoints
-* Automatic OpenAPI documentation
-* CORS support and security headers
-* Health checks and status monitoring
-
-## Contributing
-
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Support
-
-* [Documentation](arklex.ai/docs)
-* [GitHub Issues](https://github.com/arklexai/Agent-First-Organization/issues)
-* [GitHub Discussions](https://github.com/arklexai/Agent-First-Organization/discussions)
-
-### API Documentation
-
-Once the application is running, you can access:
-
-* API documentation at `/docs`
-* Alternative API documentation at `/redoc`
+- 🌐 [Documentation](arklex.ai/docs)
