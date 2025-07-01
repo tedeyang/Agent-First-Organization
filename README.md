@@ -323,7 +323,7 @@ We welcome contributions, questions, and feature ideas!
 ### Community
 
 - 🐦 [Twitter](https://twitter.com/arklexai)
-- 💼 [LinkedIn](https://linkedin.com/company/arklexai)
+- 💼 [LinkedIn](https://www.linkedin.com/company/arklex)
 - 📺 [YouTube](https://youtube.com/@arklexai)
 
 ---
