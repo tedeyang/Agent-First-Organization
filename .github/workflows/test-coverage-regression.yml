@@ -13,7 +13,7 @@ jobs:
 
     permissions:
       pull-requests: write
-      contents: read
+      contents: write
 
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -43,13 +43,25 @@ jobs:
 
       - name: Compare coverage with base branch
         run: |
-          # diff-cover will return non-zero exit if any new lines lack coverage
-          diff-cover coverage.xml --compare-branch origin/main --fail-under=100
+          # Check if there are any differences to compare
+          if git diff --name-only origin/main | grep -q '\.py$'; then
+            echo "Python files changed, checking coverage..."
+            # diff-cover will return non-zero exit if any new lines lack coverage
+            diff-cover coverage.xml --compare-branch origin/main --fail-under=100
+          else
+            echo "No Python files changed in this PR. Skipping coverage regression check."
+            echo "✅ No coverage regression check needed - no Python files modified"
+          fi
 
       - name: Upload detailed diff report
         if: failure()
         run: |
-          diff-cover coverage.xml --compare-branch origin/main --html-report diff_coverage.html || true
+          # Only generate diff report if there are Python files to compare
+          if git diff --name-only origin/main | grep -q '\.py$'; then
+            diff-cover coverage.xml --compare-branch origin/main --html-report diff_coverage.html || true
+          else
+            echo "No Python files changed, skipping diff report generation"
+          fi
 
       - name: Upload HTML diff coverage report
         if: failure()
@@ -57,3 +69,56 @@ jobs:
         with:
           name: diff-coverage-report
           path: diff_coverage.html
+        continue-on-error: true
+
+      - name: Display coverage
+        if: success() || failure()
+        uses: py-cov-action/python-coverage-comment-action@v3
+        with:
+          GITHUB_TOKEN: ${{ github.token }}
+          MINIMUM_GREEN: 99.1
+          MINIMUM_ORANGE: 70
+        continue-on-error: true
+
+      - name: Update README with latest coverage
+        run: |
+          # Check if coverage.xml exists and has data
+          if [ -f "coverage.xml" ]; then
+            # Extract overall coverage percentage from XML
+            COVERAGE=$(python -c "
+              import xml.etree.ElementTree as ET
+              tree = ET.parse('coverage.xml')
+              coverage = float(tree.getroot().attrib['line-rate']) * 100
+              print(f'{coverage:.1f}')
+            ")
+
+            echo "Extracted coverage: $COVERAGE%"
+
+            # Determine badge color based on coverage percentage
+            if (( $(echo "$COVERAGE < 90" | bc -l) )); then
+              COLOR="red"
+            elif (( $(echo "$COVERAGE < 99" | bc -l) )); then
+              COLOR="orange"
+            else
+              COLOR="green"
+            fi
+
+            echo "Setting badge color to: $COLOR"
+
+            # Update README badge with color coding
+            # This assumes a badge format like: ![Coverage](https://img.shields.io/badge/Coverage-XX.X%25-COLOR)
+            sed -i "s/Coverage-[0-9]\+\.[0-9]%25-[a-z]*/Coverage-${COVERAGE}%25-${COLOR}/g" README.md
+
+            # Commit and push if README changed
+            if git diff --quiet; then
+              echo "No README change needed."
+            else
+              git config user.name "github-actions[bot]"
+              git config user.email "github-actions[bot]@users.noreply.github.com"
+              git add README.md
+              git commit -m "chore: update README with ${COVERAGE}% test coverage (${COLOR} badge)"
+              git push
+            fi
+          else
+            echo "No coverage.xml file found. Skipping README update."
+          fi
