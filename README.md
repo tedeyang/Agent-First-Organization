@@ -6,12 +6,12 @@
 
 **Build, deploy, and scale intelligent AI agents with enterprise-grade reliability**
 
-[![release](https://img.shields.io/github/release/arklexai/Agent-First-Organization?logo=github)](https://github.com/arklexai/Agent-First-Organization/releases)
-[![pypi](https://img.shields.io/pypi/v/arklex.svg)](https://pypi.org/project/arklex)
-[![python](https://img.shields.io/pypi/pyversions/arklex)](https://pypi.org/project/arklex)
-[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
-[![discord](https://img.shields.io/badge/discord-join%20community-7289da?logo=discord)](https://discord.gg/kJkefzkRg5)
-![coverage](https://img.shields.io/badge/Coverage-XX.X%25-COLOR)
+[![Release](https://img.shields.io/github/release/arklexai/Agent-First-Organization?logo=github)](https://github.com/arklexai/Agent-First-Organization/releases)
+[![PyPI](https://img.shields.io/pypi/v/arklex.svg)](https://pypi.org/project/arklex)
+[![Python](https://img.shields.io/pypi/pyversions/arklex)](https://pypi.org/project/arklex)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
+[![Discord](https://img.shields.io/badge/discord-join%20community-7289da?logo=discord)](https://discord.gg/kJkefzkRg5)
+![Coverage](https://img.shields.io/badge/coverage-XX.X%25-COLOR)
 
 🚀 [Quick Start](#-get-started-in-5-minutes) • 📚 [Documentation](https://arklexai.github.io/Agent-First-Organization/) • 💡 [Examples](./examples/)
 
