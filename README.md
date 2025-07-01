@@ -8,9 +8,11 @@
 
 ---
 
-## ⚡ TL;DR
+## 🎯 Overview
 
-**Arklex AI** is a modular, production-grade framework for building intelligent agents powered by LLMs, retrieval, and task graphs.
+**Arklex AI** is a modular, production-grade framework for building intelligent agents powered by LLMs, retrieval, and task graphs. Designed for developers and researchers, Arklex makes it easy to compose, run, and evaluate LLM-powered pipelines at scale.
+
+### ✨ Key Features
 
 - 🧠 **Multi-agent orchestration** using structured DAGs
 - 🧩 **Composable modules** for tools, databases, APIs, and browsers
@@ -20,23 +22,15 @@
 
 ---
 
-## ✨ Why Arklex?
+## 🚀 Quick Start
 
-**Arklex AI** empowers developers and researchers to build intelligent systems through structured task graphs, robust evaluation tools, and modular design.
-
-Whether you're building customer support agents, data analysis workflows, or co-writing assistants, Arklex makes it easy to compose, run, and evaluate LLM-powered pipelines at scale.
-
----
-
-## 🚀 Quickstart
-
-### 1. Install Arklex
+### 1. Install
 
 ```bash
 pip install arklex
 ```
 
-### 2. Set Up Environment
+### 2. Configure Environment
 
 Create a `.env` file with your API keys:
 
@@ -46,7 +40,7 @@ ANTHROPIC_API_KEY=...
 # See full configuration options below ↓
 ```
 
-### 3. Launch an Agent
+### 3. Launch Your First Agent
 
 ```bash
 python create.py \
@@ -73,15 +67,7 @@ python run.py --input-dir ./examples/customer_service
 
 ---
 
-## 📚 Documentation
-
-- 📖 [Getting Started](https://arklexai.github.io/Agent-First-Organization/docs/intro)
-- 🧪 [Tutorials](https://arklexai.github.io/Agent-First-Organization/docs/tutorials/intro)
-- ⚙️ [API Reference](https://www.arklex.ai/qa/open-source)
-
----
-
-## 🧱 Architecture Overview
+## 🧱 Architecture
 
 Arklex AI is designed for scalable, flexible agent development:
 
@@ -104,7 +90,9 @@ Arklex AI is designed for scalable, flexible agent development:
 
 ---
 
-## 🔐 Environment Configuration
+## 🔐 Configuration
+
+### Environment Variables
 
 ```env
 # LLM Providers
@@ -134,26 +122,7 @@ MYSQL_CONNECTION_TIMEOUT=10
 TAVILY_API_KEY=...
 ```
 
----
-
-## 🧪 Built-In Evaluation Tools
-
-- 🔁 **Synthetic Testing** — Realistic user simulation
-- 🧪 **A/B Comparison** — Compare models, chains, and prompts
-- 📊 **Metrics Dashboard** — Track latency, success rates, and quality
-- 🐛 **Debug Suite** — Logs, retries, tracebacks, and more
-
-```bash
-python eval.py \
-  --model_api http://127.0.0.1:8000/eval/chat \
-  --config ./examples/customer_service/customer_service_config.json \
-  --documents_dir ./examples/customer_service \
-  --output-dir ./examples/customer_service
-```
-
----
-
-## 🧰 CLI Essentials
+### CLI Commands
 
 ```bash
 # Create a new agent workflow
@@ -176,7 +145,26 @@ python model_api.py \
 
 ---
 
-## 🛡️ Production Ready
+## 🧪 Evaluation & Testing
+
+Built-in tools for robust validation and debugging:
+
+- 🔁 **Synthetic Testing** — Realistic user simulation
+- 🧪 **A/B Comparison** — Compare models, chains, and prompts
+- 📊 **Metrics Dashboard** — Track latency, success rates, and quality
+- 🐛 **Debug Suite** — Logs, retries, tracebacks, and more
+
+```bash
+python eval.py \
+  --model_api http://127.0.0.1:8000/eval/chat \
+  --config ./examples/customer_service/customer_service_config.json \
+  --documents_dir ./examples/customer_service \
+  --output-dir ./examples/customer_service
+```
+
+---
+
+## 🛡️ Production Features
 
 - ✅ **Structured Logging** — JSON logs, trace IDs, log rotation
 - 📈 **Monitoring Hooks** — Health checks, metrics, fallbacks
@@ -185,7 +173,15 @@ python model_api.py \
 
 ---
 
-## 🤝 Join the Community
+## 📚 Documentation
+
+- 📖 [Getting Started](https://arklexai.github.io/Agent-First-Organization/docs/intro)
+- 🧪 [Tutorials](https://arklexai.github.io/Agent-First-Organization/docs/tutorials/intro)
+- ⚙️ [API Reference](https://www.arklex.ai/qa/open-source)
+
+---
+
+## 🤝 Contributing
 
 We welcome contributions, questions, and feature ideas!
 
@@ -201,7 +197,7 @@ Arklex AI is released under the MIT License. See [LICENSE](LICENSE) for details.
 
 ---
 
-## 💡 Need Help?
+## 💡 Support
 
 - 🌐 [Full Documentation](arklex.ai/docs)
 - 📬 Reach out or open an issue — we're here to help!
