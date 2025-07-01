@@ -12,7 +12,7 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Discord](https://img.shields.io/badge/discord-join%20community-7289da?logo=discord)](https://discord.gg/arklex)
 
-[🚀 Quick Start](#-get-started-in-5-minutes) • [📚 Documentation](https://arklex.ai/docs) • [💡 Examples](./examples/)
+[🚀 Quick Start](#-get-started-in-5-minutes) • [📚 Documentation](https://arklexai.github.io/Agent-First-Organization/) • [💡 Examples](./examples/)
 
 </div>
 
@@ -147,7 +147,7 @@ TAVILY_API_KEY=your_tavily_key
 
 ## 📖 Documentation
 
-- 📚 **[Full Documentation](https://arklex.ai/docs)**
+- 📚 **[Full Documentation](https://arklexai.github.io/Agent-First-Organization/)**
 - 🚀 **[Quick Start](docs/QUICKSTART.md)**
 - 🛠️ **[API Reference](docs/API.md)**
 - 🏗️ **[Architecture](docs/ARCHITECTURE.md)**
@@ -206,6 +206,6 @@ Arklex AI builds on the shoulders of giants:
 
 **Made with ❤️ by the Arklex AI Team**
 
-[Website](https://arklex.ai) • [Documentation](https://arklex.ai/docs) • [GitHub](https://github.com/arklexai/Agent-First-Organization) • [Discord](https://discord.gg/arklex)
+[Website](https://arklex.ai) • [Documentation](https://arklexai.github.io/Agent-First-Organization/) • [GitHub](https://github.com/arklexai/Agent-First-Organization) • [Discord](https://discord.gg/arklex)
 
 </div>
