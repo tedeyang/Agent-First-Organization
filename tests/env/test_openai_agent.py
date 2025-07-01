@@ -5,7 +5,6 @@ import pytest
 from arklex.env.agents.openai_agent import OpenAIAgent
 from arklex.utils.graph_state import (
     BotConfig,
-    ConvoMessage,
     LLMConfig,
     MessageState,
     OrchestratorMessage,
@@ -15,7 +14,7 @@ from arklex.utils.graph_state import (
 
 
 @pytest.fixture
-def mock_tools():
+def mock_tools() -> dict[str, MagicMock]:
     # Simulate a tool registry with a mock tool
     mock_tool = {
         "execute": lambda: Mock(
@@ -37,10 +36,10 @@ def mock_tools():
 
 
 @pytest.fixture
-def mock_successors_predecessors():
+def mock_successors_predecessors() -> list[MagicMock]:
     # Simulate nodes with resource_id attributes
     class Node:
-        def __init__(self):
+        def __init__(self) -> None:
             self.resource_id = "mock_tool_id"
 
     node = Node()
@@ -48,7 +47,7 @@ def mock_successors_predecessors():
 
 
 @pytest.fixture
-def mock_state():
+def mock_state() -> MessageState:
     # Create proper Pydantic models instead of Mock objects
     llm_config = LLMConfig(model_type_or_path="gpt-3.5-turbo", llm_provider="openai")
     bot_config = BotConfig(
@@ -83,8 +82,8 @@ def mock_state():
 
 
 def test_openai_agent_initialization(
-    mock_successors_predecessors, mock_tools, mock_state
-):
+    mock_successors_predecessors: list, mock_tools: list, mock_state: MessageState
+) -> None:
     agent = OpenAIAgent(
         successors=mock_successors_predecessors,
         predecessors=[],
@@ -124,7 +123,9 @@ def test_openai_agent_initialization(
         )
     ),
 )
-def test_openai_agent_execute(mock_successors_predecessors, mock_tools, mock_state):
+def test_openai_agent_execute(
+    mock_successors_predecessors: list, mock_tools: list, mock_state: MessageState
+) -> None:
     agent = OpenAIAgent(
         successors=mock_successors_predecessors,
         predecessors=[],
@@ -147,7 +148,7 @@ def test_openai_agent_execute(mock_successors_predecessors, mock_tools, mock_sta
         )
     },
 )
-def test_openai_agent_with_no_tools(mock_state):
+def test_openai_agent_with_no_tools(mock_state: MessageState) -> None:
     """Test OpenAIAgent initialization with no tools."""
     agent = OpenAIAgent(
         successors=[],
