@@ -1044,3 +1044,72 @@ def cleanup() -> None:
     """Clean up any patches made during testing."""
     if not TEXTUAL_AVAILABLE:
         unpatch_ui_modules()
+
+
+def test_protocols_full_coverage() -> None:
+    """Covers all methods/properties of the Protocols in protocols.py for coverage."""
+    from arklex.orchestrator.generator.ui import protocols
+
+    class DummyTreeNode(protocols.TreeNodeProtocol):
+        def add(self, label: str) -> "DummyTreeNode":
+            return self
+
+        def add_leaf(self, label: str) -> "DummyTreeNode":
+            return self
+
+        def remove(self) -> None:
+            pass
+
+        def set_label(self, label: str) -> None:
+            pass
+
+        def expand(self) -> None:
+            pass
+
+        @property
+        def children(self) -> list:
+            return []
+
+        @property
+        def parent(self) -> None:
+            return None
+
+        @property
+        def label(self) -> str:
+            return "label"
+
+    class DummyTree(protocols.TreeProtocol):
+        def focus(self) -> None:
+            pass
+
+        @property
+        def root(self) -> DummyTreeNode:
+            return DummyTreeNode()
+
+        @property
+        def cursor_node(self) -> DummyTreeNode:
+            return DummyTreeNode()
+
+    class DummyInputModal(protocols.InputModalProtocol):
+        def __init__(
+            self, title: str, default: str, node: object, callback: object
+        ) -> None:
+            pass
+
+    # Instantiate and call all methods/properties
+    node = DummyTreeNode()
+    node.add("x")
+    node.add_leaf("y")
+    node.remove()
+    node.set_label("z")
+    node.expand()
+    _ = node.children
+    _ = node.parent
+    _ = node.label
+
+    tree = DummyTree()
+    tree.focus()
+    _ = tree.root
+    _ = tree.cursor_node
+
+    DummyInputModal("t", "d", None, None)
