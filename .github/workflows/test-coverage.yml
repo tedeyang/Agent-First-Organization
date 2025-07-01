@@ -38,7 +38,9 @@ jobs:
       - name: Run tests and check coverage threshold
         run: |
           # Run tests with coverage and generate all reports
-          pytest tests/ --cov=arklex --cov-report=term-missing --cov-report=html --cov-report=xml --no-cov-on-fail
+          coverage run -m pytest tests/
+          coverage xml
+          coverage html
           
           # Check if coverage.xml exists and has data
           if [ -f "coverage.xml" ]; then
@@ -88,8 +90,26 @@ jobs:
           path: htmlcov/
         continue-on-error: true
 
+      - name: Check for coverage data
+        id: coverage_check
+        run: |
+          if [ -f "coverage.xml" ]; then
+            echo "COVERAGE_EXISTS=true" >> $GITHUB_ENV
+            echo "✅ Coverage XML file found"
+          else
+            echo "COVERAGE_EXISTS=false" >> $GITHUB_ENV
+            echo "❌ No coverage.xml file found"
+          fi
+
+      - name: Combine coverage data
+        if: env.COVERAGE_EXISTS == 'true'
+        run: |
+          # Combine any existing coverage data files
+          coverage combine || true
+          echo "✅ Coverage data combined"
+
       - name: Display coverage
-        if: success() || failure()
+        if: env.COVERAGE_EXISTS == 'true'
         uses: py-cov-action/python-coverage-comment-action@v3
         with:
           GITHUB_TOKEN: ${{ github.token }}
