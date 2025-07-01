@@ -121,7 +121,6 @@ class TestValidateSlotResponse:
 
     def test_validate_slot_response_general_exception(self) -> None:
         """Test general exception handling."""
-        response = '{"slots": [{"name": "user_name", "value": "John"}]}'
         slots = [Slot(name="user_name", type="str")]
 
         # Test with a malformed response that will cause a general exception
@@ -184,7 +183,6 @@ class TestValidateVerificationResponse:
 
     def test_validate_verification_response_general_exception(self) -> None:
         """Test general exception handling."""
-        response = '{"verification_needed": true, "thought": "Please confirm"}'
 
         # Test with a malformed response that will cause a general exception
         # when trying to access data.get() after JSON parsing
@@ -216,3 +214,15 @@ class TestValidateVerificationResponse:
         response = '{"verification_needed": "true", "thought": "Please confirm"}'
         result = validators.validate_verification_response(response)
         assert result == ("true", "Please confirm")  # String "true" is truthy
+
+    def test_validate_verification_response_invalid_structure(self) -> None:
+        """Test invalid structure returns defaults."""
+        # Not a dict
+        result = validators.validate_verification_response("not a dict")
+        assert result == (False, "No need to verify")
+        # Dict but missing fields
+        import json
+
+        s = json.dumps({"foo": "bar"})
+        result = validators.validate_verification_response(s)
+        assert result == (False, "No need to verify")

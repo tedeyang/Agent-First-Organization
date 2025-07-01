@@ -4,7 +4,7 @@ import json
 import logging
 import os
 from contextlib import redirect_stdout
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 import pytest
 
@@ -21,7 +21,7 @@ with open("test_cases_post_process.json", encoding="utf-8") as f:
 @pytest.fixture(scope="session")
 def config_and_env(
     request: pytest.FixtureRequest,
-) -> Tuple[Dict[str, Any], Environment, str]:
+) -> tuple[dict[str, Any], Environment, str]:
     """Load config and environment once per test session."""
     with open("taskgraph.json", encoding="utf-8") as f:
         config = json.load(f)
@@ -61,7 +61,7 @@ def config_and_env(
 
 class TestLiveChatDetection:
     def setup_method(self) -> None:
-        self.params: Dict[str, Any] = {}
+        self.params: dict[str, Any] = {}
 
     # run the same test function with multiple sets of arguments
     @pytest.mark.parametrize(
@@ -71,8 +71,8 @@ class TestLiveChatDetection:
     )
     def test_live_chat_detection(
         self,
-        test_case: Dict[str, Any],
-        config_and_env: Tuple[Dict[str, Any], Environment, str],
+        test_case: dict[str, Any],
+        config_and_env: tuple[dict[str, Any], Environment, str],
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         config, env, start_message = config_and_env
@@ -80,7 +80,7 @@ class TestLiveChatDetection:
         expected_live_chat = test_case["expect_live_chat"]
         expected_log_message = test_case.get("expect_log_message")
 
-        history: List[Dict[str, str]] = [
+        history: list[dict[str, str]] = [
             {"role": "assistant", "content": start_message}
         ]
 
@@ -111,7 +111,7 @@ class TestLiveChatDetection:
 
         # prompt user to chat with human assistant
         if expected_live_chat:
-            assert TRIGGER_LIVE_CHAT_PROMPT == output
+            assert output == TRIGGER_LIVE_CHAT_PROMPT
 
         # for irrelevant questions
         if expected_log_message:

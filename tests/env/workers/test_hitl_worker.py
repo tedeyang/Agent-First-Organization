@@ -1,16 +1,18 @@
 """Tests for the HITL worker module."""
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
+
 from arklex.env.workers.hitl_worker import (
     HITLWorker,
-    HITLWorkerTestChat,
-    HITLWorkerTestMC,
     HITLWorkerChatFlag,
     HITLWorkerMCFlag,
+    HITLWorkerTestChat,
+    HITLWorkerTestMC,
 )
-from arklex.utils.graph_state import MessageState, StatusEnum, Metadata
 from arklex.orchestrator.NLU.core.slot import SlotFiller
+from arklex.utils.graph_state import MessageState, Metadata, StatusEnum
 
 
 class TestHITLWorker:
@@ -63,12 +65,14 @@ class TestHITLWorker:
         worker = HITLWorker(name="test_worker")
 
         # Mock both verify methods to return False
-        with patch.object(worker, "verify_literal", return_value=(False, "")):
-            with patch.object(worker, "verify_slots", return_value=(False, "")):
-                state = MessageState()
-                need_hitl, message = worker.verify(state)
-                assert need_hitl is False
-                assert message == ""
+        with (
+            patch.object(worker, "verify_literal", return_value=(False, "")),
+            patch.object(worker, "verify_slots", return_value=(False, "")),
+        ):
+            state = MessageState()
+            need_hitl, message = worker.verify(state)
+            assert need_hitl is False
+            assert message == ""
 
     def test_init_slot_filler(self) -> None:
         """Test slot filler initialization."""
@@ -89,7 +93,7 @@ class TestHITLWorker:
         assert prompt == expected
 
     @patch("arklex.env.workers.hitl_worker.ChatClient")
-    def test_chat(self, mock_chat_client_class) -> None:
+    def test_chat(self, mock_chat_client_class: Mock) -> None:
         """Test chat method."""
         worker = HITLWorker(name="test_worker", server_ip="127.0.0.1", server_port=8080)
         mock_client = Mock()
@@ -106,7 +110,7 @@ class TestHITLWorker:
         assert isinstance(result, MessageState)
 
     @patch("arklex.env.workers.hitl_worker.ChatClient")
-    def test_multiple_choice(self, mock_chat_client_class) -> None:
+    def test_multiple_choice(self, mock_chat_client_class: Mock) -> None:
         """Test multiple choice method."""
         worker = HITLWorker(name="test_worker", server_ip="127.0.0.1", server_port=8080)
         worker.params = {
@@ -128,7 +132,7 @@ class TestHITLWorker:
         assert isinstance(result, MessageState)
 
     @patch.object(HITLWorker, "chat")
-    def test_hitl_chat_mode(self, mock_chat):
+    def test_hitl_chat_mode(self, mock_chat: Mock) -> None:
         worker = HITLWorker(name="test_worker", mode="chat")
         worker.params = {"intro": "Test intro", "choices": {}}
         mock_chat.return_value = "test_worker: new message"
@@ -144,7 +148,7 @@ class TestHITLWorker:
         assert state.user_message.message == "new message"
 
     @patch.object(HITLWorker, "multiple_choice")
-    def test_hitl_mc_mode_success(self, mock_multiple_choice):
+    def test_hitl_mc_mode_success(self, mock_multiple_choice: Mock) -> None:
         worker = HITLWorker(name="test_worker", mode="mc")
         worker.params = {
             "intro": "Test intro",
@@ -158,7 +162,9 @@ class TestHITLWorker:
         assert result.response == "Yes choice"
 
     @patch.object(HITLWorker, "multiple_choice")
-    def test_hitl_mc_mode_max_retries_exceeded(self, mock_multiple_choice):
+    def test_hitl_mc_mode_max_retries_exceeded(
+        self, mock_multiple_choice: Mock
+    ) -> None:
         worker = HITLWorker(name="test_worker", mode="mc")
         worker.params = {
             "intro": "Test intro",
@@ -171,7 +177,7 @@ class TestHITLWorker:
         result = worker.hitl(state)
         assert result.response == "Default choice"
 
-    def test_hitl_unknown_mode(self):
+    def test_hitl_unknown_mode(self) -> None:
         worker = HITLWorker(name="test_worker", mode="unknown")
         state = MessageState()
         result = worker.hitl(state)
@@ -199,17 +205,17 @@ class TestHITLWorker:
         assert "hitl" in graph.nodes
 
     @patch.object(HITLWorker, "verify")
-    def test_execute_verify_fails(self, mock_verify) -> None:
+    def test_execute_verify_fails(self, mock_verify: Mock) -> None:
         """Test execute method when verify fails."""
         worker = HITLWorker(name="test_worker")
         mock_verify.return_value = (False, "")
         state = MessageState()
         result = worker._execute(state)
-        assert isinstance(result, dict)
-        assert result["status"] == StatusEnum.INCOMPLETE
+        assert isinstance(result, MessageState)
+        assert result.status == StatusEnum.INCOMPLETE
 
     @patch.object(HITLWorker, "verify")
-    def test_execute_verify_succeeds(self, mock_verify) -> None:
+    def test_execute_verify_succeeds(self, mock_verify: Mock) -> None:
         """Test execute method when verify succeeds."""
         worker = HITLWorker(name="test_worker")
         mock_verify.return_value = (True, "")
@@ -222,6 +228,75 @@ class TestHITLWorker:
 
         result = worker._execute(state)
         assert isinstance(result, MessageState)
+
+    def test_error_method_sets_status_incomplete(self) -> None:
+        """Test error method sets status to incomplete."""
+        worker = HITLWorker(name="test_worker")
+        state = MessageState()
+        result = worker.error(state)
+        assert result == state
+        assert state.status == StatusEnum.INCOMPLETE
+
+    def test_execute_with_verify_failure_calls_error(self) -> None:
+        """Test execute method when verify fails (covers line 196)."""
+        worker = HITLWorker(name="test_worker")
+
+        # Mock verify to return (False, message) - first element is False
+        with (
+            patch.object(worker, "verify", return_value=(False, "No HITL needed")),
+            patch.object(worker, "error") as mock_error,
+        ):
+            error_state = MessageState()
+            error_state.status = StatusEnum.INCOMPLETE
+            mock_error.return_value = error_state
+
+            state = MessageState()
+            result = worker._execute(state)
+
+            # Should call error method when verify returns (False, message)
+            mock_error.assert_called_once_with(state)
+            # The result should be a MessageState with INCOMPLETE status
+            assert isinstance(result, MessageState)
+            assert result.status == StatusEnum.INCOMPLETE
+
+    def test_execute_with_verify_success_calls_action_graph(self) -> None:
+        """Test execute method when verify succeeds."""
+        worker = HITLWorker(name="test_worker")
+        state = MessageState()
+        state.metadata = Metadata()
+
+        with patch.object(worker, "verify", return_value=(True, "Success")):
+            # Mock the action_graph directly since it's created during initialization
+            mock_graph = Mock()
+            mock_compiled_graph = Mock()
+            # Ensure the mock returns the actual state object, not a dictionary
+            mock_compiled_graph.invoke.return_value = state
+            mock_graph.compile.return_value = mock_compiled_graph
+            worker.action_graph = mock_graph
+
+            result = worker._execute(state)
+
+            # The result should be the state object returned by the action graph
+            # Check that the result has the same properties as the expected state
+            assert isinstance(result, MessageState)
+            assert result.status == state.status
+            mock_graph.compile.assert_called_once()
+            mock_compiled_graph.invoke.assert_called_once_with(state)
+
+    def test_execute_verify_fails_returns_error_state(self) -> None:
+        """Test execute method when verify fails returns error state."""
+        worker = HITLWorker(name="test_worker")
+        state = MessageState()
+        state.metadata = Metadata()
+
+        with patch.object(
+            worker, "verify", return_value=(False, "Verification failed")
+        ):
+            result = worker._execute(state)
+
+            # Should return the state object with INCOMPLETE status
+            assert isinstance(result, MessageState)
+            assert result.status == StatusEnum.INCOMPLETE
 
 
 class TestHITLWorkerTestChat:
@@ -263,6 +338,13 @@ class TestHITLWorkerTestChat:
         result = worker.verify_literal("I want to buy something")
         assert result is False
 
+    def test_HITLWorkerTestChat_init_missing_params(self) -> None:
+        # Should raise ValueError if server_ip or server_port missing
+        with pytest.raises(ValueError):
+            HITLWorkerTestChat(name="test", server_port=1234)
+        with pytest.raises(ValueError):
+            HITLWorkerTestChat(name="test", server_ip="127.0.0.1")
+
 
 class TestHITLWorkerTestMC:
     """Test the HITLWorkerTestMC class."""
@@ -297,6 +379,13 @@ class TestHITLWorkerTestMC:
         result = worker.verify_literal("I want to chat with someone")
         assert result is False
 
+    def test_HITLWorkerTestMC_init_missing_params(self) -> None:
+        # Should raise ValueError if server_ip or server_port missing
+        with pytest.raises(ValueError):
+            HITLWorkerTestMC(name="test", server_port=1234)
+        with pytest.raises(ValueError):
+            HITLWorkerTestMC(name="test", server_ip="127.0.0.1")
+
 
 class TestHITLWorkerChatFlag:
     """Test the HITLWorkerChatFlag class."""
@@ -322,11 +411,13 @@ class TestHITLWorkerChatFlag:
         state.metadata = Metadata()
         state.metadata.hitl = None
 
-        with patch.object(worker, "verify", return_value=(False, "")):
-            with patch.object(worker, "fallback", return_value=state) as mock_fallback:
-                result = worker._execute(state)
-                mock_fallback.assert_called_once_with(state)
-                assert result == state
+        with (
+            patch.object(worker, "verify", return_value=(False, "")),
+            patch.object(worker, "fallback", return_value=state) as mock_fallback,
+        ):
+            result = worker._execute(state)
+            mock_fallback.assert_called_once_with(state)
+            assert result == state
 
     def test_execute_no_hitl_verify_succeeds(self) -> None:
         """Test execute method when no hitl and verify succeeds."""
@@ -390,11 +481,13 @@ class TestHITLWorkerMCFlag:
         state.metadata = Metadata()
         state.metadata.hitl = None
 
-        with patch.object(worker, "verify", return_value=(False, "")):
-            with patch.object(worker, "fallback", return_value=state) as mock_fallback:
-                result = worker._execute(state)
-                mock_fallback.assert_called_once_with(state)
-                assert result == state
+        with (
+            patch.object(worker, "verify", return_value=(False, "")),
+            patch.object(worker, "fallback", return_value=state) as mock_fallback,
+        ):
+            result = worker._execute(state)
+            mock_fallback.assert_called_once_with(state)
+            assert result == state
 
     def test_execute_no_hitl_verify_succeeds(self) -> None:
         """Test execute method when no hitl and verify succeeds."""
@@ -432,46 +525,28 @@ class TestHITLWorkerMCFlag:
         assert state.status == StatusEnum.COMPLETE
 
     def test_execute_with_hitl_invalid_choice_attempts_remaining(self) -> None:
-        """Test execute method when hitl is set and invalid choice with attempts remaining."""
-        worker = HITLWorkerMCFlag(name="test_mc_flag")
+        """Test execute with HITL when invalid choice but attempts still remaining."""
+        worker = HITLWorkerMCFlag(name="test_worker")
         state = MessageState()
         state.metadata = Metadata()
         state.metadata.hitl = "mc"
-        state.metadata.attempts = 2
+        state.metadata.attempts = 3
         state.user_message = Mock()
         state.user_message.message = "INVALID"
 
         result = worker._execute(state)
 
-        assert result == state
+        assert result.metadata.hitl == "mc"
+        assert result.status == StatusEnum.STAY
+        assert result.metadata.attempts == 2
         assert (
-            state.response
+            result.response
             == "[[sending confirmation : this should not show up for user]]"
         )
-        assert state.metadata.hitl == "mc"
-        assert state.metadata.attempts == 1
-        assert state.status == StatusEnum.STAY
 
-    def test_execute_with_hitl_invalid_choice_no_attempts_remaining(self) -> None:
-        """Test execute method when hitl is set and invalid choice with no attempts remaining."""
-        worker = HITLWorkerMCFlag(name="test_mc_flag")
-        state = MessageState()
-        state.metadata = Metadata()
-        state.metadata.hitl = "mc"
-        state.metadata.attempts = 1
-        state.user_message = Mock()
-        state.user_message.message = "INVALID"
-
-        result = worker._execute(state)
-
-        assert result == state
-        assert state.response == "User is not allowed to continue with the purchase"
-        assert state.metadata.hitl is None
-        assert state.status == StatusEnum.INCOMPLETE
-
-    def test_execute_with_hitl_invalid_choice_attempts_exhausted(self) -> None:
-        """Test execute method when hitl is set and attempts are exhausted."""
-        worker = HITLWorkerMCFlag(name="test_mc_flag")
+    def test_execute_with_hitl_invalid_choice_zero_attempts(self) -> None:
+        """Test execute with HITL when invalid choice and attempts reach zero."""
+        worker = HITLWorkerMCFlag(name="test_worker")
         state = MessageState()
         state.metadata = Metadata()
         state.metadata.hitl = "mc"
@@ -481,7 +556,22 @@ class TestHITLWorkerMCFlag:
 
         result = worker._execute(state)
 
-        assert result == state
-        assert state.response == "User is not allowed to continue with the purchase"
-        assert state.metadata.hitl is None
-        assert state.status == StatusEnum.INCOMPLETE
+        assert result.metadata.hitl is None
+        assert result.status == StatusEnum.INCOMPLETE
+        assert result.response == "User is not allowed to continue with the purchase"
+
+    def test_execute_with_hitl_invalid_choice_attempts_exhausted(self) -> None:
+        """Test execute with HITL when invalid choice and attempts are exhausted."""
+        worker = HITLWorkerMCFlag(name="test_worker")
+        state = MessageState()
+        state.metadata = Metadata()
+        state.metadata.hitl = "mc"
+        state.metadata.attempts = 1
+        state.user_message = Mock()
+        state.user_message.message = "INVALID"
+
+        result = worker._execute(state)
+
+        assert result.metadata.hitl is None
+        assert result.status == StatusEnum.INCOMPLETE
+        assert result.response == "User is not allowed to continue with the purchase"

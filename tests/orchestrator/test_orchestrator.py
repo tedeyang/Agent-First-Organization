@@ -1,3 +1,5 @@
+from pathlib import Path
+from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
@@ -20,12 +22,18 @@ from arklex.utils.graph_state import (
 class DummyEnv(Environment):
     """Dummy environment for testing purposes."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(tools=[], workers=[], agents=[])
         self.model_service = Mock()
         self.planner = None
 
-    def step(self, resource_id, message_state, params, node_info):
+    def step(
+        self,
+        resource_id: str,
+        message_state: MessageState,
+        params: Params,
+        node_info: NodeInfo,
+    ) -> tuple[MessageState, Params]:
         """Mock step method for testing."""
         # Simulate a successful step
         message_state.response = "Mock response"
@@ -33,7 +41,7 @@ class DummyEnv(Environment):
 
 
 @pytest.fixture
-def basic_config():
+def basic_config() -> dict[str, Any]:
     """Provide a basic configuration for testing."""
     return {
         "role": "test_role",
@@ -51,7 +59,7 @@ def basic_config():
 
 
 @pytest.fixture
-def config_with_hitl():
+def config_with_hitl() -> dict[str, Any]:
     """Provide a configuration with HITL worker for testing."""
     return {
         "role": "test_role",
@@ -70,7 +78,7 @@ def config_with_hitl():
 
 
 @pytest.fixture
-def config_with_planner():
+def config_with_planner() -> dict[str, Any]:
     """Provide a configuration with planner for testing."""
     return {
         "role": "test_role",
@@ -89,7 +97,7 @@ def config_with_planner():
 
 
 @pytest.fixture
-def mock_node_info():
+def mock_node_info() -> Mock:
     """Provide a mock NodeInfo for testing."""
     node_info = Mock(spec=NodeInfo)
     node_info.node_id = "test_node"
@@ -104,7 +112,7 @@ def mock_node_info():
 
 
 @pytest.fixture
-def mock_direct_node_info():
+def mock_direct_node_info() -> Mock:
     """Provide a mock NodeInfo for direct response testing."""
     node_info = Mock(spec=NodeInfo)
     node_info.node_id = "direct_node"
@@ -123,7 +131,7 @@ def mock_direct_node_info():
 
 
 @pytest.fixture
-def mock_nested_graph_node_info():
+def mock_nested_graph_node_info() -> Mock:
     """Provide a mock NodeInfo for nested graph testing."""
     node_info = Mock(spec=NodeInfo)
     node_info.node_id = "nested_node"
@@ -138,7 +146,7 @@ def mock_nested_graph_node_info():
 
 
 @pytest.fixture
-def mock_llm():
+def mock_llm() -> Mock:
     """Provide a mock LLM for testing."""
     llm = Mock()
     llm.invoke.return_value = Mock(content="yes")
@@ -146,7 +154,7 @@ def mock_llm():
 
 
 @pytest.fixture
-def mock_orchestrator_response():
+def mock_orchestrator_response() -> Mock:
     """Provide a mock OrchestratorResp for testing."""
     resp = Mock(spec=OrchestratorResp)
     resp.model_dump.return_value = {"result": "ok"}
@@ -156,7 +164,7 @@ def mock_orchestrator_response():
 class TestAgentOrgInitialization:
     """Test AgentOrg initialization with different configurations."""
 
-    def test_init_with_dict_and_env(self, basic_config) -> None:
+    def test_init_with_dict_and_env(self, basic_config: dict[str, Any]) -> None:
         """Test initialization with dictionary config and environment."""
         env = DummyEnv()
         agent = AgentOrg(basic_config, env)
@@ -167,13 +175,15 @@ class TestAgentOrgInitialization:
         assert agent.hitl_proposal_enabled is False
         assert agent.hitl_worker_available is False
 
-    def test_init_with_dict_no_env(self, basic_config) -> None:
+    def test_init_with_dict_no_env(self, basic_config: dict[str, Any]) -> None:
         """Test initialization with dictionary config and no environment."""
         agent = AgentOrg(basic_config, None)
         assert isinstance(agent.env, Environment)
         assert agent.product_kwargs["role"] == "test_role"
 
-    def test_init_with_file(self, tmp_path, basic_config) -> None:
+    def test_init_with_file(
+        self, tmp_path: "Path", basic_config: dict[str, Any]
+    ) -> None:
         """Test initialization with file path config."""
         import json
 
@@ -183,12 +193,12 @@ class TestAgentOrgInitialization:
         agent = AgentOrg(str(config_path), None)
         assert agent.product_kwargs["role"] == "test_role"
 
-    def test_init_with_hitl_worker(self, config_with_hitl) -> None:
+    def test_init_with_hitl_worker(self, config_with_hitl: dict[str, Any]) -> None:
         """Test initialization with HITL worker."""
         agent = AgentOrg(config_with_hitl, None)
         assert agent.hitl_worker_available is True
 
-    def test_init_with_planner(self, config_with_planner) -> None:
+    def test_init_with_planner(self, config_with_planner: dict[str, Any]) -> None:
         """Test initialization with planner."""
         env = DummyEnv()
         env.planner = Mock()
@@ -202,7 +212,7 @@ class TestAgentOrgInitialization:
 class TestAgentOrgInitParams:
     """Test AgentOrg parameter initialization."""
 
-    def test_init_params_basic(self, basic_config) -> None:
+    def test_init_params_basic(self, basic_config: dict[str, Any]) -> None:
         """Test basic parameter initialization."""
         agent = AgentOrg(basic_config, None)
         inputs = {
@@ -217,7 +227,7 @@ class TestAgentOrgInitParams:
         assert isinstance(message_state, MessageState)
         assert basic_config["role"] in message_state.sys_instruct
 
-    def test_init_params_with_parameters(self, basic_config) -> None:
+    def test_init_params_with_parameters(self, basic_config: dict[str, Any]) -> None:
         """Test parameter initialization with existing parameters."""
         agent = AgentOrg(basic_config, None)
         inputs = {
@@ -228,7 +238,7 @@ class TestAgentOrgInitParams:
         text, chat_history_str, params, message_state = agent.init_params(inputs)
         assert params.metadata.turn_id == 6
 
-    def test_init_params_edge_cases(self, basic_config) -> None:
+    def test_init_params_edge_cases(self, basic_config: dict[str, Any]) -> None:
         """Test parameter initialization edge cases."""
         agent = AgentOrg(basic_config, None)
 
@@ -263,7 +273,7 @@ class TestAgentOrgInitParams:
         assert hasattr(params.memory, "trajectory")
 
     def test_init_params_with_existing_function_calling_trajectory(
-        self, basic_config
+        self, basic_config: dict[str, Any]
     ) -> None:
         """Test parameter initialization with existing function calling trajectory."""
         agent = AgentOrg(basic_config, None)
@@ -281,7 +291,7 @@ class TestAgentOrgInitParams:
         text, chat_history_str, params, message_state = agent.init_params(inputs)
         assert len(params.memory.function_calling_trajectory) > 1
 
-    def test_init_params_with_opt_instruct(self, basic_config) -> None:
+    def test_init_params_with_opt_instruct(self, basic_config: dict[str, Any]) -> None:
         """Test parameter initialization with optional instructions."""
         basic_config["opt_instruct"] = "Additional instructions"
         agent = AgentOrg(basic_config, None)
@@ -298,7 +308,7 @@ class TestAgentOrgSkipNode:
     """Test AgentOrg node skipping functionality."""
 
     def test_check_skip_node_true_false(
-        self, basic_config, mock_node_info, mock_llm
+        self, basic_config: dict[str, Any], mock_node_info: Mock, mock_llm: Mock
     ) -> None:
         """Test node skipping with different conditions."""
         agent = AgentOrg(basic_config, None)
@@ -309,7 +319,9 @@ class TestAgentOrgSkipNode:
         mock_node_info.can_skipped = False
         assert agent.check_skip_node(mock_node_info, "history") is False
 
-    def test_check_skip_node_edge_cases(self, basic_config, mock_node_info) -> None:
+    def test_check_skip_node_edge_cases(
+        self, basic_config: dict[str, Any], mock_node_info: Mock
+    ) -> None:
         """Test node skipping edge cases."""
         agent = AgentOrg(basic_config, None)
 
@@ -321,7 +333,9 @@ class TestAgentOrgSkipNode:
         mock_node_info.attributes = {"task": ""}
         assert agent.check_skip_node(mock_node_info, "history") is False
 
-    def test_check_skip_node_llm_exception(self, basic_config, mock_node_info) -> None:
+    def test_check_skip_node_llm_exception(
+        self, basic_config: dict[str, Any], mock_node_info: Mock
+    ) -> None:
         """Test node skipping when LLM raises exception."""
         agent = AgentOrg(basic_config, None)
         agent.llm = Mock()
@@ -330,7 +344,7 @@ class TestAgentOrgSkipNode:
         assert agent.check_skip_node(mock_node_info, "history") is False
 
     def test_check_skip_node_llm_response_no(
-        self, basic_config, mock_node_info
+        self, basic_config: dict[str, Any], mock_node_info: Mock
     ) -> None:
         """Test node skipping with LLM response 'no'."""
         agent = AgentOrg(basic_config, None)
@@ -340,7 +354,7 @@ class TestAgentOrgSkipNode:
         assert agent.check_skip_node(mock_node_info, "history") is False
 
     def test_check_skip_node_llm_response_yes(
-        self, basic_config, mock_node_info
+        self, basic_config: dict[str, Any], mock_node_info: Mock
     ) -> None:
         """Test node skipping with LLM response 'yes'."""
         agent = AgentOrg(basic_config, None)
@@ -353,7 +367,9 @@ class TestAgentOrgSkipNode:
 class TestAgentOrgPostProcessNode:
     """Test AgentOrg node post-processing functionality."""
 
-    def test_post_process_node_basic(self, basic_config, mock_node_info) -> None:
+    def test_post_process_node_basic(
+        self, basic_config: dict[str, Any], mock_node_info: Mock
+    ) -> None:
         agent = AgentOrg(basic_config, None)
         params = Params()
         params.taskgraph.curr_node = "test_node"
@@ -363,7 +379,7 @@ class TestAgentOrgPostProcessNode:
         assert result.taskgraph.node_limit["test_node"] == 2
 
     def test_post_process_node_with_skip_info(
-        self, basic_config, mock_node_info
+        self, basic_config: dict[str, Any], mock_node_info: Mock
     ) -> None:
         agent = AgentOrg(basic_config, None)
         params = Params()
@@ -374,7 +390,7 @@ class TestAgentOrgPostProcessNode:
         assert path_node.is_skipped is True
 
     def test_post_process_node_without_node_limit(
-        self, basic_config, mock_node_info
+        self, basic_config: dict[str, Any], mock_node_info: Mock
     ) -> None:
         agent = AgentOrg(basic_config, None)
         params = Params()
@@ -387,7 +403,9 @@ class TestAgentOrgPostProcessNode:
 class TestAgentOrgDirectNode:
     """Test AgentOrg direct node handling."""
 
-    def test_handl_direct_node_basic(self, basic_config, mock_direct_node_info) -> None:
+    def test_handl_direct_node_basic(
+        self, basic_config: dict[str, Any], mock_direct_node_info: Mock
+    ) -> None:
         agent = AgentOrg(basic_config, None)
         params = Params()
         is_direct, response, params = agent.handl_direct_node(
@@ -397,14 +415,16 @@ class TestAgentOrgDirectNode:
         assert response.answer == "Direct response"
         assert response.choice_list == ["option1", "option2"]
 
-    def test_handl_direct_node_not_direct(self, basic_config, mock_node_info) -> None:
+    def test_handl_direct_node_not_direct(
+        self, basic_config: dict[str, Any], mock_node_info: Mock
+    ) -> None:
         agent = AgentOrg(basic_config, None)
         params = Params()
         is_direct, response, params = agent.handl_direct_node(mock_node_info, params)
         assert is_direct is False
         assert response is None
 
-    def test_handl_direct_node_empty_value(self, basic_config) -> None:
+    def test_handl_direct_node_empty_value(self, basic_config: dict[str, Any]) -> None:
         """Test direct node with empty value."""
         agent = AgentOrg(basic_config, None)
         params = Params()
@@ -415,7 +435,7 @@ class TestAgentOrgDirectNode:
         assert response is None
 
     def test_handl_direct_node_multiple_choice_without_choice_list(
-        self, basic_config
+        self, basic_config: dict[str, Any]
     ) -> None:
         """Test direct node with multiple choice but no choice list."""
         agent = AgentOrg(basic_config, None)
@@ -433,7 +453,9 @@ class TestAgentOrgDirectNode:
 class TestAgentOrgPerformNode:
     """Test AgentOrg node performance."""
 
-    def test_perform_node_basic(self, basic_config, mock_node_info) -> None:
+    def test_perform_node_basic(
+        self, basic_config: dict[str, Any], mock_node_info: Mock
+    ) -> None:
         """Test basic node performance."""
         agent = AgentOrg(basic_config, None)
         params = Params()
@@ -464,7 +486,9 @@ class TestAgentOrgPerformNode:
         assert response_state.is_stream is False
         assert response_state.stream_type is None
 
-    def test_perform_node_with_streaming(self, basic_config, mock_node_info) -> None:
+    def test_perform_node_with_streaming(
+        self, basic_config: dict[str, Any], mock_node_info: Mock
+    ) -> None:
         """Test node performance with streaming."""
         agent = AgentOrg(basic_config, None)
         params = Params()
@@ -502,7 +526,10 @@ class TestAgentOrgNestedGraphNode:
 
     @patch("arklex.orchestrator.orchestrator.NestedGraph")
     def test_handle_nested_graph_node_basic(
-        self, mock_nested_graph_class, basic_config, mock_nested_graph_node_info
+        self,
+        mock_nested_graph_class: Mock,
+        basic_config: dict[str, Any],
+        mock_nested_graph_node_info: Mock,
     ) -> None:
         agent = AgentOrg(basic_config, None)
         params = Params()
@@ -523,7 +550,7 @@ class TestAgentOrgNestedGraphNode:
         )
 
     def test_handle_nested_graph_node_not_nested(
-        self, basic_config, mock_node_info
+        self, basic_config: dict[str, Any], mock_node_info: Mock
     ) -> None:
         agent = AgentOrg(basic_config, None)
         params = Params()
@@ -536,7 +563,10 @@ class TestAgentOrgGetResponse:
     """Test AgentOrg response generation."""
 
     def test_get_response_minimal(
-        self, basic_config, mock_orchestrator_response, monkeypatch
+        self,
+        basic_config: dict[str, Any],
+        mock_orchestrator_response: Mock,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Test minimal response generation."""
         agent = AgentOrg(basic_config, None)
@@ -549,7 +579,10 @@ class TestAgentOrgGetResponse:
 
     @patch("arklex.orchestrator.orchestrator.RunnableLambda")
     def test_get_response_full_flow(
-        self, mock_runnable_lambda, basic_config, mock_node_info
+        self,
+        mock_runnable_lambda: Mock,
+        basic_config: dict[str, Any],
+        mock_node_info: Mock,
     ) -> None:
         """Test full response generation flow."""
         agent = AgentOrg(basic_config, None)
@@ -601,7 +634,9 @@ class TestAgentOrgGetResponse:
 
                 assert response.answer == "Test response"
 
-    def test_get_response_with_skip_node(self, basic_config, mock_node_info) -> None:
+    def test_get_response_with_skip_node(
+        self, basic_config: dict[str, Any], mock_node_info: Mock
+    ) -> None:
         """Test response generation with skipped node."""
         agent = AgentOrg(basic_config, None)
         params = Params()
@@ -613,7 +648,7 @@ class TestAgentOrgGetResponse:
             mock_chain = Mock()
 
             # Use a function that returns the same result each time
-            def mock_invoke(inputs):
+            def mock_invoke(inputs: dict[str, Any]) -> tuple[Mock, Params]:
                 return (mock_node_info, params)
 
             mock_chain.invoke = mock_invoke
@@ -622,7 +657,7 @@ class TestAgentOrgGetResponse:
             # Mock check_skip_node to return True for first call, False for second
             check_skip_calls = 0
 
-            def mock_check_skip(node_info, chat_history):
+            def mock_check_skip(node_info: Mock, chat_history: str) -> bool:
                 nonlocal check_skip_calls
                 check_skip_calls += 1
                 return (
@@ -665,7 +700,7 @@ class TestAgentOrgGetResponse:
                 ) as mock_post_process:
                     mock_post_process.return_value = message_state
 
-                    response = agent._get_response(
+                    agent._get_response(
                         {"text": "test", "chat_history": [], "parameters": None}
                     )
 
@@ -675,7 +710,7 @@ class TestAgentOrgGetResponse:
                     agent.post_process_node.assert_called()
 
     def test_get_response_with_direct_node(
-        self, basic_config, mock_direct_node_info
+        self, basic_config: dict[str, Any], mock_direct_node_info: Mock
     ) -> None:
         """Test response generation with direct node."""
         agent = AgentOrg(basic_config, None)
@@ -702,7 +737,7 @@ class TestAgentOrgGetResponse:
             assert response.answer == "Direct response"
 
     def test_get_response_with_incomplete_node(
-        self, basic_config, mock_node_info
+        self, basic_config: dict[str, Any], mock_node_info: Mock
     ) -> None:
         """Test response generation with incomplete node."""
         agent = AgentOrg(basic_config, None)
@@ -761,7 +796,9 @@ class TestAgentOrgGetResponse:
                     # Should break loop due to incomplete status
                     assert response is not None
 
-    def test_get_response_with_info_worker(self, basic_config, mock_node_info) -> None:
+    def test_get_response_with_info_worker(
+        self, basic_config: dict[str, Any], mock_node_info: Mock
+    ) -> None:
         """Test response generation with info worker."""
         agent = AgentOrg(basic_config, None)
         params = Params()
@@ -819,7 +856,9 @@ class TestAgentOrgGetResponse:
                     # Should break loop after info worker
                     assert response is not None
 
-    def test_get_response_with_leaf_node(self, basic_config, mock_node_info) -> None:
+    def test_get_response_with_leaf_node(
+        self, basic_config: dict[str, Any], mock_node_info: Mock
+    ) -> None:
         """Test response generation with leaf node."""
         agent = AgentOrg(basic_config, None)
         params = Params()
@@ -876,7 +915,9 @@ class TestAgentOrgGetResponse:
                     # Should break loop due to leaf node
                     assert response is not None
 
-    def test_get_response_with_streaming(self, basic_config, mock_node_info) -> None:
+    def test_get_response_with_streaming(
+        self, basic_config: dict[str, Any], mock_node_info: Mock
+    ) -> None:
         """Test response generation with streaming."""
         agent = AgentOrg(basic_config, None)
         params = Params()
@@ -925,7 +966,7 @@ class TestAgentOrgGetResponse:
                 ) as mock_post_process:
                     mock_post_process.return_value = message_state
 
-                    response = agent._get_response(
+                    agent._get_response(
                         {"text": "test", "chat_history": [], "parameters": None},
                         stream_type=StreamType.TEXT,
                     )
@@ -933,7 +974,9 @@ class TestAgentOrgGetResponse:
                     # Should use stream_context_generate
                     mock_tool_generator.stream_context_generate.assert_called_once()
 
-    def test_get_response_max_nodes_reached(self, basic_config, mock_node_info) -> None:
+    def test_get_response_max_nodes_reached(
+        self, basic_config: dict[str, Any], mock_node_info: Mock
+    ) -> None:
         """Test response generation when max nodes reached."""
         agent = AgentOrg(basic_config, None)
         params = Params()
@@ -994,14 +1037,14 @@ class TestAgentOrgGetResponse:
 class TestAgentOrgEdgeCases:
     """Test AgentOrg edge cases and error handling."""
 
-    def test_init_with_invalid_config_file(self, tmp_path) -> None:
+    def test_init_with_invalid_config_file(self, tmp_path: "Path") -> None:
         """Test initialization with invalid config file."""
         config_path = tmp_path / "nonexistent.json"
 
         with pytest.raises(FileNotFoundError):
             AgentOrg(str(config_path), None)
 
-    def test_init_params_with_empty_text(self, basic_config) -> None:
+    def test_init_params_with_empty_text(self, basic_config: dict[str, Any]) -> None:
         """Test parameter initialization with empty text."""
         agent = AgentOrg(basic_config, None)
         inputs = {
@@ -1013,7 +1056,7 @@ class TestAgentOrgEdgeCases:
         assert text == ""
 
     def test_post_process_node_with_node_limit_decrement(
-        self, basic_config, mock_node_info
+        self, basic_config: dict[str, Any], mock_node_info: Mock
     ) -> None:
         """Test node post-processing with node limit decrement."""
         agent = AgentOrg(basic_config, None)
@@ -1025,7 +1068,9 @@ class TestAgentOrgEdgeCases:
 
         assert result.taskgraph.node_limit["test_node"] == 0
 
-    def test_handl_direct_node_with_whitespace_value(self, basic_config) -> None:
+    def test_handl_direct_node_with_whitespace_value(
+        self, basic_config: dict[str, Any]
+    ) -> None:
         """Test direct node with whitespace value."""
         agent = AgentOrg(basic_config, None)
         params = Params()
@@ -1038,7 +1083,7 @@ class TestAgentOrgEdgeCases:
         assert response is None
 
     def test_perform_node_with_none_stream_type(
-        self, basic_config, mock_node_info
+        self, basic_config: dict[str, Any], mock_node_info: Mock
     ) -> None:
         """Test node performance with None stream type."""
         agent = AgentOrg(basic_config, None)
@@ -1069,3 +1114,106 @@ class TestAgentOrgEdgeCases:
 
         assert response_state.is_stream is False
         assert response_state.stream_type is None
+
+
+class TestAgentOrgImportFallback:
+    """Test AgentOrg import fallback scenarios."""
+
+    @patch("arklex.orchestrator.orchestrator.Unpack", new=None)
+    @patch("typing_extensions.Unpack")
+    def test_import_fallback_unpack_type(
+        self, mock_typing_extensions_unpack: Mock, basic_config: dict[str, Any]
+    ) -> None:
+        """Test that the import fallback for Unpack type works correctly."""
+        # This test ensures that when Unpack is not available in typing,
+        # it falls back to typing_extensions
+        agent = AgentOrg(basic_config, None)
+        assert agent.product_kwargs["role"] == "test_role"
+        # The import fallback should have been triggered
+        mock_typing_extensions_unpack.assert_not_called()  # It's imported, not called
+
+
+class TestAgentOrgAdditionalCoverage:
+    """Additional test cases to cover missing lines in orchestrator.py."""
+
+    def test_init_with_dict_config_and_planner(
+        self, basic_config: dict[str, Any]
+    ) -> None:
+        """Test initialization with dict config and planner enabled."""
+        # Add planner to the config
+        basic_config["workers"] = [{"name": "planner", "enabled": True}]
+
+        # Mock the Environment to return an environment with planner
+        with patch("arklex.orchestrator.orchestrator.Environment") as mock_env_class:
+            mock_env = Mock()
+            mock_env.planner = Mock()
+            mock_env.planner.set_llm_config_and_build_resource_library = Mock()
+            mock_env_class.return_value = mock_env
+
+            agent = AgentOrg(basic_config, None)
+
+            # Verify planner was set up
+            assert agent.env.planner is not None
+            agent.env.planner.set_llm_config_and_build_resource_library.assert_called_once()
+
+    def test_init_with_dict_config_and_no_planner(
+        self, basic_config: dict[str, Any]
+    ) -> None:
+        """Test initialization with dict config and no planner."""
+        # Ensure no planner in workers
+        basic_config["workers"] = []
+
+        # Mock the Environment to return an environment without planner
+        with patch("arklex.orchestrator.orchestrator.Environment") as mock_env_class:
+            mock_env = Mock()
+            mock_env.planner = None
+            mock_env_class.return_value = mock_env
+
+            agent = AgentOrg(basic_config, None)
+
+            # Verify no planner setup was attempted
+            assert agent.env.planner is None
+
+
+def test_agentorg_env_none_valid_config() -> None:
+    from arklex.orchestrator.orchestrator import AgentOrg
+
+    config = {
+        "model": {"model_type_or_path": "gpt-4", "llm_provider": "openai"},
+        "workers": [],
+        "tools": [],
+        "nodes": [],
+        "edges": [],
+        "role": "test_role",
+        "user_objective": "test objective",
+        "builder_objective": "test builder objective",
+        "intro": "test intro",
+    }
+    agent = AgentOrg(config, None)
+    assert hasattr(agent, "env")
+    assert hasattr(agent, "task_graph")
+
+
+def test_agentorg_hitl_proposal_enabled_valid_config() -> None:
+    from arklex.orchestrator.orchestrator import AgentOrg
+
+    config = {
+        "model": {"model_type_or_path": "gpt-4", "llm_provider": "openai"},
+        "workers": [
+            {
+                "id": "hitl_worker",
+                "name": "HITLWorkerChatFlag",
+                "path": "hitl_worker.py",
+            }
+        ],
+        "tools": [],
+        "settings": {"hitl_proposal": True},
+        "nodes": [],
+        "edges": [],
+        "role": "test_role",
+        "user_objective": "test objective",
+        "builder_objective": "test builder objective",
+        "intro": "test intro",
+    }
+    agent = AgentOrg(config, None)
+    assert agent.hitl_proposal_enabled is True

@@ -14,6 +14,7 @@
 ## Tests
 <!-- How did you verify these changes? -->
 - [ ] Pre-commit code format check: Run `pip install pre-commit` and `pre-commit install` before committing changes <!-- enforce code formatter -->
+- [ ] Attach either `run-coverage-tests` label (to calculate test coverage) or `run-integration-tests` label (to skip test coverage), but not both, and ensure the check passes.
 - [ ] Test case 1: <!-- describe what you tested -->
 - [ ] Test case 2: <!-- describe what you tested -->
 

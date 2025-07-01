@@ -4,7 +4,10 @@ This module tests the document loading utilities including domain information
 extraction, document loading with caching, and handling different document types.
 """
 
-from unittest.mock import patch, MagicMock
+from typing import NoReturn
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 
 from arklex.evaluation import get_documents
 from arklex.utils.loader import CrawledObject, SourceType
@@ -48,6 +51,16 @@ class TestGetDomainInfo:
         result = get_documents.get_domain_info(documents)
         assert result == "First summary"
 
+    def test_get_domain_info_no_summary(self) -> None:
+        """Explicitly test get_domain_info for missing summary (lines 57-58)."""
+        from arklex.evaluation.get_documents import get_domain_info
+
+        docs = [
+            {"URL": "https://foo.com", "content": "foo"},
+            {"URL": "https://bar.com", "content": "bar"},
+        ]
+        assert get_domain_info(docs) is None
+
 
 class TestLoadDocs:
     """Test cases for load_docs function."""
@@ -57,7 +70,11 @@ class TestLoadDocs:
     @patch("builtins.open", create=True)
     @patch("arklex.utils.loader.Loader.save")
     def test_load_docs_with_existing_cache(
-        self, mock_save, mock_open, mock_exists, mock_pickle_load
+        self,
+        mock_save: Mock,
+        mock_open: Mock,
+        mock_exists: Mock,
+        mock_pickle_load: Mock,
     ) -> None:
         """Test loading documents with existing cache file."""
         mock_exists.return_value = True
@@ -95,11 +112,15 @@ class TestLoadDocs:
     @patch("builtins.open", create=True)
     @patch("arklex.utils.loader.Loader.save")
     def test_load_docs_without_cache_url_type(
-        self, mock_save, mock_open, mock_exists, mock_pickle_load
+        self,
+        mock_save: Mock,
+        mock_open: Mock,
+        mock_exists: Mock,
+        mock_pickle_load: Mock,
     ) -> None:
         """Test loading documents without cache for URL type."""
         mock_exists.return_value = False
-        from arklex.utils.loader import Loader, CrawledObject, SourceType
+        from arklex.utils.loader import CrawledObject, Loader, SourceType
 
         loader = Loader()
         with (
@@ -149,7 +170,11 @@ class TestLoadDocs:
     @patch("arklex.evaluation.get_documents.Loader")
     @patch("os.listdir")
     def test_load_docs_file_type(
-        self, mock_listdir, mock_loader_class, mock_exists, mock_pickle_load
+        self,
+        mock_listdir: Mock,
+        mock_loader_class: Mock,
+        mock_exists: Mock,
+        mock_pickle_load: Mock,
     ) -> None:
         """Test loading documents for file type."""
         mock_exists.return_value = False
@@ -185,7 +210,7 @@ class TestLoadDocs:
     @patch("os.path.exists")
     @patch("arklex.evaluation.get_documents.Loader")
     def test_load_docs_text_type(
-        self, mock_loader_class, mock_exists, mock_pickle_load
+        self, mock_loader_class: Mock, mock_exists: Mock, mock_pickle_load: Mock
     ) -> None:
         """Test loading documents for text type."""
         mock_exists.return_value = False
@@ -212,7 +237,22 @@ class TestLoadDocs:
         """Test loading documents with missing rag_docs and task_docs."""
         doc_config = {"other_key": "value"}
 
-        # The function prints an error and returns empty list, doesn't raise ValueError
+        # The function raises ValueError when neither rag_docs nor task_docs is present
+        with pytest.raises(
+            ValueError,
+            match="The config json file must have a key 'rag_docs' or 'task_docs' with a list of documents to load.",
+        ):
+            get_documents.load_docs("./temp_files", doc_config, 10)
+
+    def test_load_docs_empty_rag_docs(self) -> None:
+        """Test loading documents with empty rag_docs array."""
+        doc_config = {"rag_docs": []}
+        result = get_documents.load_docs("./temp_files", doc_config, 10)
+        assert result == []
+
+    def test_load_docs_empty_task_docs(self) -> None:
+        """Test loading documents with empty task_docs array."""
+        doc_config = {"task_docs": []}
         result = get_documents.load_docs("./temp_files", doc_config, 10)
         assert result == []
 
@@ -226,7 +266,7 @@ class TestLoadDocs:
     @patch("os.path.exists")
     @patch("arklex.evaluation.get_documents.Loader")
     def test_load_docs_with_exception(
-        self, mock_loader_class, mock_exists, mock_pickle_load
+        self, mock_loader_class: Mock, mock_exists: Mock, mock_pickle_load: Mock
     ) -> None:
         """Test loading documents with exception handling."""
         mock_exists.return_value = False
@@ -245,7 +285,7 @@ class TestLoadDocs:
     @patch("os.path.exists")
     @patch("arklex.evaluation.get_documents.Loader")
     def test_load_docs_high_total_docs(
-        self, mock_loader_class, mock_exists, mock_pickle_load
+        self, mock_loader_class: Mock, mock_exists: Mock, mock_pickle_load: Mock
     ) -> None:
         """Test loading documents with high total document count."""
         mock_exists.return_value = False
@@ -287,7 +327,7 @@ class TestLoadDocs:
     @patch("os.path.exists")
     @patch("arklex.evaluation.get_documents.Loader")
     def test_load_docs_mixed_source_types(
-        self, mock_loader_class, mock_exists, mock_pickle_load
+        self, mock_loader_class: Mock, mock_exists: Mock, mock_pickle_load: Mock
     ) -> None:
         """Test loading documents with mixed source types."""
         mock_exists.return_value = False
@@ -362,29 +402,28 @@ class TestLoadDocs:
 
     @patch("pickle.load")
     @patch("os.path.exists")
+    @patch("builtins.open", create=True)
     def test_load_docs_invalid_crawled_objects(
-        self, mock_exists, mock_pickle_load
+        self, mock_open: Mock, mock_exists: Mock, mock_pickle_load: Mock
     ) -> None:
-        """Test loading documents with invalid crawled objects."""
+        """Test load_docs raises ValueError for non-CrawledObject docs."""
         mock_exists.return_value = True
-        # Return a list of dicts instead of CrawledObject instances
-        mock_pickle_load.return_value = [
-            {"url": "https://example.com", "content": "Example content"}
-        ]
+        mock_pickle_load.return_value = [{"not": "CrawledObject"}]
+        mock_file = MagicMock()
+        mock_open.return_value = mock_file
 
-        doc_config = {
-            "task_docs": [{"source": "https://example.com", "type": "url", "num": 1}]
-        }
+        doc_config = {"task_docs": [{"source": "foo", "type": "url", "num": 1}]}
 
-        # The function prints an error and returns empty list, doesn't raise ValueError
-        result = get_documents.load_docs("./temp_files", doc_config, 10)
-        assert result == []
+        with pytest.raises(
+            ValueError, match="The documents must be a list of CrawledObject objects"
+        ):
+            get_documents.load_docs("/tmp", doc_config, 10)
 
     @patch("pickle.load")
     @patch("os.path.exists")
     @patch("arklex.evaluation.get_documents.Loader")
     def test_load_docs_with_num_field(
-        self, mock_loader_class, mock_exists, mock_pickle_load
+        self, mock_loader_class: Mock, mock_exists: Mock, mock_pickle_load: Mock
     ) -> None:
         """Test loading documents with num field specified."""
         mock_exists.return_value = False
@@ -421,7 +460,7 @@ class TestLoadDocs:
     @patch("os.path.exists")
     @patch("arklex.evaluation.get_documents.Loader")
     def test_load_docs_without_num_field(
-        self, mock_loader_class, mock_exists, mock_pickle_load
+        self, mock_loader_class: Mock, mock_exists: Mock, mock_pickle_load: Mock
     ) -> None:
         """Test loading documents without num field (should default to 1)."""
         mock_exists.return_value = False
@@ -451,3 +490,26 @@ class TestLoadDocs:
 
         assert len(result) == 1
         mock_loader.get_all_urls.assert_called_with("https://example.com", 1)
+
+    def test_load_docs_exception_branch_and_none_dir(self) -> None:
+        """Covers the except Exception branch (lines 138-140) and the else branch for document_dir is None (line 125) in load_docs."""
+        from arklex.evaluation.get_documents import load_docs
+
+        # except Exception branch
+        class DummyLoader:
+            def __init__(self) -> None:
+                pass
+
+            def get_all_urls(self, *a: object, **kw: object) -> NoReturn:
+                raise Exception("fail")
+
+        doc_config = {"task_docs": [{"source": "bad", "type": "url", "num": 1}]}
+        with patch(
+            "arklex.evaluation.get_documents.Loader", return_value=DummyLoader()
+        ):
+            # Should not raise, should return []
+            result = load_docs("/tmp", doc_config, 10)
+            assert isinstance(result, list)
+        # else branch for document_dir is None
+        result2 = load_docs(None, doc_config, 10)
+        assert result2 == []
