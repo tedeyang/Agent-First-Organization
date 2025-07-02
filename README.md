@@ -9,7 +9,7 @@
 [![Release](https://img.shields.io/github/release/arklexai/Agent-First-Organization?logo=github)](https://github.com/arklexai/Agent-First-Organization/releases)
 [![PyPI](https://img.shields.io/pypi/v/arklex.svg)](https://pypi.org/project/arklex)
 [![Python](https://img.shields.io/pypi/pyversions/arklex)](https://pypi.org/project/arklex)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
 [![Discord](https://img.shields.io/badge/discord-join%20community-7289da?logo=discord)](https://discord.gg/kJkefzkRg5)
 
 [🚀 Quick Start](#-get-started-in-5-minutes) • [📚 Documentation](https://arklexai.github.io/Agent-First-Organization/) • [💡 Examples](./examples/)
@@ -37,9 +37,7 @@ python create.py \
   --model gpt-4o-mini
 
 # Run agent
-python run.py \
-  --input-dir ./examples/customer_service \
-  --query "How do I reset my password?"
+python run.py --input-dir ./examples/customer_service
 
 # Deploy as API (optional)
 python model_api.py --input-dir ./examples/customer_service
@@ -103,28 +101,6 @@ graph TB
 | [Calendar Booking](./examples/calendar/) | Scheduling system | ⭐⭐ |
 | [Human-in-the-Loop](./examples/hitl_server/) | Interactive workflows | ⭐⭐⭐⭐ |
 
-### Quick Code Example
-
-```python
-from arklex import Orchestrator, TaskGraph
-from arklex.workers import RAGWorker
-
-orchestrator = Orchestrator(
-    llm_provider="openai",
-    model="gpt-4o",
-    api_key=os.getenv("OPENAI_API_KEY")
-)
-
-task_graph = TaskGraph([
-    {"id": "search", "type": "rag_worker", "description": "Search knowledge base"},
-    {"id": "respond", "type": "llm_worker", "description": "Generate response", "dependencies": ["search"]}
-])
-
-orchestrator.add_worker(RAGWorker(vector_db="milvus"))
-result = orchestrator.run(task_graph, query="How do I reset my password?")
-print(result.response)
-```
-
 ---
 
 ## 🔧 Configuration
@@ -167,7 +143,7 @@ TAVILY_API_KEY=your_tavily_key
 
 ## 📄 License
 
-Arklex AI is released under the **MIT License**. See [LICENSE](LICENSE) for details.
+Arklex AI is released under the **MIT License**. See [LICENSE](LICENSE.md) for details.
 
 This means you can:
 
