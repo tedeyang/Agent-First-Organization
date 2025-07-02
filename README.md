@@ -11,8 +11,9 @@
 [![Python](https://img.shields.io/pypi/pyversions/arklex)](https://pypi.org/project/arklex)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
 [![Discord](https://img.shields.io/badge/discord-join%20community-7289da?logo=discord)](https://discord.gg/kJkefzkRg5)
+![Coverage](https://img.shields.io/badge/coverage-99.1%25-green)
 
-[🚀 Quick Start](#-get-started-in-5-minutes) • [📚 Documentation](https://arklexai.github.io/Agent-First-Organization/) • [💡 Examples](./examples/)
+🚀 [Quick Start](#-get-started-in-5-minutes) • 📚 [Documentation](https://arklexai.github.io/Agent-First-Organization/) • 💡 [Examples](./examples/)
 
 </div>
 
@@ -37,9 +38,7 @@ python create.py \
   --model gpt-4o-mini
 
 # Run agent
-python run.py \
-  --input-dir ./examples/customer_service \
-  --query "How do I reset my password?"
+python run.py --input-dir ./examples/customer_service
 
 # Deploy as API (optional)
 python model_api.py --input-dir ./examples/customer_service
@@ -102,28 +101,6 @@ graph TB
 | [HubSpot CRM](./examples/hubspot/) | Contact management | ⭐⭐⭐ |
 | [Calendar Booking](./examples/calendar/) | Scheduling system | ⭐⭐ |
 | [Human-in-the-Loop](./examples/hitl_server/) | Interactive workflows | ⭐⭐⭐⭐ |
-
-### Quick Code Example
-
-```python
-from arklex import Orchestrator, TaskGraph
-from arklex.workers import RAGWorker
-
-orchestrator = Orchestrator(
-    llm_provider="openai",
-    model="gpt-4o",
-    api_key=os.getenv("OPENAI_API_KEY")
-)
-
-task_graph = TaskGraph([
-    {"id": "search", "type": "rag_worker", "description": "Search knowledge base"},
-    {"id": "respond", "type": "llm_worker", "description": "Generate response", "dependencies": ["search"]}
-])
-
-orchestrator.add_worker(RAGWorker(vector_db="milvus"))
-result = orchestrator.run(task_graph, query="How do I reset my password?")
-print(result.response)
-```
 
 ---
 
