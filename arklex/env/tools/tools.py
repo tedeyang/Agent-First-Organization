@@ -354,7 +354,6 @@ class Tool:
         if not missing_required:
             log_context.info("all required slots filled")
 
-
             try:
                 required_args = self._get_required_args()
             except Exception as e:
@@ -454,11 +453,10 @@ class Tool:
         self,
         state: MessageState,
         grouped_slots: dict[str, list[Slot]],
-        fixed_args: Any,
+        fixed_args: FixedArgs,
         required_args: list,
     ) -> list[dict[str, Any]]:
         """Call the tool for grouped slots, making calls based on the maximum length of the slot lists."""
-
         max_length = max(len(v) for v in grouped_slots.values())
         all_responses = []
 
@@ -489,7 +487,6 @@ class Tool:
             except Exception as e:
                 log_context.error(traceback.format_exc())
                 response = str(e)
-                
 
             call_id = str(uuid.uuid4())
             log_context.info(f"Tool {self.name} response for iteration {i}: {response}")
@@ -506,7 +503,7 @@ class Tool:
         return all_responses
 
     def _log_tool_call(
-        self, state: MessageState, kwargs: Any, response: Any, call_id: str
+        self, state: MessageState, kwargs: dict[str, Any], response: str, call_id: str
     ) -> None:
         state.function_calling_trajectory.append(
             {
@@ -534,7 +531,7 @@ class Tool:
             }
         )
 
-    def execute(self, state: MessageState, **fixed_args: Any) -> MessageState:
+    def execute(self, state: MessageState, **fixed_args: FixedArgs) -> MessageState:
         """Execute the tool with the current state and fixed arguments.
 
         This method is a wrapper around _execute that handles the execution flow

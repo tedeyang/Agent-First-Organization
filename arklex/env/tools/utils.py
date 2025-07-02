@@ -229,10 +229,13 @@ def trace(input: str, state: MessageState) -> MessageState:
     return state
 
 
-def execute_tool(self, tool_name: str, **kwargs: Any) -> Any:
+def execute_tool(
+    self: ToolExecutor, tool_name: str, **kwargs: ExecuteToolKwargs
+) -> str:
     """Execute a tool.
 
     Args:
+        self: The object instance containing tools
         tool_name: Name of the tool to execute
         **kwargs: Additional arguments for the tool
 
