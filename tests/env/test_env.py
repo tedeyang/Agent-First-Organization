@@ -243,6 +243,123 @@ def test_environment_step_planner_executes() -> None:
     mock_planner.execute.assert_called_once()
 
 
+def test_environment_step_agent_executes() -> None:
+    """Test environment step with agent execution."""
+    mock_agent_instance = Mock()
+    mock_agent_instance.execute.return_value = MessageState(
+        status=StatusEnum.COMPLETE,
+        function_calling_trajectory=[{"role": "user", "content": "test"}],
+    )
+
+    mock_agent_class = Mock(return_value=mock_agent_instance)
+
+    env = Environment(
+        tools=[
+            {
+                "id": "test_tool",
+                "name": "test_tool",
+                "description": "test",
+                "path": "test",
+            }
+        ],
+        workers=[],
+        agents=[{"id": "agent1", "name": "test_agent", "path": "test"}],
+    )
+    env.agents = {"agent1": {"name": "test_agent", "execute": mock_agent_class}}
+    env.id2name = {"agent1": "test_agent"}
+
+    message_state = MessageState()
+    params = Params()
+    params.memory.function_calling_trajectory = []
+    params.taskgraph.curr_node = "node1"
+    params.taskgraph.node_status = {}
+
+    node_info = NodeInfo()
+    node_info.additional_args = {
+        "successors": ["node2"],
+        "predecessors": ["node0"],
+        "extra_arg": "value",
+    }
+
+    result_state, result_params = env.step("agent1", message_state, params, node_info)
+
+    assert result_state.status == StatusEnum.COMPLETE
+    assert result_params.memory.function_calling_trajectory == [
+        {"role": "user", "content": "test"}
+    ]
+    assert result_params.taskgraph.node_status["node1"] == StatusEnum.COMPLETE
+
+    # Verify agent was initialized with correct parameters
+    mock_agent_class.assert_called_once_with(
+        successors=["node2"],
+        predecessors=["node0"],
+        tools=env.tools,
+        state=message_state,
+    )
+
+    # Verify agent execute was called with correct parameters
+    mock_agent_instance.execute.assert_called_once_with(
+        message_state, successors=["node2"], predecessors=["node0"], extra_arg="value"
+    )
+
+
+def test_initialize_slotfillapi_with_valid_string() -> None:
+    """Test initialize_slotfillapi with valid string endpoint (lines 147-162)."""
+    env = Environment(tools=[], workers=[], agents=[])
+
+    with patch("arklex.env.env.APIClientService") as mock_api_service:
+        mock_api_instance = Mock()
+        mock_api_service.return_value = mock_api_instance
+
+        with patch("arklex.env.env.SlotFiller") as mock_slot_filler:
+            mock_slot_filler_instance = Mock()
+            mock_slot_filler.return_value = mock_slot_filler_instance
+
+            result = env.initialize_slotfillapi("http://test-api.com")
+
+            mock_api_service.assert_called_once_with(base_url="http://test-api.com")
+            mock_slot_filler.assert_called_once_with(
+                model_service=env.model_service, api_service=mock_api_instance
+            )
+            assert result == mock_slot_filler_instance
+
+
+def test_environment_step_agent_with_empty_additional_args() -> None:
+    """Test agent execution with empty additional_args."""
+    mock_agent_instance = Mock()
+    mock_agent_instance.execute.return_value = MessageState(
+        status=StatusEnum.COMPLETE, function_calling_trajectory=[]
+    )
+
+    mock_agent_class = Mock(return_value=mock_agent_instance)
+
+    env = Environment(
+        tools={},
+        workers=[],
+        agents=[{"id": "agent1", "name": "test_agent", "path": "test"}],
+    )
+    env.agents = {"agent1": {"name": "test_agent", "execute": mock_agent_class}}
+
+    message_state = MessageState()
+    params = Params()
+    params.memory.function_calling_trajectory = []
+    params.taskgraph.curr_node = "node1"
+    params.taskgraph.node_status = {}
+
+    node_info = NodeInfo()
+    node_info.additional_args = {}
+
+    result_state, result_params = env.step("agent1", message_state, params, node_info)
+
+    # Verify agent was initialized with empty lists when keys are missing
+    mock_agent_class.assert_called_once_with(
+        successors=[],
+        predecessors=[],
+        tools=env.tools,
+        state=message_state,
+    )
+
+
 def test_environment_register_tool_success() -> None:
     """Test successful tool registration."""
     env = Environment(tools=[], workers=[], agents=[])
@@ -321,7 +438,7 @@ def test_initialize_slotfillapi_with_string() -> None:
     assert isinstance(slotfiller, SlotFiller)
 
 
-def test_initialize_slotfillapi_with_empty_string() -> None:
+def test_initialize_slotfillapi_with_empty_string() -> None:  # noqa: F811
     """Test slotfillapi initialization with empty string."""
     env = Environment(
         tools=[],
@@ -332,7 +449,7 @@ def test_initialize_slotfillapi_with_empty_string() -> None:
     assert isinstance(slotfiller, SlotFiller)
 
 
-def test_initialize_slotfillapi_with_non_string() -> None:
+def test_initialize_slotfillapi_with_non_string() -> None:  # noqa: F811
     """Test slotfillapi initialization with non-string value."""
     env = Environment(
         tools=[],
