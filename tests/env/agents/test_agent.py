@@ -180,50 +180,233 @@ class TestBaseAgent:
         assert result == mock_response_state
         assert mock_response_state.trajectory[0][0].output is None
 
-    @patch("arklex.env.agents.agent.log_context.error")
-    @patch("arklex.env.agents.agent.traceback.format_exc")
-    def test_execute_handles_exception(
-        self, mock_format_exc: Mock, mock_log_error: Mock, mock_state: MessageState
+    @patch("arklex.env.agents.agent.MessageState.model_validate")
+    def test_execute_with_empty_trajectory(
+        self, mock_validate: Mock, mock_state: MessageState
     ) -> None:
-        """Test that execute handles exceptions gracefully."""
-        mock_format_exc.return_value = "Mock traceback"
+        """Test execution when trajectory is empty."""
+        mock_response_state = Mock(spec=MessageState)
+        mock_response_state.response = "Test response"
+        mock_response_state.message_flow = ""
+        mock_response_state.trajectory = []
+        mock_validate.return_value = mock_response_state
 
-        agent = FailingAgent()
+        agent = ConcreteAgent()
         result = agent.execute(mock_state)
 
-        # Should return the original state when exception occurs
+        assert result == mock_response_state
+        # Should not raise an exception even with empty trajectory
+
+    @patch("arklex.env.agents.agent.MessageState.model_validate")
+    def test_execute_with_none_trajectory(
+        self, mock_validate: Mock, mock_state: MessageState
+    ) -> None:
+        """Test execution when trajectory is None."""
+        mock_response_state = Mock(spec=MessageState)
+        mock_response_state.response = "Test response"
+        mock_response_state.message_flow = ""
+        mock_response_state.trajectory = None
+        mock_validate.return_value = mock_response_state
+
+        agent = ConcreteAgent()
+        result = agent.execute(mock_state)
+
+        assert result == mock_response_state
+
+    @patch("arklex.env.agents.agent.MessageState.model_validate")
+    def test_execute_with_nested_empty_trajectory(
+        self, mock_validate: Mock, mock_state: MessageState
+    ) -> None:
+        """Test execution when trajectory has empty nested lists."""
+        mock_response_state = Mock(spec=MessageState)
+        mock_response_state.response = "Test response"
+        mock_response_state.message_flow = ""
+        mock_response_state.trajectory = [[]]
+        mock_validate.return_value = mock_response_state
+
+        agent = ConcreteAgent()
+        result = agent.execute(mock_state)
+
+        assert result == mock_response_state
+
+    def test_register_agent_with_existing_name(self) -> None:
+        """Test register_agent when class already has a name attribute."""
+
+        @register_agent
+        class TestAgent:
+            name = "ExistingName"
+
+        # Should override existing name with class name
+        assert TestAgent.name == "TestAgent"
+
+    def test_register_agent_multiple_decorations(self) -> None:
+        """Test that register_agent can be applied multiple times."""
+
+        @register_agent
+        @register_agent
+        class TestAgent:
+            pass
+
+        assert TestAgent.name == "TestAgent"
+
+    def test_base_agent_name_attribute_not_set_by_default(self) -> None:
+        """Test that BaseAgent doesn't have name set by default."""
+        # This should raise AttributeError since name is not set
+        with pytest.raises(AttributeError):
+            agent = ConcreteAgent()
+            _ = agent.name
+
+    def test_agent_with_custom_name(self) -> None:
+        """Test agent with manually set name."""
+        agent = ConcreteAgent()
+        agent.name = "CustomAgentName"
+
+        assert agent.name == "CustomAgentName"
+        assert str(agent) == "ConcreteAgent"  # str still uses class name
+
+    @patch("arklex.env.agents.agent.MessageState.model_validate")
+    def test_execute_model_validate_exception(
+        self, mock_validate: Mock, mock_state: MessageState
+    ) -> None:
+        """Test execute when MessageState.model_validate raises exception."""
+        mock_validate.side_effect = ValueError("Validation error")
+
+        agent = ConcreteAgent()
+        result = agent.execute(mock_state)
+
+        # Should return original state when validation fails
         assert result == mock_state
-        mock_log_error.assert_called_once_with("Mock traceback")
 
-    @patch("arklex.env.agents.agent.log_context.info")
-    def test_complete_state_incomplete_to_complete(
-        self, mock_log_info: Mock, mock_state: MessageState
+    @patch("arklex.env.agents.agent.log_context.error")
+    @patch("arklex.env.agents.agent.traceback.format_exc")
+    def test_execute_logs_specific_exception_type(
+        self, mock_format_exc: Mock, mock_log_error: Mock, mock_state: MessageState
     ) -> None:
-        """Test complete_state changes INCOMPLETE to COMPLETE."""
-        agent = ConcreteAgent()
-        agent.name = "TestAgent"
+        """Test that execute logs the specific exception traceback."""
 
-        result = agent.complete_state(mock_state)
+        class CustomExceptionAgent(BaseAgent):
+            def _execute(
+                self,
+                msg_state: MessageState,
+                **kwargs: Any,  # noqa: ANN401
+            ) -> dict[str, Any]:
+                raise RuntimeError("Custom runtime error")
 
-        assert result.status == StatusEnum.COMPLETE
-        mock_log_info.assert_called_once_with(
-            f"Ending agent {agent.name} with status {StatusEnum.COMPLETE}"
+        mock_format_exc.return_value = (
+            "RuntimeError: Custom runtime error\nTraceback..."
         )
 
-    @patch("arklex.env.agents.agent.log_context.info")
-    def test_complete_state_already_complete(
-        self, mock_log_info: Mock, complete_mock_state: MessageState
-    ) -> None:
-        """Test complete_state with already COMPLETE status."""
-        agent = ConcreteAgent()
-        agent.name = "TestAgent"
+        agent = CustomExceptionAgent()
+        result = agent.execute(mock_state)
 
-        result = agent.complete_state(complete_mock_state)
-
-        assert result.status == StatusEnum.COMPLETE
-        mock_log_info.assert_called_once_with(
-            f"Ending agent {agent.name} with status {StatusEnum.COMPLETE}"
+        assert result == mock_state
+        mock_log_error.assert_called_once_with(
+            "RuntimeError: Custom runtime error\nTraceback..."
         )
+
+    def test_multiple_agents_different_names(self) -> None:
+        """Test that multiple registered agents have different names."""
+
+        @register_agent
+        class FirstAgent(BaseAgent):
+            def _execute(
+                self,
+                msg_state: MessageState,
+                **kwargs: Any,  # noqa: ANN401
+            ) -> dict[str, Any]:
+                return {}
+
+        @register_agent
+        class SecondAgent(BaseAgent):
+            def _execute(
+                self,
+                msg_state: MessageState,
+                **kwargs: Any,  # noqa: ANN401
+            ) -> dict[str, Any]:
+                return {}
+
+        assert FirstAgent.name == "FirstAgent"
+        assert SecondAgent.name == "SecondAgent"
+        assert FirstAgent.name != SecondAgent.name
+
+    @patch("arklex.env.agents.agent.MessageState.model_validate")
+    def test_execute_with_complex_kwargs(
+        self, mock_validate: Mock, mock_state: MessageState
+    ) -> None:
+        """Test execute with complex kwargs including nested objects."""
+
+        class ComplexKwargsAgent(BaseAgent):
+            def _execute(
+                self,
+                msg_state: MessageState,
+                **kwargs: Any,  # noqa: ANN401
+            ) -> dict[str, Any]:
+                nested_data = kwargs.get("nested", {})
+                return {
+                    "status": StatusEnum.COMPLETE,
+                    "response": f"Processed: {nested_data.get('key', 'default')}",
+                    "message_flow": "",
+                    "function_calling_trajectory": [],
+                    "trajectory": msg_state.trajectory,
+                }
+
+        mock_response_state = Mock(spec=MessageState)
+        mock_response_state.response = "Processed: test_value"
+        mock_response_state.message_flow = ""
+        mock_response_state.trajectory = [[Mock()]]
+        mock_response_state.trajectory[0][0].output = None
+        mock_validate.return_value = mock_response_state
+
+        agent = ComplexKwargsAgent()
+        result = agent.execute(
+            mock_state, nested={"key": "test_value"}, other_param=42, flag=True
+        )
+
+        assert result == mock_response_state
+
+    def test_agent_inheritance_preserves_description(self) -> None:
+        """Test that agent inheritance preserves description from parent class."""
+
+        class ParentAgent(BaseAgent):
+            description = "Parent description"
+
+            def _execute(
+                self,
+                msg_state: MessageState,
+                **kwargs: Any,  # noqa: ANN401
+            ) -> dict[str, Any]:
+                return {}
+
+        class ChildAgent(ParentAgent):
+            pass
+
+        parent = ParentAgent()
+        child = ChildAgent()
+
+        assert parent.description == "Parent description"
+        assert child.description == "Parent description"
+
+    def test_agent_description_override(self) -> None:
+        """Test that child agent can override parent description."""
+
+        class ParentAgent(BaseAgent):
+            description = "Parent description"
+
+            def _execute(
+                self,
+                msg_state: MessageState,
+                **kwargs: Any,  # noqa: ANN401
+            ) -> dict[str, Any]:
+                return {}
+
+        class ChildAgent(ParentAgent):
+            description = "Child description"
+
+        parent = ParentAgent()
+        child = ChildAgent()
+
+        assert parent.description == "Parent description"
+        assert child.description == "Child description"
 
     def test_execute_with_kwargs(self, mock_state: MessageState) -> None:
         """Test that execute passes kwargs to _execute."""
@@ -257,16 +440,6 @@ class TestBaseAgent:
             agent.execute(mock_state, test_param="test_value")
 
             assert mock_response_state.trajectory[0][0].output == "Received: test_value"
-
-    def test_complete_state_with_kwargs(self, mock_state: MessageState) -> None:
-        """Test that complete_state accepts kwargs."""
-        agent = ConcreteAgent()
-        agent.name = "TestAgent"
-
-        # Should not raise an exception even with extra kwargs
-        result = agent.complete_state(mock_state, extra_param="value")
-
-        assert result.status == StatusEnum.COMPLETE
 
     def test_abstract_execute_method(self) -> None:
         """Test that BaseAgent cannot be instantiated due to abstract method."""
@@ -314,12 +487,8 @@ class TestAgentIntegration:
             mock_response_state.trajectory[0][0].output = None
             mock_validate.return_value = mock_response_state
 
-            result = agent.execute(mock_state)
+            agent.execute(mock_state)
             assert (
                 mock_response_state.trajectory[0][0].output
                 == "Integration test complete"
             )
-
-        # Test completion
-        result = agent.complete_state(mock_state)
-        assert result.status == StatusEnum.COMPLETE

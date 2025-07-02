@@ -2,7 +2,7 @@ import traceback
 from abc import ABC, abstractmethod
 from typing import Any, TypeVar
 
-from arklex.utils.graph_state import MessageState, StatusEnum
+from arklex.utils.graph_state import MessageState
 from arklex.utils.logging_utils import LogContext
 
 log_context = LogContext(__name__)
@@ -99,23 +99,3 @@ class BaseAgent(ABC):
         except Exception:
             log_context.error(traceback.format_exc())
             return msg_state
-
-    def complete_state(self, msg_state: MessageState, **kwargs: Any) -> MessageState:  # noqa: ANN401
-        """Clean up resources or perform any final actions when the agent is no longer needed.
-
-        This method can be overridden by subclasses to implement specific cleanup logic.
-        """
-        try:
-            if msg_state.status == StatusEnum.INCOMPLETE:
-                msg_state.status = StatusEnum.COMPLETE
-            log_context.info(
-                f"Ending agent {getattr(self, 'name', self.__class__.__name__)} with status {msg_state.status}"
-            )
-        except Exception as e:
-            log_context.error(f"Error when ending agent : {traceback.format_exc()}")
-            msg_state.status = StatusEnum.INCOMPLETE
-            msg_state.response = str(e)
-            log_context.error(
-                f"Agent {getattr(self, 'name', self.__class__.__name__)} ended with error: {e}"
-            )
-        return msg_state
