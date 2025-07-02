@@ -49,7 +49,7 @@ slots = ShopifySearchProductsSlots.get_all_slots()
 outputs = [ShopifyOutputs.PRODUCT_ID, *PAGEINFO_OUTPUTS]
 
 
-@register_tool(description, slots, outputs, isResponse=True)
+@register_tool(description, slots, outputs, isResponse=False, postProcess=True)
 def search_products(product_query: str, **kwargs: SearchProductsKwargs) -> str:
     """
     Search for products in the Shopify store based on a query string.

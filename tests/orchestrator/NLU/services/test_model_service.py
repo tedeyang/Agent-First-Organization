@@ -864,7 +864,8 @@ class TestModelServiceProcessTextExceptions:
     ) -> None:
         """Test process_text with non-string input."""
         with pytest.raises(Exception) as exc_info:
-            await model_service_with_mock_model.process_text(123)  # type: ignore
+            # type: ignore
+            await model_service_with_mock_model.process_text(123)
         # Should raise ArklexError due to error handler
         assert "ArklexError" in type(exc_info.value).__name__
 
@@ -1567,7 +1568,7 @@ class TestModelServiceFormatSlotInput:
         assert isinstance(system_prompt, str)
         assert "test_slot" in user_prompt
         assert "value1, value2, value3" in user_prompt
-        assert "slot filling assistant" in system_prompt
+        assert "slot-filling assistant" in system_prompt
 
     def test_format_slot_input_with_dict_items(
         self, model_service: ModelService

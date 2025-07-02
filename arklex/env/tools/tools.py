@@ -35,6 +35,7 @@ def register_tool(
     slots: list[dict[str, Any]] | None = None,
     outputs: list[str] | None = None,
     isResponse: bool = False,
+    postProcess: bool = False,
 ) -> Callable:
     """Register a tool with the Arklex framework.
 
@@ -46,6 +47,7 @@ def register_tool(
         slots (List[Dict[str, Any]], optional): List of slot definitions. Defaults to None.
         outputs (List[str], optional): List of output field names. Defaults to None.
         isResponse (bool, optional): Whether the tool is a response tool. Defaults to False.
+        postProcess (bool, optional): Indicates whether the tool's output requires additional post-processing
 
     Returns:
         Callable: A function that creates and returns a Tool instance.
@@ -68,7 +70,7 @@ def register_tool(
         key: str = f"{relative_path}-{func.__name__}"
 
         def tool() -> "Tool":
-            return Tool(func, key, desc, slots, outputs, isResponse)
+            return Tool(func, key, desc, slots, outputs, isResponse, postProcess)
 
         return tool
 
@@ -106,6 +108,7 @@ class Tool:
         info (Dict[str, Any]): Tool information including parameters and requirements.
         slots (List[Slot]): List of slot instances.
         isResponse (bool): Whether the tool is a response tool.
+        postProcess (bool): Indicates whether the tool's output requires additional post-processing
         properties (Dict[str, Dict[str, Any]]): Tool properties.
         llm_config (Dict[str, Any]): Language model configuration.
     """
@@ -118,6 +121,7 @@ class Tool:
         slots: list[dict[str, Any]],
         outputs: list[str],
         isResponse: bool,
+        postProcess: bool = False,
     ) -> None:
         """Initialize a new Tool instance.
 
@@ -128,6 +132,7 @@ class Tool:
             slots (List[Dict[str, Any]]): List of slot definitions.
             outputs (List[str]): List of output field names.
             isResponse (bool): Whether the tool is a response tool.
+            postProcess (bool): Indicates whether the tool's output requires additional post-processing
         """
         self.func: Callable = func
         self.name: str = name
@@ -138,6 +143,7 @@ class Tool:
         self.slots: list[Slot] = [Slot.model_validate(slot) for slot in slots]
         self.openai_slots: list[dict[str, Any]] = self._format_slots(slots)
         self.isResponse: bool = isResponse
+        self.postProcess: bool = postProcess
         self.properties: dict[str, dict[str, Any]] = {}
         self.llm_config: dict[str, Any] = {}
         self.fixed_args = {}
@@ -366,7 +372,7 @@ class Tool:
                 # Execute tool calls
                 try:
                     all_responses = self.call_tool_for_grouped_slots(
-                        state, grouped_slots, fixed_args, required_args
+                        state, grouped_slots, slots, fixed_args, required_args
                     )
                     tool_success = all(r.get("success") for r in all_responses)
                     response = "\n".join(f"{r.get('response')}" for r in all_responses)
@@ -382,10 +388,14 @@ class Tool:
 
         state.trajectory[-1][-1].input = slots
         state.trajectory[-1][-1].output = str(response)
-
         if tool_success:
             # Tool execution success
             if self.isResponse:
+                log_context.info(
+                    "Tool exeuction COMPLETE, and the output is stored in response"
+                )
+                state.response = str(response)
+            elif self.postProcess:
                 response = generate_multi_slot_cohesive_response(
                     response, self.llm_config
                 )
@@ -454,6 +464,7 @@ class Tool:
         self,
         state: MessageState,
         grouped_slots: dict[str, list[Slot]],
+        slots: list[Slot],
         fixed_args: FixedArgs,
         required_args: list,
     ) -> list[dict[str, Any]]:
@@ -470,11 +481,22 @@ class Tool:
                 for name, slots in grouped_slots.items()
             }
 
+            # Get the function signature to check parameters
+            sig = inspect.signature(self.func)
+
+            # Only include the slots list if the target function accepts it
+            if "slots" in sig.parameters:
+                kwargs["slots"] = [
+                    slot.model_dump() if hasattr(slot, "model_dump") else slot
+                    for slot in slots
+                ]
+
             combined_kwargs = {**kwargs, **fixed_args, **self.llm_config}
             # Ensure all required arguments are present
-            combined_kwargs.update(
-                {arg: combined_kwargs.get(arg, "") for arg in required_args}
-            )
+            for arg in required_args:
+                if arg not in kwargs:
+                    kwargs[arg] = ""
+
             tool_success: bool = False
             try:
                 response = self.func(**combined_kwargs)
