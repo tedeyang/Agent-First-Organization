@@ -20,9 +20,9 @@ Composite action to display coverage results as a comment on PRs.
 
 **Inputs:**
 
-- `coverage-percentage`: Coverage percentage to display
-- `min-threshold`: Minimum coverage threshold
-- `pr-number`: Pull request number
+- `github-token`: GitHub token for authentication (required)
+- `minimum-green`: Minimum coverage percentage for green status (default: 99.1)
+- `minimum-orange`: Minimum coverage percentage for orange status (default: 70)
 
 ### 3. `upload-coverage-report/`
 
@@ -30,7 +30,10 @@ Composite action to upload coverage reports as artifacts.
 
 **Inputs:**
 
-- `coverage-files`: Coverage files to upload (default: coverage.xml,htmlcov/)
+- `coverage-xml-path`: Path to coverage.xml file (default: coverage.xml)
+- `htmlcov-path`: Path to htmlcov directory (default: htmlcov/)
+- `artifact-name`: Name for the coverage report artifact (default: coverage-report)
+- `htmlcov-artifact-name`: Name for the HTML coverage artifact (default: htmlcov)
 
 ### 4. `update-badge/`
 
@@ -38,8 +41,10 @@ Composite action to update coverage badge in README.
 
 **Inputs:**
 
-- `coverage-percentage`: Coverage percentage to display in badge
-- `badge-color`: Color of the badge (default: green)
+- `coverage-file`: Path to coverage file (coverage.txt or coverage.xml) (default: coverage.txt)
+- `coverage-format`: Format of coverage file (txt or xml) (default: txt)
+- `min-coverage-threshold`: Minimum coverage threshold for color coding (default: 99.1)
+- `badge-pattern`: Pattern to match existing badge in README (default: coverage-[0-9]+\.[0-9]+%25-[a-z]+)
 
 ## Usage Examples
 
@@ -69,9 +74,9 @@ jobs:
       - name: Display coverage comment
         uses: ./.github/actions/display-coverage-comment
         with:
-          coverage-percentage: ${{ steps.coverage-check.outputs.coverage }}
-          min-threshold: '99.1'
-          pr-number: ${{ github.event.pull_request.number }}
+          github-token: ${{ github.token }}
+          minimum-green: '99.1'
+          minimum-orange: '70'
 ```
 
 ## Differences from Reusable Workflows
