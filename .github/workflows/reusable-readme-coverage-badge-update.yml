@@ -24,7 +24,7 @@ on:
         default: 'coverage-[0-9]+\.[0-9]+%25-[a-z]+'
         type: string
     secrets:
-      GITHUB_TOKEN:
+      github-token:
         required: true
 
 jobs:
