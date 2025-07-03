@@ -531,7 +531,7 @@ class TaskGraph(TaskGraphBase):
             k: v for k, v in candidate_intents.items() if k not in excluded_intents
         }
         pred_intent: str | None = None
-        # if only unsure_intent is available -> move directly to this intent
+        # if only unsure_intent is available -> no meaningful intent prediction
         if (
             len(candidate_intents) == 1
             and self.unsure_intent.get("intent") in candidate_intents
@@ -546,7 +546,7 @@ class TaskGraph(TaskGraphBase):
                     "global_intent": True,
                 }
             )
-            return True, pred_intent, {}, params
+            return False, pred_intent, {}, params
         else:  # global intent prediction
             # if match other intent, add flow, jump over
             candidate_intents[self.unsure_intent.get("intent")] = candidate_intents.get(
