@@ -17,6 +17,10 @@ from arklex.evaluation.simulate_first_pass_convos import simulate_conversations
 from arklex.evaluation.simulate_second_pass_convos import get_labeled_convos
 from arklex.utils.model_config import MODEL
 from arklex.utils.model_provider_config import LLM_PROVIDERS
+from arklex.utils.provider_utils import (
+    get_api_key_for_provider,
+    get_endpoint_for_provider,
+)
 
 
 def evaluate(
@@ -100,8 +104,12 @@ if __name__ == "__main__":
     parser.add_argument("--data_file", type=str, default=None)
     args: argparse.Namespace = parser.parse_args()
 
+    # Update model configuration with proper provider settings
     MODEL["model_type_or_path"] = args.model
     MODEL["llm_provider"] = args.llm_provider
+    MODEL["api_key"] = get_api_key_for_provider(args.llm_provider)
+    MODEL["endpoint"] = get_endpoint_for_provider(args.llm_provider)
+
     client: Any = create_client()
 
     assert args.model_api is not None, "Model api must be provided"
