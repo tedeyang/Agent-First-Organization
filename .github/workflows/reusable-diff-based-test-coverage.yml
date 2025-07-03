@@ -24,14 +24,14 @@ on:
       SHOPIFY_FIXED_ARGS:
         required: false
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   coverage-check:
     name: Diff-Based Coverage Check
     runs-on: ubuntu-latest
-
-    permissions:
-      contents: write
-      pull-requests: write
 
     env:
       SHOPIFY_FIXED_ARGS: ${{ secrets.SHOPIFY_FIXED_ARGS }}
