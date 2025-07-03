@@ -6,7 +6,7 @@ on:
       coverage-command:
         description: 'Command to run tests with coverage'
         required: false
-        default: 'pytest tests/ --cov=arklex --cov-report=term-missing --cov-report=html --cov-report=xml --no-cov-on-fail'
+        default: 'ARKLEX_TEST_ENV=local pytest tests/ --cov=arklex --cov-report=term-missing --cov-report=html --cov-report=xml --no-cov-on-fail'
         type: string
       min-coverage-threshold:
         description: 'Minimum coverage percentage to pass'
@@ -18,11 +18,15 @@ jobs:
   coverage-check:
     name: Run Tests and Check Coverage
     runs-on: ubuntu-latest
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     
     steps:
       - name: Run tests and check coverage threshold
         id: coverage-check
         shell: bash
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           ${{ inputs.coverage-command }}
 

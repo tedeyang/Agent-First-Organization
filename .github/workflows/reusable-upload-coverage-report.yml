@@ -28,6 +28,8 @@ jobs:
   upload-coverage:
     name: Upload Coverage Report
     runs-on: ubuntu-latest
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     
     steps:
       - name: Upload coverage report

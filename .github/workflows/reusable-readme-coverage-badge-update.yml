@@ -32,6 +32,8 @@ jobs:
     name: Update README Badge
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     
     permissions:
       contents: write
