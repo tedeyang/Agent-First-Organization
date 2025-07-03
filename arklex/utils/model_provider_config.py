@@ -67,7 +67,10 @@ def get_huggingface_llm(model: str, **kwargs: object) -> ChatHuggingFace:
 
 class DummyLLM:
     def __init__(self, *args: object, **kwargs: object) -> None:
-        pass
+        # Set model_name from kwargs if provided
+        self.model_name = kwargs.get("model", "dummy-model")
+        # Also set model attribute for compatibility
+        self.model = kwargs.get("model", "dummy-model")
 
     def invoke(self, messages: object) -> object:
         class Response:

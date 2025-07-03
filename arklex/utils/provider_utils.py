@@ -32,6 +32,9 @@ def get_api_key_for_provider(provider: str) -> str:
     Returns:
         str: The API key for the provider
     """
+    if provider is None:
+        raise TypeError("Provider cannot be None")
+
     provider_api_keys = {
         "openai": "OPENAI_API_KEY",
         "anthropic": "ANTHROPIC_API_KEY",
@@ -52,6 +55,9 @@ def get_endpoint_for_provider(provider: str) -> str:
     Returns:
         str: The endpoint URL for the provider
     """
+    if provider is None:
+        raise TypeError("Provider cannot be None")
+
     provider_endpoints = {
         "openai": "https://api.openai.com/v1",
         "anthropic": "https://api.anthropic.com",
@@ -72,6 +78,11 @@ def get_provider_config(provider: str, model: str) -> dict[str, Any]:
     Returns:
         Dict[str, Any]: Complete model configuration including API key and endpoint
     """
+    if provider is None:
+        raise TypeError("Provider cannot be None")
+    if model is None:
+        raise TypeError("Model cannot be None")
+
     return {
         "model_name": model,
         "model_type_or_path": model,
