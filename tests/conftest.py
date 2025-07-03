@@ -139,10 +139,14 @@ def mock_openai_client() -> Generator[None, None, None]:
 
 # Patch IntentDetector.predict_intent to return context-aware intents for tests
 @pytest.fixture(autouse=True)
-def mock_intent_detector_execute() -> Generator[None, None, None]:
+def mock_intent_detector_execute(
+    request: pytest.FixtureRequest,
+) -> Generator[None, None, None]:
     """Mock IntentDetector.predict_intent to return context-aware intents for tests."""
-    # Only mock if we're in test mode
-    if os.getenv("ARKLEX_TEST_ENV") == "local":
+    # Only mock if we're in test mode and not testing error handling
+    if os.getenv("ARKLEX_TEST_ENV") == "local" and not request.node.get_closest_marker(
+        "no_intent_mock"
+    ):
         from unittest.mock import patch
 
         from arklex.orchestrator.NLU.core.intent import IntentDetector
