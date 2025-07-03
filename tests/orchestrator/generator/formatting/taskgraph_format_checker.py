@@ -16,8 +16,7 @@ The checker validates:
 
 import json
 import os
-from pathlib import Path
-from typing import Any, Dict, List, Set, Tuple, Union
+from typing import Any
 
 from arklex.utils.logging_utils import LogContext
 
@@ -29,19 +28,19 @@ class TaskGraphFormatChecker:
 
     def __init__(self) -> None:
         """Initialize the TaskGraphFormatChecker."""
-        self.errors: List[str] = []
-        self.warnings: List[str] = []
-        self.node_ids: Set[str] = set()
-        self.template_ids: Set[str] = set()
+        self.errors: list[str] = []
+        self.warnings: list[str] = []
+        self.node_ids: set[str] = set()
+        self.template_ids: set[str] = set()
 
-    def check_taskgraph_file(self, file_path: str) -> Tuple[bool, List[str], List[str]]:
+    def check_taskgraph_file(self, file_path: str) -> tuple[bool, list[str], list[str]]:
         """Check a taskgraph.json file for format compliance.
 
         Args:
             file_path (str): Path to the taskgraph.json file
 
         Returns:
-            Tuple[bool, List[str], List[str]]: (is_valid, errors, warnings)
+            tuple[bool, list[str], list[str]]: (is_valid, errors, warnings)
         """
         self.errors = []
         self.warnings = []
@@ -57,7 +56,7 @@ class TaskGraphFormatChecker:
 
         # Load and parse JSON
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 taskgraph = json.load(f)
         except json.JSONDecodeError as e:
             self.errors.append(f"Invalid JSON format: {e}")
@@ -71,11 +70,11 @@ class TaskGraphFormatChecker:
 
         return is_valid, self.errors, self.warnings
 
-    def _validate_taskgraph_structure(self, taskgraph: Dict[str, Any]) -> bool:
+    def _validate_taskgraph_structure(self, taskgraph: dict[str, Any]) -> bool:
         """Validate the overall structure of the taskgraph.
 
         Args:
-            taskgraph (Dict[str, Any]): The taskgraph dictionary
+            taskgraph (dict[str, Any]): The taskgraph dictionary
 
         Returns:
             bool: True if structure is valid
@@ -112,11 +111,11 @@ class TaskGraphFormatChecker:
             ]
         )
 
-    def _validate_nodes(self, nodes: List[Any]) -> bool:
+    def _validate_nodes(self, nodes: list[Any]) -> bool:
         """Validate the nodes section of the taskgraph.
 
         Args:
-            nodes (List[Any]): List of nodes
+            nodes (list[Any]): List of nodes
 
         Returns:
             bool: True if nodes are valid
@@ -207,18 +206,16 @@ class TaskGraphFormatChecker:
             if "type" in node_data and not isinstance(node_data["type"], str):
                 self.warnings.append(f"Node {node_id} 'type' should be string")
 
-            if "limit" in node_data and not isinstance(
-                node_data["limit"], (int, float)
-            ):
+            if "limit" in node_data and not isinstance(node_data["limit"], int | float):
                 self.warnings.append(f"Node {node_id} 'limit' should be numeric")
 
         return valid_nodes
 
-    def _validate_edges(self, edges: List[Any]) -> bool:
+    def _validate_edges(self, edges: list[Any]) -> bool:
         """Validate the edges section of the taskgraph.
 
         Args:
-            edges (List[Any]): List of edges
+            edges (list[Any]): List of edges
 
         Returns:
             bool: True if edges are valid
@@ -291,7 +288,7 @@ class TaskGraphFormatChecker:
                 continue
 
             # Validate attribute field types
-            if not isinstance(attribute["weight"], (int, float)):
+            if not isinstance(attribute["weight"], int | float):
                 self.errors.append(f"Edge {i} attribute 'weight' must be numeric")
                 valid_edges = False
                 continue
@@ -324,11 +321,11 @@ class TaskGraphFormatChecker:
 
         return valid_edges
 
-    def _validate_templates(self, reusable_tasks: Dict[str, Any]) -> bool:
+    def _validate_templates(self, reusable_tasks: dict[str, Any]) -> bool:
         """Validate the reusable_tasks section of the taskgraph.
 
         Args:
-            reusable_tasks (Dict[str, Any]): Dictionary of reusable tasks/templates
+            reusable_tasks (dict[str, Any]): Dictionary of reusable tasks/templates
 
         Returns:
             bool: True if reusable tasks are valid
@@ -509,7 +506,7 @@ class TaskGraphFormatChecker:
 
                 # Check for optional limit field
                 if "limit" in template_data and not isinstance(
-                    template_data["limit"], (int, float)
+                    template_data["limit"], int | float
                 ):
                     self.warnings.append(
                         f"Nested graph {template_id} 'limit' should be numeric"
@@ -524,11 +521,11 @@ class TaskGraphFormatChecker:
 
         return valid_templates
 
-    def _validate_settings(self, settings: Dict[str, Any]) -> bool:
+    def _validate_settings(self, settings: dict[str, Any]) -> bool:
         """Validate the settings section of the taskgraph.
 
         Args:
-            settings (Dict[str, Any]): Settings dictionary
+            settings (dict[str, Any]): Settings dictionary
 
         Returns:
             bool: True if settings are valid
@@ -541,12 +538,12 @@ class TaskGraphFormatChecker:
         # No specific validation required for settings content
         return True
 
-    def _check_referential_integrity(self, nodes: List[Any], edges: List[Any]) -> bool:
+    def _check_referential_integrity(self, nodes: list[Any], edges: list[Any]) -> bool:
         """Check referential integrity between nodes and edges.
 
         Args:
-            nodes (List[Any]): List of nodes
-            edges (List[Any]): List of edges
+            nodes (list[Any]): List of nodes
+            edges (list[Any]): List of edges
 
         Returns:
             bool: True if referential integrity is maintained
@@ -578,11 +575,11 @@ class TaskGraphFormatChecker:
 
         return valid_integrity
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """Get a summary of the validation results.
 
         Returns:
-            Dict[str, Any]: Summary with error count, warning count, and details
+            dict[str, Any]: Summary with error count, warning count, and details
         """
         return {
             "is_valid": len(self.errors) == 0,
