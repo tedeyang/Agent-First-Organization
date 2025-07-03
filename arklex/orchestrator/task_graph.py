@@ -394,9 +394,9 @@ class TaskGraph(TaskGraphBase):
         if not available_global_intents:
             available_global_intents = copy.deepcopy(self.intents)
             if self.unsure_intent.get("intent") not in available_global_intents:
-                available_global_intents[self.unsure_intent.get("intent")].append(
+                available_global_intents[self.unsure_intent.get("intent")] = [
                     self.unsure_intent
-                )
+                ]
         log_context.info(f"Available global intents: {available_global_intents}")
         return available_global_intents
 
@@ -537,6 +537,16 @@ class TaskGraph(TaskGraphBase):
             and self.unsure_intent.get("intent") in candidate_intents
         ):
             pred_intent = self.unsure_intent.get("intent")
+            # Add NLU record for unsure intent
+            params.taskgraph.nlu_records.append(
+                {
+                    "candidate_intents": candidate_intents,
+                    "pred_intent": pred_intent,
+                    "no_intent": False,
+                    "global_intent": True,
+                }
+            )
+            return True, pred_intent, {}, params
         else:  # global intent prediction
             # if match other intent, add flow, jump over
             candidate_intents[self.unsure_intent.get("intent")] = candidate_intents.get(
