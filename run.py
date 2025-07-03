@@ -22,6 +22,7 @@ from arklex.orchestrator.orchestrator import AgentOrg
 from arklex.utils.logging_utils import LogContext
 from arklex.utils.model_config import MODEL
 from arklex.utils.model_provider_config import LLM_PROVIDERS
+from arklex.utils.provider_utils import get_provider_config
 
 load_dotenv()
 
@@ -91,13 +92,9 @@ if __name__ == "__main__":
     # Use absolute path to ensure RAG files can be found
     input_dir_abs = os.path.abspath(args.input_dir)
     os.environ["DATA_DIR"] = input_dir_abs
-    model: dict[str, str] = {
-        "model_name": args.model,
-        "model_type_or_path": args.model,
-        "llm_provider": args.llm_provider,
-        "api_key": os.getenv("OPENAI_API_KEY", ""),
-        "endpoint": "https://api.openai.com/v1",
-    }
+
+    # Get complete provider configuration
+    model = get_provider_config(args.llm_provider, args.model)
 
     # Load task graph configuration and initialize environment
     with open(os.path.join(input_dir_abs, "taskgraph.json")) as f:
