@@ -24,7 +24,7 @@ from arklex.orchestrator.generator.generator import Generator
 from arklex.utils.loader import Loader
 from arklex.utils.logging_utils import LogContext
 from arklex.utils.model_config import MODEL
-from arklex.utils.model_provider_config import PROVIDER_MAP
+from arklex.utils.model_provider_config import LLM_PROVIDERS, PROVIDER_MAP
 
 log_context = LogContext(__name__)
 load_dotenv()
@@ -247,6 +247,19 @@ def main() -> None:
         action="store_true",
         help="Disable interactive task editor (task editor is enabled by default)",
     )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default=MODEL["model_type_or_path"],
+        help="Model to use for generation",
+    )
+    parser.add_argument(
+        "--llm-provider",
+        type=str,
+        default=MODEL["llm_provider"],
+        choices=LLM_PROVIDERS,
+        help="LLM provider to use",
+    )
     args = parser.parse_args()
 
     # Handle nested graph flag
@@ -271,11 +284,17 @@ def main() -> None:
     documents = load_documents(config)
     log_context.info(f"📄 Loaded {len(documents)} documents successfully")
 
-    # Instantiate model
-    log_context.info("🤖 Initializing language model...")
-    model = PROVIDER_MAP.get(MODEL["llm_provider"], ChatOpenAI)(
-        model=MODEL["model_type_or_path"], timeout=30000
+    # Instantiate model with proper provider configuration
+    log_context.info(
+        f"🤖 Initializing language model (provider: {args.llm_provider}, model: {args.model})..."
     )
+
+    # Initialize model using the provider map
+    model_class = PROVIDER_MAP.get(args.llm_provider, ChatOpenAI)
+    if args.llm_provider == "huggingface":
+        model = model_class(model=args.model, timeout=30000)
+    else:
+        model = model_class(model=args.model, timeout=30000)
 
     # Determine output directory
     output_dir = args.output_dir or os.path.dirname(args.config)
