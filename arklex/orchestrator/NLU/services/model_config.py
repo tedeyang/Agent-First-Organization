@@ -48,12 +48,16 @@ class ModelConfig:
             model_config: Model configuration dictionary containing:
                 - model_type_or_path: Model identifier or path
                 - llm_provider: Provider name (e.g., 'openai', 'anthropic')
+                - api_key: API key for the provider
+                - endpoint: Endpoint URL for the provider
 
         Returns:
             Dictionary of model initialization parameters including:
                 - model: Model identifier
                 - temperature: Generation temperature (default: 0.1)
                 - n: Number of responses (1 for non-Anthropic providers)
+                - api_key: API key for the provider
+                - base_url: Base URL for the provider (if applicable)
 
         Raises:
             KeyError: If required configuration keys are missing
@@ -62,6 +66,18 @@ class ModelConfig:
             "model": model_config["model_type_or_path"],
             "temperature": DEFAULT_TEMPERATURE,
         }
+
+        # Add API key if provided
+        if "api_key" in model_config and model_config["api_key"]:
+            kwargs["api_key"] = model_config["api_key"]
+
+        # Add base URL if provided and not using default endpoints
+        if (
+            "endpoint" in model_config
+            and model_config["endpoint"]
+            and model_config["llm_provider"] in ["openai", "anthropic"]
+        ):
+            kwargs["base_url"] = model_config["endpoint"]
 
         if model_config["llm_provider"] != PROVIDER_ANTHROPIC:
             kwargs["n"] = 1
@@ -79,6 +95,8 @@ class ModelConfig:
             model_config: Model configuration dictionary containing:
                 - llm_provider: Provider name
                 - model_type_or_path: Model identifier
+                - api_key: API key for the provider
+                - endpoint: Endpoint URL for the provider
 
         Returns:
             Initialized model instance from the specified provider
@@ -92,7 +110,13 @@ class ModelConfig:
         if provider not in PROVIDER_MAP:
             raise ValueError(f"Unsupported provider: {provider}")
 
-        return PROVIDER_MAP[provider](**kwargs)
+        # Handle special cases for different providers
+        if provider == "huggingface":
+            # HuggingFace uses a function instead of a class
+            return PROVIDER_MAP[provider](**kwargs)
+        else:
+            # For other providers, use the class directly
+            return PROVIDER_MAP[provider](**kwargs)
 
     @staticmethod
     def configure_response_format(
