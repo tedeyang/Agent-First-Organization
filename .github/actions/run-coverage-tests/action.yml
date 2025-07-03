@@ -33,6 +33,8 @@ runs:
     - name: Install dependencies
       if: inputs.checkout-repo == 'true'
       shell: bash
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
         python -m pip install --upgrade pip
         pip install -e '.[milvus,shopify,hubspot]' --quiet
@@ -40,6 +42,8 @@ runs:
     - name: Run tests and check coverage threshold
       id: coverage-check
       shell: bash
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
         ${{ inputs.coverage-command }}
 
@@ -66,5 +70,4 @@ runs:
                 f.write(f'coverage={coverage:.1f}\\n')
         except Exception as e:
             print(f'Error reading coverage data: {e}')
-            exit(1)
-        "
+            exit(1)"

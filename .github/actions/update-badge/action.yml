@@ -1,37 +1,39 @@
-name: 'Update README Badge'
-description: 'Update coverage badge in README.md based on coverage data'
+name: "Update README Badge"
+description: "Update coverage badge in README.md based on coverage data"
 
 inputs:
   coverage-file:
-    description: 'Path to coverage file (coverage.txt or coverage.xml)'
+    description: "Path to coverage file (coverage.txt or coverage.xml)"
     required: false
-    default: 'coverage.txt'
+    default: "coverage.txt"
   coverage-format:
-    description: 'Format of coverage file (txt or xml)'
+    description: "Format of coverage file (txt or xml)"
     required: false
-    default: 'txt'
+    default: "txt"
   min-coverage-threshold:
-    description: 'Minimum coverage threshold for color coding'
+    description: "Minimum coverage threshold for color coding"
     required: false
-    default: '99.1'
+    default: "99.1"
   badge-pattern:
-    description: 'Pattern to match existing badge in README'
+    description: "Pattern to match existing badge in README"
     required: false
     default: 'coverage-[0-9]+\.[0-9]+%25-[a-z]+'
 
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
     - name: Extract coverage percentage
       id: coverage
       shell: bash
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
         if [ "${{ inputs.coverage-format }}" = "xml" ]; then
           # Extract from XML coverage file
           python -c "
         import xml.etree.ElementTree as ET
         import os
-        
+
         try:
             tree = ET.parse('${{ inputs.coverage-file }}')
             root = tree.getroot()
@@ -50,9 +52,11 @@ runs:
     - name: Determine badge color
       id: color
       shell: bash
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
         COVERAGE=${{ steps.coverage.outputs.coverage }}
-        
+
         if (( $(echo "$COVERAGE < 90" | bc -l) )); then
           echo "color=red"
         elif (( $(echo "$COVERAGE < 99" | bc -l) )); then
@@ -63,13 +67,15 @@ runs:
 
     - name: Update README badge
       shell: bash
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
         COVERAGE=${{ steps.coverage.outputs.coverage }}
         COLOR=${{ steps.color.outputs.color }}
-        
+
         NEW_BADGE="coverage-${COVERAGE}%25-${COLOR}"
         CURRENT_BADGE=$(grep -oE '${{ inputs.badge-pattern }}' README.md || echo "")
-        
+
         if [[ "$CURRENT_BADGE" != "$NEW_BADGE" ]]; then
           echo "Updating README badge from $CURRENT_BADGE to $NEW_BADGE"
           sed -i "s|${{ inputs.badge-pattern }}|$NEW_BADGE|g" README.md

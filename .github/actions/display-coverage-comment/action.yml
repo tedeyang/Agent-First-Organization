@@ -19,8 +19,10 @@ runs:
   steps:
     - name: Display coverage comment
       id: coverage
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       uses: py-cov-action/python-coverage-comment-action@v3
       with:
         GITHUB_TOKEN: ${{ inputs.github-token }}
         MINIMUM_GREEN: ${{ inputs.minimum-green }}
-        MINIMUM_ORANGE: ${{ inputs.minimum-orange }} 
+        MINIMUM_ORANGE: ${{ inputs.minimum-orange }}
