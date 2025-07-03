@@ -53,7 +53,7 @@ jobs:
       - name: Generate TaskGraph
         timeout-minutes: 10
         run: |
-          python create.py --config ${{ inputs.config-path }} --log-level INFO
+          python create.py --config ${{ inputs.config-path }} --log-level INFO --no-ui
           # Verify the file was actually generated
           if [ ! -f "examples/test/taskgraph.json" ]; then
             echo "❌ TaskGraph file was not generated after running create.py"
