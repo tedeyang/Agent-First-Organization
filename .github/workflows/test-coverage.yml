@@ -5,28 +5,18 @@ on:
     types: [labeled]
 
 jobs:
-  test:
-    name: run tests and display coverage
-
+  setup:
+    name: Setup Environment
     if: github.base_ref == 'main' && github.event.label.name == 'run-coverage-tests'
-
     runs-on: ubuntu-latest
-
-    permissions:
-      pull-requests: write
-      contents: write
-
-    env:
-      SHOPIFY_FIXED_ARGS: ${{ secrets.SHOPIFY_FIXED_ARGS }}
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      MIN_COVERAGE_THRESHOLD: '99.1'
-
+    outputs:
+      coverage-percentage: ${{ steps.coverage-check.outputs.coverage }}
     steps:
       - name: Checkout PR branch
         uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ github.token }}
 
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
@@ -40,26 +30,33 @@ jobs:
 
       - name: Run tests and check coverage threshold
         id: coverage-check
-        uses: ./.github/actions/run-coverage-tests.yml
+        uses: ./.github/actions/run-coverage-tests
         with:
           coverage-command: 'pytest tests/ --cov=arklex --cov-report=term-missing --cov-report=html --cov-report=xml --no-cov-on-fail'
           min-coverage-threshold: '99.1'
 
-      - name: Upload coverage report
-        uses: ./.github/actions/upload-coverage-report.yml
+  upload-coverage:
+    name: Upload Coverage Report
+    needs: setup
+    if: github.base_ref == 'main' && github.event.label.name == 'run-coverage-tests'
+    uses: ./.github/workflows/reusable-upload-coverage-report.yml
 
-      - name: Display coverage comment
-        id: coverage
-        uses: ./.github/actions/display-coverage-comment.yml
-        with:
-          github-token: ${{ github.token }}
-          minimum-green: '99.1'
-          minimum-orange: '70'
+  display-coverage:
+    name: Display Coverage Comment
+    needs: setup
+    if: github.base_ref == 'main' && github.event.label.name == 'run-coverage-tests'
+    uses: ./.github/workflows/reusable-display-coverage-comment.yml
+    with:
+      github-token: ${{ github.token }}
+      minimum-green: '99.1'
+      minimum-orange: '70'
 
-      - name: Update README badge
-        if: github.ref == 'refs/heads/main'
-        uses: ./.github/actions/update-badge.yml
-        with:
-          coverage-file: 'coverage.xml'
-          coverage-format: 'xml'
-          min-coverage-threshold: '99.1'
+  update-badge:
+    name: Update README Badge
+    needs: setup
+    if: github.base_ref == 'main' && github.event.label.name == 'run-coverage-tests' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/reusable-update-badge.yml
+    with:
+      coverage-file: 'coverage.xml'
+      coverage-format: 'xml'
+      min-coverage-threshold: '99.1'
