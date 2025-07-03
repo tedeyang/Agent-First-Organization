@@ -119,11 +119,26 @@ class OpenAIAgent(BaseAgent):
                             tool_calls=[tool_call],
                         ).model_dump()
                     )
-                    tool_response = self.tool_map[tool_name](
-                        # state=state,
-                        **tool_call.get("args"),
-                        **self.tool_args.get(tool_name, {}),
-                    )
+                    if tool_name == "custom_tools-http_tool-http_tool":
+                        slots: list[dict[str, str]] = []
+                        for name, value in tool_call.get("args", {}).items():
+                            slots.append(
+                                {
+                                    "name": name,
+                                    "value": value,
+                                }
+                            )
+                        # TODO: empty values for slots that were not provided
+                        tool_response = self.tool_map[tool_name](
+                            slots=slots,
+                            **self.tool_args.get(tool_name, {}),
+                        )
+                    else:
+                        tool_response = self.tool_map[tool_name](
+                            state=state,
+                            **tool_call.get("args"),
+                            **self.tool_args.get(tool_name, {}),
+                        )
                     state.function_calling_trajectory.append(
                         ToolMessage(
                             name=tool_name,
@@ -178,6 +193,7 @@ class OpenAIAgent(BaseAgent):
             log_context.info(
                 f"Configuring tool: {tool_object.func.__name__} with slots: {tool_object.slots}"
             )
+            tool_object.openai_slots = tool_object.slots.copy()
             tool_def = tool_object.to_openai_tool_def_v2()
             self.tool_defs.append(tool_object.to_openai_tool_def_v2())
             self.tool_map[tool_def["function"]["name"]] = tool_object.func
