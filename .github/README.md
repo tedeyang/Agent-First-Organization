@@ -8,12 +8,12 @@ This directory contains GitHub Actions workflows and custom actions for the Agen
 .github/
 ├── workflows/           # GitHub workflow definitions
 │   ├── reusable/       # Reusable workflows (called by others)
-│   │   ├── ruff_code_linting.yml
-│   │   ├── taskgraph_generation_validation.yml
-│   │   ├── diff_based_test_coverage.yml
-│   │   └── readme_coverage_badge_update.yml
+│   │   ├── ruff-code-linting.yml
+│   │   ├── taskgraph-generation-validation.yml
+│   │   ├── diff-based-test-coverage.yml
+│   │   └── readme-coverage-badge-update.yml
 │   ├── *.yml           # Trigger workflows (PR, schedule, etc.)
-│   └── nightly_*.yml   # Scheduled workflows
+│   └── nightly-*.yml   # Scheduled workflows
 ├── actions/            # Custom composite actions
 │   ├── display-coverage-comment/
 │   ├── run-coverage-tests/
@@ -29,23 +29,23 @@ This directory contains GitHub Actions workflows and custom actions for the Agen
 
 These contain the main business logic and are called by trigger workflows:
 
-- **`reusable/ruff_code_linting.yml`**: Ruff linting with configurable Python version and file scope
-- **`reusable/taskgraph_generation_validation.yml`**: TaskGraph generation and validation with configurable config path
-- **`reusable/diff_based_test_coverage.yml`**: Diff-based coverage checking with PR integration
-- **`reusable/readme_coverage_badge_update.yml`**: README badge updates based on coverage data
+- **`reusable/ruff-code-linting.yml`**: Ruff linting with configurable Python version and file scope
+- **`reusable/taskgraph-generation-validation.yml`**: TaskGraph generation and validation with configurable config path
+- **`reusable/diff-based-test-coverage.yml`**: Diff-based coverage checking with PR integration
+- **`reusable/readme-coverage-badge-update.yml`**: README badge updates based on coverage data
 
 ### Trigger Workflows (Event Handlers)
 
 These respond to GitHub events and call reusable workflows:
 
-- **`pr_code_linting.yml`**: Triggers on PR changes to Python files
-- **`pr_taskgraph_validation.yml`**: Triggers on PR events for taskgraph validation
-- **`pr_diff_coverage_check.yml`**: Triggers on PR labels for coverage checks
+- **`pr-code-linting.yml`**: Triggers on PR changes to Python files
+- **`pr-taskgraph-validation.yml`**: Triggers on PR events for taskgraph validation
+- **`pr-diff-coverage-check.yml`**: Triggers on PR labels for coverage checks
 - **`pr-check.yml`**: Validates PR descriptions
-- **`test_coverage.yml`**: Full coverage testing on labeled PRs
+- **`test-coverage.yml`**: Full coverage testing on labeled PRs
 - **`test-resources.yml`**: Integration testing on labeled PRs
 - **`release.yml`**: PyPI publishing on releases
-- **`nightly_regression.yml`**: Scheduled nightly testing
+- **`nightly-regression.yml`**: Scheduled nightly testing
 
 ### Custom Actions (Reusable Steps)
 
@@ -68,8 +68,8 @@ These encapsulate common step patterns:
 
 ### Adding a New Test Type
 
-1. Create a reusable workflow (e.g., `reusable/integration_tests.yml`)
-2. Create a trigger workflow that calls it (e.g., `pr_integration_tests.yml`)
+1. Create a reusable workflow (e.g., `reusable/integration-tests.yml`)
+2. Create a trigger workflow that calls it (e.g., `pr-integration-tests.yml`)
 3. Add the trigger to appropriate events (PR, schedule, etc.)
 
 ### Adding a New Custom Action
