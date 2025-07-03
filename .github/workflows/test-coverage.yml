@@ -13,6 +13,8 @@ jobs:
     name: Setup Environment
     if: github.base_ref == 'main' && github.event.label.name == 'run-coverage-tests'
     runs-on: ubuntu-latest
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     outputs:
       coverage-percentage: ${{ steps.coverage-check.outputs.coverage }}
     steps:
@@ -36,7 +38,7 @@ jobs:
         id: coverage-check
         uses: ./.github/actions/run-coverage-tests
         with:
-          coverage-command: 'pytest tests/ --cov=arklex --cov-report=term-missing --cov-report=html --cov-report=xml --no-cov-on-fail'
+          coverage-command: 'ARKLEX_TEST_ENV=local pytest tests/ --cov=arklex --cov-report=term-missing --cov-report=html --cov-report=xml --no-cov-on-fail'
           min-coverage-threshold: '99.1'
 
   upload-coverage:
