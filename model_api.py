@@ -20,6 +20,10 @@ from arklex.orchestrator.orchestrator import AgentOrg
 from arklex.utils.logging_utils import LogContext
 from arklex.utils.model_config import MODEL
 from arklex.utils.model_provider_config import LLM_PROVIDERS
+from arklex.utils.provider_utils import (
+    get_api_key_for_provider,
+    get_endpoint_for_provider,
+)
 
 log_context = LogContext(__name__)
 app: FastAPI = FastAPI()
@@ -126,8 +130,12 @@ if __name__ == "__main__":
 
     args: argparse.Namespace = parser.parse_args()
     os.environ["DATA_DIR"] = args.input_dir
+
+    # Update model configuration with proper provider settings
     MODEL["model_type_or_path"] = args.model
     MODEL["llm_provider"] = args.llm_provider
+    MODEL["api_key"] = get_api_key_for_provider(args.llm_provider)
+    MODEL["endpoint"] = get_endpoint_for_provider(args.llm_provider)
 
     log_level: int = getattr(logging, args.log_level.upper(), logging.WARNING)
 
