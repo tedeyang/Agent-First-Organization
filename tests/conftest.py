@@ -137,17 +137,47 @@ def mock_openai_client() -> Generator[None, None, None]:
         yield
 
 
-# Patch IntentDetector.execute to always return a dummy intent for tests
+# Patch IntentDetector.predict_intent to return context-aware intents for tests
 @pytest.fixture(autouse=True)
 def mock_intent_detector_execute() -> Generator[None, None, None]:
-    """Mock IntentDetector.execute to always return a dummy intent for tests."""
+    """Mock IntentDetector.predict_intent to return context-aware intents for tests."""
     # Only mock if we're in test mode
     if os.getenv("ARKLEX_TEST_ENV") == "local":
         from unittest.mock import patch
 
         from arklex.orchestrator.NLU.core.intent import IntentDetector
 
-        with patch.object(IntentDetector, "execute", return_value="others"):
+        def mock_predict_intent(
+            self: object,
+            text: str,
+            intents: dict[str, Any],
+            chat_history_str: str,
+            model_config: dict[str, Any],
+            **kwargs: object,
+        ) -> str:
+            """Mock predict_intent method that returns context-aware intents."""
+            # Check if the text matches any intent's sample utterances
+            for intent_name, intent_list in intents.items():
+                for intent_data in intent_list:
+                    if (
+                        "attribute" in intent_data
+                        and "sample_utterances" in intent_data["attribute"]
+                    ):
+                        sample_utterances = intent_data["attribute"][
+                            "sample_utterances"
+                        ]
+                        if text.lower() in [u.lower() for u in sample_utterances]:
+                            return intent_name
+
+            # If no match found, return "others" as fallback
+            return "others"
+
+        with patch.object(
+            IntentDetector,
+            "predict_intent",
+            side_effect=mock_predict_intent,
+            autospec=True,
+        ):
             yield
     else:
         yield
