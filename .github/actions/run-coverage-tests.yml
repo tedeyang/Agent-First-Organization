@@ -1,0 +1,47 @@
+name: 'Run Tests and Check Coverage'
+description: 'Run tests with coverage and check against minimum threshold'
+
+inputs:
+  coverage-command:
+    description: 'Command to run tests with coverage'
+    required: false
+    default: 'pytest tests/ --cov=arklex --cov-report=term-missing --cov-report=html --cov-report=xml --no-cov-on-fail'
+  min-coverage-threshold:
+    description: 'Minimum coverage percentage to pass'
+    required: false
+    default: '99.1'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Run tests and check coverage threshold
+      id: coverage-check
+      shell: bash
+      run: |
+        ${{ inputs.coverage-command }}
+
+        python -c "
+        import xml.etree.ElementTree as ET
+        import os
+
+        try:
+            tree = ET.parse('coverage.xml')
+            root = tree.getroot()
+            coverage = float(root.attrib['line-rate']) * 100
+            print(f'Coverage: {coverage:.1f}%')
+
+            min_coverage = float(os.environ.get('MIN_COVERAGE_THRESHOLD', '${{ inputs.min-coverage-threshold }}'))
+            print(f'Minimum coverage threshold: {min_coverage}%')
+
+            if coverage < min_coverage:
+                print(f'❌ Coverage ({coverage:.1f}%) is below minimum threshold ({min_coverage}%)')
+                exit(1)
+            else:
+                print(f'✅ Coverage ({coverage:.1f}%) meets minimum threshold ({min_coverage}%)')
+
+            with open(os.environ.get('GITHUB_OUTPUT', '/dev/null'), 'a') as f:
+                f.write(f'coverage={coverage:.1f}\\n')
+        except Exception as e:
+            print(f'Error reading coverage data: {e}')
+            exit(1)
+        " 
