@@ -8,7 +8,7 @@ on:
 
 jobs:
   lint:
-    uses: ./.github/workflows/reusable/ruff-code-linting.yml
+    uses: ./.github/workflows/reusable-ruff-code-linting.yml
     with:
       python-version: '3.10'
       run-on-all-files: false

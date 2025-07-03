@@ -8,13 +8,13 @@ on:
 
 jobs:
   lint:
-    uses: ./.github/workflows/reusable/ruff-code-linting.yml
+    uses: ./.github/workflows/reusable-ruff-code-linting.yml
     with:
       python-version: '3.10'
       run-on-all-files: true
 
   taskgraph:
-    uses: ./.github/workflows/reusable/taskgraph-generation-validation.yml
+    uses: ./.github/workflows/reusable-taskgraph-generation-validation.yml
     with:
       python-version: '3.10'
       config-path: './examples/test/config.json'
@@ -22,7 +22,7 @@ jobs:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
   coverage-check:
-    uses: ./.github/workflows/reusable/diff-based-test-coverage.yml
+    uses: ./.github/workflows/reusable-diff-based-test-coverage.yml
     with:
       python-version: '3.10'
       fail-under: '100'
