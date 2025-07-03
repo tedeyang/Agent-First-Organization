@@ -262,11 +262,8 @@ class Tool:
                     setattr(existing_slot, key, value)
             else:
                 # Add new slot
-                new_slot["prompt"] = new_slot.get("prompt", "Please enter a value.")
                 self.slots.append(Slot.model_validate(new_slot))
 
-        self.openai_slots = self.slots.copy()
-        log_context.info(f"Updated slots: {self.openai_slots}")
         # Update tool info with merged slots
         self.info = self.get_info([slot.model_dump() for slot in self.slots])
 
