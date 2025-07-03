@@ -120,7 +120,7 @@ class OpenAIAgent(BaseAgent):
                         ).model_dump()
                     )
                     tool_response = self.tool_map[tool_name](
-                        state=state,
+                        # state=state,
                         **tool_call.get("args"),
                         **self.tool_args.get(tool_name, {}),
                     )
@@ -163,19 +163,31 @@ class OpenAIAgent(BaseAgent):
         """
         for node in successors + predecessors:
             if node.resource_id in tools:
-                self.available_tools[node.resource_id] = tools[node.resource_id]
+                self.available_tools[node.resource_id] = (tools[node.resource_id], node)
 
     def _configure_tools(self) -> None:
         """
         Configure tools for the agent.
         This method is called during the initialization of the agent.
         """
-        for _tool_id, tool in self.available_tools.items():
+        for _tool_id, (tool, node_info) in self.available_tools.items():
             tool_object = tool["execute"]()
+            tool_object.load_slots(
+                getattr(node_info, "attributes", {}).get("slots", [])
+            )
+            log_context.info(
+                f"Configuring tool: {tool_object.func.__name__} with slots: {tool_object.slots}"
+            )
             tool_def = tool_object.to_openai_tool_def_v2()
             self.tool_defs.append(tool_object.to_openai_tool_def_v2())
             self.tool_map[tool_def["function"]["name"]] = tool_object.func
-            self.tool_args[tool_def["function"]["name"]] = tool["fixed_args"]
+            combined_args: dict[str, Any] = {
+                **tool["fixed_args"],
+                **(node_info.additional_args or {}),
+            }
+            self.tool_args[tool_def["function"]["name"]] = combined_args
+
+        log_context.info(f"Tool Definitions: {self.tool_defs}")
 
         end_conversation_tool = end_conversation()
         end_conversation_tool_def = end_conversation_tool.to_openai_tool_def_v2()
