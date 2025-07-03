@@ -81,4 +81,4 @@ runs:
           git push
         else
           echo "Badge already reflects current coverage."
-        fi 
+        fi

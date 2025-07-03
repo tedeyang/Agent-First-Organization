@@ -32,4 +32,4 @@ runs:
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.htmlcov-artifact-name }}
-        path: ${{ inputs.htmlcov-path }} 
+        path: ${{ inputs.htmlcov-path }}
