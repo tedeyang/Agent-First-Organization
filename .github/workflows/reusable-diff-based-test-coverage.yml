@@ -122,7 +122,7 @@ jobs:
         if: steps.coverage_check.outputs.coverage_low == 'true' && inputs.is-pr-check == true
         uses: peter-evans/create-or-update-comment@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ github.token }}
           issue-number: ${{ github.event.pull_request.number }}
           body: |
             ⚠️ **Diff coverage is ${{ steps.coverage_check.outputs.diff_coverage }}%**, which is below the required ${{ inputs.fail-under }}%.
@@ -140,7 +140,7 @@ jobs:
 
       - name: Update README badge
         if: always() && github.ref == 'refs/heads/main'
-        uses: ./.github/actions/update-badge.yml
+        uses: ./.github/workflows/reusable-update-badge.yml
         with:
           coverage-file: 'coverage.txt'
           coverage-format: 'txt'
@@ -154,4 +154,4 @@ jobs:
           echo "- **Diff Coverage**: ${{ steps.coverage_check.outputs.diff_coverage }}%" >> $GITHUB_STEP_SUMMARY
           echo "- **Status**: ${{ steps.coverage_check.outputs.coverage_low == 'true' && '❌ Below threshold' || '✅ Meets threshold' }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "📊 [View detailed coverage report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY 
+          echo "📊 [View detailed coverage report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY

@@ -1,4 +1,4 @@
-name: Reusable Badge Update
+name: Reusable Update README Badge
 
 on:
   workflow_call:
@@ -6,12 +6,12 @@ on:
       coverage-file:
         description: 'Path to coverage file (coverage.txt or coverage.xml)'
         required: false
-        default: 'coverage.xml'
+        default: 'coverage.txt'
         type: string
       coverage-format:
         description: 'Format of coverage file (txt or xml)'
         required: false
-        default: 'xml'
+        default: 'txt'
         type: string
       min-coverage-threshold:
         description: 'Minimum coverage threshold for color coding'
@@ -23,19 +23,14 @@ on:
         required: false
         default: 'coverage-[0-9]+\.[0-9]+%25-[a-z]+'
         type: string
-    secrets:
-      GITHUB_TOKEN:
-        required: true
 
 jobs:
   update-badge:
     name: Update README Badge
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    
     permissions:
       contents: write
-
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -44,6 +39,7 @@ jobs:
 
       - name: Extract coverage percentage
         id: coverage
+        shell: bash
         run: |
           if [ "${{ inputs.coverage-format }}" = "xml" ]; then
             # Extract from XML coverage file
@@ -68,6 +64,7 @@ jobs:
 
       - name: Determine badge color
         id: color
+        shell: bash
         run: |
           COVERAGE=${{ steps.coverage.outputs.coverage }}
           
@@ -80,6 +77,7 @@ jobs:
           fi
 
       - name: Update README badge
+        shell: bash
         run: |
           COVERAGE=${{ steps.coverage.outputs.coverage }}
           COLOR=${{ steps.color.outputs.color }}
