@@ -3,6 +3,8 @@ Integration tests for Shopify tools.
 
 This module contains comprehensive integration tests for all Shopify tools,
 including proper mocking of external services and edge case testing.
+These tests validate the complete Shopify integration workflow from API
+calls to response processing and error handling.
 """
 
 import json
@@ -22,6 +24,7 @@ from arklex.env.tools.shopify.search_products import search_products
 from arklex.utils.exceptions import ShopifyError, ToolExecutionError
 
 # Extract underlying functions from decorated tool functions for direct testing
+# This allows us to test the core functionality without the decorator wrapper
 search_products_func = search_products().func
 get_user_details_admin_func = get_user_details_admin().func
 get_products_func = get_products().func
@@ -34,7 +37,12 @@ get_web_product_func = get_web_product().func
 
 
 class TestShopifySearchProducts:
-    """Integration tests for search_products tool."""
+    """
+    Integration tests for search_products tool.
+
+    This test class validates the product search functionality, including
+    successful searches, empty results, API errors, and edge cases.
+    """
 
     @patch("arklex.env.tools.shopify.search_products.shopify.Session.temp")
     @patch("arklex.env.tools.shopify.search_products.PROVIDER_MAP")
@@ -46,24 +54,38 @@ class TestShopifySearchProducts:
         mock_session_temp: Mock,
         sample_shopify_product_data: dict,
     ) -> None:
-        """Test successful product search with LLM response generation."""
+        """
+        Test successful product search with LLM response generation.
+
+        This test validates that the search_products tool can successfully
+        query the Shopify GraphQL API, process the results, and generate
+        a natural language response using the configured LLM provider.
+        """
+        # Mock Shopify session for API authentication
+        # This simulates the Shopify session management
         mock_session = MagicMock()
         mock_session_temp.return_value.__enter__.return_value = mock_session
 
         # Mock GraphQL response with comprehensive product data
+        # This simulates a successful API response with product information
         mock_response = sample_shopify_product_data
 
+        # Set up GraphQL client mock to return the test data
+        # This simulates the GraphQL API client behavior
         mock_graphql_instance = MagicMock()
         mock_graphql_instance.execute.return_value = json.dumps(mock_response)
         mock_graphql.return_value = mock_graphql_instance
 
         # Mock LLM response for natural language processing
+        # This simulates the LLM provider generating a human-readable response
         mock_llm = MagicMock()
         mock_llm.invoke.return_value.content = (
             "I found some great products for you! What size are you looking for?"
         )
         mock_provider_map.get.return_value.return_value = mock_llm
 
+        # Execute the search_products function with test parameters
+        # This tests the complete workflow from input to output
         result = search_products_func(
             product_query="test product",
             shop_url="https://test-shop.myshopify.com",
@@ -73,13 +95,21 @@ class TestShopifySearchProducts:
             model_type_or_path="gpt-3.5-turbo",
         )
 
+        # Parse the JSON result and validate the structure
+        # This ensures the response format is correct
         result_data = json.loads(result)
-        assert "answer" in result_data
-        assert "card_list" in result_data
-        assert len(result_data["card_list"]) == 1
-        assert result_data["card_list"][0]["title"] == "Test Product"
+        assert "answer" in result_data, "Response should contain 'answer' field"
+        assert "card_list" in result_data, "Response should contain 'card_list' field"
+        assert len(result_data["card_list"]) == 1, "Should return exactly one product"
+        assert result_data["card_list"][0]["title"] == "Test Product", (
+            "Product title should match"
+        )
+
         # Verify that the LLM-generated answer contains expected content
-        assert "found" in result_data["answer"].lower()
+        # This ensures the natural language processing worked correctly
+        assert "found" in result_data["answer"].lower(), (
+            "LLM response should mention finding products"
+        )
 
     @patch("arklex.env.tools.shopify.search_products.shopify.Session.temp")
     @patch("arklex.env.tools.shopify.search_products.shopify.GraphQL")
@@ -88,15 +118,24 @@ class TestShopifySearchProducts:
         mock_graphql: Mock,
         mock_session_temp: Mock,
     ) -> None:
-        """Test product search when no products are found."""
+        """
+        Test product search when no products are found.
+
+        This test validates that the search_products tool properly handles
+        cases where the search query returns no matching products and
+        raises an appropriate error with a meaningful message.
+        """
+        # Mock Shopify session for API authentication
+        # This simulates the Shopify session management
         mock_session = MagicMock()
         mock_session_temp.return_value.__enter__.return_value = mock_session
 
         # Mock empty search results with proper pagination info
+        # This simulates a valid API response with no matching products
         mock_response = {
             "data": {
                 "products": {
-                    "nodes": [],
+                    "nodes": [],  # Empty product list
                     "pageInfo": {
                         "endCursor": None,
                         "hasNextPage": False,
@@ -107,10 +146,14 @@ class TestShopifySearchProducts:
             }
         }
 
+        # Set up GraphQL client mock to return empty results
+        # This simulates the GraphQL API returning no products
         mock_graphql_instance = MagicMock()
         mock_graphql_instance.execute.return_value = json.dumps(mock_response)
         mock_graphql.return_value = mock_graphql_instance
 
+        # Test that the function raises an appropriate error
+        # This validates the error handling for no results
         with pytest.raises(ToolExecutionError) as exc_info:
             search_products_func(
                 product_query="nonexistent product",
@@ -118,8 +161,12 @@ class TestShopifySearchProducts:
                 admin_token="test_admin_token",
                 api_version="2024-10",
             )
+
         # Verify error message contains expected pattern
-        assert "Tool search_products execution failed" in str(exc_info.value)
+        # This ensures the error message is informative
+        assert "Tool search_products execution failed" in str(exc_info.value), (
+            "Error message should indicate tool execution failure"
+        )
 
     @patch("arklex.env.tools.shopify.search_products.shopify.Session.temp")
     @patch("arklex.env.tools.shopify.search_products.shopify.GraphQL")
@@ -128,15 +175,26 @@ class TestShopifySearchProducts:
         mock_graphql: Mock,
         mock_session_temp: Mock,
     ) -> None:
-        """Test product search when Shopify API throws an exception."""
+        """
+        Test product search when Shopify API throws an exception.
+
+        This test validates that the search_products tool properly handles
+        API errors and exceptions, ensuring that failures are caught and
+        appropriate error messages are provided to the user.
+        """
+        # Mock Shopify session for API authentication
+        # This simulates the Shopify session management
         mock_session = MagicMock()
         mock_session_temp.return_value.__enter__.return_value = mock_session
 
         # Simulate API error by making execute method raise an exception
+        # This simulates a network error, authentication failure, or other API issue
         mock_graphql_instance = MagicMock()
         mock_graphql_instance.execute.side_effect = Exception("API Error")
         mock_graphql.return_value = mock_graphql_instance
 
+        # Test that the function raises an appropriate error
+        # This validates the error handling for API exceptions
         with pytest.raises(ToolExecutionError) as exc_info:
             search_products_func(
                 product_query="test product",
@@ -144,12 +202,21 @@ class TestShopifySearchProducts:
                 admin_token="test_admin_token",
                 api_version="2024-10",
             )
+
         # Verify error message contains expected pattern
-        assert "Tool search_products execution failed" in str(exc_info.value)
+        # This ensures the error message is informative
+        assert "Tool search_products execution failed" in str(exc_info.value), (
+            "Error message should indicate tool execution failure"
+        )
 
 
 class TestShopifyGetUserDetailsAdmin:
-    """Integration tests for get_user_details_admin tool."""
+    """
+    Integration tests for get_user_details_admin tool.
+
+    This test class validates the user details retrieval functionality,
+    including successful retrievals, user not found scenarios, and API errors.
+    """
 
     @patch("arklex.env.tools.shopify.get_user_details_admin.shopify.Session.temp")
     @patch("arklex.env.tools.shopify.get_user_details_admin.shopify.GraphQL")
@@ -158,11 +225,20 @@ class TestShopifyGetUserDetailsAdmin:
         mock_graphql: Mock,
         mock_session_temp: Mock,
     ) -> None:
-        """Test successful user details retrieval with comprehensive customer data."""
+        """
+        Test successful user details retrieval with comprehensive customer data.
+
+        This test validates that the get_user_details_admin tool can successfully
+        retrieve comprehensive customer information from Shopify, including
+        personal details, order history, and account metadata.
+        """
+        # Mock Shopify session for API authentication
+        # This simulates the Shopify session management
         mock_session = MagicMock()
         mock_session_temp.return_value.__enter__.return_value = mock_session
 
         # Mock comprehensive GraphQL response with all customer fields
+        # This simulates a complete customer profile with all available data
         mock_response = {
             "data": {
                 "customer": {
@@ -190,10 +266,14 @@ class TestShopifyGetUserDetailsAdmin:
             }
         }
 
+        # Set up GraphQL client mock to return the customer data
+        # This simulates the GraphQL API returning customer information
         mock_graphql_instance = MagicMock()
         mock_graphql_instance.execute.return_value = json.dumps(mock_response)
         mock_graphql.return_value = mock_graphql_instance
 
+        # Execute the get_user_details_admin function with test parameters
+        # This tests the complete workflow from customer ID to detailed profile
         result = get_user_details_admin_func(
             user_id="gid://shopify/Customer/12345",
             shop_url="https://test-shop.myshopify.com",
