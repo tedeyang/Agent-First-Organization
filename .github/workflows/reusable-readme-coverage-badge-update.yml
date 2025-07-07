@@ -73,13 +73,15 @@ jobs:
         run: |
           COVERAGE=${{ steps.coverage.outputs.coverage }}
           
-          if (( $(echo "$COVERAGE < 90" | bc -l) )); then
-            echo "color=red"
-          elif (( $(echo "$COVERAGE < 99" | bc -l) )); then
-            echo "color=orange"
-          else
-            echo "color=green"
-          fi
+          python -c "
+          coverage = float('$COVERAGE')
+          if coverage < 90:
+              print('color=red')
+          elif coverage < 99:
+              print('color=orange')
+          else:
+              print('color=green')
+          "
 
       - name: Update README badge
         run: |
