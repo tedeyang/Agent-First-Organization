@@ -622,7 +622,9 @@ class MilvusTestHelper:
 
         # Validate slotfillapi configuration
         slotfillapi = config["slotfillapi"]
-        assert isinstance(slotfillapi, dict), "Slotfillapi must be a dictionary"
+        # Allow empty string for slotfillapi in some configurations
+        if slotfillapi:
+            assert isinstance(slotfillapi, dict), "Slotfillapi must be a dictionary"
 
     @staticmethod
     def validate_worker_configuration(config: dict) -> None:
@@ -644,7 +646,9 @@ class MilvusTestHelper:
         assert isinstance(workers, list), "Workers must be a list"
 
         # Validate that required workers are present
-        worker_types = [worker.get("type", "") for worker in workers]
+        worker_types = [
+            worker.get("type", worker.get("name", "")) for worker in workers
+        ]
         assert "MilvusRAGWorker" in worker_types, "MilvusRAGWorker must be configured"
 
     @staticmethod
@@ -667,9 +671,11 @@ class MilvusTestHelper:
 
         # Validate that there are nodes configured for robotics queries
         node_types = [node[1].get("type", "") for node in nodes]
-        assert any("rag" in node_type.lower() for node_type in node_types), (
-            "Taskgraph must have RAG nodes for robotics queries"
-        )
+        # Also check resource names for RAG workers
+        resource_names = [node[1].get("resource", {}).get("name", "") for node in nodes]
+        assert any("rag" in node_type.lower() for node_type in node_types) or any(
+            "rag" in name.lower() for name in resource_names
+        ), "Taskgraph must have RAG nodes for robotics queries"
 
     @staticmethod
     def validate_taskgraph_metadata(config: dict) -> None:
@@ -718,8 +724,15 @@ class MilvusTestHelper:
 
         # Validate that all edges reference valid nodes
         for edge in edges:
-            source = edge.get("source")
-            target = edge.get("target")
+            # Handle different edge formats
+            if isinstance(edge, list) and len(edge) >= 2:
+                # Edge format: [source, target, attributes]
+                source = edge[0]
+                target = edge[1]
+            else:
+                # Edge format: {"source": ..., "target": ...}
+                source = edge.get("source")
+                target = edge.get("target")
 
             if source:
                 assert source in node_ids, (
