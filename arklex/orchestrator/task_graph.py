@@ -325,21 +325,48 @@ class TaskGraph(TaskGraphBase):
         return node_info, params
 
     def _postprocess_intent(
-        self, pred_intent: str, available_global_intents: list[str]
+        self,
+        pred_intent: str,
+        available_global_intents: list[str] | dict[str, list[dict[str, Any]]],
     ) -> tuple[bool, str, int]:
         found_pred_in_avil: bool = False
         real_intent: str = pred_intent
         idx: int = 0
+
+        # Handle format like "1) test_intent" from IntentDetector
+        if ") " in pred_intent:
+            try:
+                parts = pred_intent.split(") ", 1)
+                if len(parts) == 2:
+                    idx = int(parts[0])
+                    real_intent = parts[1].strip()
+            except (ValueError, IndexError):
+                # If parsing fails, use the original pred_intent
+                pass
+
         # check whether there are __<{idx}> in the pred_intent
-        if "__<" in pred_intent:
+        elif "__<" in pred_intent:
             real_intent = pred_intent.split("__<")[0]
             # get the idx
             idx = int(pred_intent.split("__<")[1].split(">")[0])
-        for item in available_global_intents:
+
+        # Convert dict to list of keys if needed
+        intent_list = available_global_intents
+        if isinstance(available_global_intents, dict):
+            intent_list = list(available_global_intents.keys())
+
+        for item in intent_list:
             if str_similarity(real_intent, item) > 0.9:
                 found_pred_in_avil = True
                 real_intent = item
                 break
+        # Fallback: if predicted intent is 'others' and 'others' is in available intents, treat as found
+        if (
+            not found_pred_in_avil
+            and real_intent == "others"
+            and "others" in intent_list
+        ):
+            found_pred_in_avil = True
         return found_pred_in_avil, real_intent, idx
 
     def get_current_node(self, params: Params) -> tuple[str, Params]:
@@ -367,9 +394,9 @@ class TaskGraph(TaskGraphBase):
         if not available_global_intents:
             available_global_intents = copy.deepcopy(self.intents)
             if self.unsure_intent.get("intent") not in available_global_intents:
-                available_global_intents[self.unsure_intent.get("intent")].append(
+                available_global_intents[self.unsure_intent.get("intent")] = [
                     self.unsure_intent
-                )
+                ]
         log_context.info(f"Available global intents: {available_global_intents}")
         return available_global_intents
 
@@ -504,12 +531,22 @@ class TaskGraph(TaskGraphBase):
             k: v for k, v in candidate_intents.items() if k not in excluded_intents
         }
         pred_intent: str | None = None
-        # if only unsure_intent is available -> move directly to this intent
+        # if only unsure_intent is available -> no meaningful intent prediction
         if (
             len(candidate_intents) == 1
             and self.unsure_intent.get("intent") in candidate_intents
         ):
             pred_intent = self.unsure_intent.get("intent")
+            # Add NLU record for unsure intent
+            params.taskgraph.nlu_records.append(
+                {
+                    "candidate_intents": candidate_intents,
+                    "pred_intent": pred_intent,
+                    "no_intent": False,
+                    "global_intent": True,
+                }
+            )
+            return False, pred_intent, {}, params
         else:  # global intent prediction
             # if match other intent, add flow, jump over
             candidate_intents[self.unsure_intent.get("intent")] = candidate_intents.get(
@@ -536,7 +573,7 @@ class TaskGraph(TaskGraphBase):
             found_pred_in_avil: bool
             intent_idx: int
             found_pred_in_avil, pred_intent, intent_idx = self._postprocess_intent(
-                pred_intent, available_global_intents
+                pred_intent, candidate_intents
             )
             # if found prediction and prediction is not unsure intent and current intent
             if found_pred_in_avil and pred_intent != self.unsure_intent.get("intent"):
@@ -644,7 +681,7 @@ class TaskGraph(TaskGraphBase):
         found_pred_in_avil: bool
         intent_idx: int
         found_pred_in_avil, pred_intent, intent_idx = self._postprocess_intent(
-            pred_intent, curr_local_intents
+            pred_intent, curr_local_intents_w_unsure
         )
         log_context.info(
             f"Local intent predition -> found_pred_in_avil: {found_pred_in_avil}, pred_intent: {pred_intent}"

@@ -11,7 +11,7 @@
 [![Python](https://img.shields.io/pypi/pyversions/arklex)](https://pypi.org/project/arklex)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
 [![Discord](https://img.shields.io/badge/discord-join%20community-7289da?logo=discord)](https://discord.gg/kJkefzkRg5)
-![Coverage](https://img.shields.io/badge/coverage-99.1%25-green)
+![Coverage](https://img.shields.io/badge/coverage-99.2%25-green)
 
 🚀 [Quick Start](#-get-started-in-5-minutes) • 📚 [Documentation](https://arklexai.github.io/Agent-First-Organization/) • 💡 [Examples](./examples/)
 
@@ -25,7 +25,7 @@
 
 ```bash
 # Install
-pip install arklex[all]
+pip install arklex
 
 # Create .env file
 echo "OPENAI_API_KEY=your_key_here" > .env
@@ -33,15 +33,10 @@ echo "OPENAI_API_KEY=your_key_here" > .env
 # Create your first agent
 python create.py \
   --config ./examples/customer_service/customer_service_config.json \
-  --output-dir ./examples/customer_service \
-  --llm_provider openai \
-  --model gpt-4o-mini
+  --output-dir ./examples/customer_service
 
 # Run agent
 python run.py --input-dir ./examples/customer_service
-
-# Deploy as API (optional)
-python model_api.py --input-dir ./examples/customer_service
 ```
 
 ▶️ **[Watch: Build a Customer Service Agent in 20 Minutes](https://youtu.be/y1P2Ethvy0I)**
