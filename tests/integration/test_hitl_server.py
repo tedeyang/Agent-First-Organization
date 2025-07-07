@@ -6,9 +6,6 @@ including proper mocking of external services, human-in-the-loop functionality,
 RAG responses, and edge case testing.
 """
 
-import json
-import os
-from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
@@ -27,40 +24,17 @@ from arklex.utils.graph_state import (
     Timing,
 )
 
-# Set up test environment variables
-os.environ.setdefault("OPENAI_API_KEY", "test_key")
-os.environ.setdefault("DATA_DIR", "./examples/hitl_server")
-
 
 class TestHITLServerIntegration:
     """Integration tests for HITL server taskgraph."""
 
     @pytest.fixture(scope="class")
-    def config_and_env(self) -> tuple[dict, Environment, str]:
+    def config_and_env(self, load_hitl_config: dict) -> tuple[dict, Environment, str]:
         """Load config and environment once per test session."""
-        # Load the taskgraph configuration
-        config_path = (
-            Path(__file__).parent.parent.parent
-            / "examples"
-            / "hitl_server"
-            / "taskgraph.json"
-        )
-        with open(config_path, encoding="utf-8") as f:
-            config = json.load(f)
-
-        # Set up model configuration
-        model = {
-            "model_name": "gpt-3.5-turbo",
-            "model_type_or_path": "gpt-3.5-turbo",
-            "llm_provider": "openai",
-            "api_key": "test_key",
-            "endpoint": "https://api.openai.com/v1",
-        }
-        config["model"] = model
-        config["input_dir"] = str(config_path.parent)
+        config = load_hitl_config
 
         # Initialize model service
-        model_service = ModelService(model)
+        model_service = ModelService(config["model"])
 
         # Initialize environment
         env = Environment(
@@ -168,6 +142,7 @@ class TestHITLServerIntegration:
         mock_embeddings: Mock,
         mock_post_process: Mock,
         config_and_env: tuple[dict, Environment, str],
+        mock_embeddings_response: list[list[float]],
     ) -> None:
         """Test that HITL chat flag is activated when user wants to talk to human."""
         config, env, start_message = config_and_env
@@ -194,7 +169,7 @@ class TestHITLServerIntegration:
         mock_load_docs.return_value = mock_retriever
 
         # Mock embeddings to return consistent vectors
-        mock_embeddings.return_value = [[0.1] * 1536] * 5  # Mock 5 documents
+        mock_embeddings.return_value = mock_embeddings_response
 
         # Mock chat completions to return proper response objects
         mock_response = Mock()
