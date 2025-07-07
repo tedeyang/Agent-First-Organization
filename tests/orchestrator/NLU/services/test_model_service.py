@@ -471,6 +471,23 @@ class TestModelServiceSlotProcessing:
         result = model_service.process_slot_response(json.dumps(response), slots)
         assert isinstance(result, list)
 
+    def test_process_slot_response_with_multiple_values(
+        self, model_service: ModelService
+    ) -> None:
+        """Test processing slot response where slot has multiple values."""
+        from arklex.utils.slot import Slot
+
+        response = {"location": ["SF", "LA"]}
+        slots = [
+            Slot(name="location", type="str", value=None, verified=False, required=True)
+        ]
+
+        result = model_service.process_slot_response(json.dumps(response), slots)
+
+        assert len(result) == 2
+        assert all(isinstance(s, Slot) for s in result)
+        assert {s.value for s in result} == {"SF", "LA"}
+
 
 class TestModelServiceVerification:
     """Test cases for ModelService slot verification methods."""

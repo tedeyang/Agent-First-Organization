@@ -363,28 +363,20 @@ class Tool:
 
             try:
                 required_args = self._get_required_args()
-            except Exception as e:
-                log_context.error(f"Failed to inspect function signature: {e}")
-                response = str(e)
-                state.status = StatusEnum.INCOMPLETE
-            else:
                 grouped_slots = self._group_slots_by_name(slots)
                 # Execute tool calls
-                try:
-                    all_responses = self.call_tool_for_grouped_slots(
-                        state, grouped_slots, slots, fixed_args, required_args
-                    )
-                    tool_success = all(r.get("success") for r in all_responses)
-                    response = "\n".join(f"{r.get('response')}" for r in all_responses)
-                    state.status = (
-                        StatusEnum.COMPLETE if tool_success else StatusEnum.INCOMPLETE
-                    )
-                except Exception as e:
-                    log_context.error(
-                        f"Tool execution failed: {traceback.format_exc()}"
-                    )
-                    response = str(e)
-                    state.status = StatusEnum.INCOMPLETE
+                all_responses = self.call_tool_for_grouped_slots(
+                    state, grouped_slots, slots, fixed_args, required_args
+                )
+                tool_success = all(r.get("success") for r in all_responses)
+                response = "\n".join(f"{r.get('response')}" for r in all_responses)
+                state.status = (
+                    StatusEnum.COMPLETE if tool_success else StatusEnum.INCOMPLETE
+                )
+            except Exception as e:
+                log_context.error(f"Tool execution failed: {traceback.format_exc()}")
+                response = str(e)
+                state.status = StatusEnum.INCOMPLETE
 
         state.trajectory[-1][-1].input = slots
         state.trajectory[-1][-1].output = str(response)
