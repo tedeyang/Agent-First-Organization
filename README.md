@@ -25,7 +25,7 @@
 
 ```bash
 # Install
-pip install arklex[all]
+pip install arklex
 
 # Create .env file
 echo "OPENAI_API_KEY=your_key_here" > .env
@@ -33,15 +33,10 @@ echo "OPENAI_API_KEY=your_key_here" > .env
 # Create your first agent
 python create.py \
   --config ./examples/customer_service/customer_service_config.json \
-  --output-dir ./examples/customer_service \
-  --llm_provider openai \
-  --model gpt-4o-mini
+  --output-dir ./examples/customer_service
 
 # Run agent
 python run.py --input-dir ./examples/customer_service
-
-# Deploy as API (optional)
-python model_api.py --input-dir ./examples/customer_service
 ```
 
 ▶️ **[Watch: Build a Customer Service Agent in 20 Minutes](https://youtu.be/y1P2Ethvy0I)**
