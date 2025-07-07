@@ -298,6 +298,9 @@ class TestHITLServerIntegration:
     @patch("langchain_openai.embeddings.base.OpenAIEmbeddings.embed_documents")
     @patch("langchain_openai.chat_models.base.ChatOpenAI")
     @patch(
+        "arklex.env.tools.RAG.retrievers.faiss_retriever.FaissRetrieverExecutor.search"
+    )
+    @patch(
         "arklex.env.tools.RAG.retrievers.faiss_retriever.FaissRetrieverExecutor.load_docs"
     )
     @patch("arklex.env.tools.utils.ToolGenerator.context_generate")
@@ -309,10 +312,12 @@ class TestHITLServerIntegration:
         mock_intent_detector: Mock,
         mock_generator: Mock,
         mock_load_docs: Mock,
+        mock_search: Mock,
         mock_chat: Mock,
         mock_embeddings: Mock,
         mock_post_process: Mock,
         config_and_env: tuple[dict, Environment, str],
+        mock_embeddings_response: list[list[float]],
     ) -> None:
         """
         Test RAG response generation for product questions.
@@ -344,6 +349,25 @@ class TestHITLServerIntegration:
             return message_state
 
         mock_rag_execute.side_effect = mock_rag_execute_side_effect
+
+        # Mock load_docs to return a mock retriever
+        mock_retriever = Mock()
+        mock_retriever.search.return_value = ("Mock retrieved text", [])
+        mock_load_docs.return_value = mock_retriever
+
+        # Mock embeddings to return consistent vectors
+        mock_embeddings.return_value = mock_embeddings_response
+
+        # Mock chat completions to return proper response objects
+        mock_response = Mock()
+        mock_response.content = (
+            "Based on our product database, I found information about your query. "
+            "Here are the relevant details you requested."
+        )
+        mock_chat.return_value = mock_response
+
+        # Mock RAG responses
+        mock_search.return_value = ("Mock retrieved text", [])
 
         # Mock ToolGenerator.context_generate to return a valid message state
         # This simulates the context generation process
