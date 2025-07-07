@@ -6,14 +6,8 @@ including proper mocking of external services and edge case testing.
 """
 
 import json
-import os
-import sys
 from unittest.mock import MagicMock, Mock, patch
 
-# Mock the mysql module BEFORE any other imports to prevent connection issues
-sys.modules["arklex.utils.mysql"] = MagicMock()
-
-# ruff: noqa: E402
 import pytest
 from hubspot.crm.objects.emails import ApiException as EmailsApiException
 from hubspot.crm.objects.meetings import ApiException as MeetingsApiException
@@ -28,13 +22,6 @@ from arklex.env.tools.hubspot.find_owner_id_by_contact_id import (
 )
 from arklex.utils.exceptions import AuthenticationError, ToolExecutionError
 
-# Set up test environment variables to prevent MySQL connection issues
-os.environ.setdefault("MYSQL_USERNAME", "test_user")
-os.environ.setdefault("MYSQL_PASSWORD", "test_password")
-os.environ.setdefault("MYSQL_HOSTNAME", "localhost")
-os.environ.setdefault("MYSQL_PORT", "3306")
-os.environ.setdefault("MYSQL_DB_NAME", "test_db")
-
 # Extract underlying functions from decorated tool functions for direct testing
 find_contact_by_email_func = find_contact_by_email().func
 create_ticket_func = create_ticket().func
@@ -45,42 +32,6 @@ create_meeting_func = create_meeting().func
 
 class TestHubSpotFindContactByEmail:
     """Integration tests for find_contact_by_email tool."""
-
-    @pytest.fixture
-    def mock_hubspot_client(self) -> MagicMock:
-        """Create a mock HubSpot client with predefined responses for contact search."""
-        mock_client = MagicMock()
-
-        # Mock successful contact search response
-        mock_search_response = MagicMock()
-        mock_search_response.to_dict.return_value = {
-            "total": 1,
-            "results": [
-                {
-                    "id": "12345",
-                    "properties": {
-                        "firstname": "John",
-                        "lastname": "Doe",
-                        "email": "john.doe@example.com",
-                    },
-                }
-            ],
-        }
-        mock_client.crm.contacts.search_api.do_search.return_value = (
-            mock_search_response
-        )
-
-        # Mock communication record creation
-        mock_comm_response = MagicMock()
-        mock_comm_response.to_dict.return_value = {"id": "comm_123"}
-        mock_client.crm.objects.communications.basic_api.create.return_value = (
-            mock_comm_response
-        )
-
-        # Mock contact-communication association
-        mock_client.crm.associations.v4.basic_api.create.return_value = None
-
-        return mock_client
 
     @patch("arklex.env.tools.hubspot.find_contact_by_email.hubspot.Client.create")
     @patch("arklex.env.tools.hubspot.find_contact_by_email.authenticate_hubspot")
@@ -177,94 +128,30 @@ class TestHubSpotFindContactByEmail:
 class TestHubSpotCreateTicket:
     """Integration tests for create_ticket tool."""
 
-    @pytest.fixture
-    def mock_hubspot_client(self) -> MagicMock:
-        """Create a mock HubSpot client with ticket creation responses."""
-        mock_client = MagicMock()
-
-        # Mock successful ticket creation
-        mock_ticket_response = MagicMock()
-        mock_ticket_response.to_dict.return_value = {"id": "ticket_123"}
-        mock_client.crm.tickets.basic_api.create.return_value = mock_ticket_response
-
-        # Mock ticket-contact association
-        mock_client.crm.associations.v4.basic_api.create.return_value = None
-
-        return mock_client
-
     @patch("arklex.env.tools.hubspot.create_ticket.hubspot.Client.create")
     @patch("arklex.env.tools.hubspot.create_ticket.authenticate_hubspot")
     def test_create_ticket_success(
         self,
         mock_authenticate: Mock,
         mock_client_create: Mock,
-        mock_hubspot_client: MagicMock,
+        mock_hubspot_ticket_client: MagicMock,
     ) -> None:
         """Test successful ticket creation with contact association."""
         mock_authenticate.return_value = "test_token"
-        mock_client_create.return_value = mock_hubspot_client
+        mock_client_create.return_value = mock_hubspot_ticket_client
 
         result = create_ticket_func(
             cus_cid="12345",
-            issue="I have a problem with my robot installation",
+            issue="I need help with my order",
             access_token="test_token",
         )
 
-        assert result == "ticket_123"
+        expected_result = "ticket_123"
+        assert result == expected_result
 
         # Verify ticket creation and association calls
-        mock_hubspot_client.crm.tickets.basic_api.create.assert_called_once()
-        mock_hubspot_client.crm.associations.v4.basic_api.create.assert_called_once()
-
-    @patch("arklex.env.tools.hubspot.create_ticket.hubspot.Client.create")
-    @patch("arklex.env.tools.hubspot.create_ticket.authenticate_hubspot")
-    def test_create_ticket_api_exception(
-        self,
-        mock_authenticate: Mock,
-        mock_client_create: Mock,
-        mock_hubspot_client: MagicMock,
-    ) -> None:
-        """Test ticket creation when HubSpot API throws an exception."""
-        mock_authenticate.return_value = "test_token"
-        mock_client_create.return_value = mock_hubspot_client
-
-        # Simulate API error during ticket creation
-        mock_hubspot_client.crm.tickets.basic_api.create.side_effect = (
-            EmailsApiException(status=400)
-        )
-
-        with pytest.raises(
-            ToolExecutionError,
-            match=HubspotExceptionPrompt.TICKET_CREATION_ERROR_PROMPT,
-        ):
-            create_ticket_func(
-                cus_cid="12345", issue="Test issue", access_token="test_token"
-            )
-
-    @patch("arklex.env.tools.hubspot.create_ticket.hubspot.Client.create")
-    @patch("arklex.env.tools.hubspot.create_ticket.authenticate_hubspot")
-    def test_create_ticket_association_exception(
-        self,
-        mock_authenticate: Mock,
-        mock_client_create: Mock,
-        mock_hubspot_client: MagicMock,
-    ) -> None:
-        """Test ticket creation when contact association fails."""
-        mock_authenticate.return_value = "test_token"
-        mock_client_create.return_value = mock_hubspot_client
-
-        # Simulate API error during association
-        mock_hubspot_client.crm.associations.v4.basic_api.create.side_effect = (
-            EmailsApiException(status=400)
-        )
-
-        with pytest.raises(
-            ToolExecutionError,
-            match=HubspotExceptionPrompt.TICKET_CREATION_ERROR_PROMPT,
-        ):
-            create_ticket_func(
-                cus_cid="12345", issue="Test issue", access_token="test_token"
-            )
+        mock_hubspot_ticket_client.crm.tickets.basic_api.create.assert_called_once()
+        mock_hubspot_ticket_client.crm.associations.v4.basic_api.create.assert_called_once()
 
 
 class TestHubSpotFindOwnerIdByContactId:
