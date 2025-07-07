@@ -6,222 +6,31 @@ including proper mocking of external services, RAG functionality with product fi
 node transitions, and edge case testing.
 """
 
-import json
-from pathlib import Path
+from typing import Any
 from unittest.mock import Mock, patch
 
-import pytest
-
-from arklex.env.env import Environment
-from arklex.orchestrator.NLU.services.model_service import ModelService
-from arklex.orchestrator.orchestrator import AgentOrg
-from arklex.utils.graph_state import (
-    BotConfig,
-    ConvoMessage,
-    LLMConfig,
-    MessageState,
-    Metadata,
-    OrchestratorMessage,
-    StatusEnum,
-    Timing,
-)
+from arklex.utils.graph_state import MessageState
+from tests.integration.test_utils import MilvusTestHelper
 
 
 class TestMilvusFilterIntegration:
     """Integration tests for Milvus filter taskgraph."""
 
-    @pytest.fixture(scope="class")
-    def milvus_taskgraph_path(self) -> Path:
-        """Provide the path to the Milvus filter taskgraph configuration."""
-        return Path("examples/milvus_filter/taskgraph.json")
-
-    @pytest.fixture(scope="class")
-    def load_milvus_config(self, milvus_taskgraph_path: Path) -> dict:
-        """Load the Milvus filter taskgraph configuration."""
-        with open(milvus_taskgraph_path, encoding="utf-8") as f:
-            config = json.load(f)
-
-        # Set up model configuration for testing
-        model = {
-            "model_name": "gpt-3.5-turbo",
-            "model_type_or_path": "gpt-3.5-turbo",
-            "llm_provider": "openai",
-            "api_key": "test_key",
-            "endpoint": "https://api.openai.com/v1",
-        }
-        config["model"] = model
-        config["input_dir"] = str(milvus_taskgraph_path.parent)
-
-        return config
-
-    @pytest.fixture(scope="class")
-    def config_and_env(self, load_milvus_config: dict) -> tuple[dict, Environment, str]:
-        """Load config and environment once per test session."""
-        config = load_milvus_config
-
-        # Initialize model service
-        model_service = ModelService(config["model"])
-
-        # Initialize environment
-        env = Environment(
-            tools=config.get("tools", []),
-            workers=config.get("workers", []),
-            agents=config.get("agents", []),
-            slot_fill_api=config["slotfillapi"],
-            planner_enabled=True,
-            model_service=model_service,
-        )
-
-        # Find start message
-        for node in config["nodes"]:
-            if node[1].get("type", "") == "start":
-                start_message = node[1]["attribute"]["value"]
-                break
-        else:
-            raise ValueError("Start node not found in taskgraph.json")
-
-        return config, env, start_message
-
-    def _create_mock_message_state(
-        self, response: str = "Mock response"
-    ) -> MessageState:
-        """Create a mock MessageState for testing."""
-        return MessageState(
-            sys_instruct="Mock system instructions",
-            bot_config=BotConfig(
-                bot_id="test",
-                version="1.0",
-                language="EN",
-                bot_type="test",
-                llm_config=LLMConfig(
-                    model_type_or_path="gpt-3.5-turbo", llm_provider="openai"
-                ),
-            ),
-            user_message=ConvoMessage(
-                history="Mock conversation history", message="Mock user message"
-            ),
-            orchestrator_message=OrchestratorMessage(
-                message="Mock orchestrator message", attribute={}
-            ),
-            function_calling_trajectory=[],
-            trajectory=[],
-            message_flow="Mock message flow",
-            response=response,
-            status=StatusEnum.COMPLETE,
-            slots={},
-            metadata=Metadata(
-                chat_id="test-chat-id",
-                turn_id=1,
-                hitl=None,
-                timing=Timing(),
-                attempts=None,
-            ),
-            is_stream=False,
-            message_queue=None,
-            stream_type=None,
-            relevant_records=None,
-        )
-
-    def _get_api_bot_response(
-        self,
-        config: dict,
-        env: Environment,
-        user_text: str,
-        history: list[dict[str, str]],
-        params: dict,
-    ) -> tuple[str, dict, str | None]:
-        """Helper method to get bot response."""
-        data = {
-            "text": user_text,
-            "chat_history": history,
-            "parameters": params,
-        }
-        orchestrator = AgentOrg(config=config, env=env)
-        result = orchestrator.get_response(data)
-
-        return result["answer"], result["parameters"], result["human_in_the_loop"]
-
-    def test_taskgraph_structure_validation(self, load_milvus_config: dict) -> None:
+    def test_taskgraph_structure_validation(
+        self, load_milvus_config: dict[str, Any]
+    ) -> None:
         """Test that the taskgraph has the correct structure and required fields."""
-        config = load_milvus_config
+        MilvusTestHelper.validate_taskgraph_structure(load_milvus_config)
 
-        # Check required top-level fields
-        required_fields = [
-            "nodes",
-            "edges",
-            "role",
-            "user_objective",
-            "domain",
-            "intro",
-        ]
-        for field in required_fields:
-            assert field in config, f"Required field '{field}' missing from taskgraph"
-
-        # Check nodes structure
-        assert isinstance(config["nodes"], list), "Nodes should be a list"
-        assert len(config["nodes"]) >= 2, (
-            "Should have at least 2 nodes (start + worker)"
-        )
-
-        # Check edges structure
-        assert isinstance(config["edges"], list), "Edges should be a list"
-        assert len(config["edges"]) >= 1, "Should have at least 1 edge"
-
-        # Check that start node exists
-        start_node_found = False
-        for _node_id, node_data in config["nodes"]:
-            if node_data.get("type") == "start":
-                start_node_found = True
-                break
-        assert start_node_found, "Start node not found in taskgraph"
-
-        # Check that MilvusRAGWorker is configured
-        milvus_worker_found = False
-        for _node_id, node_data in config["nodes"]:
-            if (
-                node_data.get("resource", {}).get("name") == "MilvusRAGWorker"
-                or node_data.get("resource", {}).get("id") == "milvus_rag_worker"
-            ):
-                milvus_worker_found = True
-                break
-        assert milvus_worker_found, "MilvusRAGWorker not found in taskgraph"
-
-    def test_worker_configuration(self, load_milvus_config: dict) -> None:
+    def test_worker_configuration(self, load_milvus_config: dict[str, Any]) -> None:
         """Test that workers are properly configured in the taskgraph."""
-        config = load_milvus_config
+        MilvusTestHelper.validate_worker_configuration(load_milvus_config)
 
-        # Check workers list
-        assert "workers" in config, "Workers configuration missing"
-        assert isinstance(config["workers"], list), "Workers should be a list"
-
-        # Check required workers
-        worker_names = [worker.get("name") for worker in config["workers"]]
-        assert "MessageWorker" in worker_names, "MessageWorker not configured"
-        assert "MilvusRAGWorker" in worker_names, "MilvusRAGWorker not configured"
-
-        # Check worker paths
-        for worker in config["workers"]:
-            assert "id" in worker, f"Worker missing 'id' field: {worker}"
-            assert "name" in worker, f"Worker missing 'name' field: {worker}"
-            assert "path" in worker, f"Worker missing 'path' field: {worker}"
-
-    def test_domain_specific_configuration(self, load_milvus_config: dict) -> None:
+    def test_domain_specific_configuration(
+        self, load_milvus_config: dict[str, Any]
+    ) -> None:
         """Test that the taskgraph is properly configured for robotics domain."""
-        config = load_milvus_config
-
-        # Check domain-specific content
-        assert config["domain"] == "robotics and automation", "Incorrect domain"
-        assert "Richtech Robotics" in config["intro"], "Missing company information"
-        assert "robots" in config["intro"].lower(), "Missing robot information"
-
-        # Check that product tags are configured
-        for _node_id, node_data in config["nodes"]:
-            if node_data.get("resource", {}).get("name") == "MilvusRAGWorker":
-                tags = node_data.get("attribute", {}).get("tags", {})
-                assert "product" in tags, (
-                    "Product tags not configured for MilvusRAGWorker"
-                )
-                assert tags["product"] == "robots", "Incorrect product tag value"
+        MilvusTestHelper.validate_domain_specific_configuration(load_milvus_config)
 
     @patch("arklex.env.env.Environment.step")
     @patch("arklex.orchestrator.orchestrator.post_process_response")
@@ -245,7 +54,7 @@ class TestMilvusFilterIntegration:
         mock_embeddings: Mock,
         mock_post_process: Mock,
         mock_env_step: Mock,
-        config_and_env: tuple[dict, Environment, str],
+        config_and_env: tuple[dict[str, Any], Any, str],
     ) -> None:
         """Test that the start message is delivered correctly."""
         config, env, start_message = config_and_env
@@ -283,12 +92,14 @@ class TestMilvusFilterIntegration:
         # Mock post-processing
         def mock_post_process_side_effect(
             message_state: MessageState | None,
-            params: object,
+            params: dict[str, Any],
             hitl_available: bool,
             hitl_enabled: bool,
-        ) -> MessageState | None:
+        ) -> MessageState:
             if message_state is None:
-                message_state = self._create_mock_message_state(start_message)
+                message_state = MilvusTestHelper.create_mock_message_state(
+                    start_message
+                )
             return message_state
 
         mock_post_process.side_effect = mock_post_process_side_effect
@@ -297,9 +108,9 @@ class TestMilvusFilterIntegration:
         def mock_env_step_side_effect(
             resource_id: str,
             message_state: MessageState,
-            params: object,
-            node_info: object,
-        ) -> tuple[MessageState, object]:
+            params: dict[str, Any],
+            node_info: dict[str, Any],
+        ) -> tuple[MessageState, dict[str, Any]]:
             # Set the response to the start message
             message_state.response = start_message
             return message_state, params
@@ -307,11 +118,11 @@ class TestMilvusFilterIntegration:
         mock_env_step.side_effect = mock_env_step_side_effect
 
         # Test start message
-        history = []
-        params = {}
+        history: list[dict[str, str]] = []
+        params: dict[str, Any] = {}
         user_text = "<start>"
 
-        output, params, hitl = self._get_api_bot_response(
+        output, params, hitl = MilvusTestHelper.get_api_bot_response(
             config, env, user_text, history, params
         )
 
@@ -339,7 +150,7 @@ class TestMilvusFilterIntegration:
         mock_provider_map: Mock,
         mock_embeddings: Mock,
         mock_post_process: Mock,
-        config_and_env: tuple[dict, Environment, str],
+        config_and_env: tuple[dict[str, Any], Any, str],
     ) -> None:
         """Test MilvusRAGWorker responding to product questions with filtering."""
         config, env, start_message = config_and_env
@@ -349,7 +160,7 @@ class TestMilvusFilterIntegration:
 
         # Mock Milvus retrieval with product filtering
         def mock_milvus_retrieve_side_effect(
-            message_state: MessageState, tags: dict = None
+            message_state: MessageState, tags: dict[str, str] | None = None
         ) -> MessageState:
             # Verify that product tags are passed correctly
             assert tags is not None, "Tags should be passed to Milvus retrieval"
@@ -398,22 +209,24 @@ class TestMilvusFilterIntegration:
         # Mock post-processing
         def mock_post_process_side_effect(
             message_state: MessageState | None,
-            params: object,
+            params: dict[str, Any],
             hitl_available: bool,
             hitl_enabled: bool,
-        ) -> MessageState | None:
+        ) -> MessageState:
             if message_state is None:
-                message_state = self._create_mock_message_state()
+                message_state = MilvusTestHelper.create_mock_message_state()
             return message_state
 
         mock_post_process.side_effect = mock_post_process_side_effect
 
         # Test product query
-        history = [{"role": "assistant", "content": start_message}]
-        params = {}
+        history: list[dict[str, str]] = [
+            {"role": "assistant", "content": start_message}
+        ]
+        params: dict[str, Any] = {}
         user_text = "Tell me about your ADAM robot"
 
-        output, params, hitl = self._get_api_bot_response(
+        output, params, hitl = MilvusTestHelper.get_api_bot_response(
             config, env, user_text, history, params
         )
 
@@ -451,7 +264,7 @@ class TestMilvusFilterIntegration:
         mock_provider_map: Mock,
         mock_embeddings: Mock,
         mock_post_process: Mock,
-        config_and_env: tuple[dict, Environment, str],
+        config_and_env: tuple[dict[str, Any], Any, str],
     ) -> None:
         """Test conversation flow through multiple turns with different queries."""
         config, env, start_message = config_and_env
@@ -460,7 +273,7 @@ class TestMilvusFilterIntegration:
         mock_intent_detector.return_value = "1) User seeks information about robots"
 
         def mock_milvus_retrieve_side_effect(
-            message_state: MessageState, tags: dict = None
+            message_state: MessageState, tags: dict[str, str] | None = None
         ) -> MessageState:
             message_state.message_flow = "Retrieved information about delivery robots"
             return message_state
@@ -496,22 +309,24 @@ class TestMilvusFilterIntegration:
 
         def mock_post_process_side_effect(
             message_state: MessageState | None,
-            params: object,
+            params: dict[str, Any],
             hitl_available: bool,
             hitl_enabled: bool,
-        ) -> MessageState | None:
+        ) -> MessageState:
             if message_state is None:
-                message_state = self._create_mock_message_state()
+                message_state = MilvusTestHelper.create_mock_message_state()
             return message_state
 
         mock_post_process.side_effect = mock_post_process_side_effect
 
         # First turn
-        history = [{"role": "assistant", "content": start_message}]
-        params = {}
+        history: list[dict[str, str]] = [
+            {"role": "assistant", "content": start_message}
+        ]
+        params: dict[str, Any] = {}
         user_text = "What delivery robots do you have?"
 
-        output1, params, hitl = self._get_api_bot_response(
+        output1, params, hitl = MilvusTestHelper.get_api_bot_response(
             config, env, user_text, history, params
         )
 
@@ -523,7 +338,7 @@ class TestMilvusFilterIntegration:
         mock_intent_detector.return_value = "1) User seeks information about robots"
 
         def mock_milvus_retrieve_side_effect_second(
-            message_state: MessageState, tags: dict = None
+            message_state: MessageState, tags: dict[str, str] | None = None
         ) -> MessageState:
             message_state.message_flow = "Retrieved information about cleaning robots"
             return message_state
@@ -549,7 +364,7 @@ class TestMilvusFilterIntegration:
         ]
         user_text2 = "Tell me about your cleaning robots"
 
-        output2, params, hitl = self._get_api_bot_response(
+        output2, params, hitl = MilvusTestHelper.get_api_bot_response(
             config, env, user_text2, history, params
         )
 
@@ -577,7 +392,7 @@ class TestMilvusFilterIntegration:
         mock_provider_map: Mock,
         mock_embeddings: Mock,
         mock_post_process: Mock,
-        config_and_env: tuple[dict, Environment, str],
+        config_and_env: tuple[dict[str, Any], Any, str],
     ) -> None:
         """Test handling of empty or invalid input."""
         config, env, start_message = config_and_env
@@ -619,22 +434,24 @@ class TestMilvusFilterIntegration:
         # Mock post-processing
         def mock_post_process_side_effect(
             message_state: MessageState | None,
-            params: object,
+            params: dict[str, Any],
             hitl_available: bool,
             hitl_enabled: bool,
-        ) -> MessageState | None:
+        ) -> MessageState:
             if message_state is None:
-                message_state = self._create_mock_message_state()
+                message_state = MilvusTestHelper.create_mock_message_state()
             return message_state
 
         mock_post_process.side_effect = mock_post_process_side_effect
 
         # Test empty input
-        history = [{"role": "assistant", "content": start_message}]
-        params = {}
+        history: list[dict[str, str]] = [
+            {"role": "assistant", "content": start_message}
+        ]
+        params: dict[str, Any] = {}
         user_text = ""
 
-        output, params, hitl = self._get_api_bot_response(
+        output, params, hitl = MilvusTestHelper.get_api_bot_response(
             config, env, user_text, history, params
         )
 
@@ -662,7 +479,7 @@ class TestMilvusFilterIntegration:
         mock_provider_map: Mock,
         mock_embeddings: Mock,
         mock_post_process: Mock,
-        config_and_env: tuple[dict, Environment, str],
+        config_and_env: tuple[dict[str, Any], Any, str],
     ) -> None:
         """Test handling of Milvus retrieval errors."""
         config, env, start_message = config_and_env
@@ -703,22 +520,24 @@ class TestMilvusFilterIntegration:
         # Mock post-processing
         def mock_post_process_side_effect(
             message_state: MessageState | None,
-            params: object,
+            params: dict[str, Any],
             hitl_available: bool,
             hitl_enabled: bool,
-        ) -> MessageState | None:
+        ) -> MessageState:
             if message_state is None:
-                message_state = self._create_mock_message_state()
+                message_state = MilvusTestHelper.create_mock_message_state()
             return message_state
 
         mock_post_process.side_effect = mock_post_process_side_effect
 
         # Test error handling
-        history = [{"role": "assistant", "content": start_message}]
-        params = {}
+        history: list[dict[str, str]] = [
+            {"role": "assistant", "content": start_message}
+        ]
+        params: dict[str, Any] = {}
         user_text = "Tell me about your robots"
 
-        output, params, hitl = self._get_api_bot_response(
+        output, params, hitl = MilvusTestHelper.get_api_bot_response(
             config, env, user_text, history, params
         )
 
@@ -748,7 +567,7 @@ class TestMilvusFilterIntegration:
         mock_chat: Mock,
         mock_embeddings: Mock,
         mock_post_process: Mock,
-        config_and_env: tuple[dict, Environment, str],
+        config_and_env: tuple[dict[str, Any], Any, str],
     ) -> None:
         """Test that product filtering works correctly for different queries."""
         config, env, start_message = config_and_env
@@ -760,7 +579,7 @@ class TestMilvusFilterIntegration:
         retrieval_calls = []
 
         def mock_milvus_retrieve_side_effect(
-            message_state: MessageState, tags: dict = None
+            message_state: MessageState, tags: dict[str, str] | None = None
         ) -> MessageState:
             # Record the tags used for filtering
             retrieval_calls.append(tags)
@@ -806,12 +625,12 @@ class TestMilvusFilterIntegration:
 
         def mock_post_process_side_effect(
             message_state: MessageState | None,
-            params: object,
+            params: dict[str, Any],
             hitl_available: bool,
             hitl_enabled: bool,
-        ) -> MessageState | None:
+        ) -> MessageState:
             if message_state is None:
-                message_state = self._create_mock_message_state()
+                message_state = MilvusTestHelper.create_mock_message_state()
             return message_state
 
         mock_post_process.side_effect = mock_post_process_side_effect
@@ -827,7 +646,7 @@ class TestMilvusFilterIntegration:
         ]
 
         for query in queries:
-            output, params, hitl = self._get_api_bot_response(
+            output, params, hitl = MilvusTestHelper.get_api_bot_response(
                 config, env, query, history, params
             )
 
@@ -838,8 +657,13 @@ class TestMilvusFilterIntegration:
             assert "product" in last_call, "Product tag should be present"
             assert last_call["product"] == "robots", "Product tag should be 'robots'"
 
-    def test_environment_initialization(self, load_milvus_config: dict) -> None:
+    def test_environment_initialization(
+        self, load_milvus_config: dict[str, Any]
+    ) -> None:
         """Test that the environment initializes correctly with Milvus workers."""
+        from arklex.env.env import Environment
+        from arklex.orchestrator.NLU.services.model_service import ModelService
+
         config = load_milvus_config
 
         # Initialize model service
@@ -865,77 +689,12 @@ class TestMilvusFilterIntegration:
         assert "MessageWorker" in worker_names, "MessageWorker should be available"
         assert "MilvusRAGWorker" in worker_names, "MilvusRAGWorker should be available"
 
-    def test_taskgraph_metadata_validation(self, load_milvus_config: dict) -> None:
+    def test_taskgraph_metadata_validation(
+        self, load_milvus_config: dict[str, Any]
+    ) -> None:
         """Test that taskgraph metadata is properly configured."""
-        config = load_milvus_config
+        MilvusTestHelper.validate_taskgraph_metadata(load_milvus_config)
 
-        # Check role and objectives
-        assert config["role"] == "customer service assistant", "Incorrect role"
-        assert "customer service" in config["user_objective"].lower(), (
-            "Missing customer service objective"
-        )
-        assert "contact information" in config["builder_objective"].lower(), (
-            "Missing builder objective"
-        )
-
-        # Check domain-specific information
-        assert "Richtech Robotics" in config["intro"], "Missing company name"
-        assert "Las Vegas" in config["intro"], "Missing headquarters information"
-        assert "Austin" in config["intro"], "Missing office information"
-        assert "www.cloutea.com" in config["intro"], "Missing ClouTea website"
-
-        # Check product information
-        assert "ADAM" in config["intro"], "Missing ADAM robot information"
-        assert "ARM" in config["intro"], "Missing ARM robot information"
-        assert "ACE" in config["intro"], "Missing ACE robot information"
-        assert "Matradee" in config["intro"], "Missing Matradee robot information"
-        assert "DUST-E" in config["intro"], "Missing DUST-E robot information"
-
-        # Check delivery time information
-        assert "one month" in config["intro"], "Missing delivery time information"
-        assert "two months" in config["intro"], "Missing cleaning robot delivery time"
-
-    def test_node_edge_consistency(self, load_milvus_config: dict) -> None:
+    def test_node_edge_consistency(self, load_milvus_config: dict[str, Any]) -> None:
         """Test that nodes and edges are consistent and properly connected."""
-        config = load_milvus_config
-
-        # Get all node IDs
-        node_ids = [node[0] for node in config["nodes"]]
-
-        # Check that all edges reference valid nodes
-        for edge in config["edges"]:
-            source_node = edge[0]
-            target_node = edge[1]
-
-            assert source_node in node_ids, (
-                f"Edge source node '{source_node}' not found in nodes"
-            )
-            assert target_node in node_ids, (
-                f"Edge target node '{target_node}' not found in nodes"
-            )
-
-        # Check that start node has outgoing edges
-        start_node_id = None
-        for node_id, node_data in config["nodes"]:
-            if node_data.get("type") == "start":
-                start_node_id = node_id
-                break
-
-        assert start_node_id is not None, "Start node not found"
-
-        # Check that start node has outgoing edges
-        start_has_outgoing = any(edge[0] == start_node_id for edge in config["edges"])
-        assert start_has_outgoing, "Start node should have outgoing edges"
-
-        # Check that worker nodes have incoming edges
-        worker_node_ids = [
-            node_id
-            for node_id, node_data in config["nodes"]
-            if node_data.get("type") != "start"
-        ]
-
-        for worker_id in worker_node_ids:
-            worker_has_incoming = any(edge[1] == worker_id for edge in config["edges"])
-            assert worker_has_incoming, (
-                f"Worker node '{worker_id}' should have incoming edges"
-            )
+        MilvusTestHelper.validate_node_edge_consistency(load_milvus_config)
