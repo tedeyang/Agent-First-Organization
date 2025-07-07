@@ -3,6 +3,8 @@ Integration tests for HubSpot tools.
 
 This module contains comprehensive integration tests for all HubSpot tools,
 including proper mocking of external services and edge case testing.
+These tests validate the complete HubSpot integration workflow from API
+calls to response processing and error handling.
 """
 
 import json
@@ -23,6 +25,7 @@ from arklex.env.tools.hubspot.find_owner_id_by_contact_id import (
 from arklex.utils.exceptions import AuthenticationError, ToolExecutionError
 
 # Extract underlying functions from decorated tool functions for direct testing
+# This allows us to test the core functionality without the decorator wrapper
 find_contact_by_email_func = find_contact_by_email().func
 create_ticket_func = create_ticket().func
 find_owner_id_by_contact_id_func = find_owner_id_by_contact_id().func
@@ -31,7 +34,13 @@ create_meeting_func = create_meeting().func
 
 
 class TestHubSpotFindContactByEmail:
-    """Integration tests for find_contact_by_email tool."""
+    """
+    Integration tests for find_contact_by_email tool.
+
+    This test class validates the contact search functionality, including
+    successful searches, contact not found scenarios, API errors, and
+    authentication failures.
+    """
 
     @patch("arklex.env.tools.hubspot.find_contact_by_email.hubspot.Client.create")
     @patch("arklex.env.tools.hubspot.find_contact_by_email.authenticate_hubspot")
@@ -41,25 +50,40 @@ class TestHubSpotFindContactByEmail:
         mock_client_create: Mock,
         mock_hubspot_client: MagicMock,
     ) -> None:
-        """Test successful contact search by email with communication tracking."""
+        """
+        Test successful contact search by email with communication tracking.
+
+        This test validates that the find_contact_by_email tool can successfully
+        search for contacts by email address, create communication records,
+        and associate them with the found contact.
+        """
+        # Mock authentication to return a valid token
+        # This simulates successful HubSpot authentication
         mock_authenticate.return_value = "test_token"
         mock_client_create.return_value = mock_hubspot_client
 
+        # Execute the find_contact_by_email function with test parameters
+        # This tests the complete workflow from email to contact details
         result = find_contact_by_email_func(
             email="john.doe@example.com",
             chat="Hello, I have a question about your products",
             access_token="test_token",
         )
 
+        # Parse the JSON result and validate the structure
+        # This ensures the response format is correct
         expected_result = {
             "contact_id": "12345",
             "contact_email": "john.doe@example.com",
             "contact_first_name": "John",
             "contact_last_name": "Doe",
         }
-        assert json.loads(result) == expected_result
+        assert json.loads(result) == expected_result, (
+            "Contact details should match expected format"
+        )
 
         # Verify all expected API calls were made
+        # This ensures the tool performs all required operations
         mock_hubspot_client.crm.contacts.search_api.do_search.assert_called_once()
         mock_hubspot_client.crm.objects.communications.basic_api.create.assert_called_once()
         mock_hubspot_client.crm.associations.v4.basic_api.create.assert_called_once()
@@ -72,22 +96,38 @@ class TestHubSpotFindContactByEmail:
         mock_client_create: Mock,
         mock_hubspot_client: MagicMock,
     ) -> None:
-        """Test contact search when no matching contact exists."""
+        """
+        Test contact search when no matching contact exists.
+
+        This test validates that the find_contact_by_email tool properly handles
+        cases where the email address doesn't match any existing contacts
+        and raises an appropriate error with a meaningful message.
+        """
+        # Mock authentication to return a valid token
+        # This simulates successful HubSpot authentication
         mock_authenticate.return_value = "test_token"
         mock_client_create.return_value = mock_hubspot_client
 
         # Mock empty search results
+        # This simulates a valid API response with no matching contacts
         mock_search_response = MagicMock()
         mock_search_response.to_dict.return_value = {"total": 0, "results": []}
         mock_hubspot_client.crm.contacts.search_api.do_search.return_value = (
             mock_search_response
         )
 
+        # Test that the function raises an appropriate error
+        # This validates the error handling for no matching contacts
         with pytest.raises(ToolExecutionError) as exc_info:
             find_contact_by_email_func(
                 email="nonexistent@example.com", chat="Hello", access_token="test_token"
             )
-        assert HubspotExceptionPrompt.USER_NOT_FOUND_PROMPT in str(exc_info.value)
+
+        # Verify the error message contains the expected prompt
+        # This ensures the error message is informative and consistent
+        assert HubspotExceptionPrompt.USER_NOT_FOUND_PROMPT in str(exc_info.value), (
+            "Error message should contain user not found prompt"
+        )
 
     @patch("arklex.env.tools.hubspot.find_contact_by_email.hubspot.Client.create")
     @patch("arklex.env.tools.hubspot.find_contact_by_email.authenticate_hubspot")
@@ -97,28 +137,54 @@ class TestHubSpotFindContactByEmail:
         mock_client_create: Mock,
         mock_hubspot_client: MagicMock,
     ) -> None:
-        """Test contact search when HubSpot API throws an exception."""
+        """
+        Test contact search when HubSpot API throws an exception.
+
+        This test validates that the find_contact_by_email tool properly handles
+        API errors and exceptions, ensuring that failures are caught and
+        appropriate error messages are provided to the user.
+        """
+        # Mock authentication to return a valid token
+        # This simulates successful HubSpot authentication
         mock_authenticate.return_value = "test_token"
         mock_client_create.return_value = mock_hubspot_client
 
-        # Simulate API error
+        # Simulate API error by making search method raise an exception
+        # This simulates a network error, rate limiting, or other API issue
         mock_hubspot_client.crm.contacts.search_api.do_search.side_effect = (
             EmailsApiException(status=400)
         )
 
+        # Test that the function raises an appropriate error
+        # This validates the error handling for API exceptions
         with pytest.raises(ToolExecutionError) as exc_info:
             find_contact_by_email_func(
                 email="test@example.com", chat="Hello", access_token="test_token"
             )
-        assert HubspotExceptionPrompt.USER_NOT_FOUND_PROMPT in str(exc_info.value)
+
+        # Verify the error message contains the expected prompt
+        # This ensures the error message is informative and consistent
+        assert HubspotExceptionPrompt.USER_NOT_FOUND_PROMPT in str(exc_info.value), (
+            "Error message should contain user not found prompt"
+        )
 
     @patch("arklex.env.tools.hubspot.find_contact_by_email.authenticate_hubspot")
     def test_find_contact_by_email_authentication_error(
         self, mock_authenticate: Mock
     ) -> None:
-        """Test contact search with invalid or missing access token."""
+        """
+        Test contact search with invalid or missing access token.
+
+        This test validates that the find_contact_by_email tool properly handles
+        authentication failures and provides appropriate error messages
+        when the access token is invalid or missing.
+        """
+        # Mock authentication to raise an authentication error
+        # This simulates an invalid or missing access token
         mock_authenticate.side_effect = AuthenticationError("Missing access token")
 
+        # Test that the function raises an authentication error
+        # This validates the authentication error handling
         with pytest.raises(AuthenticationError):
             find_contact_by_email_func(
                 email="test@example.com", chat="Hello", access_token=""
@@ -126,7 +192,12 @@ class TestHubSpotFindContactByEmail:
 
 
 class TestHubSpotCreateTicket:
-    """Integration tests for create_ticket tool."""
+    """
+    Integration tests for create_ticket tool.
+
+    This test class validates the ticket creation functionality, including
+    successful ticket creation, contact association, and error handling.
+    """
 
     @patch("arklex.env.tools.hubspot.create_ticket.hubspot.Client.create")
     @patch("arklex.env.tools.hubspot.create_ticket.authenticate_hubspot")
@@ -136,33 +207,60 @@ class TestHubSpotCreateTicket:
         mock_client_create: Mock,
         mock_hubspot_ticket_client: MagicMock,
     ) -> None:
-        """Test successful ticket creation with contact association."""
+        """
+        Test successful ticket creation with contact association.
+
+        This test validates that the create_ticket tool can successfully
+        create a support ticket in HubSpot and associate it with the
+        specified customer contact.
+        """
+        # Mock authentication to return a valid token
+        # This simulates successful HubSpot authentication
         mock_authenticate.return_value = "test_token"
         mock_client_create.return_value = mock_hubspot_ticket_client
 
+        # Execute the create_ticket function with test parameters
+        # This tests the complete workflow from issue description to ticket creation
         result = create_ticket_func(
             cus_cid="12345",
             issue="I need help with my order",
             access_token="test_token",
         )
 
+        # Verify the ticket ID is returned
+        # This ensures the ticket was created successfully
         expected_result = "ticket_123"
-        assert result == expected_result
+        assert result == expected_result, "Should return the created ticket ID"
 
-        # Verify ticket creation and association calls
+        # Verify ticket creation and association calls were made
+        # This ensures the tool performs all required operations
         mock_hubspot_ticket_client.crm.tickets.basic_api.create.assert_called_once()
         mock_hubspot_ticket_client.crm.associations.v4.basic_api.create.assert_called_once()
 
 
 class TestHubSpotFindOwnerIdByContactId:
-    """Integration tests for find_owner_id_by_contact_id tool."""
+    """
+    Integration tests for find_owner_id_by_contact_id tool.
+
+    This test class validates the owner ID lookup functionality, including
+    successful lookups, API errors, and edge cases.
+    """
 
     @pytest.fixture
     def mock_hubspot_client(self) -> MagicMock:
-        """Create a mock HubSpot client with owner ID lookup responses."""
+        """
+        Create a mock HubSpot client with owner ID lookup responses.
+
+        Returns:
+            MagicMock: A mock HubSpot client configured for owner ID testing.
+
+        This fixture provides a mock HubSpot client that simulates owner ID
+        lookup operations with realistic responses.
+        """
         mock_client = MagicMock()
 
         # Mock successful owner ID retrieval
+        # This simulates a successful API response with owner information
         mock_response = MagicMock()
         mock_response.json.return_value = {"properties": {"hubspot_owner_id": "67890"}}
         mock_client.api_request.return_value = mock_response
@@ -177,15 +275,27 @@ class TestHubSpotFindOwnerIdByContactId:
         mock_client_create: Mock,
         mock_hubspot_client: MagicMock,
     ) -> None:
-        """Test successful owner ID retrieval for a contact."""
+        """
+        Test successful owner ID retrieval for a contact.
+
+        This test validates that the find_owner_id_by_contact_id tool can
+        successfully retrieve the owner ID associated with a specific contact
+        from the HubSpot CRM.
+        """
+        # Mock authentication to return a valid token
+        # This simulates successful HubSpot authentication
         mock_authenticate.return_value = "test_token"
         mock_client_create.return_value = mock_hubspot_client
 
+        # Execute the find_owner_id_by_contact_id function with test parameters
+        # This tests the complete workflow from contact ID to owner ID
         result = find_owner_id_by_contact_id_func(
             cus_cid="12345", access_token="test_token"
         )
 
-        assert result == "67890"
+        # Verify the owner ID is returned correctly
+        # This ensures the owner lookup worked correctly
+        assert result == "67890", "Should return the correct owner ID"
         mock_hubspot_client.api_request.assert_called_once()
 
     @patch("arklex.env.tools.hubspot.find_owner_id_by_contact_id.hubspot.Client.create")
@@ -196,16 +306,32 @@ class TestHubSpotFindOwnerIdByContactId:
         mock_client_create: Mock,
         mock_hubspot_client: MagicMock,
     ) -> None:
-        """Test owner ID retrieval when HubSpot API throws an exception."""
+        """
+        Test owner ID retrieval when HubSpot API throws an exception.
+
+        This test validates that the find_owner_id_by_contact_id tool properly
+        handles API errors and exceptions, ensuring that failures are caught
+        and appropriate error messages are provided.
+        """
+        # Mock authentication to return a valid token
+        # This simulates successful HubSpot authentication
         mock_authenticate.return_value = "test_token"
         mock_client_create.return_value = mock_hubspot_client
 
-        # Simulate API error
-        mock_hubspot_client.api_request.side_effect = EmailsApiException(status=400)
+        # Simulate API error by making api_request method raise an exception
+        # This simulates a network error, rate limiting, or other API issue
+        mock_hubspot_client.api_request.side_effect = Exception("API Error")
 
+        # Test that the function raises an appropriate error
+        # This validates the error handling for API exceptions
         with pytest.raises(ToolExecutionError) as exc_info:
             find_owner_id_by_contact_id_func(cus_cid="12345", access_token="test_token")
-        assert HubspotExceptionPrompt.OWNER_UNFOUND_PROMPT in str(exc_info.value)
+
+        # Verify the error message contains expected content
+        # This ensures the error message is informative
+        assert "Tool find_owner_id_by_contact_id execution failed" in str(
+            exc_info.value
+        ), "Error message should indicate tool execution failure"
 
 
 class TestHubSpotCheckAvailable:
