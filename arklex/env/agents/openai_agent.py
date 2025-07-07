@@ -59,6 +59,7 @@ class OpenAIAgent(BaseAgent):
         self.tool_map = {}
         self.tool_defs = []
         self.tool_args: dict[str, Any] = {}
+        self.tool_slots: dict[str, Any] = {}
 
         self._load_tools(successors=successors, predecessors=predecessors, tools=tools)
         self._configure_tools()
@@ -119,8 +120,9 @@ class OpenAIAgent(BaseAgent):
                             tool_calls=[tool_call],
                         ).model_dump()
                     )
-                    if tool_name == "custom_tools-http_tool-http_tool":
+                    if "http_tool" in tool_name:
                         slots: list[dict[str, str]] = []
+                        all_slots = self.tool_slots.get(tool_name, [])
                         for name, value in tool_call.get("args", {}).items():
                             slots.append(
                                 {
@@ -128,7 +130,14 @@ class OpenAIAgent(BaseAgent):
                                     "value": value,
                                 }
                             )
-                        # TODO: empty values for slots that were not provided
+                        for slot in all_slots:
+                            if slot.name not in tool_call.get("args", {}):
+                                slots.append(
+                                    {
+                                        "name": slot.name,
+                                        "value": None,
+                                    }
+                                )
                         tool_response = self.tool_map[tool_name](
                             slots=slots,
                             **self.tool_args.get(tool_name, {}),
@@ -176,7 +185,7 @@ class OpenAIAgent(BaseAgent):
         Load tools for the agent.
         This method is called during the initialization of the agent.
         """
-        for node in successors + predecessors:
+        for node in predecessors:
             if node.resource_id in tools:
                 self.available_tools[node.resource_id] = (tools[node.resource_id], node)
 
@@ -196,13 +205,13 @@ class OpenAIAgent(BaseAgent):
             tool_object.openai_slots = tool_object.slots.copy()
             tool_def = tool_object.to_openai_tool_def_v2()
             self.tool_defs.append(tool_object.to_openai_tool_def_v2())
+            self.tool_slots[tool_def["function"]["name"]] = tool_object.slots.copy()
             self.tool_map[tool_def["function"]["name"]] = tool_object.func
             combined_args: dict[str, Any] = {
                 **tool["fixed_args"],
                 **(node_info.additional_args or {}),
             }
             self.tool_args[tool_def["function"]["name"]] = combined_args
-
         log_context.info(f"Tool Definitions: {self.tool_defs}")
 
         end_conversation_tool = end_conversation()
