@@ -6,14 +6,8 @@ including proper mocking of external services and edge case testing.
 """
 
 import json
-import os
-import sys
 from unittest.mock import MagicMock, Mock, patch
 
-# Mock the mysql module BEFORE any other imports to prevent connection issues
-sys.modules["arklex.utils.mysql"] = MagicMock()
-
-# ruff: noqa: E402
 import pytest
 
 from arklex.env.tools.shopify.cancel_order import cancel_order
@@ -26,13 +20,6 @@ from arklex.env.tools.shopify.get_web_product import get_web_product
 from arklex.env.tools.shopify.return_products import return_products
 from arklex.env.tools.shopify.search_products import search_products
 from arklex.utils.exceptions import ShopifyError, ToolExecutionError
-
-# Set up test environment variables to prevent MySQL connection issues
-os.environ.setdefault("MYSQL_USERNAME", "test_user")
-os.environ.setdefault("MYSQL_PASSWORD", "test_password")
-os.environ.setdefault("MYSQL_HOSTNAME", "localhost")
-os.environ.setdefault("MYSQL_PORT", "3306")
-os.environ.setdefault("MYSQL_DB_NAME", "test_db")
 
 # Extract underlying functions from decorated tool functions for direct testing
 search_products_func = search_products().func
@@ -57,53 +44,14 @@ class TestShopifySearchProducts:
         mock_graphql: Mock,
         mock_provider_map: Mock,
         mock_session_temp: Mock,
+        sample_shopify_product_data: dict,
     ) -> None:
         """Test successful product search with LLM response generation."""
         mock_session = MagicMock()
         mock_session_temp.return_value.__enter__.return_value = mock_session
 
         # Mock GraphQL response with comprehensive product data
-        mock_response = {
-            "data": {
-                "products": {
-                    "nodes": [
-                        {
-                            "id": "gid://shopify/Product/12345",
-                            "title": "Test Product",
-                            "description": "A test product description that is longer than 180 characters to test truncation functionality",
-                            "handle": "test-product",
-                            "onlineStoreUrl": "https://test-shop.myshopify.com/products/test-product",
-                            "images": {
-                                "edges": [
-                                    {
-                                        "node": {
-                                            "src": "https://cdn.shopify.com/test-image.jpg",
-                                            "altText": "Test Product Image",
-                                        }
-                                    }
-                                ]
-                            },
-                            "variants": {
-                                "nodes": [
-                                    {
-                                        "displayName": "Small",
-                                        "id": "gid://shopify/ProductVariant/67890",
-                                        "price": "29.99",
-                                        "inventoryQuantity": 10,
-                                    }
-                                ]
-                            },
-                        }
-                    ],
-                    "pageInfo": {
-                        "endCursor": "cursor123",
-                        "hasNextPage": False,
-                        "hasPreviousPage": False,
-                        "startCursor": "cursor456",
-                    },
-                }
-            }
-        }
+        mock_response = sample_shopify_product_data
 
         mock_graphql_instance = MagicMock()
         mock_graphql_instance.execute.return_value = json.dumps(mock_response)
