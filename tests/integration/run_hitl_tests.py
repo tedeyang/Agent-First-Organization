@@ -7,7 +7,6 @@ with proper configuration and environment setup.
 """
 
 import importlib.util
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -19,17 +18,11 @@ sys.path.insert(0, str(project_root))
 
 def setup_environment() -> None:
     """Set up the test environment with required environment variables."""
-    os.environ.setdefault("OPENAI_API_KEY", "test_key")
-    os.environ.setdefault("DATA_DIR", "./examples/hitl_server")
-    os.environ.setdefault("MYSQL_USERNAME", "test_user")
-    os.environ.setdefault("MYSQL_PASSWORD", "test_password")
-    os.environ.setdefault("MYSQL_HOSTNAME", "localhost")
-    os.environ.setdefault("MYSQL_PORT", "3306")
-    os.environ.setdefault("MYSQL_DB_NAME", "test_db")
-    os.environ.setdefault("ARKLEX_TEST_ENV", "local")
-    os.environ.setdefault("PYTHONPATH", str(project_root))
-    os.environ.setdefault("TESTING", "true")
-    os.environ.setdefault("LOG_LEVEL", "WARNING")
+    # Import conftest to use its environment setup
+
+    # The environment variables are already set up in conftest.py
+    # We just need to ensure we're in the right directory
+    pass
 
 
 def check_test_dependencies() -> bool:
@@ -62,7 +55,7 @@ def check_test_files() -> bool:
     required_files = [
         "tests/integration/test_hitl_server.py",
         "examples/hitl_server/taskgraph.json",
-        "examples/hitl_server/conftest.py",
+        "tests/integration/conftest.py",
     ]
 
     missing_files = []
@@ -115,7 +108,7 @@ def run_tests(
     cmd = [arg for arg in cmd if arg]
 
     print(f"Running tests with command: {' '.join(cmd)}")
-    print(f"Working directory: {os.getcwd()}")
+    print(f"Working directory: {Path.cwd()}")
     print("-" * 80)
 
     try:
@@ -198,16 +191,19 @@ def main() -> None:
         try:
             subprocess.run(cmd, check=True)
         except subprocess.CalledProcessError as e:
-            print(f"❌ Error listing tests: {e}")
+            print(f"❌ Failed to list tests: {e}")
             sys.exit(1)
         return
 
     # Run the tests
     success = run_tests(
-        test_file=args.test_file, verbose=args.verbose, markers=args.markers
+        test_file=args.test_file,
+        verbose=args.verbose,
+        markers=args.markers,
     )
 
-    sys.exit(0 if success else 1)
+    if not success:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
