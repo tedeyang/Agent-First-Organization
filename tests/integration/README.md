@@ -1,220 +1,138 @@
 # Integration Tests
 
-This directory contains comprehensive integration tests for the Arklex AI platform, covering HITL (Human-in-the-Loop) functionality, Shopify tools, HubSpot tools, and other external service integrations.
+This document explains how to run the integration tests in the `tests/integration/` directory and the solution to common issues.
 
-## Test Structure
+## Quick Start
 
-### Shared Configuration (`conftest.py`)
-
-The `conftest.py` file provides shared fixtures and configuration for all integration tests:
-
-- **Environment Setup**: Common environment variables and test configuration
-- **Mock Fixtures**: Pre-configured mock objects for external services
-- **Test Data**: Sample data for various test scenarios
-- **Utility Fixtures**: Common test utilities and helper functions
-
-### Test Files
-
-- `test_hitl_server.py` - HITL (Human-in-the-Loop) server integration tests
-- `test_shopify_tools.py` - Shopify tools integration tests
-- `test_hubspot_tools.py` - HubSpot tools integration tests
-- `run_hitl_tests.py` - Test runner script for HITL tests
-
-### Shared Utilities (`test_utils.py`)
-
-The `test_utils.py` file provides common utilities and helper classes:
-
-- `TestDataProvider` - Sample test data for various scenarios
-- `MockFactory` - Factory for creating common mock objects
-- `AssertionHelper` - Common assertion utilities
-- `TestEnvironmentHelper` - Environment management utilities
-
-## Available Fixtures
-
-### Environment Fixtures
-
-- `mock_environment_variables` - Sets up test environment variables
-- `clean_test_state` - Ensures clean state between tests
-- `test_data_dir` - Provides test data directory path
-- `hitl_taskgraph_path` - Path to HITL taskgraph configuration
-- `load_hitl_config` - Loads HITL configuration with test settings
-
-### Shopify Fixtures
-
-- `mock_shopify_session` - Mock Shopify session for testing
-- `mock_shopify_graphql` - Mock Shopify GraphQL client
-- `sample_shopify_product_data` - Sample Shopify product data
-
-### HubSpot Fixtures
-
-- `mock_hubspot_client` - Mock HubSpot client with contact search
-- `mock_hubspot_ticket_client` - Mock HubSpot client for ticket creation
-- `mock_hubspot_meeting_client` - Mock HubSpot client for meeting creation
-
-### HITL Fixtures
-
-- `mock_message_state` - Mock MessageState for HITL testing
-- `mock_llm_response` - Mock LLM response
-- `mock_embeddings_response` - Mock embeddings response
-- `sample_conversation_history` - Sample conversation history
-- `sample_user_parameters` - Sample user parameters
-
-## Running Tests
-
-### Using pytest directly
+To run all integration tests, use the provided script:
 
 ```bash
-# Run all integration tests
-pytest tests/integration/
+./run_integration_tests.sh
+```
 
-# Run specific test file
-pytest tests/integration/test_hitl_server.py
+This script automatically sets the required environment variables and runs all integration tests.
 
-# Run tests with specific markers
-pytest tests/integration/ -m "hitl"
-pytest tests/integration/ -m "shopify"
-pytest tests/integration/ -m "hubspot"
+## Manual Execution
 
-# Run tests in verbose mode
+If you prefer to run tests manually, use these environment variables:
+
+```bash
+KMP_DUPLICATE_LIB_OK=TRUE ARKLEX_TEST_ENV=local pytest tests/integration/ -v
+```
+
+## Test Files
+
+The integration tests include:
+
+- **HITL Server Tests** (`test_hitl_server.py`): 11 tests covering Human-in-the-Loop functionality
+- **Shopify Tests** (`test_shopify.py`): 26 tests covering Shopify integration tools
+- **HubSpot Tests** (`test_hubspot.py`): 17 tests covering HubSpot integration tools
+- **Milvus Filter Tests** (`test_milvus_filter.py`): 12 tests covering Milvus vector search functionality
+
+## Environment Variables
+
+### Required Variables
+
+- `ARKLEX_TEST_ENV=local`: Sets the test environment to local mode
+- `KMP_DUPLICATE_LIB_OK=TRUE`: **Critical for macOS** - Prevents FAISS/OpenMP crashes
+
+### Optional Variables
+
+- `OPENAI_API_KEY`: Test API key (defaults to "test_key")
+- `MYSQL_USERNAME`: Test MySQL username (defaults to "test_user")
+- `MYSQL_PASSWORD`: Test MySQL password (defaults to "test_password")
+- `MYSQL_HOSTNAME`: Test MySQL hostname (defaults to "localhost")
+- `MYSQL_PORT`: Test MySQL port (defaults to "3306")
+- `MYSQL_DB_NAME`: Test MySQL database name (defaults to "test_db")
+- `DATA_DIR`: Test data directory (defaults to "./examples/hitl_server")
+- `TESTING`: Testing mode flag (defaults to "true")
+- `LOG_LEVEL`: Log level for tests (defaults to "WARNING")
+
+## Common Issues and Solutions
+
+### FAISS/OpenMP Crash on macOS
+
+**Problem**: Tests crash with error:
+
+```
+OMP: Error #15: Initializing libomp.dylib, but found libomp.dylib already initialized.
+Fatal Python error: Aborted
+```
+
+**Solution**: Set the environment variable `KMP_DUPLICATE_LIB_OK=TRUE` before running tests:
+
+```bash
+export KMP_DUPLICATE_LIB_OK=TRUE
 pytest tests/integration/ -v
 ```
 
-### Using the test runner
+This is a known issue with FAISS and OpenMP on macOS where multiple copies of the OpenMP runtime are linked into the program.
+
+### Running Specific Test Files
 
 ```bash
-# Run HITL tests
-python tests/integration/run_hitl_tests.py
+# Run only HITL tests
+KMP_DUPLICATE_LIB_OK=TRUE ARKLEX_TEST_ENV=local pytest tests/integration/test_hitl_server.py -v
 
-# Run with verbose output
-python tests/integration/run_hitl_tests.py -v
+# Run only Shopify tests
+KMP_DUPLICATE_LIB_OK=TRUE ARKLEX_TEST_ENV=local pytest tests/integration/test_shopify.py -v
 
-# Run specific test file
-python tests/integration/run_hitl_tests.py --test-file test_hitl_server.py
+# Run only HubSpot tests
+KMP_DUPLICATE_LIB_OK=TRUE ARKLEX_TEST_ENV=local pytest tests/integration/test_hubspot.py -v
+
+# Run only Milvus tests
+KMP_DUPLICATE_LIB_OK=TRUE ARKLEX_TEST_ENV=local pytest tests/integration/test_milvus_filter.py -v
+```
+
+### Running Specific Tests
+
+```bash
+# Run a specific test
+KMP_DUPLICATE_LIB_OK=TRUE ARKLEX_TEST_ENV=local pytest tests/integration/test_hitl_server.py::TestHITLServerIntegration::test_hitl_chat_flag_activation -v
 
 # Run tests with specific markers
-python tests/integration/run_hitl_tests.py -m "hitl and not slow"
-
-# Check environment only
-python tests/integration/run_hitl_tests.py --check-only
-
-# List available tests
-python tests/integration/run_hitl_tests.py --list-tests
+KMP_DUPLICATE_LIB_OK=TRUE ARKLEX_TEST_ENV=local pytest tests/integration/ -m "hitl" -v
 ```
 
-## Test Markers
+## Test Coverage
 
-The following pytest markers are available:
+The integration tests provide comprehensive coverage of:
 
-- `@pytest.mark.integration` - Marks tests as integration tests
-- `@pytest.mark.hitl` - Marks tests as HITL tests
-- `@pytest.mark.shopify` - Marks tests as Shopify integration tests
-- `@pytest.mark.hubspot` - Marks tests as HubSpot integration tests
-- `@pytest.mark.slow` - Marks tests as slow-running tests
+- **HITL Functionality**: Chat flag activation, MC flag activation, conversation flows
+- **RAG Operations**: Product question responses, vector search functionality
+- **External Integrations**: Shopify API tools, HubSpot API tools
+- **Error Handling**: API exceptions, authentication errors, edge cases
+- **State Management**: Conversation history, node transitions, worker configurations
 
-## Writing New Tests
+## Test Results
 
-### Using Shared Fixtures
+All 66 integration tests should pass when run with the correct environment variables:
 
-```python
-import pytest
-from tests.integration.test_utils import TestDataProvider, MockFactory
+- ✅ 11 HITL Server tests
+- ✅ 26 Shopify tests  
+- ✅ 17 HubSpot tests
+- ✅ 12 Milvus Filter tests
 
-class TestMyIntegration:
-    def test_my_function(
-        self,
-        mock_shopify_session,  # Use shared fixture
-        sample_shopify_product_data,  # Use shared test data
-    ):
-        # Your test logic here
-        pass
+## Alternative Test Runner
+
+You can also use the HITL test runner script:
+
+```bash
+KMP_DUPLICATE_LIB_OK=TRUE ARKLEX_TEST_ENV=local python tests/integration/run_hitl_tests.py -v
 ```
-
-### Using Shared Utilities
-
-```python
-from tests.integration.test_utils import (
-    TestDataProvider,
-    MockFactory,
-    AssertionHelper,
-    create_mock_message_state,
-)
-
-def test_with_utilities():
-    # Use shared test data
-    product_data = TestDataProvider.get_sample_shopify_product()
-    
-    # Use shared mock factory
-    mock_response = MockFactory.create_mock_llm_response("Test response")
-    
-    # Use shared assertion helper
-    AssertionHelper.assert_json_response_structure(response, ["key1", "key2"])
-```
-
-### Creating Custom Fixtures
-
-```python
-@pytest.fixture
-def my_custom_fixture(mock_shopify_session):
-    """Custom fixture that builds on shared fixtures."""
-    # Your custom setup logic
-    return custom_data
-```
-
-## Environment Requirements
-
-### Required Environment Variables
-
-The following environment variables are automatically set for testing:
-
-- `OPENAI_API_KEY` - Test API key for OpenAI
-- `MYSQL_USERNAME` - Test MySQL username
-- `MYSQL_PASSWORD` - Test MySQL password
-- `MYSQL_HOSTNAME` - Test MySQL hostname
-- `MYSQL_PORT` - Test MySQL port
-- `MYSQL_DB_NAME` - Test MySQL database name
-- `DATA_DIR` - Test data directory
-- `ARKLEX_TEST_ENV` - Test environment identifier
-- `TESTING` - Testing mode flag
-- `LOG_LEVEL` - Log level for tests
-
-### Required Dependencies
-
-- `pytest` - Testing framework
-- `openai` - OpenAI API client
-- `langchain` - LangChain framework
-- `langchain_community` - LangChain community components
-- `langchain_openai` - LangChain OpenAI integration
-
-## Best Practices
-
-1. **Use Shared Fixtures**: Always use the shared fixtures from `conftest.py` instead of creating your own
-2. **Leverage Test Utilities**: Use the utilities in `test_utils.py` for common patterns
-3. **Mock External Services**: Always mock external API calls to avoid dependencies
-4. **Use Descriptive Test Names**: Test names should clearly describe what is being tested
-5. **Group Related Tests**: Use test classes to group related functionality
-6. **Use Appropriate Markers**: Mark tests with appropriate pytest markers for filtering
 
 ## Troubleshooting
-
-### Common Issues
 
 1. **Import Errors**: Ensure the project root is in the Python path
 2. **Environment Variables**: Check that all required environment variables are set
 3. **Mock Issues**: Verify that external services are properly mocked
 4. **Test Data**: Ensure test data files exist in the expected locations
+5. **FAISS Crashes**: Always use `KMP_DUPLICATE_LIB_OK=TRUE` on macOS
 
-### Debug Mode
+## Debug Mode
 
 Run tests with verbose output and full tracebacks:
 
 ```bash
-pytest tests/integration/ -v -s --tb=long
-```
-
-### Isolated Test Runs
-
-Run a single test in isolation:
-
-```bash
-pytest tests/integration/test_hitl_server.py::TestHITLServerIntegration::test_hitl_chat_flag_activation -v -s
+KMP_DUPLICATE_LIB_OK=TRUE ARKLEX_TEST_ENV=local pytest tests/integration/ -v -s --tb=long
 ```
