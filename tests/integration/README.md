@@ -7,6 +7,11 @@ This document explains how to run the integration tests in the `tests/integratio
 To run all integration tests, use the provided script:
 
 ```bash
+# From the project root
+./tests/integration/run_integration_tests.sh
+
+# Or from within the integration tests directory
+cd tests/integration
 ./run_integration_tests.sh
 ```
 
