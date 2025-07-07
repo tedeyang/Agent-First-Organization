@@ -320,7 +320,9 @@ class TestHubSpotFindOwnerIdByContactId:
 
         # Simulate API error by making api_request method raise an exception
         # This simulates a network error, rate limiting, or other API issue
-        mock_hubspot_client.api_request.side_effect = Exception("API Error")
+        from hubspot.crm.objects.emails import ApiException
+
+        mock_hubspot_client.api_request.side_effect = ApiException("API Error")
 
         # Test that the function raises an appropriate error
         # This validates the error handling for API exceptions
