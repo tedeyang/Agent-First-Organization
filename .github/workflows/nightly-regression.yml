@@ -44,6 +44,9 @@ jobs:
     if: always()
     
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Generate Summary
         id: summary
         run: |
@@ -73,16 +76,21 @@ jobs:
             # Build detailed failure message
             FAILED_TESTS=""
             if [[ "${{ needs.lint.result }}" != "success" ]]; then
-              FAILED_TESTS="$FAILED_TESTS• Lint checks"
+              FAILED_TESTS="${FAILED_TESTS}• Lint checks"
             fi
             if [[ "${{ needs.taskgraph.result }}" != "success" ]]; then
-              FAILED_TESTS="$FAILED_TESTS• TaskGraph generation/validation"
+              FAILED_TESTS="${FAILED_TESTS}• TaskGraph generation/validation"
             fi
             if [[ "${{ needs.coverage-check.result }}" != "success" ]]; then
-              FAILED_TESTS="$FAILED_TESTS• Coverage checks"
+              FAILED_TESTS="${FAILED_TESTS}• Coverage checks"
             fi
             
-            echo "notification_message=The following tests failed:$FAILED_TESTS. Please review the workflow logs for details." >> $GITHUB_OUTPUT
+            # Handle case where no tests failed (shouldn't happen but just in case)
+            if [[ -z "$FAILED_TESTS" ]]; then
+              FAILED_TESTS="• Unknown test failures"
+            fi
+            
+            echo "notification_message=The following tests failed:${FAILED_TESTS}. Please review the workflow logs for details." >> $GITHUB_OUTPUT
           fi
           
           echo "" >> $GITHUB_STEP_SUMMARY
