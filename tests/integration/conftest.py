@@ -14,6 +14,8 @@ from unittest.mock import MagicMock, Mock
 
 import pytest
 
+from arklex.utils.graph_state import MessageState
+
 # Add the project root to the Python path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
@@ -328,6 +330,127 @@ def sample_user_parameters() -> dict[str, Any]:
         "product_query": "shoes",
         "chat_id": "test-chat-123",
     }
+
+
+# Milvus-specific fixtures
+@pytest.fixture(scope="session")
+def milvus_taskgraph_path() -> Path:
+    """Provide the path to the Milvus filter taskgraph configuration."""
+    return Path("examples/milvus_filter/taskgraph.json")
+
+
+@pytest.fixture(scope="session")
+def load_milvus_config(milvus_taskgraph_path: Path) -> dict[str, Any]:
+    """Load the Milvus filter taskgraph configuration."""
+    with open(milvus_taskgraph_path, encoding="utf-8") as f:
+        config = json.load(f)
+
+    # Set up model configuration for testing
+    model = {
+        "model_name": "gpt-3.5-turbo",
+        "model_type_or_path": "gpt-3.5-turbo",
+        "llm_provider": "openai",
+        "api_key": "test_key",
+        "endpoint": "https://api.openai.com/v1",
+    }
+    config["model"] = model
+    config["input_dir"] = str(milvus_taskgraph_path.parent)
+
+    return config
+
+
+@pytest.fixture(scope="session")
+def config_and_env(load_milvus_config: dict) -> tuple[dict, Any, str]:
+    """Load config and environment once per test session."""
+    from arklex.env.env import Environment
+    from arklex.orchestrator.NLU.services.model_service import ModelService
+
+    config = load_milvus_config
+
+    # Initialize model service
+    model_service = ModelService(config["model"])
+
+    # Initialize environment
+    env = Environment(
+        tools=config.get("tools", []),
+        workers=config.get("workers", []),
+        agents=config.get("agents", []),
+        slot_fill_api=config["slotfillapi"],
+        planner_enabled=True,
+        model_service=model_service,
+    )
+
+    # Find start message
+    for node in config["nodes"]:
+        if node[1].get("type", "") == "start":
+            start_message = node[1]["attribute"]["value"]
+            break
+    else:
+        raise ValueError("Start node not found in taskgraph.json")
+
+    return config, env, start_message
+
+
+@pytest.fixture
+def mock_milvus_retrieval() -> Mock:
+    """Create a mock Milvus retrieval function."""
+
+    def mock_milvus_retrieve_side_effect(
+        message_state: MessageState, tags: dict[str, str] | None = None
+    ) -> MessageState:
+        # Verify that product tags are passed correctly
+        if tags is not None:
+            assert "product" in tags, "Product tag should be present"
+            assert tags["product"] == "robots", "Product tag should be 'robots'"
+
+        # Add retrieved context to message state
+        message_state.message_flow = "Retrieved information about ADAM robot bartender"
+        return message_state
+
+    mock_retrieve = Mock()
+    mock_retrieve.side_effect = mock_milvus_retrieve_side_effect
+    return mock_retrieve
+
+
+@pytest.fixture
+def mock_milvus_error_retrieval() -> Mock:
+    """Create a mock Milvus retrieval function that raises an exception."""
+
+    def mock_milvus_retrieve_error_side_effect(
+        message_state: MessageState, tags: dict[str, str] | None = None
+    ) -> MessageState:
+        raise Exception("Milvus connection error")
+
+    mock_retrieve = Mock()
+    mock_retrieve.side_effect = mock_milvus_retrieve_error_side_effect
+    return mock_retrieve
+
+
+@pytest.fixture
+def sample_milvus_product_queries() -> list[str]:
+    """Provide sample product queries for Milvus testing."""
+    return [
+        "Tell me about the ADAM robot",
+        "What delivery robots do you have?",
+        "Tell me about your cleaning robots",
+        "Tell me about your robots",
+    ]
+
+
+@pytest.fixture
+def sample_milvus_conversation_history() -> list[dict[str, str]]:
+    """Provide sample conversation history for Milvus testing."""
+    return [
+        {
+            "role": "assistant",
+            "content": "Welcome to Richtech Robotics! How can I help you today?",
+        },
+        {"role": "user", "content": "Tell me about your ADAM robot"},
+        {
+            "role": "assistant",
+            "content": "The ADAM robot is a bartender that makes tea, coffee, and cocktails.",
+        },
+    ]
 
 
 def pytest_configure(config: pytest.Config) -> None:
