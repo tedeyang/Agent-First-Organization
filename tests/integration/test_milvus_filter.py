@@ -11,7 +11,7 @@ from typing import Any
 from unittest.mock import Mock, patch
 
 from arklex.utils.graph_state import MessageState
-from tests.integration.test_utils import MilvusTestHelper
+from tests.integration.integration_test_utils import MilvusTestHelper
 
 
 class TestMilvusFilterIntegration:
