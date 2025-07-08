@@ -294,6 +294,12 @@ def parse_natural_date(
 
     if timezone:
         local_timezone: pytz.BaseTzInfo = pytz.timezone(timezone)
+        # For date-only inputs or when date_input=True, ensure we start at midnight
+        # in the local timezone to avoid day shifts during UTC conversion
+        if date_input or (parsed_dt.hour >= 12 and parsed_dt.minute > 0):
+            # Set to midnight in the local timezone
+            parsed_dt = datetime.combine(parsed_dt.date(), datetime.min.time())
+
         parsed_dt = local_timezone.localize(parsed_dt)
         parsed_dt = parsed_dt.astimezone(pytz.utc)
     return parsed_dt
