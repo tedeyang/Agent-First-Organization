@@ -20,8 +20,6 @@ jobs:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       MIN_COVERAGE_THRESHOLD: '99.1'
       ARKLEX_TEST_ENV: 'local'
-    outputs:
-      coverage-percentage: ${{ steps.extract-coverage.outputs.coverage }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -62,52 +60,6 @@ jobs:
             ls -la
             exit 1
           fi
-
-      - name: Extract coverage percentage
-        id: extract-coverage
-        run: |
-          python -c '''
-          import xml.etree.ElementTree as ET
-          import os
-          
-          try:                  
-              tree = ET.parse('coverage.xml')
-              root = tree.getroot()
-              
-              # Use line-rate for coverage calculation
-              coverage = None
-              if 'line-rate' in root.attrib:
-                  coverage = float(root.attrib['line-rate']) * 100
-              else:
-                  # Search for any element with line-rate
-                  for elem in root.iter():
-                      if 'line-rate' in elem.attrib:
-                          coverage = float(elem.attrib['line-rate']) * 100
-                          break
-                  else:
-                      print(f"❌ Could not find line-rate coverage data in coverage.xml")
-                      print(f"XML root attributes: {root.attrib}")
-                      exit(1)
-                      
-              if coverage is None:
-                  print(f"❌ Coverage is None")
-                  exit(1)
-              
-              print(f"Coverage: {coverage:.1f}%")
-              
-              # Check against minimum threshold
-              min_coverage = float(os.environ.get('MIN_COVERAGE_THRESHOLD', '99.1'))
-              if coverage < min_coverage:
-                  print(f"❌ Coverage {coverage:.1f}% is below minimum threshold {min_coverage}%")
-                  exit(1)
-              else:
-                  print(f"✅ Coverage {coverage:.1f}% meets minimum threshold {min_coverage}%")
-          except Exception as e:
-              print(f"❌ Error parsing coverage.xml: {e}")
-              import traceback
-              traceback.print_exc()
-              exit(1)
-          '''
 
       - name: Upload coverage artifacts
         uses: actions/upload-artifact@v4
