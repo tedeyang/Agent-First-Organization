@@ -115,6 +115,7 @@ jobs:
           channel: "#builds"
           username: "GitHub Actions"
           icon_emoji: ":robot_face:"
+        continue-on-error: true
 
       - name: Send Failure Notification
         if: steps.summary.outputs.overall_status == 'failure'
@@ -134,3 +135,10 @@ jobs:
           channel: "#builds"
           username: "GitHub Actions"
           icon_emoji: ":robot_face:"
+        continue-on-error: true
+
+      - name: Log Notification Status
+        run: |
+          echo "📧 Slack notification steps completed."
+          echo "Note: If SLACK_WEBHOOK_URL is not configured, the notification steps will fail silently."
+          echo "To enable Slack notifications, add the SLACK_WEBHOOK_URL secret to your repository settings."
