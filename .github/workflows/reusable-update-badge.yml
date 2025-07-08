@@ -94,7 +94,7 @@ jobs:
             fi
             
             # Extract from XML coverage file
-            python -c << 'EOF'
+            python -c '''
           import xml.etree.ElementTree as ET
           import os
           import sys
@@ -142,7 +142,7 @@ jobs:
               import traceback
               traceback.print_exc()
               sys.exit(1)
-          EOF
+          '''
           else
             # Extract from text coverage file
             if [ ! -f "${{ inputs.coverage-file }}" ]; then
@@ -196,7 +196,7 @@ jobs:
             # Try to extract coverage directly from coverage.xml as fallback
             if [ -f "coverage.xml" ]; then
               echo "Attempting fallback coverage extraction..."
-              FALLBACK_COVERAGE=$(python -c << 'EOF'
+              FALLBACK_COVERAGE=$(python -c '''
           import xml.etree.ElementTree as ET
           try:
               tree = ET.parse('coverage.xml')
@@ -208,7 +208,7 @@ jobs:
                   print('0')
           except:
               print('0')
-          EOF
+          '''
               )
               
               if [ "$FALLBACK_COVERAGE" != "0" ]; then
