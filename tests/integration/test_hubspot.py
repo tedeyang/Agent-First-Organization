@@ -190,6 +190,533 @@ class TestHubSpotFindContactByEmail:
                 email="test@example.com", chat="Hello", access_token=""
             )
 
+    @patch("arklex.env.tools.hubspot.find_contact_by_email.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.find_contact_by_email.authenticate_hubspot")
+    def test_find_contact_by_email_multiple_contacts_found(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+        mock_hubspot_client: MagicMock,
+    ) -> None:
+        """
+        Test contact search when multiple contacts are found with the same email.
+
+        This test validates that the find_contact_by_email tool properly handles
+        cases where multiple contacts exist with the same email address,
+        which should be treated as an error since we expect unique email addresses.
+        """
+        # Mock authentication to return a valid token
+        mock_authenticate.return_value = "test_token"
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Mock search results with multiple contacts
+        mock_search_response = MagicMock()
+        mock_search_response.to_dict.return_value = {
+            "total": 2,
+            "results": [
+                {"id": "12345", "properties": {"firstname": "John", "lastname": "Doe"}},
+                {"id": "67890", "properties": {"firstname": "Jane", "lastname": "Doe"}},
+            ],
+        }
+        mock_hubspot_client.crm.contacts.search_api.do_search.return_value = (
+            mock_search_response
+        )
+
+        # Test that the function raises an appropriate error
+        with pytest.raises(ToolExecutionError) as exc_info:
+            find_contact_by_email_func(
+                email="duplicate@example.com", chat="Hello", access_token="test_token"
+            )
+
+        # Verify the error message contains the expected prompt
+        assert HubspotExceptionPrompt.USER_NOT_FOUND_PROMPT in str(exc_info.value), (
+            "Error message should contain user not found prompt for multiple contacts"
+        )
+
+    @patch("arklex.env.tools.hubspot.find_contact_by_email.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.find_contact_by_email.authenticate_hubspot")
+    def test_find_contact_by_email_communication_creation_failure(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+        mock_hubspot_client: MagicMock,
+    ) -> None:
+        """
+        Test contact search when communication creation fails but contact is found.
+
+        This test validates that the find_contact_by_email tool gracefully handles
+        communication creation failures and still returns contact information
+        even when the communication tracking fails.
+        """
+        # Mock authentication to return a valid token
+        mock_authenticate.return_value = "test_token"
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Mock successful contact search
+        mock_search_response = MagicMock()
+        mock_search_response.to_dict.return_value = {
+            "total": 1,
+            "results": [
+                {
+                    "id": "12345",
+                    "properties": {"firstname": "John", "lastname": "Doe"},
+                }
+            ],
+        }
+        mock_hubspot_client.crm.contacts.search_api.do_search.return_value = (
+            mock_search_response
+        )
+
+        # Mock communication creation to fail
+        mock_hubspot_client.crm.objects.communications.basic_api.create.side_effect = (
+            EmailsApiException(status=400)
+        )
+
+        # Execute the function - should still succeed despite communication failure
+        result = find_contact_by_email_func(
+            email="john.doe@example.com",
+            chat="Hello, I have a question",
+            access_token="test_token",
+        )
+
+        # Verify contact information is still returned
+        expected_result = {
+            "contact_id": "12345",
+            "contact_email": "john.doe@example.com",
+            "contact_first_name": "John",
+            "contact_last_name": "Doe",
+        }
+        assert json.loads(result) == expected_result, (
+            "Contact details should be returned even when communication creation fails"
+        )
+
+        # Verify search was called but communication creation failed
+        mock_hubspot_client.crm.contacts.search_api.do_search.assert_called_once()
+        mock_hubspot_client.crm.objects.communications.basic_api.create.assert_called_once()
+
+    @patch("arklex.env.tools.hubspot.find_contact_by_email.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.find_contact_by_email.authenticate_hubspot")
+    def test_find_contact_by_email_association_creation_failure(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+        mock_hubspot_client: MagicMock,
+    ) -> None:
+        """
+        Test contact search when association creation fails but contact and communication are created.
+
+        This test validates that the find_contact_by_email tool gracefully handles
+        association creation failures and still returns contact information
+        even when the association between contact and communication fails.
+        """
+        # Mock authentication to return a valid token
+        mock_authenticate.return_value = "test_token"
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Mock successful contact search
+        mock_search_response = MagicMock()
+        mock_search_response.to_dict.return_value = {
+            "total": 1,
+            "results": [
+                {
+                    "id": "12345",
+                    "properties": {"firstname": "John", "lastname": "Doe"},
+                }
+            ],
+        }
+        mock_hubspot_client.crm.contacts.search_api.do_search.return_value = (
+            mock_search_response
+        )
+
+        # Mock successful communication creation
+        mock_communication_response = MagicMock()
+        mock_communication_response.to_dict.return_value = {"id": "comm_123"}
+        mock_hubspot_client.crm.objects.communications.basic_api.create.return_value = (
+            mock_communication_response
+        )
+
+        # Mock association creation to fail
+        mock_hubspot_client.crm.associations.v4.basic_api.create.side_effect = (
+            EmailsApiException(status=400)
+        )
+
+        # Execute the function - should still succeed despite association failure
+        result = find_contact_by_email_func(
+            email="john.doe@example.com",
+            chat="Hello, I have a question",
+            access_token="test_token",
+        )
+
+        # Verify contact information is still returned
+        expected_result = {
+            "contact_id": "12345",
+            "contact_email": "john.doe@example.com",
+            "contact_first_name": "John",
+            "contact_last_name": "Doe",
+        }
+        assert json.loads(result) == expected_result, (
+            "Contact details should be returned even when association creation fails"
+        )
+
+        # Verify all API calls were made
+        mock_hubspot_client.crm.contacts.search_api.do_search.assert_called_once()
+        mock_hubspot_client.crm.objects.communications.basic_api.create.assert_called_once()
+        mock_hubspot_client.crm.associations.v4.basic_api.create.assert_called_once()
+
+    @patch("arklex.env.tools.hubspot.find_contact_by_email.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.find_contact_by_email.authenticate_hubspot")
+    def test_find_contact_by_email_missing_contact_properties(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+        mock_hubspot_client: MagicMock,
+    ) -> None:
+        """
+        Test contact search when contact properties are missing or null.
+
+        This test validates that the find_contact_by_email tool properly handles
+        cases where contact properties like firstname or lastname are missing,
+        ensuring the function doesn't fail and returns None for missing properties.
+        """
+        # Mock authentication to return a valid token
+        mock_authenticate.return_value = "test_token"
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Mock successful contact search with missing properties
+        mock_search_response = MagicMock()
+        mock_search_response.to_dict.return_value = {
+            "total": 1,
+            "results": [
+                {
+                    "id": "12345",
+                    "properties": {},  # Empty properties
+                }
+            ],
+        }
+        mock_hubspot_client.crm.contacts.search_api.do_search.return_value = (
+            mock_search_response
+        )
+
+        # Mock successful communication creation
+        mock_communication_response = MagicMock()
+        mock_communication_response.to_dict.return_value = {"id": "comm_123"}
+        mock_hubspot_client.crm.objects.communications.basic_api.create.return_value = (
+            mock_communication_response
+        )
+
+        # Mock successful association creation
+        mock_hubspot_client.crm.associations.v4.basic_api.create.return_value = None
+
+        # Execute the function
+        result = find_contact_by_email_func(
+            email="john.doe@example.com",
+            chat="Hello, I have a question",
+            access_token="test_token",
+        )
+
+        # Verify contact information is returned with None for missing properties
+        expected_result = {
+            "contact_id": "12345",
+            "contact_email": "john.doe@example.com",
+            "contact_first_name": None,
+            "contact_last_name": None,
+        }
+        assert json.loads(result) == expected_result, (
+            "Contact details should be returned with None for missing properties"
+        )
+
+    @patch("arklex.env.tools.hubspot.find_contact_by_email.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.find_contact_by_email.authenticate_hubspot")
+    def test_find_contact_by_email_empty_chat_message(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+        mock_hubspot_client: MagicMock,
+    ) -> None:
+        """
+        Test contact search with empty chat message.
+
+        This test validates that the find_contact_by_email tool properly handles
+        empty chat messages and still creates communication records with empty content.
+        """
+        # Mock authentication to return a valid token
+        mock_authenticate.return_value = "test_token"
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Mock successful contact search
+        mock_search_response = MagicMock()
+        mock_search_response.to_dict.return_value = {
+            "total": 1,
+            "results": [
+                {
+                    "id": "12345",
+                    "properties": {"firstname": "John", "lastname": "Doe"},
+                }
+            ],
+        }
+        mock_hubspot_client.crm.contacts.search_api.do_search.return_value = (
+            mock_search_response
+        )
+
+        # Mock successful communication creation
+        mock_communication_response = MagicMock()
+        mock_communication_response.to_dict.return_value = {"id": "comm_123"}
+        mock_hubspot_client.crm.objects.communications.basic_api.create.return_value = (
+            mock_communication_response
+        )
+
+        # Mock successful association creation
+        mock_hubspot_client.crm.associations.v4.basic_api.create.return_value = None
+
+        # Execute the function with empty chat message
+        result = find_contact_by_email_func(
+            email="john.doe@example.com",
+            chat="",  # Empty chat message
+            access_token="test_token",
+        )
+
+        # Verify contact information is still returned
+        expected_result = {
+            "contact_id": "12345",
+            "contact_email": "john.doe@example.com",
+            "contact_first_name": "John",
+            "contact_last_name": "Doe",
+        }
+        assert json.loads(result) == expected_result, (
+            "Contact details should be returned even with empty chat message"
+        )
+
+        # Verify communication was created with empty body
+        mock_hubspot_client.crm.objects.communications.basic_api.create.assert_called_once()
+        call_args = (
+            mock_hubspot_client.crm.objects.communications.basic_api.create.call_args
+        )
+        communication_data = call_args[0][0]
+        assert communication_data.properties["hs_communication_body"] == "", (
+            "Communication should be created with empty body"
+        )
+
+    @patch("arklex.env.tools.hubspot.find_contact_by_email.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.find_contact_by_email.authenticate_hubspot")
+    def test_find_contact_by_email_special_characters_in_email(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+        mock_hubspot_client: MagicMock,
+    ) -> None:
+        """
+        Test contact search with special characters in email address.
+
+        This test validates that the find_contact_by_email tool properly handles
+        email addresses containing special characters like plus signs, dots, etc.
+        """
+        # Mock authentication to return a valid token
+        mock_authenticate.return_value = "test_token"
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Mock successful contact search
+        mock_search_response = MagicMock()
+        mock_search_response.to_dict.return_value = {
+            "total": 1,
+            "results": [
+                {
+                    "id": "12345",
+                    "properties": {"firstname": "John", "lastname": "Doe"},
+                }
+            ],
+        }
+        mock_hubspot_client.crm.contacts.search_api.do_search.return_value = (
+            mock_search_response
+        )
+
+        # Mock successful communication creation
+        mock_communication_response = MagicMock()
+        mock_communication_response.to_dict.return_value = {"id": "comm_123"}
+        mock_hubspot_client.crm.objects.communications.basic_api.create.return_value = (
+            mock_communication_response
+        )
+
+        # Mock successful association creation
+        mock_hubspot_client.crm.associations.v4.basic_api.create.return_value = None
+
+        # Execute the function with special characters in email
+        special_email = "john.doe+test@example.com"
+        result = find_contact_by_email_func(
+            email=special_email,
+            chat="Hello, I have a question",
+            access_token="test_token",
+        )
+
+        # Verify contact information is returned
+        expected_result = {
+            "contact_id": "12345",
+            "contact_email": special_email,
+            "contact_first_name": "John",
+            "contact_last_name": "Doe",
+        }
+        assert json.loads(result) == expected_result, (
+            "Contact details should be returned for email with special characters"
+        )
+
+        # Verify search was called with the exact email
+        mock_hubspot_client.crm.contacts.search_api.do_search.assert_called_once()
+        call_args = mock_hubspot_client.crm.contacts.search_api.do_search.call_args
+        search_request = call_args[1]["public_object_search_request"]
+        filter_value = search_request.filter_groups[0]["filters"][0]["value"]
+        assert filter_value == special_email, (
+            "Search should be called with exact email including special characters"
+        )
+
+    @patch("arklex.env.tools.hubspot.find_contact_by_email.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.find_contact_by_email.authenticate_hubspot")
+    def test_find_contact_by_email_long_chat_message(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+        mock_hubspot_client: MagicMock,
+    ) -> None:
+        """
+        Test contact search with a very long chat message.
+
+        This test validates that the find_contact_by_email tool properly handles
+        long chat messages and creates communication records with the full content.
+        """
+        # Mock authentication to return a valid token
+        mock_authenticate.return_value = "test_token"
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Mock successful contact search
+        mock_search_response = MagicMock()
+        mock_search_response.to_dict.return_value = {
+            "total": 1,
+            "results": [
+                {
+                    "id": "12345",
+                    "properties": {"firstname": "John", "lastname": "Doe"},
+                }
+            ],
+        }
+        mock_hubspot_client.crm.contacts.search_api.do_search.return_value = (
+            mock_search_response
+        )
+
+        # Mock successful communication creation
+        mock_communication_response = MagicMock()
+        mock_communication_response.to_dict.return_value = {"id": "comm_123"}
+        mock_hubspot_client.crm.objects.communications.basic_api.create.return_value = (
+            mock_communication_response
+        )
+
+        # Mock successful association creation
+        mock_hubspot_client.crm.associations.v4.basic_api.create.return_value = None
+
+        # Create a long chat message
+        long_chat = (
+            "This is a very long chat message that contains a lot of text. " * 50
+        )
+
+        # Execute the function with long chat message
+        result = find_contact_by_email_func(
+            email="john.doe@example.com",
+            chat=long_chat,
+            access_token="test_token",
+        )
+
+        # Verify contact information is returned
+        expected_result = {
+            "contact_id": "12345",
+            "contact_email": "john.doe@example.com",
+            "contact_first_name": "John",
+            "contact_last_name": "Doe",
+        }
+        assert json.loads(result) == expected_result, (
+            "Contact details should be returned even with long chat message"
+        )
+
+        # Verify communication was created with the full long message
+        mock_hubspot_client.crm.objects.communications.basic_api.create.assert_called_once()
+        call_args = (
+            mock_hubspot_client.crm.objects.communications.basic_api.create.call_args
+        )
+        communication_data = call_args[0][0]
+        assert communication_data.properties["hs_communication_body"] == long_chat, (
+            "Communication should be created with the full long message"
+        )
+
+    @patch("arklex.env.tools.hubspot.find_contact_by_email.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.find_contact_by_email.authenticate_hubspot")
+    def test_find_contact_by_email_unicode_characters(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+        mock_hubspot_client: MagicMock,
+    ) -> None:
+        """
+        Test contact search with unicode characters in chat message.
+
+        This test validates that the find_contact_by_email tool properly handles
+        unicode characters in chat messages and creates communication records correctly.
+        """
+        # Mock authentication to return a valid token
+        mock_authenticate.return_value = "test_token"
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Mock successful contact search
+        mock_search_response = MagicMock()
+        mock_search_response.to_dict.return_value = {
+            "total": 1,
+            "results": [
+                {
+                    "id": "12345",
+                    "properties": {"firstname": "John", "lastname": "Doe"},
+                }
+            ],
+        }
+        mock_hubspot_client.crm.contacts.search_api.do_search.return_value = (
+            mock_search_response
+        )
+
+        # Mock successful communication creation
+        mock_communication_response = MagicMock()
+        mock_communication_response.to_dict.return_value = {"id": "comm_123"}
+        mock_hubspot_client.crm.objects.communications.basic_api.create.return_value = (
+            mock_communication_response
+        )
+
+        # Mock successful association creation
+        mock_hubspot_client.crm.associations.v4.basic_api.create.return_value = None
+
+        # Create chat message with unicode characters
+        unicode_chat = "Hello! I have a question about your products. 🚀 你好！"
+
+        # Execute the function with unicode characters
+        result = find_contact_by_email_func(
+            email="john.doe@example.com",
+            chat=unicode_chat,
+            access_token="test_token",
+        )
+
+        # Verify contact information is returned
+        expected_result = {
+            "contact_id": "12345",
+            "contact_email": "john.doe@example.com",
+            "contact_first_name": "John",
+            "contact_last_name": "Doe",
+        }
+        assert json.loads(result) == expected_result, (
+            "Contact details should be returned even with unicode characters"
+        )
+
+        # Verify communication was created with unicode content
+        mock_hubspot_client.crm.objects.communications.basic_api.create.assert_called_once()
+        call_args = (
+            mock_hubspot_client.crm.objects.communications.basic_api.create.call_args
+        )
+        communication_data = call_args[0][0]
+        assert communication_data.properties["hs_communication_body"] == unicode_chat, (
+            "Communication should be created with unicode characters preserved"
+        )
+
 
 class TestHubSpotCreateTicket:
     """
