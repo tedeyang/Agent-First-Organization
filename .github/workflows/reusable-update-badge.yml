@@ -23,132 +23,43 @@ on:
         required: false
         default: 'coverage-[0-9]+\.[0-9]+%25-[a-z]+'
         type: string
-    secrets:
-      github-token:
-        description: 'GitHub token for authentication'
-        required: true
 
 jobs:
   update-badge:
     name: Update README Badge
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    permissions:
+      contents: write
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.github-token }}
-          fetch-depth: 0
-
-      - name: Download coverage artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: coverage-report
-          path: ./
-
-      - name: Verify downloaded artifacts
-        run: |
-          echo "Checking for coverage files..."
-          ls -la
-          if [ -f "${{ inputs.coverage-file }}" ]; then
-            echo "✅ Coverage file found: ${{ inputs.coverage-file }}"
-            echo "File content (first 10 lines):"
-            head -10 "${{ inputs.coverage-file }}"
-          else
-            echo "❌ Coverage file not found: ${{ inputs.coverage-file }}"
-            echo "Available files:"
-            ls -la
-            exit 1
-          fi
-
-      - name: Install coverage package
-        run: |
-          python -m pip install coverage
+          token: ${{ github.token }}
 
       - name: Extract coverage percentage
         id: coverage
         shell: bash
         run: |
-          echo "Extracting coverage from ${{ inputs.coverage-file }}..."
           if [ "${{ inputs.coverage-format }}" = "xml" ]; then
-            # Try to generate coverage.xml if it doesn't exist or is malformed
-            if [ ! -f "${{ inputs.coverage-file }}" ] || [ ! -s "${{ inputs.coverage-file }}" ]; then
-              if [ -f ".coverage" ]; then
-                echo "Generating coverage.xml from .coverage..."
-                coverage xml
-                if [ -f "coverage.xml" ]; then
-                  echo "✅ Generated coverage.xml from .coverage"
-                else
-                  echo "❌ Failed to generate coverage.xml"
-                  exit 1
-                fi
-              else
-                echo "❌ No .coverage file found"
-                exit 1
-              fi
-            fi
-            
             # Extract from XML coverage file
-            python -c '''
+            python -c "
           import xml.etree.ElementTree as ET
           import os
-          import sys
           
           try:
-              if not os.path.exists('${{ inputs.coverage-file }}'):
-                  print(f"ERROR: Coverage file not found: ${{ inputs.coverage-file }}")
-                  sys.exit(1)
-                  
               tree = ET.parse('${{ inputs.coverage-file }}')
               root = tree.getroot()
-              
-              print(f"XML root tag: {root.tag}")
-              print(f"XML root attributes: {root.attrib}")
-              
-              # Use line-rate for coverage calculation
-              coverage_percentage = None
-              if 'line-rate' in root.attrib:
-                  coverage_percentage = float(root.attrib['line-rate']) * 100
-                  print(f"Found line-rate: {root.attrib['line-rate']}")
-              else:
-                  # Search for any element with line-rate
-                  for elem in root.iter():
-                      if 'line-rate' in elem.attrib:
-                          coverage_percentage = float(elem.attrib['line-rate']) * 100
-                          print(f"Found line-rate in {elem.tag}: {elem.attrib['line-rate']}")
-                          break
-                  else:
-                      print(f"ERROR: Could not find line-rate coverage data in ${{ inputs.coverage-file }}")
-                      print(f"Available elements with attributes:")
-                      for elem in root.iter():
-                          if elem.attrib:
-                              print(f"  {elem.tag}: {elem.attrib}")
-                      sys.exit(1)
-                  
-              if coverage_percentage is None:
-                  print(f"ERROR: Coverage is None")
-                  sys.exit(1)
-                  
-              print(f"coverage={coverage_percentage:.1f}")
+              coverage = float(root.attrib['line-rate']) * 100
+              print(f'coverage={coverage:.1f}')
           except Exception as e:
-              print(f"ERROR: Error parsing coverage file: {e}")
-              import traceback
-              traceback.print_exc()
-              sys.exit(1)
-          '''
+              print(f'Error reading coverage data: {e}')
+              exit(1)
+          "
           else
             # Extract from text coverage file
-            if [ ! -f "${{ inputs.coverage-file }}" ]; then
-              echo "❌ Coverage file not found: ${{ inputs.coverage-file }}"
-              echo "Available files:"
-              ls -la
-              exit 1
-            fi
             TOTAL_COVERAGE=$(grep -E '^TOTAL' ${{ inputs.coverage-file }} | awk '{print $4}' | tr -d '%' || echo "0")
             echo "coverage=${TOTAL_COVERAGE}"
           fi
@@ -159,18 +70,9 @@ jobs:
         run: |
           COVERAGE=${{ steps.coverage.outputs.coverage }}
           
-          # Check if COVERAGE is empty
-          if [ -z "$COVERAGE" ]; then
-            echo "❌ Error: COVERAGE is empty from previous step"
-            echo "Available outputs:"
-            echo "coverage step outputs: ${{ steps.coverage.outputs }}"
-            exit 1
-          fi
-          
-          # Use awk for floating point comparison instead of bc
-          if awk "BEGIN {exit ($COVERAGE < 90) ? 0 : 1}"; then
+          if (( $(echo "$COVERAGE < 90" | bc -l) )); then
             echo "color=red"
-          elif awk "BEGIN {exit ($COVERAGE < 99) ? 0 : 1}"; then
+          elif (( $(echo "$COVERAGE < 99" | bc -l) )); then
             echo "color=orange"
           else
             echo "color=green"
@@ -182,89 +84,18 @@ jobs:
           COVERAGE=${{ steps.coverage.outputs.coverage }}
           COLOR=${{ steps.color.outputs.color }}
           
-          # Check if variables are empty
-          if [ -z "$COVERAGE" ] || [ -z "$COLOR" ]; then
-            echo "❌ Error: COVERAGE or COLOR variables are empty"
-            echo "COVERAGE: '$COVERAGE'"
-            echo "COLOR: '$COLOR'"
-            echo "Available outputs:"
-            echo "coverage step outputs: ${{ steps.coverage.outputs }}"
-            echo "color step outputs: ${{ steps.color.outputs }}"
-            
-            # Try to extract coverage directly from coverage.xml as fallback
-            if [ -f "coverage.xml" ]; then
-              echo "Attempting fallback coverage extraction..."
-              FALLBACK_COVERAGE=$(python -c '''
-          import xml.etree.ElementTree as ET
-          try:
-              tree = ET.parse('coverage.xml')
-              root = tree.getroot()
-              if 'line-rate' in root.attrib:
-                  coverage_percentage = float(root.attrib['line-rate']) * 100
-                  print(f"{coverage_percentage:.1f}")
-              else:
-                  print("0")
-          except:
-              print("0")
-          '''
-              )
-              
-              if [ "$FALLBACK_COVERAGE" != "0" ]; then
-                COVERAGE=$FALLBACK_COVERAGE
-                echo "Using fallback coverage: $COVERAGE"
-                
-                # Determine color based on fallback coverage
-                if awk "BEGIN {exit ($COVERAGE < 90) ? 0 : 1}"; then
-                  COLOR="red"
-                elif awk "BEGIN {exit ($COVERAGE < 99) ? 0 : 1}"; then
-                  COLOR="orange"
-                else
-                  COLOR="green"
-                fi
-                echo "Using fallback color: $COLOR"
-              else
-                echo "Fallback extraction also failed"
-                exit 1
-              fi
-            else
-              exit 1
-            fi
-          fi
-          
           NEW_BADGE="coverage-${COVERAGE}%25-${COLOR}"
           CURRENT_BADGE=$(grep -oE '${{ inputs.badge-pattern }}' README.md || echo "")
           
-          echo "Current badge: $CURRENT_BADGE"
-          echo "New badge: $NEW_BADGE"
-          
           if [[ "$CURRENT_BADGE" != "$NEW_BADGE" ]]; then
+            echo "Updating README badge from $CURRENT_BADGE to $NEW_BADGE"
             sed -i "s|${{ inputs.badge-pattern }}|$NEW_BADGE|g" README.md
             
-            # Configure git for the repository
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            
-            # Try to get the correct branch name
-            BRANCH_NAME=""
-            if [ "${{ github.event_name }}" = "pull_request" ]; then
-              BRANCH_NAME="${{ github.head_ref }}"
-            elif [ "${{ github.event_name }}" = "push" ]; then
-              BRANCH_NAME="${{ github.ref_name }}"
-            else
-              BRANCH_NAME="main"
-            fi
-            
-            # Add and commit changes
             git add README.md
             git commit -m "chore: update README with ${COVERAGE}% test coverage"
-            
-            # Try to push to the correct branch
-            if git push origin HEAD:$BRANCH_NAME; then
-              echo "✅ Successfully pushed changes to $BRANCH_NAME"
-            else
-              # Try to push to the current branch
-              git push origin HEAD:$(git rev-parse --abbrev-ref HEAD || echo "main")
-            fi
+            git push
           else
             echo "Badge already reflects current coverage."
           fi
