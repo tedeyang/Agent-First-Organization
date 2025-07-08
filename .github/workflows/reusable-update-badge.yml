@@ -58,18 +58,33 @@ jobs:
             python -c "
           import xml.etree.ElementTree as ET
           import os
+          import sys
           
           try:
+              if not os.path.exists('${{ inputs.coverage-file }}'):
+                  print('❌ Coverage file not found: ${{ inputs.coverage-file }}')
+                  print('Available files:')
+                  import subprocess
+                  result = subprocess.run(['ls', '-la'], capture_output=True, text=True)
+                  print(result.stdout)
+                  sys.exit(1)
+                  
               tree = ET.parse('${{ inputs.coverage-file }}')
               root = tree.getroot()
               coverage = float(root.attrib['line-rate']) * 100
               print(f'coverage={coverage:.1f}')
           except Exception as e:
               print(f'Error reading coverage data: {e}')
-              exit(1)
+              sys.exit(1)
           "
           else
             # Extract from text coverage file
+            if [ ! -f "${{ inputs.coverage-file }}" ]; then
+              echo "❌ Coverage file not found: ${{ inputs.coverage-file }}"
+              echo "Available files:"
+              ls -la
+              exit 1
+            fi
             TOTAL_COVERAGE=$(grep -E '^TOTAL' ${{ inputs.coverage-file }} | awk '{print $4}' | tr -d '%' || echo "0")
             echo "coverage=${TOTAL_COVERAGE}"
           fi
@@ -80,9 +95,10 @@ jobs:
         run: |
           COVERAGE=${{ steps.coverage.outputs.coverage }}
           
-          if (( $(echo "$COVERAGE < 90" | bc -l) )); then
+          # Use awk for floating point comparison instead of bc
+          if awk "BEGIN {exit ($COVERAGE < 90) ? 0 : 1}"; then
             echo "color=red"
-          elif (( $(echo "$COVERAGE < 99" | bc -l) )); then
+          elif awk "BEGIN {exit ($COVERAGE < 99) ? 0 : 1}"; then
             echo "color=orange"
           else
             echo "color=green"

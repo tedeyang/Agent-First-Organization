@@ -20,6 +20,7 @@ jobs:
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       MIN_COVERAGE_THRESHOLD: '99.1'
+      ARKLEX_TEST_ENV: 'local'
     outputs:
       coverage-percentage: ${{ steps.coverage-check.outputs.coverage }}
     steps:
@@ -44,7 +45,7 @@ jobs:
         id: coverage-check
         uses: ./.github/actions/run-coverage-tests
         with:
-          coverage-command: 'ARKLEX_TEST_ENV=local pytest tests/ --cov=arklex --cov-report=term-missing --cov-report=html --cov-report=xml --no-cov-on-fail'
+          coverage-command: 'pytest tests/ --cov=arklex --cov-report=term-missing --cov-report=html --cov-report=xml --no-cov-on-fail'
           min-coverage-threshold: '99.1'
           checkout-repo: 'false'
 
@@ -54,11 +55,26 @@ jobs:
           ls -la
           if [ -f "coverage.xml" ]; then
             echo "✅ coverage.xml found"
+            echo "coverage.xml content (first 10 lines):"
+            head -10 coverage.xml
           else
             echo "❌ coverage.xml not found"
             echo "Available files:"
             ls -la
-            exit 1
+            echo "Checking for other coverage files..."
+            if [ -f ".coverage" ]; then
+              echo "✅ .coverage found, generating XML"
+              coverage xml
+              if [ -f "coverage.xml" ]; then
+                echo "✅ coverage.xml generated successfully"
+              else
+                echo "❌ Failed to generate coverage.xml"
+                exit 1
+              fi
+            else
+              echo "❌ No coverage data found"
+              exit 1
+            fi
           fi
 
       - name: Upload coverage artifacts

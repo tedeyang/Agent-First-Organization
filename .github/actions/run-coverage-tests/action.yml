@@ -42,14 +42,31 @@ runs:
       shell: bash
       env:
         MIN_COVERAGE_THRESHOLD: ${{ inputs.min-coverage-threshold }}
+        ARKLEX_TEST_ENV: 'local'
       run: |
+        echo "Running coverage command: ${{ inputs.coverage-command }}"
         ${{ inputs.coverage-command }}
+
+        # Check if coverage.xml exists, if not try to generate it
+        if [ ! -f "coverage.xml" ] && [ -f ".coverage" ]; then
+          echo "coverage.xml not found, generating from .coverage..."
+          coverage xml
+        fi
 
         python -c "
         import xml.etree.ElementTree as ET
         import os
+        import sys
 
         try:
+            if not os.path.exists('coverage.xml'):
+                print('❌ coverage.xml not found')
+                print('Available files:')
+                import subprocess
+                result = subprocess.run(['ls', '-la'], capture_output=True, text=True)
+                print(result.stdout)
+                sys.exit(1)
+                
             tree = ET.parse('coverage.xml')
             root = tree.getroot()
             coverage = float(root.attrib['line-rate']) * 100
@@ -60,7 +77,7 @@ runs:
 
             if coverage < min_coverage:
                 print(f'❌ Coverage ({coverage:.1f}%) is below minimum threshold ({min_coverage}%)')
-                exit(1)
+                sys.exit(1)
             else:
                 print(f'✅ Coverage ({coverage:.1f}%) meets minimum threshold ({min_coverage}%)')
 
@@ -68,4 +85,4 @@ runs:
                 f.write(f'coverage={coverage:.1f}\\n')
         except Exception as e:
             print(f'Error reading coverage data: {e}')
-            exit(1)"
+            sys.exit(1)"
