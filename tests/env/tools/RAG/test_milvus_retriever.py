@@ -363,6 +363,29 @@ class TestMilvusRetriever:
         milvus_retriever.client.query.assert_called_once()
         milvus_retriever.client.upsert.assert_called_once()
 
+    def test_update_tag_by_qa_doc_id_no_vectors(
+        self, milvus_retriever: MilvusRetriever
+    ) -> None:
+        """Test update_tag_by_qa_doc_id when no vectors are found (should raise ValueError)."""
+        milvus_retriever.client.query.return_value = []
+        with pytest.raises(ValueError) as excinfo:
+            milvus_retriever.update_tag_by_qa_doc_id(
+                "test_collection", "qa_123", {"new": "tag"}
+            )
+        assert "No vectors found for qa_doc_id" in str(excinfo.value)
+
+    def test_update_tag_by_qa_doc_id_upsert_exception(
+        self, milvus_retriever: MilvusRetriever
+    ) -> None:
+        """Test update_tag_by_qa_doc_id when upsert fails (should raise ValueError)."""
+        milvus_retriever.client.query.return_value = [{"metadata": {}}]
+        milvus_retriever.client.upsert.side_effect = Exception("upsert failed")
+        with pytest.raises(ValueError) as excinfo:
+            milvus_retriever.update_tag_by_qa_doc_id(
+                "test_collection", "qa_123", {"new": "tag"}
+            )
+        assert "Failed to upsert updated vectors" in str(excinfo.value)
+
     def test_add_documents_parallel(
         self,
         milvus_retriever: MilvusRetriever,
@@ -385,6 +408,74 @@ class TestMilvusRetriever:
             assert len(result) == 1
             mock_pool.map.assert_called_once()
 
+    def test_add_documents_parallel_creates_collection(
+        self,
+        milvus_retriever: MilvusRetriever,
+        sample_retriever_document: RetrieverDocument,
+    ) -> None:
+        """Test add_documents_parallel creates collection if not exists."""
+        milvus_retriever.client.has_collection.return_value = False
+        process_pool = Mock()
+        process_pool.map.return_value = [
+            sample_retriever_document.to_milvus_schema_dict_and_embed()
+        ]
+        milvus_retriever.client.upsert.return_value = ["ok"]
+        # Patch create_collection_with_partition_key to allow call assertion
+        with patch.object(
+            milvus_retriever, "create_collection_with_partition_key"
+        ) as mock_create:
+            result = milvus_retriever.add_documents_parallel(
+                "test_collection",
+                "test_bot",
+                "1.0",
+                [sample_retriever_document],
+                process_pool,
+            )
+            assert result == ["ok"]
+            milvus_retriever.client.has_collection.assert_called_once()
+            mock_create.assert_called_once_with("test_collection")
+
+    def test_add_documents_parallel_upsert(
+        self,
+        milvus_retriever: MilvusRetriever,
+        sample_retriever_document: RetrieverDocument,
+    ) -> None:
+        """Test add_documents_parallel with upsert=True."""
+        milvus_retriever.client.has_collection.return_value = True
+        process_pool = Mock()
+        process_pool.map.return_value = [
+            sample_retriever_document.to_milvus_schema_dict_and_embed()
+        ]
+        milvus_retriever.client.upsert.return_value = ["ok"]
+        result = milvus_retriever.add_documents_parallel(
+            "test_collection",
+            "test_bot",
+            "1.0",
+            [sample_retriever_document],
+            process_pool,
+            upsert=True,
+        )
+        assert result == ["ok"]
+
+    def test_add_documents_parallel_batching(
+        self,
+        milvus_retriever: MilvusRetriever,
+        sample_retriever_document: RetrieverDocument,
+    ) -> None:
+        """Test add_documents_parallel processes batches of 100."""
+        milvus_retriever.client.has_collection.return_value = True
+        process_pool = Mock()
+        # Simulate 150 docs
+        docs = [sample_retriever_document] * 150
+        process_pool.map.return_value = [
+            sample_retriever_document.to_milvus_schema_dict_and_embed()
+        ] * 100
+        milvus_retriever.client.upsert.return_value = ["ok"] * 100
+        result = milvus_retriever.add_documents_parallel(
+            "test_collection", "test_bot", "1.0", docs, process_pool, upsert=True
+        )
+        assert len(result) == 200  # 2 batches of 100
+
     def test_add_documents(
         self,
         milvus_retriever: MilvusRetriever,
@@ -406,6 +497,21 @@ class TestMilvusRetriever:
 
             assert len(result) == 1
             milvus_retriever.client.upsert.assert_called_once()
+
+    def test_add_documents_exception_handling(
+        self,
+        milvus_retriever: MilvusRetriever,
+        sample_retriever_document: RetrieverDocument,
+    ) -> None:
+        """Test add_documents handles upsert exception."""
+        milvus_retriever.client.has_collection.return_value = True
+        milvus_retriever.client.get.return_value = []
+        milvus_retriever.client.upsert.side_effect = Exception("upsert error")
+        with pytest.raises(Exception) as excinfo:
+            milvus_retriever.add_documents(
+                "test_collection", "test_bot", "1.0", [sample_retriever_document]
+            )
+        assert "upsert error" in str(excinfo.value)
 
     def test_search(self, milvus_retriever: MilvusRetriever) -> None:
         """Test search method."""
@@ -456,6 +562,35 @@ class TestMilvusRetriever:
             # Verify that the search was called with tag filter
             call_args = milvus_retriever.client.search.call_args
             assert "filter" in call_args[1]
+
+    def test_search_empty_results(self, milvus_retriever: MilvusRetriever) -> None:
+        """Test search returns empty list if no results."""
+        milvus_retriever.client.search.return_value = [[]]
+        result = milvus_retriever.search("test_collection", "test_bot", "1.0", "query")
+        assert result == []
+
+    def test_search_with_tags_filter(self, milvus_retriever: MilvusRetriever) -> None:
+        """Test search with tags only uses one tag."""
+        milvus_retriever.client.search.return_value = [
+            [
+                {
+                    "entity": {
+                        "qa_doc_id": "qa_123",
+                        "chunk_id": 0,
+                        "qa_doc_type": "faq",  # Use correct enum value
+                        "metadata": {"tags": {"a": 1}},
+                        "text": "text",
+                    },
+                    "distance": 0.1,
+                }
+            ]
+        ]
+        result = milvus_retriever.search(
+            "test_collection", "test_bot", "1.0", "query", tags={"a": 1, "b": 2}
+        )
+        assert len(result) == 1
+        assert result[0].qa_doc_id == "qa_123"
+        assert result[0].metadata["tags"]["a"] == 1
 
     def test_get_qa_docs(self, milvus_retriever: MilvusRetriever) -> None:
         """Test get_qa_docs method."""
@@ -985,3 +1120,156 @@ class TestIntegration:
                 "test_collection", "qa_123"
             )
             assert delete_result == mock_delete_result
+
+    def test_add_documents_upsert_true(
+        self,
+        milvus_retriever: MilvusRetriever,
+        sample_retriever_document: RetrieverDocument,
+    ) -> None:
+        """Test add_documents with upsert=True covers the else branch."""
+        milvus_retriever.client.has_collection.return_value = True
+        milvus_retriever.client.upsert.return_value = ["ok"]
+        result = milvus_retriever.add_documents(
+            "test_collection",
+            "test_bot",
+            "1.0",
+            [sample_retriever_document],
+            upsert=True,
+        )
+        assert result == [["ok"]]
+
+    def test_get_qa_docs_non_faq(self, milvus_retriever: MilvusRetriever) -> None:
+        """Test get_qa_docs for non-FAQ type covers else branch and unchunked doc creation."""
+        # Mock Collection and iterator
+        with (
+            patch(
+                "arklex.env.tools.RAG.retrievers.milvus_retriever.Collection"
+            ) as mock_collection,
+            patch(
+                "arklex.env.tools.RAG.retrievers.milvus_retriever.connections.connect"
+            ),
+        ):
+            mock_iter = Mock()
+            # Simulate two chunks for one qa_doc_id
+            mock_iter.next.side_effect = [
+                [
+                    {
+                        "id": "id1",
+                        "qa_doc_id": "qa1",
+                        "chunk_id": 0,
+                        "qa_doc_type": "other",
+                        "text": "a",
+                        "metadata": {},
+                        "bot_uid": "bot__1.0",
+                        "timestamp": 1,
+                    },
+                    {
+                        "id": "id2",
+                        "qa_doc_id": "qa1",
+                        "chunk_id": 1,
+                        "qa_doc_type": "other",
+                        "text": "b",
+                        "metadata": {},
+                        "bot_uid": "bot__1.0",
+                        "timestamp": 1,
+                    },
+                ],
+                [],
+            ]
+            mock_collection.return_value.query_iterator.return_value = mock_iter
+            milvus_retriever.uri = "uri"
+            milvus_retriever.token = "token"
+            docs = milvus_retriever.get_qa_docs(
+                "test_collection", "test_bot", "1.0", RetrieverDocumentType.OTHER
+            )
+            assert len(docs) == 1
+            assert docs[0].qa_doc_id == "qa1"
+            assert docs[0].text == "ab"
+
+    def test_get_qa_doc_non_faq(self, milvus_retriever: MilvusRetriever) -> None:
+        """Test get_qa_doc for non-FAQ type covers else branch."""
+        milvus_retriever.client.query.return_value = [
+            {
+                "qa_doc_id": "qa1",
+                "chunk_id": 0,
+                "qa_doc_type": "other",
+                "text": "a",
+                "metadata": {},
+                "bot_uid": "bot__1.0",
+                "timestamp": 1,
+            },
+            {
+                "qa_doc_id": "qa1",
+                "chunk_id": 1,
+                "qa_doc_type": "other",
+                "text": "b",
+                "metadata": {},
+                "bot_uid": "bot__1.0",
+                "timestamp": 1,
+            },
+        ]
+        doc = milvus_retriever.get_qa_doc("test_collection", "qa1")
+        assert doc.qa_doc_id == "qa1"
+        assert doc.text == "ab"
+
+    def test_load_collection_raises(self, milvus_retriever: MilvusRetriever) -> None:
+        """Test load_collection raises ValueError if collection does not exist."""
+        milvus_retriever.client.has_collection.return_value = False
+        with pytest.raises(ValueError) as excinfo:
+            milvus_retriever.load_collection("test_collection")
+        assert "Milvus Collection test_collection does not exist" in str(excinfo.value)
+
+    def test_add_vectors_parallel_upsert(
+        self, milvus_retriever: MilvusRetriever
+    ) -> None:
+        """Test add_vectors_parallel with upsert=True covers else branch."""
+        milvus_retriever.client.has_collection.return_value = True
+        milvus_retriever.client.upsert.return_value = ["ok"]
+        vectors = [{"id": "id1"}]
+        result = milvus_retriever.add_vectors_parallel(
+            "test_collection", "test_bot", "1.0", vectors, upsert=True
+        )
+        assert result == ["ok"]
+
+    def test_add_vectors_parallel_batching(
+        self, milvus_retriever: MilvusRetriever
+    ) -> None:
+        """Test add_vectors_parallel processes batches of 100."""
+        milvus_retriever.client.has_collection.return_value = True
+        milvus_retriever.client.query.return_value = []
+        milvus_retriever.client.upsert.return_value = ["ok"] * 100
+        vectors = [{"id": f"id{i}"} for i in range(150)]
+        result = milvus_retriever.add_vectors_parallel(
+            "test_collection", "test_bot", "1.0", vectors
+        )
+        assert len(result) == 200  # 2 batches of 100
+
+    def test_add_vectors_parallel_creates_collection(
+        self, milvus_retriever: MilvusRetriever
+    ) -> None:
+        """Test add_vectors_parallel creates collection if not exists."""
+        milvus_retriever.client.has_collection.return_value = False
+        milvus_retriever.client.query.return_value = []
+        milvus_retriever.client.upsert.return_value = ["ok"]
+        with patch.object(
+            milvus_retriever, "create_collection_with_partition_key"
+        ) as mock_create:
+            vectors = [{"id": "id1"}]
+            milvus_retriever.add_vectors_parallel(
+                "test_collection", "test_bot", "1.0", vectors
+            )
+            mock_create.assert_called_once_with("test_collection")
+
+    def test_is_collection_loaded(self, milvus_retriever: MilvusRetriever) -> None:
+        """Test is_collection_loaded covers print and return value."""
+        milvus_retriever.client.get_load_state.return_value = {"state": "Loaded"}
+        assert milvus_retriever.is_collection_loaded("test_collection") is True
+
+    def test_is_collection_loaded_with_print(
+        self, milvus_retriever: MilvusRetriever
+    ) -> None:
+        """Test is_collection_loaded covers the print statement for 100% coverage."""
+        milvus_retriever.client.get_load_state.return_value = {"state": "NotLoaded"}
+        # Don't patch print - let it execute to get coverage
+        result = milvus_retriever.is_collection_loaded("test_collection")
+        assert result is False
