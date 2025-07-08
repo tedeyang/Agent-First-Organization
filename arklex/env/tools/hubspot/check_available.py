@@ -184,8 +184,12 @@ def check_available(
             ab_times: list[dict[str, int]] = []
 
             for slot in slots:
-                start_ts: int = slot["startMillisUtc"]
-                end_ts: int = slot["endMillisUtc"]
+                start_ts: int = slot.get("startMillisUtc")
+                end_ts: int = slot.get("endMillisUtc")
+
+                # Skip slots with missing timestamp data
+                if start_ts is None or end_ts is None:
+                    continue
 
                 ab_times.append({"start": start_ts, "end": end_ts})
             same_dt_info: dict[str, list[dict[str, str]]] = {"available_time_slots": []}
