@@ -95,14 +95,6 @@ jobs:
           name: htmlcov
           path: htmlcov/
 
-      - name: Display coverage comment
-        id: coverage
-        uses: py-cov-action/python-coverage-comment-action@v3
-        with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          MINIMUM_GREEN: ${{ inputs.min-coverage-threshold }}
-          MINIMUM_ORANGE: 70
-
       - name: Update README badge
         run: |
           COVERAGE=${{ steps.coverage-check.outputs.coverage }}
