@@ -44,7 +44,7 @@ jobs:
         run: |
           ${{ inputs.coverage-command }}
 
-          python -c "
+          python -c @- << 'EOF'
           import xml.etree.ElementTree as ET
           import os
 
@@ -99,4 +99,4 @@ jobs:
               import traceback
               traceback.print_exc()
               exit(1)
-          "
+          EOF

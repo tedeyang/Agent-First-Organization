@@ -66,7 +66,7 @@ jobs:
       - name: Extract coverage percentage
         id: extract-coverage
         run: |
-          python -c "
+          python -c @- << 'EOF'
           import xml.etree.ElementTree as ET
           import os
           
@@ -117,7 +117,8 @@ jobs:
               print(f'❌ Error parsing coverage.xml: {e}')
               import traceback
               traceback.print_exc()
-              exit(1)"
+              exit(1)
+          EOF
 
       - name: Upload coverage artifacts
         uses: actions/upload-artifact@v4

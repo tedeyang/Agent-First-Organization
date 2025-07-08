@@ -52,28 +52,30 @@ jobs:
           curl -X POST "https://api.sendgrid.com/v3/mail/send" \
             -H "Authorization: Bearer ${{ secrets.SENDGRID_API_KEY }}" \
             -H "Content-Type: application/json" \
-            -d '{
-              "personalizations": [
-                {
-                  "to": [
-                    {
-                      "email": "${{ inputs.recipient-email }}"
-                    }
-                  ]
-                }
-              ],
-              "from": {
-                "email": "${{ inputs.sender-email }}",
-                "name": "${{ inputs.sender-name }}"
-              },
-              "subject": "${{ inputs.subject }}",
-              "content": [
-                {
-                  "type": "text/html",
-                  "value": "${{ inputs.body }}"
-                }
-              ]
-            }'
+            -d @- << 'EOF'
+          {
+            "personalizations": [
+              {
+                "to": [
+                  {
+                    "email": "${{ inputs.recipient-email }}"
+                  }
+                ]
+              }
+            ],
+            "from": {
+              "email": "${{ inputs.sender-email }}",
+              "name": "${{ inputs.sender-name }}"
+            },
+            "subject": "${{ inputs.subject }}",
+            "content": [
+              {
+                "type": "text/html",
+                "value": "${{ inputs.body }}"
+              }
+            ]
+          }
+          EOF
         shell: bash
 
       - name: Send Email via Webhook
@@ -82,11 +84,13 @@ jobs:
           # Send email using webhook service (Zapier, Make.com, etc.)
           curl -X POST "${{ secrets.EMAIL_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
-            -d '{
-              "to": "${{ inputs.recipient-email }}",
-              "subject": "${{ inputs.subject }}",
-              "body": "${{ inputs.body }}",
-              "from_name": "${{ inputs.sender-name }}",
-              "from_email": "${{ inputs.sender-email }}"
-            }'
+            -d @- << 'EOF'
+          {
+            "to": "${{ inputs.recipient-email }}",
+            "subject": "${{ inputs.subject }}",
+            "body": "${{ inputs.body }}",
+            "from_name": "${{ inputs.sender-name }}",
+            "from_email": "${{ inputs.sender-email }}"
+          }
+          EOF
         shell: bash
