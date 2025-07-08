@@ -29,10 +29,10 @@ jobs:
           ref: ${{ github.head_ref || github.ref }}
           token: ${{ github.token }}
 
-      - name: Set up Python 3.10
+      - name: Set up Python 3.11
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: '3.11'
 
       - name: Install dependencies
         run: |
@@ -72,7 +72,7 @@ jobs:
           
           try:
               if not os.path.exists('coverage.xml'):
-                  print('❌ coverage.xml not found')
+                  print('ERROR: coverage.xml not found')
                   print('Available files:')
                   import subprocess
                   result = subprocess.run(['ls', '-la'], capture_output=True, text=True)
@@ -93,12 +93,12 @@ jobs:
                           coverage = float(elem.attrib['line-rate']) * 100
                           break
                   else:
-                      print('❌ Could not find line-rate coverage data in coverage.xml')
+                      print('ERROR: Could not find line-rate coverage data in coverage.xml')
                       print('XML root attributes:', root.attrib)
                       exit(1)
                       
               if coverage is None:
-                  print('❌ Coverage is None')
+                  print('ERROR: Coverage is None')
                   exit(1)
               
               print(f'Coverage: {coverage:.1f}%')
@@ -106,15 +106,15 @@ jobs:
               # Check against minimum threshold
               min_coverage = float(os.environ.get('MIN_COVERAGE_THRESHOLD', '99.1'))
               if coverage < min_coverage:
-                  print(f'❌ Coverage {coverage:.1f}% is below minimum threshold {min_coverage}%')
+                  print(f'ERROR: Coverage {coverage:.1f}% is below minimum threshold {min_coverage}%')
                   exit(1)
               else:
-                  print(f'✅ Coverage {coverage:.1f}% meets minimum threshold {min_coverage}%')
+                  print(f'SUCCESS: Coverage {coverage:.1f}% meets minimum threshold {min_coverage}%')
               
               with open(os.environ.get('GITHUB_OUTPUT', '/dev/null'), 'a') as f:
                   f.write(f'coverage={coverage:.1f}\\n')
           except Exception as e:
-              print(f'❌ Error parsing coverage.xml: {e}')
+              print(f'ERROR: Error parsing coverage.xml: {e}')
               import traceback
               traceback.print_exc()
               exit(1)
