@@ -11,98 +11,58 @@ permissions:
 jobs:
   setup:
     name: Setup Environment
-    if: |
-      (github.event_name == 'pull_request' && github.event.label.name == 'run-coverage-tests') ||
-      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')) ||
-      (github.event_name == 'workflow_dispatch')
+    if: github.base_ref == 'main' && github.event.label.name == 'run-coverage-tests'
     runs-on: ubuntu-latest
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      MIN_COVERAGE_THRESHOLD: '99.1'
-      ARKLEX_TEST_ENV: 'local'
+    outputs:
+      coverage-percentage: ${{ steps.coverage-check.outputs.coverage }}
     steps:
-      - name: Checkout code
+      - name: Checkout PR branch
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref || github.ref }}
+          ref: ${{ github.head_ref }}
           token: ${{ github.token }}
 
-      - name: Set up Python 3.11
+      - name: Set up Python 3.10
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.10'
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -e '.[milvus,shopify,hubspot]' --quiet
-          pip install coverage pytest-cov
 
       - name: Run tests and check coverage threshold
         id: coverage-check
         uses: ./.github/actions/run-coverage-tests
         with:
-          coverage-command: 'pytest tests/ --cov=arklex --cov-report=term-missing --cov-report=html --cov-report=xml --no-cov-on-fail'
+          coverage-command: 'ARKLEX_TEST_ENV=local pytest tests/ --cov=arklex --cov-report=term-missing --cov-report=html --cov-report=xml --no-cov-on-fail'
           min-coverage-threshold: '99.1'
-          checkout-repo: 'false'
 
-      - name: Verify coverage files
-        run: |
-          echo "Checking for coverage files..."
-          ls -la
-          if [ -f "coverage.xml" ]; then
-            echo "✅ coverage.xml found"
-            echo "coverage.xml content (first 10 lines):"
-            head -10 coverage.xml
-          else
-            echo "❌ coverage.xml not found"
-            echo "Available files:"
-            ls -la
-            exit 1
-          fi
-
-      - name: Upload coverage artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: coverage.xml
-          retention-days: 30
-
-      - name: Upload HTML coverage artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: htmlcov
-          path: htmlcov/
-          retention-days: 30
+  upload-coverage:
+    name: Upload Coverage Report
+    needs: setup
+    if: github.base_ref == 'main' && github.event.label.name == 'run-coverage-tests'
+    uses: ./.github/workflows/reusable-upload-coverage-report.yml
 
   display-coverage:
     name: Display Coverage Comment
     needs: setup
-    if: |
-      (github.event_name == 'pull_request' && github.event.label.name == 'run-coverage-tests') ||
-      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')) ||
-      (github.event_name == 'workflow_dispatch')
+    if: github.base_ref == 'main' && github.event.label.name == 'run-coverage-tests'
     uses: ./.github/workflows/reusable-display-coverage-comment.yml
     with:
+      github-token: ${{ github.token }}
       minimum-green: '99.1'
       minimum-orange: '70'
-    secrets:
-      github-token: ${{ secrets.GITHUB_TOKEN }}
 
   update-badge:
     name: Update README Badge
     needs: setup
-    if: |
-      (github.event_name == 'pull_request' && github.event.label.name == 'run-coverage-tests') ||
-      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')) ||
-      (github.event_name == 'workflow_dispatch')
+    if: github.base_ref == 'main' && github.event.label.name == 'run-coverage-tests' && github.ref == 'refs/heads/main'
     uses: ./.github/workflows/reusable-update-badge.yml
     with:
       coverage-file: 'coverage.xml'
       coverage-format: 'xml'
       min-coverage-threshold: '99.1'
-    permissions:
-      contents: write
-      pull-requests: write
-    secrets:
-      github-token: ${{ secrets.GITHUB_TOKEN }}
