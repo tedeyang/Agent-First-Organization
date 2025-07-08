@@ -98,13 +98,13 @@ jobs:
         with:
           status: success
           text: |
-            **${{ steps.summary.outputs.notification_title }}**
+            ${{ steps.summary.outputs.notification_title }}
 
             ${{ steps.summary.outputs.notification_message }}
 
-            **Workflow**: Nightly Regression Tests
-            **Run ID**: ${{ github.run_id }}
-            **View Run**: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            Workflow: Nightly Regression Tests
+            Run ID: ${{ github.run_id }}
+            View Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           channel: "#builds"
           username: "GitHub Actions"
           icon_emoji: ":robot_face:"
@@ -118,13 +118,13 @@ jobs:
         with:
           status: failure
           text: |
-            **${{ steps.summary.outputs.notification_title }}**
+            ${{ steps.summary.outputs.notification_title }}
 
             ${{ steps.summary.outputs.notification_message }}
 
-            **Workflow**: Nightly Regression Tests
-            **Run ID**: ${{ github.run_id }}
-            **View Run**: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            Workflow: Nightly Regression Tests
+            Run ID: ${{ github.run_id }}
+            View Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           channel: "#builds"
           username: "GitHub Actions"
           icon_emoji: ":robot_face:"
