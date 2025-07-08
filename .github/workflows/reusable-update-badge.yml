@@ -101,44 +101,42 @@ jobs:
           
           try:
               if not os.path.exists('${{ inputs.coverage-file }}'):
-                  print('❌ Coverage file not found: ${{ inputs.coverage-file }}')
+                  print(f"ERROR: Coverage file not found: ${{ inputs.coverage-file }}")
                   sys.exit(1)
                   
               tree = ET.parse('${{ inputs.coverage-file }}')
               root = tree.getroot()
               
-              print(f'XML root tag: {root.tag}')
-              print(f'XML root attributes: {root.attrib}')
+              print(f"XML root tag: {root.tag}")
+              print(f"XML root attributes: {root.attrib}")
               
               # Use line-rate for coverage calculation
               coverage = None
               if 'line-rate' in root.attrib:
                   coverage = float(root.attrib['line-rate']) * 100
-                  print(f'Found line-rate: {root.attrib["line-rate"]}')
+                  print(f"Found line-rate: {root.attrib['line-rate']}")
               else:
                   # Search for any element with line-rate
                   for elem in root.iter():
                       if 'line-rate' in elem.attrib:
                           coverage = float(elem.attrib['line-rate']) * 100
-                          print(f'Found line-rate in {elem.tag}: {elem.attrib["line-rate"]}')
+                          print(f"Found line-rate in {elem.tag}: {elem.attrib['line-rate']}")
                           break
                   else:
-                      print('❌ Could not find line-rate coverage data in ${{ inputs.coverage-file }}')
-                      print('Available elements with attributes:')
+                      print(f"ERROR: Could not find line-rate coverage data in ${{ inputs.coverage-file }}")
+                      print(f"Available elements with attributes:")
                       for elem in root.iter():
                           if elem.attrib:
-                              print(f'  {elem.tag}: {elem.attrib}')
+                              print(f"  {elem.tag}: {elem.attrib}")
                       sys.exit(1)
                   
               if coverage is None:
-                  print('❌ Coverage is None')
+                  print(f"ERROR: Coverage is None")
                   sys.exit(1)
                   
-              print(f'Coverage: {coverage:.1f}%')
-              with open(os.environ.get('GITHUB_OUTPUT', '/dev/null'), 'a') as f:
-                  f.write(f'coverage={coverage:.1f}\\n')
+              print(f"coverage={coverage:.1f}")
           except Exception as e:
-              print(f'❌ Error parsing coverage file: {e}')
+              print(f"ERROR: Error parsing coverage file: {e}")
               import traceback
               traceback.print_exc()
               sys.exit(1)
@@ -203,11 +201,11 @@ jobs:
               root = tree.getroot()
               if 'line-rate' in root.attrib:
                   coverage = float(root.attrib['line-rate']) * 100
-                  print(f'{coverage:.1f}')
+                  print(f"{coverage:.1f}")
               else:
-                  print('0')
+                  print("0")
           except:
-              print('0')
+              print("0")
           '''
               )
               

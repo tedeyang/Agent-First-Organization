@@ -56,7 +56,7 @@ runs:
             if coverage is None:
                 sys.exit(1)
                 
-            print(f'coverage={coverage:.1f}')
+            print(f"coverage={coverage:.1f}")
         except Exception as e:
             sys.exit(1)
         '''

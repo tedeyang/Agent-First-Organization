@@ -28,7 +28,7 @@ runs:
       if: inputs.checkout-repo == 'true'
       uses: actions/setup-python@v4
       with:
-        python-version: '3.10'
+        python-version: '3.11'
 
     - name: Install dependencies
       if: inputs.checkout-repo == 'true'
@@ -56,12 +56,12 @@ runs:
 
         # Verify coverage.xml was generated
         if [ ! -f "coverage.xml" ]; then
-          echo "❌ coverage.xml was not generated"
+          echo "ERROR: coverage.xml was not generated"
           echo "Available files:"
           ls -la
           exit 1
         fi
 
-        echo "✅ Coverage reports generated successfully"
+        echo "SUCCESS: Coverage reports generated successfully"
         echo "Coverage files found:"
         ls -la *.xml *.html 2>/dev/null || echo "No coverage files found"

@@ -28,7 +28,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: '3.11'
 
       - name: Install dependencies
         run: |
@@ -53,49 +53,46 @@ jobs:
               root = tree.getroot()
               
               # Debug: Print root attributes
-              print(f'Root tag: {root.tag}')
-              print(f'Root attributes: {root.attrib}')
+              print(f"Root tag: {root.tag}")
+              print(f"Root attributes: {root.attrib}")
               
               # Use line-rate for coverage calculation
               coverage = None
               if 'line-rate' in root.attrib:
                   coverage = float(root.attrib['line-rate']) * 100
-                  print(f'Found line-rate: {root.attrib["line-rate"]}')
+                  print(f"Found line-rate: {root.attrib['line-rate']}")
               else:
                   # Search for any element with line-rate
                   for elem in root.iter():
                       if 'line-rate' in elem.attrib:
                           coverage = float(elem.attrib['line-rate']) * 100
-                          print(f'Found line-rate in {elem.tag}: {elem.attrib["line-rate"]}')
+                          print(f"Found line-rate in {elem.tag}: {elem.attrib['line-rate']}")
                           break
                   else:
-                      print('❌ No line-rate coverage attributes found in XML')
-                      print('Available attributes:', root.attrib)
-                      print('Searching all elements for line-rate...')
+                      print(f"ERROR: No line-rate coverage attributes found in XML")
+                      print(f"Available attributes: {root.attrib}")
+                      print(f"Searching all elements for line-rate...")
                       for elem in root.iter():
                           if elem.attrib:
-                              print(f'  {elem.tag}: {elem.attrib}')
+                              print(f"  {elem.tag}: {elem.attrib}")
                       exit(1)
                   
               if coverage is None:
-                  print('❌ Failed to extract coverage percentage')
+                  print(f"ERROR: Failed to extract coverage percentage")
                   exit(1)
                   
-              print(f'Coverage: {coverage:.1f}%')
+              print(f"Coverage: {coverage:.1f}%")
 
               min_coverage = float(os.environ.get('MIN_COVERAGE_THRESHOLD', '${{ inputs.min-coverage-threshold }}'))
-              print(f'Minimum coverage threshold: {min_coverage}%')
+              print(f"Minimum coverage threshold: {min_coverage}%")
 
               if coverage < min_coverage:
-                  print(f'❌ Coverage ({coverage:.1f}%) is below minimum threshold ({min_coverage}%)')
+                  print(f"ERROR: Coverage ({coverage:.1f}%) is below minimum threshold ({min_coverage}%)")
                   exit(1)
               else:
-                  print(f'✅ Coverage ({coverage:.1f}%) meets minimum threshold ({min_coverage}%)')
-
-              with open(os.environ.get('GITHUB_OUTPUT', '/dev/null'), 'a') as f:
-                  f.write(f'coverage={coverage:.1f}\\n')
+                  print(f"SUCCESS: Coverage ({coverage:.1f}%) meets minimum threshold ({min_coverage}%)")
           except Exception as e:
-              print(f'Error reading coverage data: {e}')
+              print(f"Error reading coverage data: {e}")
               import traceback
               traceback.print_exc()
               exit(1)
