@@ -53,8 +53,12 @@ jobs:
 
       - name: Verify downloaded artifacts
         run: |
+          echo "Checking for coverage files..."
+          ls -la
           if [ -f "${{ inputs.coverage-file }}" ]; then
             echo "✅ Coverage file found: ${{ inputs.coverage-file }}"
+            echo "File content (first 10 lines):"
+            head -10 "${{ inputs.coverage-file }}"
           else
             echo "❌ Coverage file not found: ${{ inputs.coverage-file }}"
             echo "Available files:"
@@ -70,10 +74,12 @@ jobs:
         id: coverage
         shell: bash
         run: |
+          echo "Extracting coverage from ${{ inputs.coverage-file }}..."
           if [ "${{ inputs.coverage-format }}" = "xml" ]; then
             # Try to generate coverage.xml if it doesn't exist or is malformed
             if [ ! -f "${{ inputs.coverage-file }}" ] || [ ! -s "${{ inputs.coverage-file }}" ]; then
               if [ -f ".coverage" ]; then
+                echo "Generating coverage.xml from .coverage..."
                 coverage xml
                 if [ -f "coverage.xml" ]; then
                   echo "✅ Generated coverage.xml from .coverage"
@@ -101,22 +107,32 @@ jobs:
               tree = ET.parse('${{ inputs.coverage-file }}')
               root = tree.getroot()
               
+              print(f'XML root tag: {root.tag}')
+              print(f'XML root attributes: {root.attrib}')
+              
               # Try different attribute names for coverage
               coverage = None
               if 'line-rate' in root.attrib:
                   coverage = float(root.attrib['line-rate']) * 100
+                  print(f'Found line-rate: {root.attrib["line-rate"]}')
               elif 'lines-valid' in root.attrib and 'lines-covered' in root.attrib:
                   lines_valid = int(root.attrib['lines-valid'])
                   lines_covered = int(root.attrib['lines-covered'])
                   coverage = (lines_covered / lines_valid) * 100 if lines_valid > 0 else 0
+                  print(f'Found lines-valid: {lines_valid}, lines-covered: {lines_covered}')
               else:
                   # Search for any element with line-rate
                   for elem in root.iter():
                       if 'line-rate' in elem.attrib:
                           coverage = float(elem.attrib['line-rate']) * 100
+                          print(f'Found line-rate in {elem.tag}: {elem.attrib["line-rate"]}')
                           break
                   else:
                       print('❌ Could not find coverage data in ${{ inputs.coverage-file }}')
+                      print('Available elements with attributes:')
+                      for elem in root.iter():
+                          if elem.attrib:
+                              print(f'  {elem.tag}: {elem.attrib}')
                       sys.exit(1)
                   
               if coverage is None:
@@ -128,6 +144,8 @@ jobs:
                   f.write(f'coverage={coverage:.1f}\\n')
           except Exception as e:
               print(f'❌ Error parsing coverage file: {e}')
+              import traceback
+              traceback.print_exc()
               sys.exit(1)
           "
           else
@@ -151,6 +169,8 @@ jobs:
           # Check if COVERAGE is empty
           if [ -z "$COVERAGE" ]; then
             echo "❌ Error: COVERAGE is empty from previous step"
+            echo "Available outputs:"
+            echo "coverage step outputs: ${{ steps.coverage.outputs }}"
             exit 1
           fi
           
@@ -172,11 +192,56 @@ jobs:
           # Check if variables are empty
           if [ -z "$COVERAGE" ] || [ -z "$COLOR" ]; then
             echo "❌ Error: COVERAGE or COLOR variables are empty"
-            exit 1
+            echo "COVERAGE: '$COVERAGE'"
+            echo "COLOR: '$COLOR'"
+            echo "Available outputs:"
+            echo "coverage step outputs: ${{ steps.coverage.outputs }}"
+            echo "color step outputs: ${{ steps.color.outputs }}"
+            
+            # Try to extract coverage directly from coverage.xml as fallback
+            if [ -f "coverage.xml" ]; then
+              echo "Attempting fallback coverage extraction..."
+              FALLBACK_COVERAGE=$(python -c "
+          import xml.etree.ElementTree as ET
+          try:
+              tree = ET.parse('coverage.xml')
+              root = tree.getroot()
+              if 'line-rate' in root.attrib:
+                  coverage = float(root.attrib['line-rate']) * 100
+                  print(f'{coverage:.1f}')
+              else:
+                  print('0')
+          except:
+              print('0')
+          ")
+              
+              if [ "$FALLBACK_COVERAGE" != "0" ]; then
+                COVERAGE=$FALLBACK_COVERAGE
+                echo "Using fallback coverage: $COVERAGE"
+                
+                # Determine color based on fallback coverage
+                if awk "BEGIN {exit ($COVERAGE < 90) ? 0 : 1}"; then
+                  COLOR="red"
+                elif awk "BEGIN {exit ($COVERAGE < 99) ? 0 : 1}"; then
+                  COLOR="orange"
+                else
+                  COLOR="green"
+                fi
+                echo "Using fallback color: $COLOR"
+              else
+                echo "Fallback extraction also failed"
+                exit 1
+              fi
+            else
+              exit 1
+            fi
           fi
           
           NEW_BADGE="coverage-${COVERAGE}%25-${COLOR}"
           CURRENT_BADGE=$(grep -oE '${{ inputs.badge-pattern }}' README.md || echo "")
+          
+          echo "Current badge: $CURRENT_BADGE"
+          echo "New badge: $NEW_BADGE"
           
           if [[ "$CURRENT_BADGE" != "$NEW_BADGE" ]]; then
             sed -i "s|${{ inputs.badge-pattern }}|$NEW_BADGE|g" README.md

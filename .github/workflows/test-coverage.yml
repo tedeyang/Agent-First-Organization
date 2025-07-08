@@ -48,6 +48,21 @@ jobs:
           min-coverage-threshold: '99.1'
           checkout-repo: 'false'
 
+      - name: Verify coverage files
+        run: |
+          echo "Checking for coverage files..."
+          ls -la
+          if [ -f "coverage.xml" ]; then
+            echo "✅ coverage.xml found"
+            echo "coverage.xml content (first 10 lines):"
+            head -10 coverage.xml
+          else
+            echo "❌ coverage.xml not found"
+            echo "Available files:"
+            ls -la
+            exit 1
+          fi
+
       - name: Extract coverage percentage
         id: extract-coverage
         run: |
@@ -58,6 +73,10 @@ jobs:
           try:
               if not os.path.exists('coverage.xml'):
                   print('❌ coverage.xml not found')
+                  print('Available files:')
+                  import subprocess
+                  result = subprocess.run(['ls', '-la'], capture_output=True, text=True)
+                  print(result.stdout)
                   exit(1)
                   
               tree = ET.parse('coverage.xml')
@@ -79,6 +98,7 @@ jobs:
                           break
                   else:
                       print('❌ Could not find coverage data in coverage.xml')
+                      print('XML root attributes:', root.attrib)
                       exit(1)
                       
               if coverage is None:
@@ -99,6 +119,8 @@ jobs:
                   f.write(f'coverage={coverage:.1f}\\n')
           except Exception as e:
               print(f'❌ Error parsing coverage.xml: {e}')
+              import traceback
+              traceback.print_exc()
               exit(1)"
 
       - name: Upload coverage artifacts
