@@ -6,7 +6,7 @@ on:
       python-version:
         description: 'Python version to use'
         required: false
-        default: '3.11'
+        default: '3.10'
         type: string
       fail-under:
         description: 'Minimum coverage percentage to pass'
@@ -64,9 +64,9 @@ jobs:
           # Run tests with coverage, excluding certain directories if needed
           ARKLEX_TEST_ENV=local coverage run --source=arklex -m pytest tests/ -v --tb=short
           coverage xml
+          coverage report > coverage.txt
           echo "Coverage report generated:"
-          echo "coverage.xml content (first 10 lines):"
-          head -10 coverage.xml
+          cat coverage.txt
 
       - name: Fetch main branch
         run: git fetch origin main
@@ -135,15 +135,15 @@ jobs:
           name: diff-coverage-report
           path: |
             diff_coverage.html
-            coverage.xml
+            coverage.txt
             diff_output.txt
 
       - name: Update README badge
         if: always() && github.ref == 'refs/heads/main'
         uses: ./.github/workflows/reusable-update-badge.yml
         with:
-          coverage-file: 'coverage.xml'
-          coverage-format: 'xml'
+          coverage-file: 'coverage.txt'
+          coverage-format: 'txt'
           min-coverage-threshold: ${{ inputs.fail-under }}
 
       - name: Summary

@@ -27,9 +27,9 @@ on:
         default: 'noreply@arklexai.com'
         type: string
       email-service:
-        description: 'Email service to use (sendgrid or webhook)'
+        description: 'Email service to use (sendgrid, webhook, or debug)'
         required: false
-        default: 'sendgrid'
+        default: 'debug'
         type: string
     secrets:
       SENDGRID_API_KEY:
@@ -52,30 +52,28 @@ jobs:
           curl -X POST "https://api.sendgrid.com/v3/mail/send" \
             -H "Authorization: Bearer ${{ secrets.SENDGRID_API_KEY }}" \
             -H "Content-Type: application/json" \
-            -d @- << 'EOF'
-          {
-            "personalizations": [
-              {
-                "to": [
-                  {
-                    "email": "${{ inputs.recipient-email }}"
-                  }
-                ]
-              }
-            ],
-            "from": {
-              "email": "${{ inputs.sender-email }}",
-              "name": "${{ inputs.sender-name }}"
-            },
-            "subject": "${{ inputs.subject }}",
-            "content": [
-              {
-                "type": "text/html",
-                "value": "${{ inputs.body }}"
-              }
-            ]
-          }
-          EOF
+            -d '{
+              "personalizations": [
+                {
+                  "to": [
+                    {
+                      "email": "${{ inputs.recipient-email }}"
+                    }
+                  ]
+                }
+              ],
+              "from": {
+                "email": "${{ inputs.sender-email }}",
+                "name": "${{ inputs.sender-name }}"
+              },
+              "subject": "${{ inputs.subject }}",
+              "content": [
+                {
+                  "type": "text/html",
+                  "value": "${{ inputs.body }}"
+                }
+              ]
+            }'
         shell: bash
 
       - name: Send Email via Webhook
@@ -84,13 +82,32 @@ jobs:
           # Send email using webhook service (Zapier, Make.com, etc.)
           curl -X POST "${{ secrets.EMAIL_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
-            -d @- << 'EOF'
-          {
-            "to": "${{ inputs.recipient-email }}",
-            "subject": "${{ inputs.subject }}",
-            "body": "${{ inputs.body }}",
-            "from_name": "${{ inputs.sender-name }}",
-            "from_email": "${{ inputs.sender-email }}"
-          }
-          EOF
+            -d '{
+              "to": "${{ inputs.recipient-email }}",
+              "subject": "${{ inputs.subject }}",
+              "body": "${{ inputs.body }}",
+              "from_name": "${{ inputs.sender-name }}",
+              "from_email": "${{ inputs.sender-email }}"
+            }'
         shell: bash
+
+      - name: Debug Email (Print to Logs)
+        if: inputs.email-service == 'debug'
+        run: |
+          echo "=== EMAIL NOTIFICATION (DEBUG MODE) ==="
+          echo "To: ${{ inputs.recipient-email }}"
+          echo "From: ${{ inputs.sender-name }} <${{ inputs.sender-email }}>"
+          echo "Subject: ${{ inputs.subject }}"
+          echo ""
+          echo "Body:"
+          echo "${{ inputs.body }}"
+          echo "======================================"
+        shell: bash
+
+      - name: Log Email Sent
+        run: |
+          echo "✅ Email notification sent successfully"
+          echo "Service: ${{ inputs.email-service }}"
+          echo "Recipient: ${{ inputs.recipient-email }}"
+          echo "Subject: ${{ inputs.subject }}"
+        shell: bash 

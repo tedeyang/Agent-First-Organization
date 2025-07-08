@@ -4,12 +4,12 @@ on:
   workflow_call:
     inputs:
       coverage-file:
-        description: 'Path to coverage file (coverage.xml)'
+        description: 'Path to coverage file (coverage.txt or coverage.xml)'
         required: false
         default: 'coverage.xml'
         type: string
       coverage-format:
-        description: 'Format of coverage file (xml)'
+        description: 'Format of coverage file (txt or xml)'
         required: false
         default: 'xml'
         type: string
@@ -44,69 +44,26 @@ jobs:
         with:
           token: ${{ secrets.github-token }}
 
-      - name: Download coverage artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: coverage-report
-          path: ./
-
-      - name: Verify coverage file exists
-        run: |
-          if [ ! -f "${{ inputs.coverage-file }}" ]; then
-            echo "❌ Coverage file not found: ${{ inputs.coverage-file }}"
-            echo "Available files:"
-            ls -la
-            exit 1
-          fi
-          echo "✅ Coverage file found: ${{ inputs.coverage-file }}"
-
       - name: Extract coverage percentage
         id: coverage
         run: |
           if [ "${{ inputs.coverage-format }}" = "xml" ]; then
             # Extract from XML coverage file
-            python -c '''
+            python -c "
           import xml.etree.ElementTree as ET
           import os
-          import sys
           
           try:
-              if not os.path.exists('${{ inputs.coverage-file }}'):
-                  print(f"ERROR: Coverage file not found: ${{ inputs.coverage-file }}")
-                  sys.exit(1)
-                  
               tree = ET.parse('${{ inputs.coverage-file }}')
               root = tree.getroot()
-              
-              # Use line-rate for coverage calculation
-              coverage = None
-              if 'line-rate' in root.attrib:
-                  coverage = float(root.attrib['line-rate']) * 100
-              else:
-                  # Search for any element with line-rate
-                  for elem in root.iter():
-                      if 'line-rate' in elem.attrib:
-                          coverage = float(elem.attrib['line-rate']) * 100
-                          break
-                  else:
-                      print(f"ERROR: Could not find line-rate coverage data in ${{ inputs.coverage-file }}")
-                      sys.exit(1)
-                  
-              if coverage is None:
-                  print(f"ERROR: Coverage is None")
-                  sys.exit(1)
-                  
-              print(f"coverage={coverage:.1f}")
+              coverage = float(root.attrib['line-rate']) * 100
+              print(f'coverage={coverage:.1f}')
           except Exception as e:
-              print(f"ERROR: Error parsing coverage file: {e}")
-              sys.exit(1)
-          '''
+              print(f'Error reading coverage data: {e}')
+              exit(1)
+          "
           else
             # Extract from text coverage file
-            if [ ! -f "${{ inputs.coverage-file }}" ]; then
-              echo "❌ Coverage file not found: ${{ inputs.coverage-file }}"
-              exit 1
-            fi
             TOTAL_COVERAGE=$(grep -E '^TOTAL' ${{ inputs.coverage-file }} | awk '{print $4}' | tr -d '%' || echo "0")
             echo "coverage=${TOTAL_COVERAGE}"
           fi
@@ -116,42 +73,26 @@ jobs:
         run: |
           COVERAGE=${{ steps.coverage.outputs.coverage }}
           
-          # Check if COVERAGE is empty
-          if [ -z "$COVERAGE" ]; then
-            echo "❌ Error: COVERAGE is empty from previous step"
-            exit 1
-          fi
-          
-          python -c '''
+          python -c "
           coverage = float('$COVERAGE')
           if coverage < 90:
-              print("color=red")
+              print('color=red')
           elif coverage < 99:
-              print("color=orange")
+              print('color=orange')
           else:
-              print("color=green")
-          '''
+              print('color=green')
+          "
 
       - name: Update README badge
         run: |
           COVERAGE=${{ steps.coverage.outputs.coverage }}
           COLOR=${{ steps.color.outputs.color }}
           
-          # Check if variables are empty
-          if [ -z "$COVERAGE" ] || [ -z "$COLOR" ]; then
-            echo "❌ Error: COVERAGE or COLOR variables are empty"
-            echo "COVERAGE: '$COVERAGE'"
-            echo "COLOR: '$COLOR'"
-            exit 1
-          fi
-          
           NEW_BADGE="coverage-${COVERAGE}%25-${COLOR}"
           CURRENT_BADGE=$(grep -oE '${{ inputs.badge-pattern }}' README.md || echo "")
           
-          echo "Current badge: $CURRENT_BADGE"
-          echo "New badge: $NEW_BADGE"
-          
           if [[ "$CURRENT_BADGE" != "$NEW_BADGE" ]]; then
+            echo "Updating README badge from $CURRENT_BADGE to $NEW_BADGE"
             sed -i "s|${{ inputs.badge-pattern }}|$NEW_BADGE|g" README.md
             
             git config user.name "github-actions[bot]"
@@ -159,7 +100,6 @@ jobs:
             git add README.md
             git commit -m "chore: update README with ${COVERAGE}% test coverage"
             git push
-            echo "✅ Badge updated successfully"
           else
-            echo "ℹ️ Badge already reflects current coverage"
+            echo "Badge already reflects current coverage."
           fi

@@ -6,7 +6,7 @@ on:
       python-version:
         description: 'Python version to use'
         required: false
-        default: '3.11'
+        default: '3.10'
         type: string
       run-on-all-files:
         description: 'Run on all files instead of just changed files'
