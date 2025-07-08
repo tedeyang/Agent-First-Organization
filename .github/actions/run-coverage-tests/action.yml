@@ -37,7 +37,7 @@ runs:
         python -m pip install --upgrade pip
         pip install -e '.[milvus,shopify,hubspot]' --quiet
 
-    - name: Run tests and check coverage threshold
+    - name: Run tests and generate coverage reports
       id: coverage-check
       shell: bash
       env:
@@ -51,44 +51,10 @@ runs:
           coverage xml
         fi
 
-        python -c "
-        import xml.etree.ElementTree as ET
-        import os
-        import sys
+        # Verify coverage.xml was generated
+        if [ ! -f "coverage.xml" ]; then
+          echo "❌ coverage.xml was not generated"
+          exit 1
+        fi
 
-        try:
-            if not os.path.exists('coverage.xml'):
-                sys.exit(1)
-                
-            tree = ET.parse('coverage.xml')
-            root = tree.getroot()
-            
-            # Try different attribute names for coverage
-            coverage = None
-            if 'line-rate' in root.attrib:
-                coverage = float(root.attrib['line-rate']) * 100
-            elif 'lines-valid' in root.attrib and 'lines-covered' in root.attrib:
-                lines_valid = int(root.attrib['lines-valid'])
-                lines_covered = int(root.attrib['lines-covered'])
-                coverage = (lines_covered / lines_valid) * 100 if lines_valid > 0 else 0
-            else:
-                # Search for any element with line-rate
-                for elem in root.iter():
-                    if 'line-rate' in elem.attrib:
-                        coverage = float(elem.attrib['line-rate']) * 100
-                        break
-                else:
-                    sys.exit(1)
-                
-            if coverage is None:
-                sys.exit(1)
-
-            min_coverage = float(os.environ.get('MIN_COVERAGE_THRESHOLD', '${{ inputs.min-coverage-threshold }}'))
-
-            if coverage < min_coverage:
-                sys.exit(1)
-
-            with open(os.environ.get('GITHUB_OUTPUT', '/dev/null'), 'a') as f:
-                f.write(f'coverage={coverage:.1f}\\n')
-        except Exception as e:
-            sys.exit(1)"
+        echo "✅ Coverage reports generated successfully"

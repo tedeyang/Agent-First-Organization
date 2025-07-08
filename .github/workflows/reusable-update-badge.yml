@@ -95,6 +95,7 @@ jobs:
           
           try:
               if not os.path.exists('${{ inputs.coverage-file }}'):
+                  print('❌ Coverage file not found: ${{ inputs.coverage-file }}')
                   sys.exit(1)
                   
               tree = ET.parse('${{ inputs.coverage-file }}')
@@ -115,13 +116,18 @@ jobs:
                           coverage = float(elem.attrib['line-rate']) * 100
                           break
                   else:
+                      print('❌ Could not find coverage data in ${{ inputs.coverage-file }}')
                       sys.exit(1)
                   
               if coverage is None:
+                  print('❌ Coverage is None')
                   sys.exit(1)
                   
-              print(f'coverage={coverage:.1f}')
+              print(f'Coverage: {coverage:.1f}%')
+              with open(os.environ.get('GITHUB_OUTPUT', '/dev/null'), 'a') as f:
+                  f.write(f'coverage={coverage:.1f}\\n')
           except Exception as e:
+              print(f'❌ Error parsing coverage file: {e}')
               sys.exit(1)
           "
           else

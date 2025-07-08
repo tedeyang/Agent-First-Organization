@@ -21,7 +21,7 @@ jobs:
       MIN_COVERAGE_THRESHOLD: '99.1'
       ARKLEX_TEST_ENV: 'local'
     outputs:
-      coverage-percentage: ${{ steps.coverage-check.outputs.coverage }}
+      coverage-percentage: ${{ steps.extract-coverage.outputs.coverage }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -47,6 +47,59 @@ jobs:
           coverage-command: 'pytest tests/ --cov=arklex --cov-report=term-missing --cov-report=html --cov-report=xml --no-cov-on-fail'
           min-coverage-threshold: '99.1'
           checkout-repo: 'false'
+
+      - name: Extract coverage percentage
+        id: extract-coverage
+        run: |
+          python -c "
+          import xml.etree.ElementTree as ET
+          import os
+          
+          try:
+              if not os.path.exists('coverage.xml'):
+                  print('❌ coverage.xml not found')
+                  exit(1)
+                  
+              tree = ET.parse('coverage.xml')
+              root = tree.getroot()
+              
+              # Try different attribute names for coverage
+              coverage = None
+              if 'line-rate' in root.attrib:
+                  coverage = float(root.attrib['line-rate']) * 100
+              elif 'lines-valid' in root.attrib and 'lines-covered' in root.attrib:
+                  lines_valid = int(root.attrib['lines-valid'])
+                  lines_covered = int(root.attrib['lines-covered'])
+                  coverage = (lines_covered / lines_valid) * 100 if lines_valid > 0 else 0
+              else:
+                  # Search for any element with line-rate
+                  for elem in root.iter():
+                      if 'line-rate' in elem.attrib:
+                          coverage = float(elem.attrib['line-rate']) * 100
+                          break
+                  else:
+                      print('❌ Could not find coverage data in coverage.xml')
+                      exit(1)
+                      
+              if coverage is None:
+                  print('❌ Coverage is None')
+                  exit(1)
+              
+              print(f'Coverage: {coverage:.1f}%')
+              
+              # Check against minimum threshold
+              min_coverage = float(os.environ.get('MIN_COVERAGE_THRESHOLD', '99.1'))
+              if coverage < min_coverage:
+                  print(f'❌ Coverage {coverage:.1f}% is below minimum threshold {min_coverage}%')
+                  exit(1)
+              else:
+                  print(f'✅ Coverage {coverage:.1f}% meets minimum threshold {min_coverage}%')
+              
+              with open(os.environ.get('GITHUB_OUTPUT', '/dev/null'), 'a') as f:
+                  f.write(f'coverage={coverage:.1f}\\n')
+          except Exception as e:
+              print(f'❌ Error parsing coverage.xml: {e}')
+              exit(1)"
 
       - name: Upload coverage artifacts
         uses: actions/upload-artifact@v4
