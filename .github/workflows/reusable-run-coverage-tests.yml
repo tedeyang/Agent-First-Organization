@@ -15,17 +15,30 @@ on:
         type: string
 
 jobs:
-  coverage-check:
-    name: Run Tests and Check Coverage
-    runs-on: ubuntu-latest
-    env:
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+  test:
+    name: run tests and display coverage
 
-      - name: Set up Python
+    if: github.base_ref == 'main' && github.event.label.name == 'run-coverage-tests'
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      pull-requests: write
+      contents: write
+
+    env:
+      SHOPIFY_FIXED_ARGS: ${{ secrets.SHOPIFY_FIXED_ARGS }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      MIN_COVERAGE_THRESHOLD: '99.1'
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python 3.10
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
@@ -33,16 +46,12 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e .
+          pip install -e '.[milvus,shopify,hubspot]' --quiet
 
       - name: Run tests and check coverage threshold
         id: coverage-check
-        shell: bash
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          MIN_COVERAGE_THRESHOLD: ${{ inputs.min-coverage-threshold }}
         run: |
-          ${{ inputs.coverage-command }}
+          pytest tests/ --cov=arklex --cov-report=term-missing --cov-report=html --cov-report=xml --no-cov-on-fail
 
           python -c "
           import xml.etree.ElementTree as ET
@@ -54,7 +63,7 @@ jobs:
               coverage = float(root.attrib['line-rate']) * 100
               print(f'Coverage: {coverage:.1f}%')
 
-              min_coverage = float(os.environ.get('MIN_COVERAGE_THRESHOLD', '${{ inputs.min-coverage-threshold }}'))
+              min_coverage = float(os.environ.get('MIN_COVERAGE_THRESHOLD', '99.1'))
               print(f'Minimum coverage threshold: {min_coverage}%')
 
               if coverage < min_coverage:
@@ -68,4 +77,48 @@ jobs:
           except Exception as e:
               print(f'Error reading coverage data: {e}')
               exit(1)
-          " 
+          "
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
+
+      - name: Upload HTML coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: htmlcov
+          path: htmlcov/
+
+      - name: Display coverage comment
+        id: coverage
+        uses: py-cov-action/python-coverage-comment-action@v3
+        with:
+          GITHUB_TOKEN: ${{ github.token }}
+          MINIMUM_GREEN: 99.1
+          MINIMUM_ORANGE: 70
+
+      - name: Update README badge
+        run: |
+          COVERAGE=${{ steps.coverage-check.outputs.coverage }}
+
+          COLOR=$(python -c "
+          coverage = float('$COVERAGE')
+          if coverage < 90:
+              print('red')
+          elif coverage < 99:
+              print('orange')
+          else:
+              print('green')
+          ")
+
+          sed -i "s/coverage-[0-9]\+\.[0-9]%25-[a-z]*/coverage-${COVERAGE}%25-${COLOR}/g" README.md
+
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add README.md
+            git commit -m "chore: update README with ${COVERAGE}% test coverage"
+            git push origin HEAD:${{ github.head_ref }}
+          fi
