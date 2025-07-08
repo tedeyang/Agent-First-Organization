@@ -22,19 +22,10 @@ jobs:
   display-coverage:
     name: Display Coverage Comment
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-      checks: write
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          token: ${{ inputs.github-token }}
-
       - name: Display coverage comment
         id: coverage
         uses: py-cov-action/python-coverage-comment-action@v3
