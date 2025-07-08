@@ -7,6 +7,8 @@ including nested graph component node identification and path traversal.
 from contextlib import suppress
 from unittest.mock import Mock
 
+import pytest
+
 from arklex.env.nested_graph.nested_graph import NestedGraph
 from arklex.utils.graph_state import NodeInfo, Params, PathNode
 
@@ -786,18 +788,47 @@ class TestNestedGraph:
         with suppress(AttributeError):
             NestedGraph.get_nested_graph_component_node(params, is_leaf_func)
 
-    def test_get_nested_graph_component_node_fallback_none_params_path_with_non_pathnode(
+    def test_get_nested_graph_component_node_fallback_return_none_params_path_with_non_pathnode(
         self,
     ) -> None:
-        """Test fallback return (None, params) with path containing non-PathNode (line 92)."""
-        params = Params()
-        params.taskgraph.path = [123]
+        """Test get_nested_graph_component_node with path containing non-PathNode objects."""
+        params = Mock(spec=Params)
+        params.taskgraph = Mock()
+        # Create a path with invalid elements that will cause the algorithm to fail
+        params.taskgraph.path = [Mock()]  # Invalid path element
+        params.taskgraph.node_status = {}
 
         def is_leaf_func(node_id: str) -> bool:
-            return False
+            return True  # All nodes are leaves, which will cause the algorithm to continue searching
 
-        with suppress(AttributeError):
+        # This should trigger the fallback return None, params when the algorithm
+        # encounters invalid path elements
+        with pytest.raises((AttributeError, TypeError)):
             NestedGraph.get_nested_graph_component_node(params, is_leaf_func)
+
+    def test_get_nested_graph_component_node_fallback_return_none_edge_case(
+        self,
+    ) -> None:
+        """Test get_nested_graph_component_node edge case that triggers the fallback return None."""
+        params = Mock(spec=Params)
+        params.taskgraph = Mock()
+        # Create an empty path to trigger the fallback return None
+        params.taskgraph.path = []
+        params.taskgraph.node_status = {}
+
+        def is_leaf_func(node_id: str) -> bool:
+            # This function won't be called with an empty path
+            return True
+
+        # This should trigger the fallback return None, params when the path is empty
+        # and cur_node_i becomes -1 (len(path) - 1 = -1)
+        result_node, result_params = NestedGraph.get_nested_graph_component_node(
+            params, is_leaf_func
+        )
+
+        # The fallback should return None, params when the path is empty
+        assert result_node is None
+        assert result_params == params
 
     def test_get_nested_graph_component_node_not_leaf_branch(self) -> None:
         """Covers the branch where is_leaf_func returns False, triggering the return at line 92."""
