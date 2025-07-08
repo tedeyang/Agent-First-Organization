@@ -80,45 +80,46 @@ jobs:
           python -c '''
           import xml.etree.ElementTree as ET
           import os
+          import sys
           
           try:
               if not os.path.exists('coverage.xml'):
-                  print(f"ERROR: coverage.xml not found")
-                  exit(1)
+                  print("ERROR: coverage.xml not found")
+                  sys.exit(1)
                   
               tree = ET.parse('coverage.xml')
               root = tree.getroot()
               
               # Use line-rate for coverage calculation
-              coverage = None
+              coverage_value = None
               if 'line-rate' in root.attrib:
-                  coverage = float(root.attrib['line-rate']) * 100
+                  coverage_value = float(root.attrib['line-rate']) * 100
               else:
                   # Search for any element with line-rate
                   for elem in root.iter():
                       if 'line-rate' in elem.attrib:
-                          coverage = float(elem.attrib['line-rate']) * 100
+                          coverage_value = float(elem.attrib['line-rate']) * 100
                           break
                   else:
-                      print(f"ERROR: Could not find line-rate coverage data in coverage.xml")
-                      exit(1)
+                      print("ERROR: Could not find line-rate coverage data in coverage.xml")
+                      sys.exit(1)
                       
-              if coverage is None:
-                  print(f"ERROR: Coverage is None")
-                  exit(1)
+              if coverage_value is None:
+                  print("ERROR: Coverage is None")
+                  sys.exit(1)
               
-              print(f"coverage={coverage:.1f}")
+              print(f"coverage={coverage_value:.1f}")
               
               # Check against minimum threshold
               min_coverage = float(os.environ.get('MIN_COVERAGE_THRESHOLD', '${{ inputs.minimum-green }}'))
-              if coverage < min_coverage:
-                  print(f"ERROR: Coverage {coverage:.1f}% is below minimum threshold {min_coverage}%")
-                  exit(1)
+              if coverage_value < min_coverage:
+                  print(f"ERROR: Coverage {coverage_value:.1f}% is below minimum threshold {min_coverage}%")
+                  sys.exit(1)
               else:
-                  print(f"SUCCESS: Coverage {coverage:.1f}% meets minimum threshold {min_coverage}%")
+                  print(f"SUCCESS: Coverage {coverage_value:.1f}% meets minimum threshold {min_coverage}%")
           except Exception as e:
               print(f"ERROR: Error parsing coverage.xml: {e}")
-              exit(1)
+              sys.exit(1)
           '''
 
       - name: Create coverage comment

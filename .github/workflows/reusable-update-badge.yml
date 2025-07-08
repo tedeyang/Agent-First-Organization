@@ -111,15 +111,15 @@ jobs:
               print(f"XML root attributes: {root.attrib}")
               
               # Use line-rate for coverage calculation
-              coverage = None
+              coverage_percentage = None
               if 'line-rate' in root.attrib:
-                  coverage = float(root.attrib['line-rate']) * 100
+                  coverage_percentage = float(root.attrib['line-rate']) * 100
                   print(f"Found line-rate: {root.attrib['line-rate']}")
               else:
                   # Search for any element with line-rate
                   for elem in root.iter():
                       if 'line-rate' in elem.attrib:
-                          coverage = float(elem.attrib['line-rate']) * 100
+                          coverage_percentage = float(elem.attrib['line-rate']) * 100
                           print(f"Found line-rate in {elem.tag}: {elem.attrib['line-rate']}")
                           break
                   else:
@@ -130,11 +130,11 @@ jobs:
                               print(f"  {elem.tag}: {elem.attrib}")
                       sys.exit(1)
                   
-              if coverage is None:
+              if coverage_percentage is None:
                   print(f"ERROR: Coverage is None")
                   sys.exit(1)
                   
-              print(f"coverage={coverage:.1f}")
+              print(f"coverage={coverage_percentage:.1f}")
           except Exception as e:
               print(f"ERROR: Error parsing coverage file: {e}")
               import traceback
@@ -200,8 +200,8 @@ jobs:
               tree = ET.parse('coverage.xml')
               root = tree.getroot()
               if 'line-rate' in root.attrib:
-                  coverage = float(root.attrib['line-rate']) * 100
-                  print(f"{coverage:.1f}")
+                  coverage_percentage = float(root.attrib['line-rate']) * 100
+                  print(f"{coverage_percentage:.1f}")
               else:
                   print("0")
           except:
