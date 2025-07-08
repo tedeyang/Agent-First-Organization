@@ -23,6 +23,10 @@ on:
         required: false
         default: 'coverage-[0-9]+\.[0-9]+%25-[a-z]+'
         type: string
+    secrets:
+      github-token:
+        description: 'GitHub token for authentication'
+        required: true
 
 jobs:
   update-badge:
@@ -37,7 +41,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          token: ${{ github.token }}
+          token: ${{ secrets.github-token }}
+
+      - name: Download coverage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+          path: ./
 
       - name: Extract coverage percentage
         id: coverage
@@ -98,4 +108,4 @@ jobs:
             git push
           else
             echo "Badge already reflects current coverage."
-          fi 
+          fi

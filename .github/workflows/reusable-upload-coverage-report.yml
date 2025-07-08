@@ -23,11 +23,17 @@ on:
         required: false
         default: 'htmlcov'
         type: string
+    secrets:
+      github-token:
+        description: 'GitHub token for authentication'
+        required: true
 
 jobs:
   upload-coverage:
     name: Upload Coverage Report
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     
@@ -42,4 +48,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.htmlcov-artifact-name }}
-          path: ${{ inputs.htmlcov-path }} 
+          path: ${{ inputs.htmlcov-path }}
