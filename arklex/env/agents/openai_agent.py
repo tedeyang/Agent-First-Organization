@@ -50,12 +50,12 @@ class OpenAIAgent(BaseAgent):
     description: str = "General-purpose Arklex agent for chat or voice."
 
     def __init__(
-        self, successors: list, predecessors: list, tools: list, state: MessageState
+        self, successors: list, predecessors: list, tools: dict, state: MessageState
     ) -> None:
         super().__init__()
         self.action_graph: StateGraph = self._create_action_graph()
         self.llm: BaseChatModel | None = None
-        self.available_tools: dict[str, dict[str, Any]] = {}
+        self.available_tools: dict[str, tuple[dict[str, Any], Any]] = {}
         self.tool_map = {}
         self.tool_defs = []
         self.tool_args: dict[str, Any] = {}
@@ -180,21 +180,25 @@ class OpenAIAgent(BaseAgent):
         result = graph.invoke(msg_state)
         return result
 
-    def _load_tools(self, successors: list, predecessors: list, tools: list) -> None:
+    def _load_tools(self, successors: list, predecessors: list, tools: dict) -> None:
         """
         Load tools for the agent.
         This method is called during the initialization of the agent.
         """
         for node in predecessors:
-            if node.resource_id in tools:
-                self.available_tools[node.resource_id] = (tools[node.resource_id], node)
+            if node.type == "tool":
+                self.available_tools[
+                    f"{node.resource_id}_{node.attributes['task'].replace(' ', '_')}"
+                    if node.attributes.get("task")
+                    else node.resource_id
+                ] = (tools[node.resource_id], node)
 
     def _configure_tools(self) -> None:
         """
         Configure tools for the agent.
         This method is called during the initialization of the agent.
         """
-        for _tool_id, (tool, node_info) in self.available_tools.items():
+        for tool_id, (tool, node_info) in self.available_tools.items():
             tool_object = tool["execute"]()
             tool_object.load_slots(
                 getattr(node_info, "attributes", {}).get("slots", [])
@@ -204,14 +208,15 @@ class OpenAIAgent(BaseAgent):
             )
             tool_object.openai_slots = tool_object.slots.copy()
             tool_def = tool_object.to_openai_tool_def_v2()
-            self.tool_defs.append(tool_object.to_openai_tool_def_v2())
-            self.tool_slots[tool_def["function"]["name"]] = tool_object.slots.copy()
-            self.tool_map[tool_def["function"]["name"]] = tool_object.func
+            tool_def["function"]["name"] = tool_id
+            self.tool_defs.append(tool_def)
+            self.tool_slots[tool_id] = tool_object.slots.copy()
+            self.tool_map[tool_id] = tool_object.func
             combined_args: dict[str, Any] = {
                 **tool["fixed_args"],
                 **(node_info.additional_args or {}),
             }
-            self.tool_args[tool_def["function"]["name"]] = combined_args
+            self.tool_args[tool_id] = combined_args
         log_context.info(f"Tool Definitions: {self.tool_defs}")
 
         end_conversation_tool = end_conversation()
