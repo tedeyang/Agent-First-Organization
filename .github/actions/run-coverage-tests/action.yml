@@ -40,6 +40,8 @@ runs:
     - name: Run tests and check coverage threshold
       id: coverage-check
       shell: bash
+      env:
+        MIN_COVERAGE_THRESHOLD: ${{ inputs.min-coverage-threshold }}
       run: |
         ${{ inputs.coverage-command }}
 

@@ -3,6 +3,8 @@ name: Test Coverage Check
 on:
   pull_request:
     types: [labeled]
+  push:
+    branches: [main]
 
 permissions:
   contents: write
@@ -11,17 +13,20 @@ permissions:
 jobs:
   setup:
     name: Setup Environment
-    if: github.base_ref == 'main' && github.event.label.name == 'run-coverage-tests'
+    if: |
+      (github.base_ref == 'main' && github.event.label.name == 'run-coverage-tests') ||
+      (github.ref == 'refs/heads/main' && github.event_name == 'push')
     runs-on: ubuntu-latest
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      MIN_COVERAGE_THRESHOLD: '99.1'
     outputs:
       coverage-percentage: ${{ steps.coverage-check.outputs.coverage }}
     steps:
-      - name: Checkout PR branch
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
+          ref: ${{ github.head_ref || github.ref }}
           token: ${{ github.token }}
 
       - name: Set up Python 3.10
@@ -33,6 +38,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e '.[milvus,shopify,hubspot]' --quiet
+          pip install coverage pytest-cov
 
       - name: Run tests and check coverage threshold
         id: coverage-check
@@ -40,23 +46,41 @@ jobs:
         with:
           coverage-command: 'ARKLEX_TEST_ENV=local pytest tests/ --cov=arklex --cov-report=term-missing --cov-report=html --cov-report=xml --no-cov-on-fail'
           min-coverage-threshold: '99.1'
+          checkout-repo: 'false'
+
+      - name: Verify coverage files exist
+        run: |
+          echo "Checking for coverage files..."
+          ls -la
+          if [ -f "coverage.xml" ]; then
+            echo "✅ coverage.xml found"
+          else
+            echo "❌ coverage.xml not found"
+            echo "Available files:"
+            ls -la
+            exit 1
+          fi
 
       - name: Upload coverage artifacts
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: coverage.xml
+          retention-days: 30
 
       - name: Upload HTML coverage artifacts
         uses: actions/upload-artifact@v4
         with:
           name: htmlcov
           path: htmlcov/
+          retention-days: 30
 
   display-coverage:
     name: Display Coverage Comment
     needs: setup
-    if: github.base_ref == 'main' && github.event.label.name == 'run-coverage-tests'
+    if: |
+      (github.base_ref == 'main' && github.event.label.name == 'run-coverage-tests') ||
+      (github.ref == 'refs/heads/main' && github.event_name == 'push')
     uses: ./.github/workflows/reusable-display-coverage-comment.yml
     with:
       minimum-green: '99.1'
@@ -67,7 +91,7 @@ jobs:
   update-badge:
     name: Update README Badge
     needs: setup
-    if: github.base_ref == 'main' && github.event.label.name == 'run-coverage-tests' && github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     uses: ./.github/workflows/reusable-update-badge.yml
     with:
       coverage-file: 'coverage.xml'

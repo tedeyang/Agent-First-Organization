@@ -73,7 +73,6 @@ jobs:
         run: |
           if [ -f "coverage.xml" ]; then
             echo "✅ coverage.xml found, converting to JSON format"
-            coverage xml -i coverage.xml
             coverage json -o coverage.json
             echo "✅ Generated coverage.json"
           elif [ -f ".coverage" ]; then
