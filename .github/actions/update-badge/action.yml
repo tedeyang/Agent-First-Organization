@@ -3,13 +3,13 @@ description: "Update coverage badge in README.md based on coverage data"
 
 inputs:
   coverage-file:
-    description: "Path to coverage file (coverage.xml)"
+    description: "Path to coverage file (coverage.txt or coverage.xml)"
     required: false
-    default: "coverage.xml"
+    default: "coverage.txt"
   coverage-format:
-    description: "Format of coverage file (xml)"
+    description: "Format of coverage file (txt or xml)"
     required: false
-    default: "xml"
+    default: "txt"
   min-coverage-threshold:
     description: "Minimum coverage threshold for color coding"
     required: false
@@ -28,38 +28,19 @@ runs:
       run: |
         if [ "${{ inputs.coverage-format }}" = "xml" ]; then
           # Extract from XML coverage file
-          python -c '''
+          python -c "
         import xml.etree.ElementTree as ET
         import os
-        import sys
 
         try:
-            if not os.path.exists('${{ inputs.coverage-file }}'):
-                sys.exit(1)
-                
             tree = ET.parse('${{ inputs.coverage-file }}')
             root = tree.getroot()
-            
-            # Use line-rate for coverage calculation
-            coverage = None
-            if 'line-rate' in root.attrib:
-                coverage = float(root.attrib['line-rate']) * 100
-            else:
-                # Search for any element with line-rate
-                for elem in root.iter():
-                    if 'line-rate' in elem.attrib:
-                        coverage = float(elem.attrib['line-rate']) * 100
-                        break
-                else:
-                    sys.exit(1)
-                
-            if coverage is None:
-                sys.exit(1)
-                
-            print(f"coverage={coverage:.1f}")
+            coverage = float(root.attrib['line-rate']) * 100
+            print(f'coverage={coverage:.1f}')
         except Exception as e:
-            sys.exit(1)
-        '''
+            print(f'Error reading coverage data: {e}')
+            exit(1)
+        "
         else
           # Extract from text coverage file
           TOTAL_COVERAGE=$(grep -E '^TOTAL' ${{ inputs.coverage-file }} | awk '{print $4}' | tr -d '%' || echo "0")
@@ -90,6 +71,7 @@ runs:
         CURRENT_BADGE=$(grep -oE '${{ inputs.badge-pattern }}' README.md || echo "")
 
         if [[ "$CURRENT_BADGE" != "$NEW_BADGE" ]]; then
+          echo "Updating README badge from $CURRENT_BADGE to $NEW_BADGE"
           sed -i "s|${{ inputs.badge-pattern }}|$NEW_BADGE|g" README.md
           
           git config user.name "github-actions[bot]"
@@ -97,4 +79,6 @@ runs:
           git add README.md
           git commit -m "chore: update README with ${COVERAGE}% test coverage"
           git push
+        else
+          echo "Badge already reflects current coverage."
         fi
