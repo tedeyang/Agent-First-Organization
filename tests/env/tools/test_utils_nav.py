@@ -245,8 +245,13 @@ class TestCursorifyFunction(unittest.TestCase):
             "startCursor": "cursor456",
         }
 
-        with self.assertRaises(KeyError):
-            cursorify({"navigate": "next", "pageInfo": pageinfo_incomplete})
+        # When hasNextPage is missing, it defaults to False, so navigation should fail
+        result, success = cursorify(
+            {"navigate": "next", "pageInfo": pageinfo_incomplete}
+        )
+
+        self.assertFalse(success)
+        self.assertEqual(result, NO_NEXT_PAGE)
 
     def test_cursorify_with_none_pageinfo(self) -> None:
         """Test cursorify with pageInfo=None."""
