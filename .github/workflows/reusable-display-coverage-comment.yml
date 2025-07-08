@@ -22,6 +22,9 @@ jobs:
   display-coverage:
     name: Display Coverage Comment
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     

@@ -32,6 +32,7 @@ jobs:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     permissions:
       contents: write
+      pull-requests: write
     
     steps:
       - name: Checkout code
