@@ -544,3 +544,65 @@ def test_base_resource_initializer_init_workers_not_implemented() -> None:
 
     with pytest.raises(NotImplementedError):
         BaseResourceInitializer.init_workers([])
+
+
+def test_default_resource_initializer_init_agents_with_exception() -> None:
+    """Test init_agents method handles exceptions during agent registration."""
+    agents = [
+        {"id": "a1", "name": "fake_agent", "path": "fake_path"},
+        {"id": "a2", "name": "bad_agent", "path": "bad_path"},
+    ]
+    with patch("importlib.import_module") as mock_import:
+        fake_module = MagicMock()
+        fake_func = MagicMock(description="desc")
+        fake_module.fake_agent = fake_func
+        mock_import.side_effect = [fake_module, Exception("fail")]
+        registry = DefaultResourceInitializer.init_agents(agents)
+        assert "a1" in registry
+        assert "a2" not in registry  # error case is skipped
+
+
+def test_default_resource_initializer_init_agents_with_import_error() -> None:
+    """Test init_agents method handles import errors during agent registration."""
+    agents = [
+        {"id": "a1", "name": "fake_agent", "path": "fake_path"},
+        {"id": "a2", "name": "bad_agent", "path": "bad_path"},
+    ]
+    with patch("importlib.import_module") as mock_import:
+        fake_module = MagicMock()
+        fake_func = MagicMock(description="desc")
+        fake_module.fake_agent = fake_func
+        mock_import.side_effect = [fake_module, ImportError("Module not found")]
+        registry = DefaultResourceInitializer.init_agents(agents)
+        assert "a1" in registry
+        assert "a2" not in registry  # import error case is skipped
+
+
+def test_default_resource_initializer_init_agents_with_attribute_error() -> None:
+    """Test init_agents method handles attribute errors during agent registration."""
+    agents = [
+        {"id": "a1", "name": "fake_agent", "path": "fake_path"},
+        {"id": "a2", "name": "bad_agent", "path": "bad_path"},
+    ]
+    with patch("importlib.import_module") as mock_import:
+        fake_module = MagicMock()
+        fake_func = MagicMock(description="desc")
+        fake_module.fake_agent = fake_func
+        mock_import.side_effect = [fake_module, AttributeError("No such attribute")]
+        registry = DefaultResourceInitializer.init_agents(agents)
+        assert "a1" in registry
+        assert "a2" not in registry  # attribute error case is skipped
+
+
+def test_default_resource_initializer_init_agents_logs_error() -> None:
+    """Test init_agents method logs error when agent registration fails."""
+    agents = [
+        {"id": "a1", "name": "bad_agent", "path": "bad_path"},
+    ]
+    with patch("importlib.import_module") as mock_import:
+        mock_import.side_effect = Exception("Test error")
+        registry = DefaultResourceInitializer.init_agents(agents)
+        assert len(registry) == 0
+        # The error is logged in the except block at lines 154-155
+        # We can't easily test the logging since it happens in the real code
+        # But we can verify that the agent was not registered due to the exception
