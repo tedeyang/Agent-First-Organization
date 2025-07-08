@@ -35,7 +35,7 @@ jobs:
     uses: ./.github/workflows/reusable-readme-coverage-badge-update.yml
     needs: coverage-check
     secrets:
-      github-token: ${{ github.token }}
+      github-token: ${{ secrets.GITHUB_TOKEN }}
 
   summary:
     name: Nightly Regression Summary
