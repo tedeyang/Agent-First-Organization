@@ -1285,10 +1285,10 @@ class TestCheckAvailableEdgeCases:
             "results": [{"organizerUserId": "12345", "slug": "test-slug"}],
         }
 
-        # Create timestamp for January 1st, 2024 at 10:00 AM UTC
-        # This should match the parsed date from "January 1st" (fixed year for deterministic testing)
-        jan_1_2024_10am_utc = int(datetime(2024, 1, 1, 10, 0, 0).timestamp() * 1000)
-        jan_1_2024_10_15am_utc = int(datetime(2024, 1, 1, 10, 15, 0).timestamp() * 1000)
+        # Create timestamp for January 1st, 2026 at 10:00 AM UTC
+        # This should match the parsed date from "January 1st" (next occurrence for deterministic testing)
+        jan_1_2026_10am_utc = int(datetime(2026, 1, 1, 10, 0, 0).timestamp() * 1000)
+        jan_1_2026_10_15am_utc = int(datetime(2026, 1, 1, 10, 15, 0).timestamp() * 1000)
 
         # Mock availability response with slots on the same date
         mock_availability_response = MagicMock()
@@ -1298,8 +1298,8 @@ class TestCheckAvailableEdgeCases:
                     "900000": {
                         "availabilities": [
                             {
-                                "startMillisUtc": jan_1_2024_10am_utc,
-                                "endMillisUtc": jan_1_2024_10_15am_utc,
+                                "startMillisUtc": jan_1_2026_10am_utc,
+                                "endMillisUtc": jan_1_2026_10_15am_utc,
                             }
                         ]
                     }

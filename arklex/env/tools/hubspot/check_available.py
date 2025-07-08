@@ -154,7 +154,9 @@ def check_available(
         cal: parsedatetime.Calendar = parsedatetime.Calendar(
             version=parsedatetime.VERSION_CONTEXT_STYLE
         )
-        time_struct: tuple = cal.parse(meeting_date)[0]
+        # Use current date as base to ensure consistent parsing
+        current_date = datetime.now()
+        time_struct: tuple = cal.parse(meeting_date, current_date)[0]
         meeting_date: datetime = datetime(*time_struct[:3])
 
         last_day: int = calendar.monthrange(meeting_date.year, meeting_date.month)[1]
