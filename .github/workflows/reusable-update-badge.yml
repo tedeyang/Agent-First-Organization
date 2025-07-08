@@ -4,14 +4,14 @@ on:
   workflow_call:
     inputs:
       coverage-file:
-        description: 'Path to coverage file (coverage.xml)'
+        description: 'Path to coverage file (coverage.txt or coverage.xml)'
         required: false
-        default: 'coverage.xml'
+        default: 'coverage.txt'
         type: string
       coverage-format:
-        description: 'Format of coverage file (xml)'
+        description: 'Format of coverage file (txt or xml)'
         required: false
-        default: 'xml'
+        default: 'txt'
         type: string
       min-coverage-threshold:
         description: 'Minimum coverage threshold for color coding'
@@ -98,4 +98,4 @@ jobs:
             git push
           else
             echo "Badge already reflects current coverage."
-          fi
+          fi 
