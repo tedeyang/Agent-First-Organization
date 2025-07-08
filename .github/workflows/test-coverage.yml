@@ -70,15 +70,7 @@ jobs:
           import xml.etree.ElementTree as ET
           import os
           
-          try:
-              if not os.path.exists('coverage.xml'):
-                  print(f"❌ coverage.xml not found")
-                  print(f"Available files:")
-                  import subprocess
-                  result = subprocess.run(['ls', '-la'], capture_output=True, text=True)
-                  print(result.stdout)
-                  exit(1)
-                  
+          try:                  
               tree = ET.parse('coverage.xml')
               root = tree.getroot()
               
