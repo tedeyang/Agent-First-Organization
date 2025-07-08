@@ -17,6 +17,11 @@ inputs:
 runs:
   using: 'composite'
   steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ inputs.github-token }}
+
     - name: Display coverage comment
       id: coverage
       uses: py-cov-action/python-coverage-comment-action@v3
