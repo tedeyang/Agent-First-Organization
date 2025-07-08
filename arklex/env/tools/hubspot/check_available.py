@@ -151,7 +151,9 @@ def check_available(
                     )
 
         meeting_slug: str = meeting_links["slug"]
-        cal: parsedatetime.Calendar = parsedatetime.Calendar()
+        cal: parsedatetime.Calendar = parsedatetime.Calendar(
+            version=parsedatetime.VERSION_CONTEXT_STYLE
+        )
         time_struct: tuple = cal.parse(meeting_date)[0]
         meeting_date: datetime = datetime(*time_struct[:3])
 
@@ -274,7 +276,9 @@ def parse_natural_date(
     Returns:
         datetime: Parsed datetime object
     """
-    cal: parsedatetime.Calendar = parsedatetime.Calendar()
+    cal: parsedatetime.Calendar = parsedatetime.Calendar(
+        version=parsedatetime.VERSION_CONTEXT_STYLE
+    )
     time_struct: tuple = cal.parse(date_str, base_date)[0]
     if date_input:
         parsed_dt: datetime = datetime(*time_struct[:3])
