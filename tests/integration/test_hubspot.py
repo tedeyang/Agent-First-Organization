@@ -1357,6 +1357,513 @@ class TestHubSpotCreateMeeting:
         assert meeting_data["id"] == "meeting_123"
         mock_hubspot_client.api_request.assert_called_once()
 
+    @patch("arklex.env.tools.hubspot.create_meeting.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.create_meeting.authenticate_hubspot")
+    def test_create_meeting_with_different_timezones(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+    ) -> None:
+        """Test meeting creation with various timezone configurations."""
+        mock_authenticate.return_value = "test_token"
+        mock_hubspot_client = MagicMock()
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Mock meeting creation response
+        mock_meeting_response = MagicMock()
+        mock_meeting_response.json.return_value = {
+            "id": "meeting_123",
+            "startTime": "2024-01-15T10:00:00Z",
+            "endTime": "2024-01-15T10:30:00Z",
+        }
+        mock_hubspot_client.api_request.return_value = mock_meeting_response
+
+        # Test with different timezones
+        timezones = [
+            "America/New_York",
+            "America/Los_Angeles",
+            "Asia/Tokyo",
+            "Europe/London",
+        ]
+
+        for timezone in timezones:
+            result = create_meeting_func(
+                cus_fname="John",
+                cus_lname="Doe",
+                cus_email="john.doe@example.com",
+                meeting_date="tomorrow",
+                meeting_start_time="10:00 AM",
+                duration=30,
+                slug="veronica-chen",
+                time_zone=timezone,
+                access_token="test_token",
+            )
+
+            meeting_data = json.loads(result)
+            assert meeting_data["id"] == "meeting_123"
+
+    @patch("arklex.env.tools.hubspot.create_meeting.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.create_meeting.authenticate_hubspot")
+    def test_create_meeting_with_different_durations(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+        mock_hubspot_client: MagicMock,
+    ) -> None:
+        """Test meeting creation with different duration values (15, 30, 60 minutes)."""
+        mock_authenticate.return_value = "test_token"
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Mock meeting creation response
+        mock_meeting_response = MagicMock()
+        mock_meeting_response.json.return_value = {
+            "id": "meeting_123",
+            "startTime": "2024-01-15T10:00:00Z",
+            "endTime": "2024-01-15T10:15:00Z",
+        }
+        mock_hubspot_client.api_request.return_value = mock_meeting_response
+
+        # Test different durations
+        durations = [15, 30, 60]
+        for duration in durations:
+            result = create_meeting_func(
+                cus_fname="John",
+                cus_lname="Doe",
+                cus_email="john.doe@example.com",
+                meeting_date="tomorrow",
+                meeting_start_time="10:00 AM",
+                duration=duration,
+                slug="veronica-chen",
+                time_zone="America/New_York",
+                access_token="test_token",
+            )
+
+            meeting_data = json.loads(result)
+            assert meeting_data["id"] == "meeting_123"
+
+            # Verify the duration was converted to milliseconds correctly
+            call_args = mock_hubspot_client.api_request.call_args[0][0]
+            expected_duration_ms = duration * 60 * 1000  # minutes to milliseconds
+            assert call_args["body"]["duration"] == expected_duration_ms
+
+    @patch("arklex.env.tools.hubspot.create_meeting.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.create_meeting.authenticate_hubspot")
+    def test_create_meeting_with_natural_language_dates(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+        mock_hubspot_client: MagicMock,
+    ) -> None:
+        """Test meeting creation with various natural language date inputs."""
+        mock_authenticate.return_value = "test_token"
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Mock meeting creation response
+        mock_meeting_response = MagicMock()
+        mock_meeting_response.json.return_value = {
+            "id": "meeting_123",
+            "startTime": "2024-01-15T10:00:00Z",
+        }
+        mock_hubspot_client.api_request.return_value = mock_meeting_response
+
+        # Test different natural language date formats
+        date_inputs = [
+            "tomorrow",
+            "today",
+            "next Monday",
+            "May 1st",
+            "December 25th",
+            "next week",
+        ]
+
+        for date_input in date_inputs:
+            result = create_meeting_func(
+                cus_fname="John",
+                cus_lname="Doe",
+                cus_email="john.doe@example.com",
+                meeting_date=date_input,
+                meeting_start_time="10:00 AM",
+                duration=30,
+                slug="veronica-chen",
+                time_zone="America/New_York",
+                access_token="test_token",
+            )
+
+            meeting_data = json.loads(result)
+            assert meeting_data["id"] == "meeting_123"
+
+    @patch("arklex.env.tools.hubspot.create_meeting.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.create_meeting.authenticate_hubspot")
+    def test_create_meeting_with_natural_language_times(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+        mock_hubspot_client: MagicMock,
+    ) -> None:
+        """Test meeting creation with various natural language time inputs."""
+        mock_authenticate.return_value = "test_token"
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Mock meeting creation response
+        mock_meeting_response = MagicMock()
+        mock_meeting_response.json.return_value = {
+            "id": "meeting_123",
+            "startTime": "2024-01-15T10:00:00Z",
+        }
+        mock_hubspot_client.api_request.return_value = mock_meeting_response
+
+        # Test different natural language time formats
+        time_inputs = [
+            "10:00 AM",
+            "2:30 PM",
+            "9am",
+            "3pm",
+            "noon",
+            "midnight",
+        ]
+
+        for time_input in time_inputs:
+            result = create_meeting_func(
+                cus_fname="John",
+                cus_lname="Doe",
+                cus_email="john.doe@example.com",
+                meeting_date="tomorrow",
+                meeting_start_time=time_input,
+                duration=30,
+                slug="veronica-chen",
+                time_zone="America/New_York",
+                access_token="test_token",
+            )
+
+            meeting_data = json.loads(result)
+            assert meeting_data["id"] == "meeting_123"
+
+    @patch("arklex.env.tools.hubspot.create_meeting.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.create_meeting.authenticate_hubspot")
+    def test_create_meeting_with_iso8601_time_with_timezone(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+        mock_hubspot_client: MagicMock,
+    ) -> None:
+        """Test meeting creation with ISO8601 time that includes timezone information."""
+        mock_authenticate.return_value = "test_token"
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Mock meeting creation response
+        mock_meeting_response = MagicMock()
+        mock_meeting_response.json.return_value = {
+            "id": "meeting_123",
+            "startTime": "2024-01-15T15:00:00Z",
+        }
+        mock_hubspot_client.api_request.return_value = mock_meeting_response
+
+        result = create_meeting_func(
+            cus_fname="John",
+            cus_lname="Doe",
+            cus_email="john.doe@example.com",
+            meeting_date="tomorrow",
+            meeting_start_time="2024-01-15T10:00:00-05:00",  # EST timezone
+            duration=30,
+            slug="veronica-chen",
+            time_zone="America/New_York",
+            access_token="test_token",
+        )
+
+        meeting_data = json.loads(result)
+        assert meeting_data["id"] == "meeting_123"
+
+    @patch("arklex.env.tools.hubspot.create_meeting.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.create_meeting.authenticate_hubspot")
+    def test_create_meeting_with_iso8601_time_without_timezone(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+        mock_hubspot_client: MagicMock,
+    ) -> None:
+        """Test meeting creation with ISO8601 time without timezone (should use provided timezone)."""
+        mock_authenticate.return_value = "test_token"
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Mock meeting creation response
+        mock_meeting_response = MagicMock()
+        mock_meeting_response.json.return_value = {
+            "id": "meeting_123",
+            "startTime": "2024-01-15T15:00:00Z",
+        }
+        mock_hubspot_client.api_request.return_value = mock_meeting_response
+
+        result = create_meeting_func(
+            cus_fname="John",
+            cus_lname="Doe",
+            cus_email="john.doe@example.com",
+            meeting_date="tomorrow",
+            meeting_start_time="2024-01-15T10:00:00",  # No timezone
+            duration=30,
+            slug="veronica-chen",
+            time_zone="America/New_York",
+            access_token="test_token",
+        )
+
+        meeting_data = json.loads(result)
+        assert meeting_data["id"] == "meeting_123"
+
+    @patch("arklex.env.tools.hubspot.create_meeting.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.create_meeting.authenticate_hubspot")
+    def test_create_meeting_authentication_error(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+    ) -> None:
+        """Test meeting creation when authentication fails."""
+        mock_authenticate.side_effect = AuthenticationError("Invalid access token")
+
+        with pytest.raises(AuthenticationError):
+            create_meeting_func(
+                cus_fname="John",
+                cus_lname="Doe",
+                cus_email="john.doe@example.com",
+                meeting_date="tomorrow",
+                meeting_start_time="10:00 AM",
+                duration=30,
+                slug="veronica-chen",
+                time_zone="America/New_York",
+                access_token="invalid_token",
+            )
+
+    @patch("arklex.env.tools.hubspot.create_meeting.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.create_meeting.authenticate_hubspot")
+    def test_create_meeting_with_special_characters_in_names(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+        mock_hubspot_client: MagicMock,
+    ) -> None:
+        """Test meeting creation with special characters in customer names."""
+        mock_authenticate.return_value = "test_token"
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Mock meeting creation response
+        mock_meeting_response = MagicMock()
+        mock_meeting_response.json.return_value = {
+            "id": "meeting_123",
+            "startTime": "2024-01-15T10:00:00Z",
+        }
+        mock_hubspot_client.api_request.return_value = mock_meeting_response
+
+        result = create_meeting_func(
+            cus_fname="José",
+            cus_lname="O'Connor",
+            cus_email="jose.oconnor@example.com",
+            meeting_date="tomorrow",
+            meeting_start_time="10:00 AM",
+            duration=30,
+            slug="veronica-chen",
+            time_zone="America/New_York",
+            access_token="test_token",
+        )
+
+        meeting_data = json.loads(result)
+        assert meeting_data["id"] == "meeting_123"
+
+        # Verify the special characters were passed correctly
+        call_args = mock_hubspot_client.api_request.call_args[0][0]
+        assert call_args["body"]["firstName"] == "José"
+        assert call_args["body"]["lastName"] == "O'Connor"
+
+    @patch("arklex.env.tools.hubspot.create_meeting.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.create_meeting.authenticate_hubspot")
+    def test_create_meeting_with_long_email(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+        mock_hubspot_client: MagicMock,
+    ) -> None:
+        """Test meeting creation with a very long email address."""
+        mock_authenticate.return_value = "test_token"
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Mock meeting creation response
+        mock_meeting_response = MagicMock()
+        mock_meeting_response.json.return_value = {
+            "id": "meeting_123",
+            "startTime": "2024-01-15T10:00:00Z",
+        }
+        mock_hubspot_client.api_request.return_value = mock_meeting_response
+
+        long_email = (
+            "very.long.email.address.with.many.subdomains@very.long.domain.name.com"
+        )
+
+        result = create_meeting_func(
+            cus_fname="John",
+            cus_lname="Doe",
+            cus_email=long_email,
+            meeting_date="tomorrow",
+            meeting_start_time="10:00 AM",
+            duration=30,
+            slug="veronica-chen",
+            time_zone="America/New_York",
+            access_token="test_token",
+        )
+
+        meeting_data = json.loads(result)
+        assert meeting_data["id"] == "meeting_123"
+
+        # Verify the long email was passed correctly
+        call_args = mock_hubspot_client.api_request.call_args[0][0]
+        assert call_args["body"]["email"] == long_email
+
+    @patch("arklex.env.tools.hubspot.create_meeting.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.create_meeting.authenticate_hubspot")
+    def test_create_meeting_with_complex_slug(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+        mock_hubspot_client: MagicMock,
+    ) -> None:
+        """Test meeting creation with complex slug containing special characters."""
+        mock_authenticate.return_value = "test_token"
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Mock meeting creation response
+        mock_meeting_response = MagicMock()
+        mock_meeting_response.json.return_value = {
+            "id": "meeting_123",
+            "startTime": "2024-01-15T10:00:00Z",
+        }
+        mock_hubspot_client.api_request.return_value = mock_meeting_response
+
+        complex_slug = "dr-maria-garcia-phd"
+
+        result = create_meeting_func(
+            cus_fname="John",
+            cus_lname="Doe",
+            cus_email="john.doe@example.com",
+            meeting_date="tomorrow",
+            meeting_start_time="10:00 AM",
+            duration=30,
+            slug=complex_slug,
+            time_zone="America/New_York",
+            access_token="test_token",
+        )
+
+        meeting_data = json.loads(result)
+        assert meeting_data["id"] == "meeting_123"
+
+        # Verify the complex slug was passed correctly
+        call_args = mock_hubspot_client.api_request.call_args[0][0]
+        assert call_args["body"]["slug"] == complex_slug
+
+    @patch("arklex.env.tools.hubspot.create_meeting.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.create_meeting.authenticate_hubspot")
+    def test_create_meeting_api_request_structure(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+        mock_hubspot_client: MagicMock,
+    ) -> None:
+        """Test that the API request structure is correct."""
+        mock_authenticate.return_value = "test_token"
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Mock meeting creation response
+        mock_meeting_response = MagicMock()
+        mock_meeting_response.json.return_value = {
+            "id": "meeting_123",
+            "startTime": "2024-01-15T10:00:00Z",
+        }
+        mock_hubspot_client.api_request.return_value = mock_meeting_response
+
+        create_meeting_func(
+            cus_fname="John",
+            cus_lname="Doe",
+            cus_email="john.doe@example.com",
+            meeting_date="tomorrow",
+            meeting_start_time="10:00 AM",
+            duration=30,
+            slug="veronica-chen",
+            time_zone="America/New_York",
+            access_token="test_token",
+        )
+
+        # Verify the API request structure
+        call_args = mock_hubspot_client.api_request.call_args[0][0]
+
+        # Check path and method
+        assert call_args["path"] == "/scheduler/v3/meetings/meeting-links/book"
+        assert call_args["method"] == "POST"
+
+        # Check body structure
+        body = call_args["body"]
+        assert "slug" in body
+        assert "duration" in body
+        assert "startTime" in body
+        assert "email" in body
+        assert "firstName" in body
+        assert "lastName" in body
+        assert "timezone" in body
+        assert "locale" in body
+
+        # Check query string
+        assert call_args["qs"]["timezone"] == "America/New_York"
+
+        # Check specific values
+        assert body["email"] == "john.doe@example.com"
+        assert body["firstName"] == "John"
+        assert body["lastName"] == "Doe"
+        assert body["timezone"] == "America/New_York"
+        assert body["locale"] == "en-us"
+        assert body["slug"] == "veronica-chen"
+        assert body["duration"] == 30 * 60 * 1000  # 30 minutes in milliseconds
+
+    @patch("arklex.env.tools.hubspot.create_meeting.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.create_meeting.authenticate_hubspot")
+    def test_create_meeting_response_handling(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+        mock_hubspot_client: MagicMock,
+    ) -> None:
+        """Test that the API response is properly handled and returned as JSON string."""
+        mock_authenticate.return_value = "test_token"
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Mock meeting creation response with detailed data
+        mock_meeting_response = MagicMock()
+        expected_response = {
+            "id": "meeting_123",
+            "startTime": "2024-01-15T10:00:00Z",
+            "endTime": "2024-01-15T10:30:00Z",
+            "subject": "Meeting with John Doe",
+            "description": "Scheduled meeting",
+            "attendees": [{"email": "john.doe@example.com", "name": "John Doe"}],
+            "organizer": {"email": "organizer@company.com", "name": "Veronica Chen"},
+            "meetingUrl": "https://meet.google.com/abc-defg-hij",
+            "status": "scheduled",
+        }
+        mock_meeting_response.json.return_value = expected_response
+        mock_hubspot_client.api_request.return_value = mock_meeting_response
+
+        result = create_meeting_func(
+            cus_fname="John",
+            cus_lname="Doe",
+            cus_email="john.doe@example.com",
+            meeting_date="tomorrow",
+            meeting_start_time="10:00 AM",
+            duration=30,
+            slug="veronica-chen",
+            time_zone="America/New_York",
+            access_token="test_token",
+        )
+
+        # Verify the response is properly JSON serialized
+        result_data = json.loads(result)
+        assert result_data == expected_response
+        assert result_data["id"] == "meeting_123"
+        assert result_data["meetingUrl"] == "https://meet.google.com/abc-defg-hij"
+        assert result_data["status"] == "scheduled"
+
 
 class TestHubSpotToolsEdgeCases:
     """Edge case tests for HubSpot tools covering boundary conditions and error scenarios."""
@@ -1497,3 +2004,465 @@ class TestHubSpotToolsEdgeCases:
 
             meeting_data = json.loads(result)
             assert meeting_data["id"] == "meeting_123"
+
+    @patch("arklex.env.tools.hubspot.create_meeting.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.create_meeting.authenticate_hubspot")
+    def test_create_meeting_with_different_durations(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+        mock_hubspot_client: MagicMock,
+    ) -> None:
+        """Test meeting creation with different duration values (15, 30, 60 minutes)."""
+        mock_authenticate.return_value = "test_token"
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Mock meeting creation response
+        mock_meeting_response = MagicMock()
+        mock_meeting_response.json.return_value = {
+            "id": "meeting_123",
+            "startTime": "2024-01-15T10:00:00Z",
+            "endTime": "2024-01-15T10:15:00Z",
+        }
+        mock_hubspot_client.api_request.return_value = mock_meeting_response
+
+        # Test different durations
+        durations = [15, 30, 60]
+        for duration in durations:
+            result = create_meeting_func(
+                cus_fname="John",
+                cus_lname="Doe",
+                cus_email="john.doe@example.com",
+                meeting_date="tomorrow",
+                meeting_start_time="10:00 AM",
+                duration=duration,
+                slug="veronica-chen",
+                time_zone="America/New_York",
+                access_token="test_token",
+            )
+
+            meeting_data = json.loads(result)
+            assert meeting_data["id"] == "meeting_123"
+
+            # Verify the duration was converted to milliseconds correctly
+            call_args = mock_hubspot_client.api_request.call_args[0][0]
+            expected_duration_ms = duration * 60 * 1000  # minutes to milliseconds
+            assert call_args["body"]["duration"] == expected_duration_ms
+
+    @patch("arklex.env.tools.hubspot.create_meeting.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.create_meeting.authenticate_hubspot")
+    def test_create_meeting_with_natural_language_dates(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+        mock_hubspot_client: MagicMock,
+    ) -> None:
+        """Test meeting creation with various natural language date inputs."""
+        mock_authenticate.return_value = "test_token"
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Mock meeting creation response
+        mock_meeting_response = MagicMock()
+        mock_meeting_response.json.return_value = {
+            "id": "meeting_123",
+            "startTime": "2024-01-15T10:00:00Z",
+        }
+        mock_hubspot_client.api_request.return_value = mock_meeting_response
+
+        # Test different natural language date formats
+        date_inputs = [
+            "tomorrow",
+            "today",
+            "next Monday",
+            "May 1st",
+            "December 25th",
+            "next week",
+        ]
+
+        for date_input in date_inputs:
+            result = create_meeting_func(
+                cus_fname="John",
+                cus_lname="Doe",
+                cus_email="john.doe@example.com",
+                meeting_date=date_input,
+                meeting_start_time="10:00 AM",
+                duration=30,
+                slug="veronica-chen",
+                time_zone="America/New_York",
+                access_token="test_token",
+            )
+
+            meeting_data = json.loads(result)
+            assert meeting_data["id"] == "meeting_123"
+
+    @patch("arklex.env.tools.hubspot.create_meeting.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.create_meeting.authenticate_hubspot")
+    def test_create_meeting_with_natural_language_times(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+        mock_hubspot_client: MagicMock,
+    ) -> None:
+        """Test meeting creation with various natural language time inputs."""
+        mock_authenticate.return_value = "test_token"
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Mock meeting creation response
+        mock_meeting_response = MagicMock()
+        mock_meeting_response.json.return_value = {
+            "id": "meeting_123",
+            "startTime": "2024-01-15T10:00:00Z",
+        }
+        mock_hubspot_client.api_request.return_value = mock_meeting_response
+
+        # Test different natural language time formats
+        time_inputs = [
+            "10:00 AM",
+            "2:30 PM",
+            "9am",
+            "3pm",
+            "noon",
+            "midnight",
+        ]
+
+        for time_input in time_inputs:
+            result = create_meeting_func(
+                cus_fname="John",
+                cus_lname="Doe",
+                cus_email="john.doe@example.com",
+                meeting_date="tomorrow",
+                meeting_start_time=time_input,
+                duration=30,
+                slug="veronica-chen",
+                time_zone="America/New_York",
+                access_token="test_token",
+            )
+
+            meeting_data = json.loads(result)
+            assert meeting_data["id"] == "meeting_123"
+
+    @patch("arklex.env.tools.hubspot.create_meeting.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.create_meeting.authenticate_hubspot")
+    def test_create_meeting_with_iso8601_time_with_timezone(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+        mock_hubspot_client: MagicMock,
+    ) -> None:
+        """Test meeting creation with ISO8601 time that includes timezone information."""
+        mock_authenticate.return_value = "test_token"
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Mock meeting creation response
+        mock_meeting_response = MagicMock()
+        mock_meeting_response.json.return_value = {
+            "id": "meeting_123",
+            "startTime": "2024-01-15T15:00:00Z",
+        }
+        mock_hubspot_client.api_request.return_value = mock_meeting_response
+
+        result = create_meeting_func(
+            cus_fname="John",
+            cus_lname="Doe",
+            cus_email="john.doe@example.com",
+            meeting_date="tomorrow",
+            meeting_start_time="2024-01-15T10:00:00-05:00",  # EST timezone
+            duration=30,
+            slug="veronica-chen",
+            time_zone="America/New_York",
+            access_token="test_token",
+        )
+
+        meeting_data = json.loads(result)
+        assert meeting_data["id"] == "meeting_123"
+
+    @patch("arklex.env.tools.hubspot.create_meeting.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.create_meeting.authenticate_hubspot")
+    def test_create_meeting_with_iso8601_time_without_timezone(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+        mock_hubspot_client: MagicMock,
+    ) -> None:
+        """Test meeting creation with ISO8601 time without timezone (should use provided timezone)."""
+        mock_authenticate.return_value = "test_token"
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Mock meeting creation response
+        mock_meeting_response = MagicMock()
+        mock_meeting_response.json.return_value = {
+            "id": "meeting_123",
+            "startTime": "2024-01-15T15:00:00Z",
+        }
+        mock_hubspot_client.api_request.return_value = mock_meeting_response
+
+        result = create_meeting_func(
+            cus_fname="John",
+            cus_lname="Doe",
+            cus_email="john.doe@example.com",
+            meeting_date="tomorrow",
+            meeting_start_time="2024-01-15T10:00:00",  # No timezone
+            duration=30,
+            slug="veronica-chen",
+            time_zone="America/New_York",
+            access_token="test_token",
+        )
+
+        meeting_data = json.loads(result)
+        assert meeting_data["id"] == "meeting_123"
+
+    @patch("arklex.env.tools.hubspot.create_meeting.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.create_meeting.authenticate_hubspot")
+    def test_create_meeting_authentication_error(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+    ) -> None:
+        """Test meeting creation when authentication fails."""
+        mock_authenticate.side_effect = AuthenticationError("Invalid access token")
+
+        with pytest.raises(AuthenticationError):
+            create_meeting_func(
+                cus_fname="John",
+                cus_lname="Doe",
+                cus_email="john.doe@example.com",
+                meeting_date="tomorrow",
+                meeting_start_time="10:00 AM",
+                duration=30,
+                slug="veronica-chen",
+                time_zone="America/New_York",
+                access_token="invalid_token",
+            )
+
+    @patch("arklex.env.tools.hubspot.create_meeting.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.create_meeting.authenticate_hubspot")
+    def test_create_meeting_with_special_characters_in_names(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+        mock_hubspot_client: MagicMock,
+    ) -> None:
+        """Test meeting creation with special characters in customer names."""
+        mock_authenticate.return_value = "test_token"
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Mock meeting creation response
+        mock_meeting_response = MagicMock()
+        mock_meeting_response.json.return_value = {
+            "id": "meeting_123",
+            "startTime": "2024-01-15T10:00:00Z",
+        }
+        mock_hubspot_client.api_request.return_value = mock_meeting_response
+
+        result = create_meeting_func(
+            cus_fname="José",
+            cus_lname="O'Connor",
+            cus_email="jose.oconnor@example.com",
+            meeting_date="tomorrow",
+            meeting_start_time="10:00 AM",
+            duration=30,
+            slug="veronica-chen",
+            time_zone="America/New_York",
+            access_token="test_token",
+        )
+
+        meeting_data = json.loads(result)
+        assert meeting_data["id"] == "meeting_123"
+
+        # Verify the special characters were passed correctly
+        call_args = mock_hubspot_client.api_request.call_args[0][0]
+        assert call_args["body"]["firstName"] == "José"
+        assert call_args["body"]["lastName"] == "O'Connor"
+
+    @patch("arklex.env.tools.hubspot.create_meeting.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.create_meeting.authenticate_hubspot")
+    def test_create_meeting_with_long_email(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+        mock_hubspot_client: MagicMock,
+    ) -> None:
+        """Test meeting creation with a very long email address."""
+        mock_authenticate.return_value = "test_token"
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Mock meeting creation response
+        mock_meeting_response = MagicMock()
+        mock_meeting_response.json.return_value = {
+            "id": "meeting_123",
+            "startTime": "2024-01-15T10:00:00Z",
+        }
+        mock_hubspot_client.api_request.return_value = mock_meeting_response
+
+        long_email = (
+            "very.long.email.address.with.many.subdomains@very.long.domain.name.com"
+        )
+
+        result = create_meeting_func(
+            cus_fname="John",
+            cus_lname="Doe",
+            cus_email=long_email,
+            meeting_date="tomorrow",
+            meeting_start_time="10:00 AM",
+            duration=30,
+            slug="veronica-chen",
+            time_zone="America/New_York",
+            access_token="test_token",
+        )
+
+        meeting_data = json.loads(result)
+        assert meeting_data["id"] == "meeting_123"
+
+        # Verify the long email was passed correctly
+        call_args = mock_hubspot_client.api_request.call_args[0][0]
+        assert call_args["body"]["email"] == long_email
+
+    @patch("arklex.env.tools.hubspot.create_meeting.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.create_meeting.authenticate_hubspot")
+    def test_create_meeting_with_complex_slug(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+        mock_hubspot_client: MagicMock,
+    ) -> None:
+        """Test meeting creation with complex slug containing special characters."""
+        mock_authenticate.return_value = "test_token"
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Mock meeting creation response
+        mock_meeting_response = MagicMock()
+        mock_meeting_response.json.return_value = {
+            "id": "meeting_123",
+            "startTime": "2024-01-15T10:00:00Z",
+        }
+        mock_hubspot_client.api_request.return_value = mock_meeting_response
+
+        complex_slug = "dr-maria-garcia-phd"
+
+        result = create_meeting_func(
+            cus_fname="John",
+            cus_lname="Doe",
+            cus_email="john.doe@example.com",
+            meeting_date="tomorrow",
+            meeting_start_time="10:00 AM",
+            duration=30,
+            slug=complex_slug,
+            time_zone="America/New_York",
+            access_token="test_token",
+        )
+
+        meeting_data = json.loads(result)
+        assert meeting_data["id"] == "meeting_123"
+
+        # Verify the complex slug was passed correctly
+        call_args = mock_hubspot_client.api_request.call_args[0][0]
+        assert call_args["body"]["slug"] == complex_slug
+
+    @patch("arklex.env.tools.hubspot.create_meeting.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.create_meeting.authenticate_hubspot")
+    def test_create_meeting_api_request_structure(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+        mock_hubspot_client: MagicMock,
+    ) -> None:
+        """Test that the API request structure is correct."""
+        mock_authenticate.return_value = "test_token"
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Mock meeting creation response
+        mock_meeting_response = MagicMock()
+        mock_meeting_response.json.return_value = {
+            "id": "meeting_123",
+            "startTime": "2024-01-15T10:00:00Z",
+        }
+        mock_hubspot_client.api_request.return_value = mock_meeting_response
+
+        create_meeting_func(
+            cus_fname="John",
+            cus_lname="Doe",
+            cus_email="john.doe@example.com",
+            meeting_date="tomorrow",
+            meeting_start_time="10:00 AM",
+            duration=30,
+            slug="veronica-chen",
+            time_zone="America/New_York",
+            access_token="test_token",
+        )
+
+        # Verify the API request structure
+        call_args = mock_hubspot_client.api_request.call_args[0][0]
+
+        # Check path and method
+        assert call_args["path"] == "/scheduler/v3/meetings/meeting-links/book"
+        assert call_args["method"] == "POST"
+
+        # Check body structure
+        body = call_args["body"]
+        assert "slug" in body
+        assert "duration" in body
+        assert "startTime" in body
+        assert "email" in body
+        assert "firstName" in body
+        assert "lastName" in body
+        assert "timezone" in body
+        assert "locale" in body
+
+        # Check query string
+        assert call_args["qs"]["timezone"] == "America/New_York"
+
+        # Check specific values
+        assert body["email"] == "john.doe@example.com"
+        assert body["firstName"] == "John"
+        assert body["lastName"] == "Doe"
+        assert body["timezone"] == "America/New_York"
+        assert body["locale"] == "en-us"
+        assert body["slug"] == "veronica-chen"
+        assert body["duration"] == 30 * 60 * 1000  # 30 minutes in milliseconds
+
+    @patch("arklex.env.tools.hubspot.create_meeting.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.create_meeting.authenticate_hubspot")
+    def test_create_meeting_response_handling(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+        mock_hubspot_client: MagicMock,
+    ) -> None:
+        """Test that the API response is properly handled and returned as JSON string."""
+        mock_authenticate.return_value = "test_token"
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Mock meeting creation response with detailed data
+        mock_meeting_response = MagicMock()
+        expected_response = {
+            "id": "meeting_123",
+            "startTime": "2024-01-15T10:00:00Z",
+            "endTime": "2024-01-15T10:30:00Z",
+            "subject": "Meeting with John Doe",
+            "description": "Scheduled meeting",
+            "attendees": [{"email": "john.doe@example.com", "name": "John Doe"}],
+            "organizer": {"email": "organizer@company.com", "name": "Veronica Chen"},
+            "meetingUrl": "https://meet.google.com/abc-defg-hij",
+            "status": "scheduled",
+        }
+        mock_meeting_response.json.return_value = expected_response
+        mock_hubspot_client.api_request.return_value = mock_meeting_response
+
+        result = create_meeting_func(
+            cus_fname="John",
+            cus_lname="Doe",
+            cus_email="john.doe@example.com",
+            meeting_date="tomorrow",
+            meeting_start_time="10:00 AM",
+            duration=30,
+            slug="veronica-chen",
+            time_zone="America/New_York",
+            access_token="test_token",
+        )
+
+        # Verify the response is properly JSON serialized
+        result_data = json.loads(result)
+        assert result_data == expected_response
+        assert result_data["id"] == "meeting_123"
+        assert result_data["meetingUrl"] == "https://meet.google.com/abc-defg-hij"
+        assert result_data["status"] == "scheduled"
