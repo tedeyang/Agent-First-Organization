@@ -38,16 +38,20 @@ jobs:
         id: coverage-check
         uses: ./.github/actions/run-coverage-tests
         with:
-          coverage-command: 'ARKLEX_TEST_ENV=local pytest tests/ --cov=arklex --cov-report=term-missing --cov-report=html --cov-report=xml --no-cov-on-fail'
+          coverage-command: 'ARKLEX_TEST_ENV=local pytest tests/ --cov=arklex --cov-report=term-missing --cov-report=html --cov-report=xml --cov-report=json --cov-report=lcov --no-cov-on-fail'
           min-coverage-threshold: '99.1'
 
-  upload-coverage:
-    name: Upload Coverage Report
-    needs: setup
-    if: github.base_ref == 'main' && github.event.label.name == 'run-coverage-tests'
-    uses: ./.github/workflows/reusable-upload-coverage-report.yml
-    secrets:
-      github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
+
+      - name: Upload HTML coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: htmlcov
+          path: htmlcov/
 
   display-coverage:
     name: Display Coverage Comment
