@@ -2,10 +2,7 @@ name: Test Coverage Check
 
 on:
   pull_request:
-    types: [opened, synchronize, labeled, unlabeled]
-  push:
-    branches: [main, develop]
-  workflow_dispatch:
+    types: [labeled]
 
 permissions:
   contents: write
