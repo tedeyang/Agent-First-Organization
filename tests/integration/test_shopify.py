@@ -1223,6 +1223,168 @@ class TestShopifyReturnProducts:
         # Verify error message contains expected pattern
         assert "Tool return_products execution failed" in str(exc_info.value)
 
+    @patch("arklex.env.tools.shopify.return_products.shopify.Session.temp")
+    @patch("arklex.env.tools.shopify.return_products.shopify.GraphQL")
+    def test_return_products_malformed_fulfillment_response(
+        self,
+        mock_graphql: Mock,
+        mock_session_temp: Mock,
+    ) -> None:
+        """Test error handling when the first GraphQL response is malformed (not JSON)."""
+        mock_session = MagicMock()
+        mock_session_temp.return_value.__enter__.return_value = mock_session
+        # Malformed JSON response
+        mock_graphql_instance = MagicMock()
+        mock_graphql_instance.execute.side_effect = ["not a json string"]
+        mock_graphql.return_value = mock_graphql_instance
+        with pytest.raises(ToolExecutionError) as exc_info:
+            return_products_func(
+                return_order_id="gid://shopify/Order/12345",
+                shop_url="https://test-shop.myshopify.com",
+                admin_token="test_admin_token",
+                api_version="2024-10",
+            )
+        assert "Tool return_products execution failed" in str(exc_info.value)
+
+    @patch("arklex.env.tools.shopify.return_products.shopify.Session.temp")
+    @patch("arklex.env.tools.shopify.return_products.shopify.GraphQL")
+    def test_return_products_malformed_return_request_response(
+        self,
+        mock_graphql: Mock,
+        mock_session_temp: Mock,
+    ) -> None:
+        """Test error handling when the return request mutation response is malformed (not JSON)."""
+        mock_session = MagicMock()
+        mock_session_temp.return_value.__enter__.return_value = mock_session
+        # First call returns valid fulfillments, second call returns malformed JSON
+        mock_response = {
+            "data": {
+                "returnableFulfillments": {
+                    "edges": [
+                        {
+                            "node": {
+                                "id": "gid://shopify/ReturnableFulfillment/12345",
+                                "fulfillment": {
+                                    "id": "gid://shopify/Fulfillment/67890"
+                                },
+                                "returnableFulfillmentLineItems": {
+                                    "edges": [
+                                        {
+                                            "node": {
+                                                "fulfillmentLineItem": {
+                                                    "id": "gid://shopify/FulfillmentLineItem/11111"
+                                                },
+                                                "quantity": 2,
+                                            }
+                                        }
+                                    ]
+                                },
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+        mock_graphql_instance = MagicMock()
+        mock_graphql_instance.execute.side_effect = [
+            json.dumps(mock_response),
+            "not a json string",
+        ]
+        mock_graphql.return_value = mock_graphql_instance
+        with pytest.raises(ToolExecutionError) as exc_info:
+            return_products_func(
+                return_order_id="gid://shopify/Order/12345",
+                shop_url="https://test-shop.myshopify.com",
+                admin_token="test_admin_token",
+                api_version="2024-10",
+            )
+        assert "Tool return_products execution failed" in str(exc_info.value)
+
+    @patch("arklex.env.tools.shopify.return_products.shopify.Session.temp")
+    @patch("arklex.env.tools.shopify.return_products.shopify.GraphQL")
+    def test_return_products_user_errors_in_return_request(
+        self,
+        mock_graphql: Mock,
+        mock_session_temp: Mock,
+    ) -> None:
+        """Test error handling when the return request mutation returns user errors."""
+        mock_session = MagicMock()
+        mock_session_temp.return_value.__enter__.return_value = mock_session
+        # First call returns valid fulfillments, second call returns userErrors
+        mock_response = {
+            "data": {
+                "returnableFulfillments": {
+                    "edges": [
+                        {
+                            "node": {
+                                "id": "gid://shopify/ReturnableFulfillment/12345",
+                                "fulfillment": {
+                                    "id": "gid://shopify/Fulfillment/67890"
+                                },
+                                "returnableFulfillmentLineItems": {
+                                    "edges": [
+                                        {
+                                            "node": {
+                                                "fulfillmentLineItem": {
+                                                    "id": "gid://shopify/FulfillmentLineItem/11111"
+                                                },
+                                                "quantity": 2,
+                                            }
+                                        }
+                                    ]
+                                },
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+        mock_return_response = {
+            "data": {
+                "returnRequest": None,
+                "userErrors": [
+                    {"field": ["returnLineItems"], "message": "Invalid return item."}
+                ],
+            }
+        }
+        mock_graphql_instance = MagicMock()
+        mock_graphql_instance.execute.side_effect = [
+            json.dumps(mock_response),
+            json.dumps(mock_return_response),
+        ]
+        mock_graphql.return_value = mock_graphql_instance
+        with pytest.raises(ToolExecutionError) as exc_info:
+            return_products_func(
+                return_order_id="gid://shopify/Order/12345",
+                shop_url="https://test-shop.myshopify.com",
+                admin_token="test_admin_token",
+                api_version="2024-10",
+            )
+        assert "Tool return_products execution failed" in str(exc_info.value)
+
+    @patch("arklex.env.tools.shopify.return_products.shopify.Session.temp")
+    @patch("arklex.env.tools.shopify.return_products.shopify.GraphQL")
+    def test_return_products_graphql_api_exception(
+        self,
+        mock_graphql: Mock,
+        mock_session_temp: Mock,
+    ) -> None:
+        """Test error handling when the Shopify GraphQL client raises an exception."""
+        mock_session = MagicMock()
+        mock_session_temp.return_value.__enter__.return_value = mock_session
+        # Simulate API/network error on first call
+        mock_graphql_instance = MagicMock()
+        mock_graphql_instance.execute.side_effect = Exception("API/network error")
+        mock_graphql.return_value = mock_graphql_instance
+        with pytest.raises(ToolExecutionError) as exc_info:
+            return_products_func(
+                return_order_id="gid://shopify/Order/12345",
+                shop_url="https://test-shop.myshopify.com",
+                admin_token="test_admin_token",
+                api_version="2024-10",
+            )
+        assert "Tool return_products execution failed" in str(exc_info.value)
+
 
 class TestShopifyCancelOrder:
     """Integration tests for cancel_order tool."""
