@@ -13,7 +13,8 @@ import pytest
 import pytz
 from hubspot.crm.objects.meetings import ApiException
 
-# Set default MySQL configuration for testing
+# Set environment variables for testing
+os.environ.setdefault("ARKLEX_TEST_ENV", "local")
 os.environ.setdefault("MYSQL_USERNAME", "test_user")
 os.environ.setdefault("MYSQL_PASSWORD", "test_password")
 os.environ.setdefault("MYSQL_HOSTNAME", "localhost")
@@ -937,3 +938,702 @@ class TestCheckAvailableIntegration:
                 # Note: The actual offset depends on the current date and parsed date
                 assert isinstance(month_offset, int)
                 assert month_offset in [0, 1]
+
+
+class TestCheckAvailableEdgeCases:
+    """Test edge cases and line-by-line coverage for check_available function."""
+
+    @patch("arklex.env.tools.hubspot.check_available.authenticate_hubspot")
+    @patch("arklex.env.tools.hubspot.check_available.hubspot.Client.create")
+    def test_check_available_empty_availabilities_list(
+        self, mock_client_create: Mock, mock_authenticate: Mock
+    ) -> None:
+        """Test when availabilities list is empty."""
+        # Setup mocks
+        mock_authenticate.return_value = "test_token"
+        mock_client = MagicMock()
+        mock_client_create.return_value = mock_client
+
+        # Mock meeting links response
+        mock_links_response = MagicMock()
+        mock_links_response.json.return_value = {
+            "status": "success",
+            "results": [{"organizerUserId": "12345", "slug": "test-slug"}],
+        }
+
+        # Mock availability response with empty availabilities
+        mock_availability_response = MagicMock()
+        mock_availability_response.json.return_value = {
+            "linkAvailability": {
+                "linkAvailabilityByDuration": {"900000": {"availabilities": []}}
+            }
+        }
+
+        mock_client.api_request.side_effect = [
+            mock_links_response,
+            mock_availability_response,
+        ]
+
+        # Execute function
+        result = check_available_func(
+            12345,  # owner_id
+            "America/New_York",  # time_zone
+            "January 1st",  # meeting_date
+            15,  # duration
+        )
+
+        # Verify results
+        assert "test-slug" in result
+        assert "no available time slots on the same day" in result
+        assert "available times for other dates" in result
+        assert "[]" in result  # Empty list for other dates
+
+    @patch("arklex.env.tools.hubspot.check_available.authenticate_hubspot")
+    @patch("arklex.env.tools.hubspot.check_available.hubspot.Client.create")
+    def test_check_available_missing_link_availability(
+        self, mock_client_create: Mock, mock_authenticate: Mock
+    ) -> None:
+        """Test when linkAvailability is missing from response."""
+        # Setup mocks
+        mock_authenticate.return_value = "test_token"
+        mock_client = MagicMock()
+        mock_client_create.return_value = mock_client
+
+        # Mock meeting links response
+        mock_links_response = MagicMock()
+        mock_links_response.json.return_value = {
+            "status": "success",
+            "results": [{"organizerUserId": "12345", "slug": "test-slug"}],
+        }
+
+        # Mock availability response with missing linkAvailability
+        mock_availability_response = MagicMock()
+        mock_availability_response.json.return_value = {"someOtherField": "value"}
+
+        mock_client.api_request.side_effect = [
+            mock_links_response,
+            mock_availability_response,
+        ]
+
+        # Execute function
+        result = check_available_func(
+            12345,  # owner_id
+            "America/New_York",  # time_zone
+            "January 1st",  # meeting_date
+            15,  # duration
+        )
+
+        # Verify results - should handle gracefully
+        assert "test-slug" in result
+        assert "no available time slots on the same day" in result
+
+    @patch("arklex.env.tools.hubspot.check_available.authenticate_hubspot")
+    @patch("arklex.env.tools.hubspot.check_available.hubspot.Client.create")
+    def test_check_available_missing_link_availability_by_duration(
+        self, mock_client_create: Mock, mock_authenticate: Mock
+    ) -> None:
+        """Test when linkAvailabilityByDuration is missing from response."""
+        # Setup mocks
+        mock_authenticate.return_value = "test_token"
+        mock_client = MagicMock()
+        mock_client_create.return_value = mock_client
+
+        # Mock meeting links response
+        mock_links_response = MagicMock()
+        mock_links_response.json.return_value = {
+            "status": "success",
+            "results": [{"organizerUserId": "12345", "slug": "test-slug"}],
+        }
+
+        # Mock availability response with missing linkAvailabilityByDuration
+        mock_availability_response = MagicMock()
+        mock_availability_response.json.return_value = {
+            "linkAvailability": {"someOtherField": "value"}
+        }
+
+        mock_client.api_request.side_effect = [
+            mock_links_response,
+            mock_availability_response,
+        ]
+
+        # Execute function
+        result = check_available_func(
+            12345,  # owner_id
+            "America/New_York",  # time_zone
+            "January 1st",  # meeting_date
+            15,  # duration
+        )
+
+        # Verify results - should handle gracefully
+        assert "test-slug" in result
+        assert "no available time slots on the same day" in result
+
+    @patch("arklex.env.tools.hubspot.check_available.authenticate_hubspot")
+    @patch("arklex.env.tools.hubspot.check_available.hubspot.Client.create")
+    def test_check_available_missing_duration_key_in_response(
+        self, mock_client_create: Mock, mock_authenticate: Mock
+    ) -> None:
+        """Test when the specific duration key is missing from response."""
+        # Setup mocks
+        mock_authenticate.return_value = "test_token"
+        mock_client = MagicMock()
+        mock_client_create.return_value = mock_client
+
+        # Mock meeting links response
+        mock_links_response = MagicMock()
+        mock_links_response.json.return_value = {
+            "status": "success",
+            "results": [{"organizerUserId": "12345", "slug": "test-slug"}],
+        }
+
+        # Mock availability response with different duration key
+        mock_availability_response = MagicMock()
+        mock_availability_response.json.return_value = {
+            "linkAvailability": {
+                "linkAvailabilityByDuration": {
+                    "1800000": {  # 30 minutes instead of 15
+                        "availabilities": []
+                    }
+                }
+            }
+        }
+
+        mock_client.api_request.side_effect = [
+            mock_links_response,
+            mock_availability_response,
+        ]
+
+        # Execute function
+        result = check_available_func(
+            12345,  # owner_id
+            "America/New_York",  # time_zone
+            "January 1st",  # meeting_date
+            15,  # duration
+        )
+
+        # Verify results - should handle gracefully
+        assert "test-slug" in result
+        assert "no available time slots on the same day" in result
+
+    @patch("arklex.env.tools.hubspot.check_available.authenticate_hubspot")
+    @patch("arklex.env.tools.hubspot.check_available.hubspot.Client.create")
+    def test_check_available_missing_availabilities_key(
+        self, mock_client_create: Mock, mock_authenticate: Mock
+    ) -> None:
+        """Test when availabilities key is missing from duration response."""
+        # Setup mocks
+        mock_authenticate.return_value = "test_token"
+        mock_client = MagicMock()
+        mock_client_create.return_value = mock_client
+
+        # Mock meeting links response
+        mock_links_response = MagicMock()
+        mock_links_response.json.return_value = {
+            "status": "success",
+            "results": [{"organizerUserId": "12345", "slug": "test-slug"}],
+        }
+
+        # Mock availability response with missing availabilities key
+        mock_availability_response = MagicMock()
+        mock_availability_response.json.return_value = {
+            "linkAvailability": {
+                "linkAvailabilityByDuration": {"900000": {"someOtherField": "value"}}
+            }
+        }
+
+        mock_client.api_request.side_effect = [
+            mock_links_response,
+            mock_availability_response,
+        ]
+
+        # Execute function
+        result = check_available_func(
+            12345,  # owner_id
+            "America/New_York",  # time_zone
+            "January 1st",  # meeting_date
+            15,  # duration
+        )
+
+        # Verify results - should handle gracefully
+        assert "test-slug" in result
+        assert "no available time slots on the same day" in result
+
+    @patch("arklex.env.tools.hubspot.check_available.authenticate_hubspot")
+    @patch("arklex.env.tools.hubspot.check_available.hubspot.Client.create")
+    def test_check_available_slots_with_missing_timestamps(
+        self, mock_client_create: Mock, mock_authenticate: Mock
+    ) -> None:
+        """Test when slots are missing startMillisUtc or endMillisUtc."""
+        # Setup mocks
+        mock_authenticate.return_value = "test_token"
+        mock_client = MagicMock()
+        mock_client_create.return_value = mock_client
+
+        # Mock meeting links response
+        mock_links_response = MagicMock()
+        mock_links_response.json.return_value = {
+            "status": "success",
+            "results": [{"organizerUserId": "12345", "slug": "test-slug"}],
+        }
+
+        # Mock availability response with incomplete slot data
+        mock_availability_response = MagicMock()
+        mock_availability_response.json.return_value = {
+            "linkAvailability": {
+                "linkAvailabilityByDuration": {
+                    "900000": {
+                        "availabilities": [
+                            {
+                                "startMillisUtc": 1640995200000,
+                                # Missing endMillisUtc
+                            },
+                            {
+                                # Missing startMillisUtc
+                                "endMillisUtc": 1640996100000,
+                            },
+                            {
+                                # Complete slot
+                                "startMillisUtc": 1640997000000,
+                                "endMillisUtc": 1640997900000,
+                            },
+                        ]
+                    }
+                }
+            }
+        }
+
+        mock_client.api_request.side_effect = [
+            mock_links_response,
+            mock_availability_response,
+        ]
+
+        # Execute function - should handle missing timestamps gracefully
+        result = check_available_func(
+            12345,  # owner_id
+            "America/New_York",  # time_zone
+            "January 1st",  # meeting_date
+            15,  # duration
+        )
+
+        # Verify results
+        assert "test-slug" in result
+        # Should still process the complete slot
+        assert "available times for other dates" in result
+
+    @patch("arklex.env.tools.hubspot.check_available.authenticate_hubspot")
+    @patch("arklex.env.tools.hubspot.check_available.hubspot.Client.create")
+    def test_check_available_with_invalid_timezone(
+        self, mock_client_create: Mock, mock_authenticate: Mock
+    ) -> None:
+        """Test with invalid timezone that should be handled gracefully."""
+        # Setup mocks
+        mock_authenticate.return_value = "test_token"
+        mock_client = MagicMock()
+        mock_client_create.return_value = mock_client
+
+        # Mock meeting links response
+        mock_links_response = MagicMock()
+        mock_links_response.json.return_value = {
+            "status": "success",
+            "results": [{"organizerUserId": "12345", "slug": "test-slug"}],
+        }
+
+        # Mock availability response
+        mock_availability_response = MagicMock()
+        mock_availability_response.json.return_value = {
+            "linkAvailability": {
+                "linkAvailabilityByDuration": {
+                    "900000": {
+                        "availabilities": [
+                            {
+                                "startMillisUtc": 1640995200000,
+                                "endMillisUtc": 1640996100000,
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+
+        mock_client.api_request.side_effect = [
+            mock_links_response,
+            mock_availability_response,
+        ]
+
+        # Execute function with invalid timezone
+        # This should raise an exception when pytz.timezone() is called
+        with pytest.raises(pytz.exceptions.UnknownTimeZoneError):
+            check_available_func(
+                12345,  # owner_id
+                "Invalid/Timezone",  # time_zone
+                "January 1st",  # meeting_date
+                15,  # duration
+            )
+
+    @patch("arklex.env.tools.hubspot.check_available.authenticate_hubspot")
+    @patch("arklex.env.tools.hubspot.check_available.hubspot.Client.create")
+    def test_check_available_with_same_date_slots_exact_match(
+        self, mock_client_create: Mock, mock_authenticate: Mock
+    ) -> None:
+        """Test when slots exactly match the requested date."""
+        # Setup mocks
+        mock_authenticate.return_value = "test_token"
+        mock_client = MagicMock()
+        mock_client_create.return_value = mock_client
+
+        # Mock meeting links response
+        mock_links_response = MagicMock()
+        mock_links_response.json.return_value = {
+            "status": "success",
+            "results": [{"organizerUserId": "12345", "slug": "test-slug"}],
+        }
+
+        # Create timestamp for January 1st, 2026 at 10:00 AM UTC
+        # This should match the parsed date from "January 1st" (current year)
+        jan_1_2026_10am_utc = int(datetime(2026, 1, 1, 10, 0, 0).timestamp() * 1000)
+        jan_1_2026_10_15am_utc = int(datetime(2026, 1, 1, 10, 15, 0).timestamp() * 1000)
+
+        # Mock availability response with slots on the same date
+        mock_availability_response = MagicMock()
+        mock_availability_response.json.return_value = {
+            "linkAvailability": {
+                "linkAvailabilityByDuration": {
+                    "900000": {
+                        "availabilities": [
+                            {
+                                "startMillisUtc": jan_1_2026_10am_utc,
+                                "endMillisUtc": jan_1_2026_10_15am_utc,
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+
+        mock_client.api_request.side_effect = [
+            mock_links_response,
+            mock_availability_response,
+        ]
+
+        # Execute function
+        result = check_available_func(
+            12345,  # owner_id
+            "America/New_York",  # time_zone
+            "January 1st",  # meeting_date
+            15,  # duration
+        )
+
+        # Verify results
+        assert "test-slug" in result
+        assert "The alternative time for you on the same date is" in result
+        assert "Feel free to choose from it" in result
+        assert "no available time slots on the same day" not in result
+
+    @patch("arklex.env.tools.hubspot.check_available.authenticate_hubspot")
+    @patch("arklex.env.tools.hubspot.check_available.hubspot.Client.create")
+    def test_check_available_with_multiple_meeting_links(
+        self, mock_client_create: Mock, mock_authenticate: Mock
+    ) -> None:
+        """Test when multiple meeting links exist for the same owner."""
+        # Setup mocks
+        mock_authenticate.return_value = "test_token"
+        mock_client = MagicMock()
+        mock_client_create.return_value = mock_client
+
+        # Mock meeting links response with multiple links for same owner
+        mock_links_response = MagicMock()
+        mock_links_response.json.return_value = {
+            "status": "success",
+            "results": [
+                {"organizerUserId": "12345", "slug": "first-slug"},
+                {"organizerUserId": "12345", "slug": "second-slug"},
+                {"organizerUserId": "99999", "slug": "other-owner-slug"},
+            ],
+        }
+
+        # Mock availability response
+        mock_availability_response = MagicMock()
+        mock_availability_response.json.return_value = {
+            "linkAvailability": {
+                "linkAvailabilityByDuration": {
+                    "900000": {
+                        "availabilities": [
+                            {
+                                "startMillisUtc": 1640995200000,
+                                "endMillisUtc": 1640996100000,
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+
+        mock_client.api_request.side_effect = [
+            mock_links_response,
+            mock_availability_response,
+        ]
+
+        # Execute function
+        result = check_available_func(
+            12345,  # owner_id
+            "America/New_York",  # time_zone
+            "January 1st",  # meeting_date
+            15,  # duration
+        )
+
+        # Verify results - should use the first slug found
+        assert "first-slug" in result
+        assert "second-slug" not in result
+        assert "other-owner-slug" not in result
+
+    @patch("arklex.env.tools.hubspot.check_available.authenticate_hubspot")
+    @patch("arklex.env.tools.hubspot.check_available.hubspot.Client.create")
+    def test_check_available_with_string_owner_id(
+        self, mock_client_create: Mock, mock_authenticate: Mock
+    ) -> None:
+        """Test when owner_id is passed as string but compared as string."""
+        # Setup mocks
+        mock_authenticate.return_value = "test_token"
+        mock_client = MagicMock()
+        mock_client_create.return_value = mock_client
+
+        # Mock meeting links response
+        mock_links_response = MagicMock()
+        mock_links_response.json.return_value = {
+            "status": "success",
+            "results": [{"organizerUserId": "12345", "slug": "test-slug"}],
+        }
+
+        # Mock availability response
+        mock_availability_response = MagicMock()
+        mock_availability_response.json.return_value = {
+            "linkAvailability": {
+                "linkAvailabilityByDuration": {
+                    "900000": {
+                        "availabilities": [
+                            {
+                                "startMillisUtc": 1640995200000,
+                                "endMillisUtc": 1640996100000,
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+
+        mock_client.api_request.side_effect = [
+            mock_links_response,
+            mock_availability_response,
+        ]
+
+        # Execute function with string owner_id
+        result = check_available_func(
+            "12345",  # owner_id as string
+            "America/New_York",  # time_zone
+            "January 1st",  # meeting_date
+            15,  # duration
+        )
+
+        # Verify results - should work because comparison is done as strings
+        assert "test-slug" in result
+        assert "no available time slots on the same day" in result
+
+    @patch("arklex.env.tools.hubspot.check_available.authenticate_hubspot")
+    @patch("arklex.env.tools.hubspot.check_available.hubspot.Client.create")
+    def test_check_available_with_different_duration_formats(
+        self, mock_client_create: Mock, mock_authenticate: Mock
+    ) -> None:
+        """Test with different duration values and their corresponding millisecond keys."""
+        # Setup mocks
+        mock_authenticate.return_value = "test_token"
+        mock_client = MagicMock()
+        mock_client_create.return_value = mock_client
+
+        # Mock meeting links response
+        mock_links_response = MagicMock()
+        mock_links_response.json.return_value = {
+            "status": "success",
+            "results": [{"organizerUserId": "12345", "slug": "test-slug"}],
+        }
+
+        # Test different durations
+        test_cases = [
+            (15, "900000"),  # 15 minutes = 900,000 ms
+            (30, "1800000"),  # 30 minutes = 1,800,000 ms
+            (60, "3600000"),  # 60 minutes = 3,600,000 ms
+        ]
+
+        for duration, expected_ms_key in test_cases:
+            # Mock availability response with specific duration key
+            mock_availability_response = MagicMock()
+            mock_availability_response.json.return_value = {
+                "linkAvailability": {
+                    "linkAvailabilityByDuration": {
+                        expected_ms_key: {
+                            "availabilities": [
+                                {
+                                    "startMillisUtc": 1640995200000,
+                                    "endMillisUtc": 1640996100000,
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+
+            mock_client.api_request.side_effect = [
+                mock_links_response,
+                mock_availability_response,
+            ]
+
+            # Execute function
+            result = check_available_func(
+                12345,  # owner_id
+                "America/New_York",  # time_zone
+                "January 1st",  # meeting_date
+                duration,  # duration
+            )
+
+            # Verify results
+            assert "test-slug" in result
+            assert "no available time slots on the same day" in result
+
+            # Reset mock for next iteration
+            mock_client.api_request.reset_mock()
+
+
+class TestParseNaturalDateEdgeCases:
+    """Additional edge cases for parse_natural_date function."""
+
+    def test_parse_natural_date_with_none_base_date(self) -> None:
+        """Test parsing with None base_date parameter."""
+        result = parse_natural_date("January 15, 2024", base_date=None)
+        assert result.year == 2024
+        assert result.month == 1
+        assert result.day == 15
+
+    def test_parse_natural_date_with_none_timezone(self) -> None:
+        """Test parsing with None timezone parameter."""
+        result = parse_natural_date("January 15, 2024", timezone=None)
+        assert result.year == 2024
+        assert result.month == 1
+        assert result.day == 15
+
+    def test_parse_natural_date_with_empty_string(self) -> None:
+        """Test parsing with empty string."""
+        base_date = datetime(2024, 1, 15)
+        result = parse_natural_date("", base_date=base_date)
+        # Should handle gracefully and return a valid datetime
+        assert isinstance(result, datetime)
+
+    def test_parse_natural_date_with_whitespace_only(self) -> None:
+        """Test parsing with whitespace-only string."""
+        base_date = datetime(2024, 1, 15)
+        result = parse_natural_date("   ", base_date=base_date)
+        # Should handle gracefully
+        assert isinstance(result, datetime)
+
+    def test_parse_natural_date_with_special_characters(self) -> None:
+        """Test parsing with special characters in date string."""
+        result = parse_natural_date("Jan. 15th, 2024")
+        assert result.year == 2024
+        assert result.month == 1
+        assert result.day == 15
+
+    def test_parse_natural_date_with_abbreviated_month(self) -> None:
+        """Test parsing with abbreviated month names."""
+        test_cases = [
+            ("Jan 15, 2024", 1),
+            ("Feb 15, 2024", 2),
+            ("Mar 15, 2024", 3),
+            ("Apr 15, 2024", 4),
+            ("May 15, 2024", 5),
+            ("Jun 15, 2024", 6),
+            ("Jul 15, 2024", 7),
+            ("Aug 15, 2024", 8),
+            ("Sep 15, 2024", 9),
+            ("Oct 15, 2024", 10),
+            ("Nov 15, 2024", 11),
+            ("Dec 15, 2024", 12),
+        ]
+
+        for date_str, expected_month in test_cases:
+            result = parse_natural_date(date_str)
+            assert result.year == 2024
+            assert result.month == expected_month
+            assert result.day == 15
+
+    def test_parse_natural_date_with_numeric_month(self) -> None:
+        """Test parsing with numeric month formats."""
+        test_cases = [
+            ("1/15/2024", 1),
+            ("01/15/2024", 1),
+            ("12/15/2024", 12),
+        ]
+
+        for date_str, expected_month in test_cases:
+            result = parse_natural_date(date_str)
+            assert result.year == 2024
+            assert result.month == expected_month
+            assert result.day == 15
+
+    def test_parse_natural_date_with_timezone_conversion_edge_cases(self) -> None:
+        """Test timezone conversion edge cases."""
+        # Test with timezone that has DST
+        result = parse_natural_date("January 15, 2024", timezone="America/New_York")
+        assert result.tzinfo is not None
+        assert result.year == 2024
+        assert result.month == 1
+        assert result.day == 15
+
+        # Test with timezone that doesn't have DST
+        result = parse_natural_date("January 15, 2024", timezone="UTC")
+        assert result.tzinfo is not None
+        assert result.year == 2024
+        assert result.month == 1
+        assert result.day == 15
+
+    def test_parse_natural_date_with_base_date_timezone_interaction(self) -> None:
+        """Test interaction between base_date and timezone parameters."""
+        base_date = datetime(2024, 1, 15, 10, 30, 0)  # With time
+
+        # Test with timezone
+        result = parse_natural_date(
+            "January 20, 2024", base_date=base_date, timezone="America/New_York"
+        )
+        assert result.tzinfo is not None
+        assert result.year == 2024
+        assert result.month == 1
+        # Note: timezone conversion may affect the day, so we check it's a valid date
+        assert result.day in [15, 20]  # Could be either depending on timezone offset
+
+        # Test without timezone
+        result = parse_natural_date(
+            "January 20, 2024", base_date=base_date, timezone=None
+        )
+        assert result.year == 2024
+        assert result.month == 1
+        # The function uses base_date when parsed date doesn't match base_date
+        assert result.day == 15  # Uses base_date.day since parsed date doesn't match
+
+    def test_parse_natural_date_date_input_variations(self) -> None:
+        """Test date_input parameter variations."""
+        # Test with date_input=True
+        result = parse_natural_date("January 15, 2024", date_input=True)
+        assert result.year == 2024
+        assert result.month == 1
+        assert result.day == 15
+        # Should have default time (00:00:00)
+        assert result.hour == 0
+        assert result.minute == 0
+        assert result.second == 0
+
+        # Test with date_input=False
+        result = parse_natural_date("January 15, 2024", date_input=False)
+        assert result.year == 2024
+        assert result.month == 1
+        assert result.day == 15
+        # May have parsed time or default time
+        assert isinstance(result.hour, int)
+        assert isinstance(result.minute, int)
+        assert isinstance(result.second, int)
