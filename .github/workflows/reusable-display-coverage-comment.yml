@@ -77,7 +77,7 @@ jobs:
       - name: Extract coverage percentage
         id: coverage-extract
         run: |
-          python -c @- << 'EOF'
+          python -c << 'EOF'
           import xml.etree.ElementTree as ET
           import os
           

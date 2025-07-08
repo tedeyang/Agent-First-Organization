@@ -94,7 +94,7 @@ jobs:
             fi
             
             # Extract from XML coverage file
-            python -c @- << 'EOF'
+            python -c << 'EOF'
           import xml.etree.ElementTree as ET
           import os
           import sys
@@ -196,7 +196,7 @@ jobs:
             # Try to extract coverage directly from coverage.xml as fallback
             if [ -f "coverage.xml" ]; then
               echo "Attempting fallback coverage extraction..."
-              FALLBACK_COVERAGE=$(python -c @- << 'EOF'
+              FALLBACK_COVERAGE=$(python -c << 'EOF'
           import xml.etree.ElementTree as ET
           try:
               tree = ET.parse('coverage.xml')

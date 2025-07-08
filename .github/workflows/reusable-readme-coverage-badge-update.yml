@@ -49,7 +49,7 @@ jobs:
         run: |
           if [ "${{ inputs.coverage-format }}" = "xml" ]; then
             # Extract from XML coverage file
-            python -c @- << 'EOF'
+            python -c << 'EOF'
           import xml.etree.ElementTree as ET
           import os
           import sys
@@ -69,7 +69,7 @@ jobs:
         run: |
           COVERAGE=${{ steps.coverage.outputs.coverage }}
           
-          python -c @- << 'EOF'
+          python -c << 'EOF'
           coverage = float('$COVERAGE')
           if coverage < 90:
               print('color=red')

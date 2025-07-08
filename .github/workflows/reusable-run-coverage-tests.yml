@@ -44,7 +44,7 @@ jobs:
         run: |
           ${{ inputs.coverage-command }}
 
-          python -c @- << 'EOF'
+          python -c << 'EOF'
           import xml.etree.ElementTree as ET
           import os
 
