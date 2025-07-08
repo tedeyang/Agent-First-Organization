@@ -69,7 +69,41 @@ runs:
                 
             tree = ET.parse('coverage.xml')
             root = tree.getroot()
-            coverage = float(root.attrib['line-rate']) * 100
+            
+            # Debug: Print root attributes
+            print(f'Root tag: {root.tag}')
+            print(f'Root attributes: {root.attrib}')
+            
+            # Try different attribute names for coverage
+            coverage = None
+            if 'line-rate' in root.attrib:
+                coverage = float(root.attrib['line-rate']) * 100
+                print(f'Found line-rate: {root.attrib["line-rate"]}')
+            elif 'lines-valid' in root.attrib and 'lines-covered' in root.attrib:
+                lines_valid = int(root.attrib['lines-valid'])
+                lines_covered = int(root.attrib['lines-covered'])
+                coverage = (lines_covered / lines_valid) * 100 if lines_valid > 0 else 0
+                print(f'Calculated from lines-valid: {lines_valid}, lines-covered: {lines_covered}')
+            else:
+                # Search for any element with line-rate
+                for elem in root.iter():
+                    if 'line-rate' in elem.attrib:
+                        coverage = float(elem.attrib['line-rate']) * 100
+                        print(f'Found line-rate in {elem.tag}: {elem.attrib["line-rate"]}')
+                        break
+                else:
+                    print('❌ No coverage attributes found in XML')
+                    print('Available attributes:', root.attrib)
+                    print('Searching all elements for line-rate...')
+                    for elem in root.iter():
+                        if elem.attrib:
+                            print(f'  {elem.tag}: {elem.attrib}')
+                    sys.exit(1)
+                
+            if coverage is None:
+                print('❌ Failed to extract coverage percentage')
+                sys.exit(1)
+                
             print(f'Coverage: {coverage:.1f}%')
 
             min_coverage = float(os.environ.get('MIN_COVERAGE_THRESHOLD', '${{ inputs.min-coverage-threshold }}'))
@@ -85,4 +119,6 @@ runs:
                 f.write(f'coverage={coverage:.1f}\\n')
         except Exception as e:
             print(f'Error reading coverage data: {e}')
+            import traceback
+            traceback.print_exc()
             sys.exit(1)"

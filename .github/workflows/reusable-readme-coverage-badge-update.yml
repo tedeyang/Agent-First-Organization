@@ -49,19 +49,7 @@ jobs:
         run: |
           if [ "${{ inputs.coverage-format }}" = "xml" ]; then
             # Extract from XML coverage file
-            python -c "
-          import xml.etree.ElementTree as ET
-          import os
-          
-          try:
-              tree = ET.parse('${{ inputs.coverage-file }}')
-              root = tree.getroot()
-              coverage = float(root.attrib['line-rate']) * 100
-              print(f'coverage={coverage:.1f}')
-          except Exception as e:
-              print(f'Error reading coverage data: {e}')
-              exit(1)
-          "
+            python -c "import xml.etree.ElementTree as ET; import os; import sys; tree = ET.parse('${{ inputs.coverage-file }}'); root = tree.getroot(); coverage = float(root.attrib.get('line-rate', 0)) * 100; print(f'coverage={coverage:.1f}')"
           else
             # Extract from text coverage file
             TOTAL_COVERAGE=$(grep -E '^TOTAL' ${{ inputs.coverage-file }} | awk '{print $4}' | tr -d '%' || echo "0")

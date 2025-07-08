@@ -51,6 +51,29 @@ jobs:
           min-coverage-threshold: '99.1'
           checkout-repo: 'false'
 
+      - name: Debug coverage generation
+        run: |
+          echo "Checking coverage files after test run..."
+          ls -la
+          echo ""
+          echo "Checking .coverage file if it exists:"
+          if [ -f ".coverage" ]; then
+            echo "✅ .coverage file exists"
+            echo "File size: $(wc -c < .coverage) bytes"
+          else
+            echo "❌ .coverage file not found"
+          fi
+          echo ""
+          echo "Checking coverage.xml file if it exists:"
+          if [ -f "coverage.xml" ]; then
+            echo "✅ coverage.xml file exists"
+            echo "File size: $(wc -c < coverage.xml) bytes"
+            echo "First 20 lines:"
+            head -20 coverage.xml
+          else
+            echo "❌ coverage.xml file not found"
+          fi
+
       - name: Verify coverage files exist
         run: |
           echo "Checking for coverage files..."
@@ -59,6 +82,31 @@ jobs:
             echo "✅ coverage.xml found"
             echo "coverage.xml content (first 10 lines):"
             head -10 coverage.xml
+            echo ""
+            echo "coverage.xml content (last 10 lines):"
+            tail -10 coverage.xml
+            echo ""
+            echo "Checking XML structure..."
+            python -c "
+          import xml.etree.ElementTree as ET
+          import os
+          
+          try:
+              tree = ET.parse('coverage.xml')
+              root = tree.getroot()
+              print(f'Root tag: {root.tag}')
+              print(f'Root attributes: {root.attrib}')
+              
+              # Look for coverage elements
+              for elem in root.iter():
+                  if 'line-rate' in elem.attrib:
+                      print(f'Found element with line-rate: {elem.tag} - {elem.attrib}')
+              print('XML parsing successful')
+          except Exception as e:
+              print(f'Error parsing XML: {e}')
+              import traceback
+              traceback.print_exc()
+          "
           else
             echo "❌ coverage.xml not found"
             echo "Available files:"
@@ -119,5 +167,8 @@ jobs:
       coverage-file: 'coverage.xml'
       coverage-format: 'xml'
       min-coverage-threshold: '99.1'
+    permissions:
+      contents: write
+      pull-requests: write
     secrets:
       github-token: ${{ secrets.GITHUB_TOKEN }}
