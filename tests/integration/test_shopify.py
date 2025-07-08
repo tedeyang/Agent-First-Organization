@@ -462,27 +462,35 @@ class TestShopifyGetOrderDetails:
                             "id": "gid://shopify/Order/12345",
                             "name": "#1001",
                             "createdAt": "2024-01-15T10:00:00Z",
-                            "totalPriceSet": {
-                                "shopMoney": {"amount": "99.99", "currencyCode": "USD"}
-                            },
+                            "cancelledAt": None,
+                            "returnStatus": "RETURNED",
+                            "statusPageUrl": "https://test-shop.myshopify.com/orders/1001",
+                            "totalPriceSet": {"presentmentMoney": {"amount": "99.99"}},
+                            "fulfillments": [
+                                {
+                                    "displayStatus": "FULFILLED",
+                                    "trackingInfo": [
+                                        {
+                                            "number": "TRACK123",
+                                            "url": "https://tracking.example.com/TRACK123",
+                                        }
+                                    ],
+                                }
+                            ],
                             "lineItems": {
-                                "nodes": [
+                                "edges": [
                                     {
-                                        "id": "gid://shopify/LineItem/67890",
-                                        "title": "Test Product",
-                                        "quantity": 2,
-                                        "variant": {
-                                            "id": "gid://shopify/ProductVariant/11111",
-                                            "title": "Small",
-                                        },
-                                    }
-                                ]
-                            },
-                            "fulfillments": {
-                                "nodes": [
-                                    {
-                                        "id": "gid://shopify/Fulfillment/22222",
-                                        "status": "SUCCESS",
+                                        "node": {
+                                            "id": "gid://shopify/LineItem/67890",
+                                            "title": "Test Product",
+                                            "quantity": 2,
+                                            "variant": {
+                                                "id": "gid://shopify/ProductVariant/11111",
+                                                "product": {
+                                                    "id": "gid://shopify/Product/22222"
+                                                },
+                                            },
+                                        }
                                     }
                                 ]
                             },
@@ -508,6 +516,12 @@ class TestShopifyGetOrderDetails:
         # Verify order information is included in the result
         assert "#1001" in result
         assert "gid://shopify/Order/12345" in result
+        assert "Created At: 2024-01-15T10:00:00Z" in result
+        assert "Return Status: RETURNED" in result
+        assert "Total Price: 99.99" in result
+        assert "Fulfillment Status: [{'displayStatus': 'FULFILLED'" in result
+        assert "Title: Test Product" in result
+        assert "Quantity: 2" in result
 
     @patch("arklex.env.tools.shopify.get_order_details.shopify.Session.temp")
     @patch("arklex.env.tools.shopify.get_order_details.shopify.GraphQL")
@@ -538,6 +552,418 @@ class TestShopifyGetOrderDetails:
         )
         # Verify appropriate message is returned when no orders exist
         assert "You have no orders placed" in result
+
+    @patch("arklex.env.tools.shopify.get_order_details.shopify.Session.temp")
+    @patch("arklex.env.tools.shopify.get_order_details.shopify.GraphQL")
+    def test_get_order_details_with_order_names_filter(
+        self,
+        mock_graphql: Mock,
+        mock_session_temp: Mock,
+    ) -> None:
+        """Test order details retrieval with order names filter."""
+        mock_session = MagicMock()
+        mock_session_temp.return_value.__enter__.return_value = mock_session
+
+        mock_response = {
+            "data": {
+                "orders": {
+                    "nodes": [
+                        {
+                            "id": "gid://shopify/Order/12345",
+                            "name": "#1001",
+                            "createdAt": "2024-01-15T10:00:00Z",
+                            "cancelledAt": None,
+                            "returnStatus": "RETURNED",
+                            "statusPageUrl": "https://test-shop.myshopify.com/orders/1001",
+                            "totalPriceSet": {"presentmentMoney": {"amount": "99.99"}},
+                            "fulfillments": [],
+                            "lineItems": {"edges": []},
+                        }
+                    ]
+                }
+            }
+        }
+
+        mock_graphql_instance = MagicMock()
+        mock_graphql_instance.execute.return_value = json.dumps(mock_response)
+        mock_graphql.return_value = mock_graphql_instance
+
+        result = get_order_details_func(
+            order_ids=[],
+            order_names=["#1001", "#1002"],
+            user_id="gid://shopify/Customer/12345",
+            shop_url="https://test-shop.myshopify.com",
+            admin_token="test_admin_token",
+            api_version="2024-10",
+        )
+
+        # Verify the GraphQL query was called with order names filter
+        mock_graphql_instance.execute.assert_called_once()
+        call_args = mock_graphql_instance.execute.call_args[0][0]
+        assert "name:#1001" in call_args
+        assert "name:#1002" in call_args
+        assert "#1001" in result
+
+    @patch("arklex.env.tools.shopify.get_order_details.shopify.Session.temp")
+    @patch("arklex.env.tools.shopify.get_order_details.shopify.GraphQL")
+    def test_get_order_details_with_limit_parameter(
+        self,
+        mock_graphql: Mock,
+        mock_session_temp: Mock,
+    ) -> None:
+        """Test order details retrieval with custom limit parameter."""
+        mock_session = MagicMock()
+        mock_session_temp.return_value.__enter__.return_value = mock_session
+
+        mock_response = {
+            "data": {
+                "orders": {
+                    "nodes": [
+                        {
+                            "id": "gid://shopify/Order/12345",
+                            "name": "#1001",
+                            "createdAt": "2024-01-15T10:00:00Z",
+                            "cancelledAt": None,
+                            "returnStatus": "RETURNED",
+                            "statusPageUrl": "https://test-shop.myshopify.com/orders/1001",
+                            "totalPriceSet": {"presentmentMoney": {"amount": "99.99"}},
+                            "fulfillments": [],
+                            "lineItems": {"edges": []},
+                        }
+                    ]
+                }
+            }
+        }
+
+        mock_graphql_instance = MagicMock()
+        mock_graphql_instance.execute.return_value = json.dumps(mock_response)
+        mock_graphql.return_value = mock_graphql_instance
+
+        result = get_order_details_func(
+            order_ids=[],
+            order_names=[],
+            user_id="gid://shopify/Customer/12345",
+            limit=5,
+            shop_url="https://test-shop.myshopify.com",
+            admin_token="test_admin_token",
+            api_version="2024-10",
+        )
+
+        # Verify the GraphQL query was called with custom limit
+        mock_graphql_instance.execute.assert_called_once()
+        call_args = mock_graphql_instance.execute.call_args[0][0]
+        assert "first: 5" in call_args
+        assert "#1001" in result
+
+    @patch("arklex.env.tools.shopify.get_order_details.shopify.Session.temp")
+    @patch("arklex.env.tools.shopify.get_order_details.shopify.GraphQL")
+    def test_get_order_details_with_cancelled_order(
+        self,
+        mock_graphql: Mock,
+        mock_session_temp: Mock,
+    ) -> None:
+        """Test order details retrieval for a cancelled order."""
+        mock_session = MagicMock()
+        mock_session_temp.return_value.__enter__.return_value = mock_session
+
+        mock_response = {
+            "data": {
+                "orders": {
+                    "nodes": [
+                        {
+                            "id": "gid://shopify/Order/12345",
+                            "name": "#1001",
+                            "createdAt": "2024-01-15T10:00:00Z",
+                            "cancelledAt": "2024-01-16T10:00:00Z",
+                            "returnStatus": "RETURNED",
+                            "statusPageUrl": "https://test-shop.myshopify.com/orders/1001",
+                            "totalPriceSet": {"presentmentMoney": {"amount": "99.99"}},
+                            "fulfillments": [],
+                            "lineItems": {"edges": []},
+                        }
+                    ]
+                }
+            }
+        }
+
+        mock_graphql_instance = MagicMock()
+        mock_graphql_instance.execute.return_value = json.dumps(mock_response)
+        mock_graphql.return_value = mock_graphql_instance
+
+        result = get_order_details_func(
+            order_ids=["gid://shopify/Order/12345"],
+            order_names=[],
+            user_id="gid://shopify/Customer/12345",
+            shop_url="https://test-shop.myshopify.com",
+            admin_token="test_admin_token",
+            api_version="2024-10",
+        )
+
+        # Verify cancelled order information is included
+        assert "Cancelled At: 2024-01-16T10:00:00Z" in result
+        assert "#1001" in result
+
+    @patch("arklex.env.tools.shopify.get_order_details.shopify.Session.temp")
+    @patch("arklex.env.tools.shopify.get_order_details.shopify.GraphQL")
+    def test_get_order_details_with_multiple_line_items(
+        self,
+        mock_graphql: Mock,
+        mock_session_temp: Mock,
+    ) -> None:
+        """Test order details retrieval with multiple line items."""
+        mock_session = MagicMock()
+        mock_session_temp.return_value.__enter__.return_value = mock_session
+
+        mock_response = {
+            "data": {
+                "orders": {
+                    "nodes": [
+                        {
+                            "id": "gid://shopify/Order/12345",
+                            "name": "#1001",
+                            "createdAt": "2024-01-15T10:00:00Z",
+                            "cancelledAt": None,
+                            "returnStatus": "RETURNED",
+                            "statusPageUrl": "https://test-shop.myshopify.com/orders/1001",
+                            "totalPriceSet": {"presentmentMoney": {"amount": "199.98"}},
+                            "fulfillments": [],
+                            "lineItems": {
+                                "edges": [
+                                    {
+                                        "node": {
+                                            "id": "gid://shopify/LineItem/67890",
+                                            "title": "Product 1",
+                                            "quantity": 2,
+                                            "variant": {
+                                                "id": "gid://shopify/ProductVariant/11111",
+                                                "product": {
+                                                    "id": "gid://shopify/Product/22222"
+                                                },
+                                            },
+                                        }
+                                    },
+                                    {
+                                        "node": {
+                                            "id": "gid://shopify/LineItem/67891",
+                                            "title": "Product 2",
+                                            "quantity": 1,
+                                            "variant": {
+                                                "id": "gid://shopify/ProductVariant/11112",
+                                                "product": {
+                                                    "id": "gid://shopify/Product/22223"
+                                                },
+                                            },
+                                        }
+                                    },
+                                ]
+                            },
+                        }
+                    ]
+                }
+            }
+        }
+
+        mock_graphql_instance = MagicMock()
+        mock_graphql_instance.execute.return_value = json.dumps(mock_response)
+        mock_graphql.return_value = mock_graphql_instance
+
+        result = get_order_details_func(
+            order_ids=["gid://shopify/Order/12345"],
+            order_names=[],
+            user_id="gid://shopify/Customer/12345",
+            shop_url="https://test-shop.myshopify.com",
+            admin_token="test_admin_token",
+            api_version="2024-10",
+        )
+
+        # Verify multiple line items are included
+        assert "Title: Product 1" in result
+        assert "Title: Product 2" in result
+        assert "Quantity: 2" in result
+        assert "Quantity: 1" in result
+        assert "Total Price: 199.98" in result
+
+    @patch("arklex.env.tools.shopify.get_order_details.shopify.Session.temp")
+    @patch("arklex.env.tools.shopify.get_order_details.shopify.GraphQL")
+    def test_get_order_details_api_exception(
+        self,
+        mock_graphql: Mock,
+        mock_session_temp: Mock,
+    ) -> None:
+        """Test order details retrieval when API throws an exception."""
+        mock_session = MagicMock()
+        mock_session_temp.return_value.__enter__.return_value = mock_session
+
+        # Simulate API error by making execute method raise an exception
+        mock_graphql_instance = MagicMock()
+        mock_graphql_instance.execute.side_effect = Exception("API Error")
+        mock_graphql.return_value = mock_graphql_instance
+
+        # Test that the function raises an appropriate error
+        with pytest.raises(ToolExecutionError) as exc_info:
+            get_order_details_func(
+                order_ids=["gid://shopify/Order/12345"],
+                order_names=[],
+                user_id="gid://shopify/Customer/12345",
+                shop_url="https://test-shop.myshopify.com",
+                admin_token="test_admin_token",
+                api_version="2024-10",
+            )
+
+        # Verify error message contains expected pattern
+        assert "Tool get_order_details execution failed" in str(exc_info.value)
+
+    @patch("arklex.env.tools.shopify.get_order_details.shopify.Session.temp")
+    @patch("arklex.env.tools.shopify.get_order_details.shopify.GraphQL")
+    def test_get_order_details_with_string_limit(
+        self,
+        mock_graphql: Mock,
+        mock_session_temp: Mock,
+    ) -> None:
+        """Test order details retrieval with string limit parameter (should be converted to int)."""
+        mock_session = MagicMock()
+        mock_session_temp.return_value.__enter__.return_value = mock_session
+
+        mock_response = {
+            "data": {
+                "orders": {
+                    "nodes": [
+                        {
+                            "id": "gid://shopify/Order/12345",
+                            "name": "#1001",
+                            "createdAt": "2024-01-15T10:00:00Z",
+                            "cancelledAt": None,
+                            "returnStatus": "RETURNED",
+                            "statusPageUrl": "https://test-shop.myshopify.com/orders/1001",
+                            "totalPriceSet": {"presentmentMoney": {"amount": "99.99"}},
+                            "fulfillments": [],
+                            "lineItems": {"edges": []},
+                        }
+                    ]
+                }
+            }
+        }
+
+        mock_graphql_instance = MagicMock()
+        mock_graphql_instance.execute.return_value = json.dumps(mock_response)
+        mock_graphql.return_value = mock_graphql_instance
+
+        result = get_order_details_func(
+            order_ids=[],
+            order_names=[],
+            user_id="gid://shopify/Customer/12345",
+            limit="3",
+            shop_url="https://test-shop.myshopify.com",
+            admin_token="test_admin_token",
+            api_version="2024-10",
+        )
+
+        # Verify the GraphQL query was called with converted limit
+        mock_graphql_instance.execute.assert_called_once()
+        call_args = mock_graphql_instance.execute.call_args[0][0]
+        assert "first: 3" in call_args
+        assert "#1001" in result
+
+    @patch("arklex.env.tools.shopify.get_order_details.shopify.Session.temp")
+    @patch("arklex.env.tools.shopify.get_order_details.shopify.GraphQL")
+    def test_get_order_details_with_none_limit(
+        self,
+        mock_graphql: Mock,
+        mock_session_temp: Mock,
+    ) -> None:
+        """Test order details retrieval with None limit parameter (should use default 10)."""
+        mock_session = MagicMock()
+        mock_session_temp.return_value.__enter__.return_value = mock_session
+
+        mock_response = {
+            "data": {
+                "orders": {
+                    "nodes": [
+                        {
+                            "id": "gid://shopify/Order/12345",
+                            "name": "#1001",
+                            "createdAt": "2024-01-15T10:00:00Z",
+                            "cancelledAt": None,
+                            "returnStatus": "RETURNED",
+                            "statusPageUrl": "https://test-shop.myshopify.com/orders/1001",
+                            "totalPriceSet": {"presentmentMoney": {"amount": "99.99"}},
+                            "fulfillments": [],
+                            "lineItems": {"edges": []},
+                        }
+                    ]
+                }
+            }
+        }
+
+        mock_graphql_instance = MagicMock()
+        mock_graphql_instance.execute.return_value = json.dumps(mock_response)
+        mock_graphql.return_value = mock_graphql_instance
+
+        result = get_order_details_func(
+            order_ids=[],
+            order_names=[],
+            user_id="gid://shopify/Customer/12345",
+            limit=None,
+            shop_url="https://test-shop.myshopify.com",
+            admin_token="test_admin_token",
+            api_version="2024-10",
+        )
+
+        # Verify the GraphQL query was called with default limit
+        mock_graphql_instance.execute.assert_called_once()
+        call_args = mock_graphql_instance.execute.call_args[0][0]
+        assert "first: 10" in call_args
+        assert "#1001" in result
+
+    @patch("arklex.env.tools.shopify.get_order_details.shopify.Session.temp")
+    @patch("arklex.env.tools.shopify.get_order_details.shopify.GraphQL")
+    def test_get_order_details_with_complex_user_id(
+        self,
+        mock_graphql: Mock,
+        mock_session_temp: Mock,
+    ) -> None:
+        """Test order details retrieval with complex user ID that needs parsing."""
+        mock_session = MagicMock()
+        mock_session_temp.return_value.__enter__.return_value = mock_session
+
+        mock_response = {
+            "data": {
+                "orders": {
+                    "nodes": [
+                        {
+                            "id": "gid://shopify/Order/12345",
+                            "name": "#1001",
+                            "createdAt": "2024-01-15T10:00:00Z",
+                            "cancelledAt": None,
+                            "returnStatus": "RETURNED",
+                            "statusPageUrl": "https://test-shop.myshopify.com/orders/1001",
+                            "totalPriceSet": {"presentmentMoney": {"amount": "99.99"}},
+                            "fulfillments": [],
+                            "lineItems": {"edges": []},
+                        }
+                    ]
+                }
+            }
+        }
+
+        mock_graphql_instance = MagicMock()
+        mock_graphql_instance.execute.return_value = json.dumps(mock_response)
+        mock_graphql.return_value = mock_graphql_instance
+
+        result = get_order_details_func(
+            order_ids=[],
+            order_names=[],
+            user_id="gid://shopify/Customer/67890",
+            shop_url="https://test-shop.myshopify.com",
+            admin_token="test_admin_token",
+            api_version="2024-10",
+        )
+
+        # Verify the GraphQL query was called with parsed user ID
+        mock_graphql_instance.execute.assert_called_once()
+        call_args = mock_graphql_instance.execute.call_args[0][0]
+        assert "customer_id:67890" in call_args
+        assert "#1001" in result
 
 
 class TestShopifyGetCart:
