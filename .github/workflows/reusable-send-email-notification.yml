@@ -27,9 +27,9 @@ on:
         default: 'noreply@arklexai.com'
         type: string
       email-service:
-        description: 'Email service to use (sendgrid, webhook, or debug)'
+        description: 'Email service to use (sendgrid or webhook)'
         required: false
-        default: 'debug'
+        default: 'sendgrid'
         type: string
     secrets:
       SENDGRID_API_KEY:
@@ -90,24 +90,3 @@ jobs:
               "from_email": "${{ inputs.sender-email }}"
             }'
         shell: bash
-
-      - name: Debug Email (Print to Logs)
-        if: inputs.email-service == 'debug'
-        run: |
-          echo "=== EMAIL NOTIFICATION (DEBUG MODE) ==="
-          echo "To: ${{ inputs.recipient-email }}"
-          echo "From: ${{ inputs.sender-name }} <${{ inputs.sender-email }}>"
-          echo "Subject: ${{ inputs.subject }}"
-          echo ""
-          echo "Body:"
-          echo "${{ inputs.body }}"
-          echo "======================================"
-        shell: bash
-
-      - name: Log Email Sent
-        run: |
-          echo "✅ Email notification sent successfully"
-          echo "Service: ${{ inputs.email-service }}"
-          echo "Recipient: ${{ inputs.recipient-email }}"
-          echo "Subject: ${{ inputs.subject }}"
-        shell: bash 

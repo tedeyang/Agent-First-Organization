@@ -53,13 +53,8 @@ jobs:
 
       - name: Verify downloaded artifacts
         run: |
-          echo "Checking downloaded artifacts..."
-          ls -la
           if [ -f "${{ inputs.coverage-file }}" ]; then
             echo "✅ Coverage file found: ${{ inputs.coverage-file }}"
-            echo "File size: $(wc -c < "${{ inputs.coverage-file }}") bytes"
-            echo "First 10 lines of coverage file:"
-            head -10 "${{ inputs.coverage-file }}"
           else
             echo "❌ Coverage file not found: ${{ inputs.coverage-file }}"
             echo "Available files:"
@@ -78,7 +73,6 @@ jobs:
           if [ "${{ inputs.coverage-format }}" = "xml" ]; then
             # Try to generate coverage.xml if it doesn't exist or is malformed
             if [ ! -f "${{ inputs.coverage-file }}" ] || [ ! -s "${{ inputs.coverage-file }}" ]; then
-              echo "Coverage file missing or empty, trying to generate from .coverage..."
               if [ -f ".coverage" ]; then
                 coverage xml
                 if [ -f "coverage.xml" ]; then
@@ -101,55 +95,33 @@ jobs:
           
           try:
               if not os.path.exists('${{ inputs.coverage-file }}'):
-                  print('❌ Coverage file not found: ${{ inputs.coverage-file }}')
-                  print('Available files:')
-                  import subprocess
-                  result = subprocess.run(['ls', '-la'], capture_output=True, text=True)
-                  print(result.stdout)
                   sys.exit(1)
                   
               tree = ET.parse('${{ inputs.coverage-file }}')
               root = tree.getroot()
               
-              # Debug: Print root attributes
-              print(f'Root tag: {root.tag}')
-              print(f'Root attributes: {root.attrib}')
-              
               # Try different attribute names for coverage
               coverage = None
               if 'line-rate' in root.attrib:
                   coverage = float(root.attrib['line-rate']) * 100
-                  print(f'Found line-rate: {root.attrib["line-rate"]}')
               elif 'lines-valid' in root.attrib and 'lines-covered' in root.attrib:
                   lines_valid = int(root.attrib['lines-valid'])
                   lines_covered = int(root.attrib['lines-covered'])
                   coverage = (lines_covered / lines_valid) * 100 if lines_valid > 0 else 0
-                  print(f'Calculated from lines-valid: {lines_valid}, lines-covered: {lines_covered}')
               else:
                   # Search for any element with line-rate
                   for elem in root.iter():
                       if 'line-rate' in elem.attrib:
                           coverage = float(elem.attrib['line-rate']) * 100
-                          print(f'Found line-rate in {elem.tag}: {elem.attrib["line-rate"]}')
                           break
                   else:
-                      print('❌ No coverage attributes found in XML')
-                      print('Available attributes:', root.attrib)
-                      print('Searching all elements for line-rate...')
-                      for elem in root.iter():
-                          if elem.attrib:
-                              print(f'  {elem.tag}: {elem.attrib}')
                       sys.exit(1)
                   
               if coverage is None:
-                  print('❌ Failed to extract coverage percentage')
                   sys.exit(1)
                   
               print(f'coverage={coverage:.1f}')
           except Exception as e:
-              print(f'Error reading coverage data: {e}')
-              import traceback
-              traceback.print_exc()
               sys.exit(1)
           "
           else
@@ -169,7 +141,6 @@ jobs:
         shell: bash
         run: |
           COVERAGE=${{ steps.coverage.outputs.coverage }}
-          echo "Debug: COVERAGE from previous step: '$COVERAGE'"
           
           # Check if COVERAGE is empty
           if [ -z "$COVERAGE" ]; then
@@ -192,36 +163,21 @@ jobs:
           COVERAGE=${{ steps.coverage.outputs.coverage }}
           COLOR=${{ steps.color.outputs.color }}
           
-          echo "Debug: COVERAGE='$COVERAGE'"
-          echo "Debug: COLOR='$COLOR'"
-          
           # Check if variables are empty
           if [ -z "$COVERAGE" ] || [ -z "$COLOR" ]; then
             echo "❌ Error: COVERAGE or COLOR variables are empty"
-            echo "COVERAGE: '$COVERAGE'"
-            echo "COLOR: '$COLOR'"
             exit 1
           fi
           
           NEW_BADGE="coverage-${COVERAGE}%25-${COLOR}"
           CURRENT_BADGE=$(grep -oE '${{ inputs.badge-pattern }}' README.md || echo "")
           
-          echo "Debug: NEW_BADGE='$NEW_BADGE'"
-          echo "Debug: CURRENT_BADGE='$CURRENT_BADGE'"
-          
           if [[ "$CURRENT_BADGE" != "$NEW_BADGE" ]]; then
-            echo "Updating README badge from $CURRENT_BADGE to $NEW_BADGE"
             sed -i "s|${{ inputs.badge-pattern }}|$NEW_BADGE|g" README.md
             
             # Configure git for the repository
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            
-            # Check current git status and branch
-            echo "Current git status:"
-            git status
-            echo "Current branch:"
-            git branch -a
             
             # Try to get the correct branch name
             BRANCH_NAME=""
@@ -233,8 +189,6 @@ jobs:
               BRANCH_NAME="main"
             fi
             
-            echo "Target branch: $BRANCH_NAME"
-            
             # Add and commit changes
             git add README.md
             git commit -m "chore: update README with ${COVERAGE}% test coverage"
@@ -243,7 +197,6 @@ jobs:
             if git push origin HEAD:$BRANCH_NAME; then
               echo "✅ Successfully pushed changes to $BRANCH_NAME"
             else
-              echo "⚠️ Push failed, trying alternative approach..."
               # Try to push to the current branch
               git push origin HEAD:$(git rev-parse --abbrev-ref HEAD || echo "main")
             fi

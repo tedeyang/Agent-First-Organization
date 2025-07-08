@@ -18,7 +18,6 @@ jobs:
           check_section() {
             local section="$1"
             local min_words="$2"
-            echo "Checking section: $section"
             # Get content between sections, excluding comments and checkboxes
             local content
             content=$(echo "$PR_BODY" | \
@@ -31,17 +30,10 @@ jobs:
             # Count actual words (excluding punctuation and special characters)
             local word_count
             word_count=$(echo "$content" | tr -d '[:punct:]' | wc -w)
-            echo "Content found ($word_count words):"
-            echo "$content"
-            echo "---"
             if [ "$word_count" -lt "$min_words" ]; then
               MISSING_FIELDS+=("$section")
-              echo "❌ Section needs at least $min_words words of content"
-            else
-              echo "✅ Section has sufficient content"
             fi
           }
-          echo "Checking PR description sections..."
           # Check each required section with minimum word count
           check_section "## Summary" 5
           check_section "## Description" 10
@@ -58,4 +50,3 @@ jobs:
             echo "- Content must be descriptive and meaningful"
             exit 1
           fi
-          echo "✅ All sections have sufficient content"
