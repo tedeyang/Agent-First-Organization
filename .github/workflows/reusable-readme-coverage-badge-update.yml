@@ -44,6 +44,22 @@ jobs:
         with:
           token: ${{ secrets.github-token }}
 
+      - name: Download coverage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+          path: ./
+
+      - name: Verify coverage file exists
+        run: |
+          if [ ! -f "${{ inputs.coverage-file }}" ]; then
+            echo "❌ Coverage file not found: ${{ inputs.coverage-file }}"
+            echo "Available files:"
+            ls -la
+            exit 1
+          fi
+          echo "✅ Coverage file found: ${{ inputs.coverage-file }}"
+
       - name: Extract coverage percentage
         id: coverage
         run: |
@@ -53,13 +69,44 @@ jobs:
           import xml.etree.ElementTree as ET
           import os
           import sys
-          tree = ET.parse('${{ inputs.coverage-file }}')
-          root = tree.getroot()
-          coverage = float(root.attrib.get('line-rate', 0)) * 100
-          print(f'coverage={coverage:.1f}')
+          
+          try:
+              if not os.path.exists('${{ inputs.coverage-file }}'):
+                  print('❌ Coverage file not found: ${{ inputs.coverage-file }}')
+                  sys.exit(1)
+                  
+              tree = ET.parse('${{ inputs.coverage-file }}')
+              root = tree.getroot()
+              
+              # Use line-rate for coverage calculation
+              coverage = None
+              if 'line-rate' in root.attrib:
+                  coverage = float(root.attrib['line-rate']) * 100
+              else:
+                  # Search for any element with line-rate
+                  for elem in root.iter():
+                      if 'line-rate' in elem.attrib:
+                          coverage = float(elem.attrib['line-rate']) * 100
+                          break
+                  else:
+                      print('❌ Could not find line-rate coverage data in ${{ inputs.coverage-file }}')
+                      sys.exit(1)
+                  
+              if coverage is None:
+                  print('❌ Coverage is None')
+                  sys.exit(1)
+                  
+              print(f'coverage={coverage:.1f}')
+          except Exception as e:
+              print(f'❌ Error parsing coverage file: {e}')
+              sys.exit(1)
           '''
           else
             # Extract from text coverage file
+            if [ ! -f "${{ inputs.coverage-file }}" ]; then
+              echo "❌ Coverage file not found: ${{ inputs.coverage-file }}"
+              exit 1
+            fi
             TOTAL_COVERAGE=$(grep -E '^TOTAL' ${{ inputs.coverage-file }} | awk '{print $4}' | tr -d '%' || echo "0")
             echo "coverage=${TOTAL_COVERAGE}"
           fi
@@ -68,6 +115,12 @@ jobs:
         id: color
         run: |
           COVERAGE=${{ steps.coverage.outputs.coverage }}
+          
+          # Check if COVERAGE is empty
+          if [ -z "$COVERAGE" ]; then
+            echo "❌ Error: COVERAGE is empty from previous step"
+            exit 1
+          fi
           
           python -c '''
           coverage = float('$COVERAGE')
@@ -84,8 +137,19 @@ jobs:
           COVERAGE=${{ steps.coverage.outputs.coverage }}
           COLOR=${{ steps.color.outputs.color }}
           
+          # Check if variables are empty
+          if [ -z "$COVERAGE" ] || [ -z "$COLOR" ]; then
+            echo "❌ Error: COVERAGE or COLOR variables are empty"
+            echo "COVERAGE: '$COVERAGE'"
+            echo "COLOR: '$COLOR'"
+            exit 1
+          fi
+          
           NEW_BADGE="coverage-${COVERAGE}%25-${COLOR}"
           CURRENT_BADGE=$(grep -oE '${{ inputs.badge-pattern }}' README.md || echo "")
+          
+          echo "Current badge: $CURRENT_BADGE"
+          echo "New badge: $NEW_BADGE"
           
           if [[ "$CURRENT_BADGE" != "$NEW_BADGE" ]]; then
             sed -i "s|${{ inputs.badge-pattern }}|$NEW_BADGE|g" README.md
@@ -95,4 +159,7 @@ jobs:
             git add README.md
             git commit -m "chore: update README with ${COVERAGE}% test coverage"
             git push
+            echo "✅ Badge updated successfully"
+          else
+            echo "ℹ️ Badge already reflects current coverage"
           fi
