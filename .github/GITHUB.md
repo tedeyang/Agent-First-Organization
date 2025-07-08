@@ -89,7 +89,7 @@ This directory contains GitHub Actions and Workflows for CI/CD automation.
 
 ### Environment Setup
 
-- Python 3.10+ for most workflows
+- Python 3.11+ for most workflows
 - Coverage tools (pytest, coverage)
 - Linting tools (Ruff)
 
