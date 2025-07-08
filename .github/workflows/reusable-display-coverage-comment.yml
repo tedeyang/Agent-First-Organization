@@ -29,6 +29,64 @@ jobs:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install coverage
+        run: |
+          python -m pip install --upgrade pip
+          pip install coverage
+
+      - name: Download coverage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+          path: .
+
+      - name: Download HTML coverage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: htmlcov
+          path: .
+
+      - name: Verify coverage files exist
+        run: |
+          echo "Checking for coverage files..."
+          ls -la
+          if [ -f "coverage.xml" ]; then
+            echo "✅ coverage.xml found"
+            echo "coverage.xml content (first 10 lines):"
+            head -10 coverage.xml
+          else
+            echo "❌ coverage.xml not found"
+            echo "Available files:"
+            ls -la
+            exit 1
+          fi
+
+      - name: Generate coverage JSON for comment action
+        run: |
+          if [ -f "coverage.xml" ]; then
+            echo "✅ coverage.xml found, converting to JSON format"
+            coverage xml -i coverage.xml
+            coverage json -o coverage.json
+            echo "✅ Generated coverage.json"
+          elif [ -f ".coverage" ]; then
+            echo "✅ .coverage found, generating JSON"
+            coverage json -o coverage.json
+            echo "✅ Generated coverage.json"
+          else
+            echo "❌ No coverage data found"
+            echo "Available files:"
+            ls -la
+            exit 1
+          fi
+
       - name: Display coverage comment
         id: coverage
         uses: py-cov-action/python-coverage-comment-action@v3
@@ -36,3 +94,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.github-token }}
           MINIMUM_GREEN: ${{ inputs.minimum-green }}
           MINIMUM_ORANGE: ${{ inputs.minimum-orange }}
+        continue-on-error: true
