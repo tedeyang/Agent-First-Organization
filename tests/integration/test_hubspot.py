@@ -237,6 +237,269 @@ class TestHubSpotCreateTicket:
         mock_hubspot_ticket_client.crm.tickets.basic_api.create.assert_called_once()
         mock_hubspot_ticket_client.crm.associations.v4.basic_api.create.assert_called_once()
 
+    @patch("arklex.env.tools.hubspot.create_ticket.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.create_ticket.authenticate_hubspot")
+    def test_create_ticket_api_exception_during_creation(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+    ) -> None:
+        """
+        Test ticket creation when HubSpot API throws an exception during ticket creation.
+
+        This test validates that the create_ticket tool properly handles
+        API errors during ticket creation and provides appropriate error messages.
+        """
+        # Mock authentication to return a valid token
+        mock_authenticate.return_value = "test_token"
+        mock_hubspot_client = MagicMock()
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Simulate API error during ticket creation
+        from hubspot.crm.objects.emails import ApiException
+
+        mock_hubspot_client.crm.tickets.basic_api.create.side_effect = ApiException(
+            status=400, reason="Bad Request"
+        )
+
+        # Test that the function raises an appropriate error
+        with pytest.raises(ToolExecutionError) as exc_info:
+            create_ticket_func(
+                cus_cid="12345",
+                issue="I need help with my order",
+                access_token="test_token",
+            )
+
+        # Verify the error message contains expected content
+        assert HubspotExceptionPrompt.TICKET_CREATION_ERROR_PROMPT in str(
+            exc_info.value
+        ), "Error message should contain ticket creation error prompt"
+
+    @patch("arklex.env.tools.hubspot.create_ticket.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.create_ticket.authenticate_hubspot")
+    def test_create_ticket_api_exception_during_association(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+    ) -> None:
+        """
+        Test ticket creation when HubSpot API throws an exception during association.
+
+        This test validates that the create_ticket tool properly handles
+        API errors during contact-ticket association and provides appropriate error messages.
+        """
+        # Mock authentication to return a valid token
+        mock_authenticate.return_value = "test_token"
+        mock_hubspot_client = MagicMock()
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Mock successful ticket creation
+        mock_ticket_response = MagicMock()
+        mock_ticket_response.to_dict.return_value = {"id": "ticket_123"}
+        mock_hubspot_client.crm.tickets.basic_api.create.return_value = (
+            mock_ticket_response
+        )
+
+        # Simulate API error during association
+        from hubspot.crm.objects.emails import ApiException
+
+        mock_hubspot_client.crm.associations.v4.basic_api.create.side_effect = (
+            ApiException(status=400, reason="Association Failed")
+        )
+
+        # Test that the function raises an appropriate error
+        with pytest.raises(ToolExecutionError) as exc_info:
+            create_ticket_func(
+                cus_cid="12345",
+                issue="I need help with my order",
+                access_token="test_token",
+            )
+
+        # Verify the error message contains expected content
+        assert HubspotExceptionPrompt.TICKET_CREATION_ERROR_PROMPT in str(
+            exc_info.value
+        ), "Error message should contain ticket creation error prompt"
+
+    @patch("arklex.env.tools.hubspot.create_ticket.authenticate_hubspot")
+    def test_create_ticket_authentication_error(self, mock_authenticate: Mock) -> None:
+        """
+        Test ticket creation with invalid or missing access token.
+
+        This test validates that the create_ticket tool properly handles
+        authentication failures and provides appropriate error messages.
+        """
+        # Mock authentication to raise an authentication error
+        mock_authenticate.side_effect = AuthenticationError("Invalid access token")
+
+        # Test that the function raises an authentication error
+        with pytest.raises(AuthenticationError):
+            create_ticket_func(
+                cus_cid="12345",
+                issue="I need help with my order",
+                access_token="invalid_token",
+            )
+
+    @patch("arklex.env.tools.hubspot.create_ticket.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.create_ticket.authenticate_hubspot")
+    def test_create_ticket_with_long_issue_description(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+    ) -> None:
+        """
+        Test ticket creation with a very long issue description.
+
+        This test validates that the create_ticket tool can handle
+        lengthy issue descriptions without truncation or errors.
+        """
+        # Mock authentication to return a valid token
+        mock_authenticate.return_value = "test_token"
+        mock_hubspot_client = MagicMock()
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Mock successful ticket creation
+        mock_ticket_response = MagicMock()
+        mock_ticket_response.to_dict.return_value = {"id": "ticket_456"}
+        mock_hubspot_client.crm.tickets.basic_api.create.return_value = (
+            mock_ticket_response
+        )
+        mock_hubspot_client.crm.associations.v4.basic_api.create.return_value = None
+
+        # Create a very long issue description
+        long_issue = (
+            "I have been experiencing problems with my order for the past three weeks. "
+            * 10
+        )
+
+        result = create_ticket_func(
+            cus_cid="12345",
+            issue=long_issue,
+            access_token="test_token",
+        )
+
+        assert result == "ticket_456", "Should return the created ticket ID"
+
+    @patch("arklex.env.tools.hubspot.create_ticket.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.create_ticket.authenticate_hubspot")
+    def test_create_ticket_with_special_characters_in_issue(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+    ) -> None:
+        """
+        Test ticket creation with special characters in issue description.
+
+        This test validates that the create_ticket tool can handle
+        special characters, emojis, and unicode in issue descriptions.
+        """
+        # Mock authentication to return a valid token
+        mock_authenticate.return_value = "test_token"
+        mock_hubspot_client = MagicMock()
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Mock successful ticket creation
+        mock_ticket_response = MagicMock()
+        mock_ticket_response.to_dict.return_value = {"id": "ticket_789"}
+        mock_hubspot_client.crm.tickets.basic_api.create.return_value = (
+            mock_ticket_response
+        )
+        mock_hubspot_client.crm.associations.v4.basic_api.create.return_value = None
+
+        # Issue with special characters, emojis, and unicode
+        special_issue = "I need help with my order! 🚀 The product has issues: émojis & symbols @#$%^&*()"
+
+        result = create_ticket_func(
+            cus_cid="12345",
+            issue=special_issue,
+            access_token="test_token",
+        )
+
+        assert result == "ticket_789", "Should return the created ticket ID"
+
+    @patch("arklex.env.tools.hubspot.create_ticket.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.create_ticket.authenticate_hubspot")
+    def test_create_ticket_with_numeric_customer_id(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+    ) -> None:
+        """
+        Test ticket creation with numeric customer ID as specified in documentation.
+
+        This test validates that the create_ticket tool works correctly
+        with numeric customer IDs as described in the slots documentation.
+        """
+        # Mock authentication to return a valid token
+        mock_authenticate.return_value = "test_token"
+        mock_hubspot_client = MagicMock()
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Mock successful ticket creation
+        mock_ticket_response = MagicMock()
+        mock_ticket_response.to_dict.return_value = {"id": "ticket_999"}
+        mock_hubspot_client.crm.tickets.basic_api.create.return_value = (
+            mock_ticket_response
+        )
+        mock_hubspot_client.crm.associations.v4.basic_api.create.return_value = None
+
+        # Use numeric customer ID as specified in documentation
+        numeric_customer_id = "97530152525"
+
+        result = create_ticket_func(
+            cus_cid=numeric_customer_id,
+            issue="I need help with my order",
+            access_token="test_token",
+        )
+
+        assert result == "ticket_999", "Should return the created ticket ID"
+
+    @patch("arklex.env.tools.hubspot.create_ticket.hubspot.Client.create")
+    @patch("arklex.env.tools.hubspot.create_ticket.authenticate_hubspot")
+    def test_create_ticket_timestamp_format_validation(
+        self,
+        mock_authenticate: Mock,
+        mock_client_create: Mock,
+    ) -> None:
+        """
+        Test that ticket creation generates proper timestamp format in subject.
+
+        This test validates that the timestamp in the subject line
+        follows the expected ISO 8601 format with microsecond precision.
+        """
+        # Mock authentication to return a valid token
+        mock_authenticate.return_value = "test_token"
+        mock_hubspot_client = MagicMock()
+        mock_client_create.return_value = mock_hubspot_client
+
+        # Mock successful ticket creation
+        mock_ticket_response = MagicMock()
+        mock_ticket_response.to_dict.return_value = {"id": "ticket_timestamp"}
+        mock_hubspot_client.crm.tickets.basic_api.create.return_value = (
+            mock_ticket_response
+        )
+        mock_hubspot_client.crm.associations.v4.basic_api.create.return_value = None
+
+        create_ticket_func(
+            cus_cid="12345",
+            issue="I need help with my order",
+            access_token="test_token",
+        )
+
+        # Verify that the ticket creation was called with proper subject format
+        create_call = mock_hubspot_client.crm.tickets.basic_api.create.call_args
+        ticket_input = create_call[1]["simple_public_object_input_for_create"]
+        properties = ticket_input.properties
+
+        # Check that subject contains customer ID and timestamp
+        assert "subject" in properties, "Subject should be set in ticket properties"
+        subject = properties["subject"]
+        assert "Issue of 12345 at" in subject, (
+            "Subject should contain customer ID and timestamp"
+        )
+        assert "T" in subject and "Z" in subject, (
+            "Subject should contain ISO 8601 timestamp"
+        )
+
 
 class TestHubSpotFindOwnerIdByContactId:
     """
