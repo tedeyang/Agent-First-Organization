@@ -64,9 +64,9 @@ jobs:
           # Run tests with coverage, excluding certain directories if needed
           ARKLEX_TEST_ENV=local coverage run --source=arklex -m pytest tests/ -v --tb=short
           coverage xml
-          coverage report > coverage.txt
           echo "Coverage report generated:"
-          cat coverage.txt
+          echo "coverage.xml content (first 10 lines):"
+          head -10 coverage.xml
 
       - name: Fetch main branch
         run: git fetch origin main
@@ -135,15 +135,15 @@ jobs:
           name: diff-coverage-report
           path: |
             diff_coverage.html
-            coverage.txt
+            coverage.xml
             diff_output.txt
 
       - name: Update README badge
         if: always() && github.ref == 'refs/heads/main'
         uses: ./.github/workflows/reusable-update-badge.yml
         with:
-          coverage-file: 'coverage.txt'
-          coverage-format: 'txt'
+          coverage-file: 'coverage.xml'
+          coverage-format: 'xml'
           min-coverage-threshold: ${{ inputs.fail-under }}
 
       - name: Summary

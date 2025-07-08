@@ -3,13 +3,13 @@ description: "Update coverage badge in README.md based on coverage data"
 
 inputs:
   coverage-file:
-    description: "Path to coverage file (coverage.txt or coverage.xml)"
+    description: "Path to coverage file (coverage.xml)"
     required: false
-    default: "coverage.txt"
+    default: "coverage.xml"
   coverage-format:
-    description: "Format of coverage file (txt or xml)"
+    description: "Format of coverage file (xml)"
     required: false
-    default: "txt"
+    default: "xml"
   min-coverage-threshold:
     description: "Minimum coverage threshold for color coding"
     required: false
