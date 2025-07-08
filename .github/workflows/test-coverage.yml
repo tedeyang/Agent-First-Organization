@@ -38,7 +38,7 @@ jobs:
         id: coverage-check
         uses: ./.github/actions/run-coverage-tests
         with:
-          coverage-command: 'ARKLEX_TEST_ENV=local pytest tests/ --cov=arklex --cov-report=term-missing --cov-report=html --cov-report=xml --cov-report=json --cov-report=lcov --no-cov-on-fail'
+          coverage-command: 'ARKLEX_TEST_ENV=local pytest tests/ --cov=arklex --cov-report=term-missing --cov-report=html --cov-report=xml --no-cov-on-fail'
           min-coverage-threshold: '99.1'
 
       - name: Upload coverage artifacts
