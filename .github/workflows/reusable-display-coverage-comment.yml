@@ -69,28 +69,11 @@ jobs:
             exit 1
           fi
 
-      - name: Generate coverage JSON for comment action
-        run: |
-          if [ -f "coverage.xml" ]; then
-            echo "✅ coverage.xml found, converting to JSON format"
-            coverage json -o coverage.json
-            echo "✅ Generated coverage.json"
-          elif [ -f ".coverage" ]; then
-            echo "✅ .coverage found, generating JSON"
-            coverage json -o coverage.json
-            echo "✅ Generated coverage.json"
-          else
-            echo "❌ No coverage data found"
-            echo "Available files:"
-            ls -la
-            exit 1
-          fi
-
       - name: Display coverage comment
         id: coverage
         uses: py-cov-action/python-coverage-comment-action@v3
         with:
-          GITHUB_TOKEN: ${{ secrets.github-token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MINIMUM_GREEN: ${{ inputs.minimum-green }}
           MINIMUM_ORANGE: ${{ inputs.minimum-orange }}
         continue-on-error: true
