@@ -110,16 +110,11 @@ jobs:
               print(f'XML root tag: {root.tag}')
               print(f'XML root attributes: {root.attrib}')
               
-              # Try different attribute names for coverage
+              # Use line-rate for coverage calculation
               coverage = None
               if 'line-rate' in root.attrib:
                   coverage = float(root.attrib['line-rate']) * 100
                   print(f'Found line-rate: {root.attrib["line-rate"]}')
-              elif 'lines-valid' in root.attrib and 'lines-covered' in root.attrib:
-                  lines_valid = int(root.attrib['lines-valid'])
-                  lines_covered = int(root.attrib['lines-covered'])
-                  coverage = (lines_covered / lines_valid) * 100 if lines_valid > 0 else 0
-                  print(f'Found lines-valid: {lines_valid}, lines-covered: {lines_covered}')
               else:
                   # Search for any element with line-rate
                   for elem in root.iter():
@@ -128,7 +123,7 @@ jobs:
                           print(f'Found line-rate in {elem.tag}: {elem.attrib["line-rate"]}')
                           break
                   else:
-                      print('❌ Could not find coverage data in ${{ inputs.coverage-file }}')
+                      print('❌ Could not find line-rate coverage data in ${{ inputs.coverage-file }}')
                       print('Available elements with attributes:')
                       for elem in root.iter():
                           if elem.attrib:

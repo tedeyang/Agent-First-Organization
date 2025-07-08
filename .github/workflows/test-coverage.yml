@@ -82,14 +82,10 @@ jobs:
               tree = ET.parse('coverage.xml')
               root = tree.getroot()
               
-              # Try different attribute names for coverage
+              # Use line-rate for coverage calculation
               coverage = None
               if 'line-rate' in root.attrib:
                   coverage = float(root.attrib['line-rate']) * 100
-              elif 'lines-valid' in root.attrib and 'lines-covered' in root.attrib:
-                  lines_valid = int(root.attrib['lines-valid'])
-                  lines_covered = int(root.attrib['lines-covered'])
-                  coverage = (lines_covered / lines_valid) * 100 if lines_valid > 0 else 0
               else:
                   # Search for any element with line-rate
                   for elem in root.iter():
@@ -97,7 +93,7 @@ jobs:
                           coverage = float(elem.attrib['line-rate']) * 100
                           break
                   else:
-                      print('❌ Could not find coverage data in coverage.xml')
+                      print('❌ Could not find line-rate coverage data in coverage.xml')
                       print('XML root attributes:', root.attrib)
                       exit(1)
                       
