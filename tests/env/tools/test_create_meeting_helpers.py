@@ -264,3 +264,176 @@ class TestCreateMeetingIntegration:
         result = parse_natural_date("10:00 AM", timezone="America/New_York")
         assert isinstance(result, datetime)
         assert result.tzinfo is not None
+
+    def test_parse_natural_date_edge_case_handling(self) -> None:
+        """Test edge case handling in parse_natural_date function."""
+        # Test with None base_date
+        result = parse_natural_date(
+            "tomorrow", base_date=None, timezone="America/New_York"
+        )
+        assert isinstance(result, datetime)
+        assert result.tzinfo is not None
+
+        # Test with None timezone
+        result = parse_natural_date("tomorrow", timezone=None)
+        assert isinstance(result, datetime)
+        # Should not have timezone info when timezone is None
+        assert result.tzinfo is None
+
+        # Test date_input=True with timezone
+        result = parse_natural_date(
+            "May 1st", timezone="America/New_York", date_input=True
+        )
+        assert isinstance(result, datetime)
+        assert result.tzinfo is not None
+
+    def test_parse_natural_date_complex_scenarios(self) -> None:
+        """Test complex scenarios in parse_natural_date function."""
+        # Test with base_date and different parsed date
+        base_date = datetime(2024, 1, 15, 10, 30, 0)
+        result = parse_natural_date("3pm", base_date, timezone="America/New_York")
+        assert result.date() == base_date.date()
+        assert result.tzinfo is not None
+
+        # Test with base_date and same parsed date
+        result = parse_natural_date("10:30 AM", base_date, timezone="America/New_York")
+        assert result.date() == base_date.date()
+        assert result.tzinfo is not None
+
+        # Test date_input=True without timezone
+        result = parse_natural_date("May 1st", date_input=True)
+        assert isinstance(result, datetime)
+        assert result.tzinfo is None
+
+    def test_is_iso8601_comprehensive_validation(self) -> None:
+        """Test comprehensive validation in is_iso8601 function."""
+        # Test various valid formats
+        valid_formats = [
+            "2024-01-15T10:30:00Z",
+            "2024-01-15T10:30:00+05:00",
+            "2024-01-15T10:30:00-05:00",
+            "2024-01-15T10:30:00.123Z",
+            "2024-01-15T10:30:00.123+05:00",
+            "2024-01-15T10:30:00.123-05:00",
+            "2024-01-15T10:30:00",
+            "2024-01-15",
+            "2024-01-15 10:30:00Z",
+            "2024-01-15 10:30:00+05:00",
+        ]
+
+        for iso_str in valid_formats:
+            assert is_iso8601(iso_str) is True, f"Failed for: {iso_str}"
+
+        # Test various invalid formats
+        invalid_formats = [
+            "tomorrow",
+            "10:30 AM",
+            "2024/01/15",
+            "15-01-2024",
+            "2024.01.15",
+            "not a date",
+            "",
+            "2024-13-45T25:70:99Z",
+            "2024-01-15T",
+            "T10:30:00Z",
+            "2024-01-15T10:30:00+",
+            "2024-01-15T10:30:00Z+05:00",
+        ]
+
+        for non_iso_str in invalid_formats:
+            assert is_iso8601(non_iso_str) is False, f"Failed for: {non_iso_str}"
+
+    def test_parse_natural_date_timezone_edge_cases(self) -> None:
+        """Test timezone edge cases in parse_natural_date function."""
+        # Test with empty string timezone
+        result = parse_natural_date("tomorrow", timezone="")
+        assert isinstance(result, datetime)
+        # Should not have timezone info with empty string
+        assert result.tzinfo is None
+
+        # Test with invalid timezone
+        try:
+            result = parse_natural_date("tomorrow", timezone="Invalid/Timezone")
+            # Should handle gracefully or raise appropriate exception
+            assert isinstance(result, datetime)
+        except Exception:
+            # If it raises an exception, that's also acceptable behavior
+            pass
+
+    def test_is_iso8601_performance_edge_cases(self) -> None:
+        """Test performance edge cases in is_iso8601 function."""
+        # Test with very long strings
+        long_invalid_string = "not_a_date" * 1000
+        assert is_iso8601(long_invalid_string) is False
+
+        # Test with very long valid strings
+        long_valid_string = "2024-01-15T10:30:00.123456789Z"
+        assert is_iso8601(long_valid_string) is True
+
+        # Test with single character
+        assert is_iso8601("a") is False
+        assert is_iso8601("1") is False
+
+    def test_parse_natural_date_performance_edge_cases(self) -> None:
+        """Test performance edge cases in parse_natural_date function."""
+        # Test with very long date strings
+        long_date_string = "tomorrow " * 100
+        result = parse_natural_date(long_date_string, timezone="America/New_York")
+        assert isinstance(result, datetime)
+
+        # Test with very long time strings
+        long_time_string = "10:00 AM " * 100
+        result = parse_natural_date(long_time_string, timezone="America/New_York")
+        assert isinstance(result, datetime)
+
+    def test_integration_with_create_meeting_logic(self) -> None:
+        """Test integration of helper functions with create_meeting logic."""
+        # Test ISO8601 detection for create_meeting time parsing
+        assert is_iso8601("2024-01-15T10:00:00Z") is True
+        assert is_iso8601("10:00 AM") is False
+
+        # Test natural language parsing for create_meeting date parsing
+        result = parse_natural_date(
+            "tomorrow", timezone="America/New_York", date_input=True
+        )
+        assert isinstance(result, datetime)
+        assert result.tzinfo is not None
+
+        # Test natural language parsing for create_meeting time parsing
+        result = parse_natural_date("10:00 AM", timezone="America/New_York")
+        assert isinstance(result, datetime)
+        assert result.tzinfo is not None
+
+    def test_parse_natural_date_return_path_coverage(self) -> None:
+        """Test the return path of parse_natural_date to ensure complete coverage."""
+        # Test basic return path without timezone
+        result = parse_natural_date("tomorrow")
+        assert isinstance(result, datetime)
+        assert result.tzinfo is None
+
+        # Test return path with timezone
+        result = parse_natural_date("tomorrow", timezone="America/New_York")
+        assert isinstance(result, datetime)
+        assert result.tzinfo is not None
+
+        # Test return path with date_input=True
+        result = parse_natural_date("May 1st", date_input=True)
+        assert isinstance(result, datetime)
+        assert result.tzinfo is None
+
+        # Test return path with date_input=True and timezone
+        result = parse_natural_date(
+            "May 1st", timezone="America/New_York", date_input=True
+        )
+        assert isinstance(result, datetime)
+        assert result.tzinfo is not None
+
+        # Test return path with base_date
+        base_date = datetime(2024, 1, 15, 10, 30, 0)
+        result = parse_natural_date("3pm", base_date)
+        assert isinstance(result, datetime)
+
+        # Test return path with base_date and timezone
+        result = parse_natural_date("3pm", base_date, timezone="America/New_York")
+        assert isinstance(result, datetime)
+        assert result.tzinfo is not None
