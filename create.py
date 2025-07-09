@@ -25,6 +25,7 @@ from arklex.utils.loader import Loader
 from arklex.utils.logging_utils import LogContext
 from arklex.utils.model_config import MODEL
 from arklex.utils.model_provider_config import LLM_PROVIDERS, PROVIDER_MAP
+from arklex.utils.provider_utils import get_provider_config
 
 log_context = LogContext(__name__)
 load_dotenv()
@@ -289,12 +290,24 @@ def main() -> None:
         f"🤖 Initializing language model (provider: {args.llm_provider}, model: {args.model})..."
     )
 
-    # Initialize model using the provider map
+    # Get provider configuration with API key and endpoint
+    provider_config = get_provider_config(args.llm_provider, args.model)
+
+    # Initialize model using the provider map with proper API key
     model_class = PROVIDER_MAP.get(args.llm_provider, ChatOpenAI)
+
     if args.llm_provider == "huggingface":
         model = model_class(model=args.model, timeout=30000)
+    elif args.llm_provider == "gemini":
+        # Google Gemini uses google_api_key parameter
+        model = model_class(
+            model=args.model, google_api_key=provider_config["api_key"], timeout=30000
+        )
     else:
-        model = model_class(model=args.model, timeout=30000)
+        # Other providers use api_key parameter
+        model = model_class(
+            model=args.model, api_key=provider_config["api_key"], timeout=30000
+        )
 
     # Determine output directory
     output_dir = args.output_dir or os.path.dirname(args.config)
