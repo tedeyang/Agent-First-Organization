@@ -286,7 +286,7 @@ class TestChatGPTUtils:
 
     @patch("arklex.evaluation.chatgpt_utils.OpenAI")
     @patch("arklex.evaluation.chatgpt_utils.anthropic.Anthropic")
-    @patch("arklex.evaluation.chatgpt_utils.google.generativeai")
+    @patch("google.generativeai")
     @patch("arklex.evaluation.chatgpt_utils.GenerativeModel")
     @patch(
         "arklex.evaluation.chatgpt_utils.MODEL",
