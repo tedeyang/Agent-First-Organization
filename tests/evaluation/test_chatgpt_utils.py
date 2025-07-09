@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from arklex.evaluation.chatgpt_utils import (
+    _convert_messages_to_gemini_format,
     chatgpt_chatbot,
     filter_convo,
     flip_hist,
@@ -596,6 +597,159 @@ class TestChatGPTUtils:
                 api_key="test_key",
                 organization=None,
             )
+
+    @patch("arklex.evaluation.chatgpt_utils.create_client")
+    def test_chatgpt_chatbot_google_provider(self, mock_create_client: Mock) -> None:
+        """Test chatgpt_chatbot with Google Gemini provider."""
+        # Setup
+        mock_client = Mock()
+        mock_response = Mock()
+        mock_response.text = "gemini result"
+        mock_client.generate_content.return_value = mock_response
+        mock_create_client.return_value = mock_client
+
+        messages = [
+            {"role": "user", "content": "Hello"},
+            {"role": "assistant", "content": "Hi there"},
+        ]
+
+        # Mock MODEL to use google provider
+        with patch("arklex.evaluation.chatgpt_utils.MODEL", {"llm_provider": "google"}):
+            # Execute
+            result = chatgpt_chatbot(messages, client=mock_client)
+
+            # Assert
+            assert result == "gemini result"
+            mock_client.generate_content.assert_called_once()
+            call_args = mock_client.generate_content.call_args
+            assert len(call_args[0]) == 1  # First argument is the messages
+            assert call_args[1]["generation_config"]["temperature"] == 0.1
+            assert call_args[1]["generation_config"]["max_output_tokens"] == 1024
+
+    @patch("arklex.evaluation.chatgpt_utils.create_client")
+    def test_chatgpt_chatbot_google_provider_with_system_message(
+        self, mock_create_client: Mock
+    ) -> None:
+        """Test chatgpt_chatbot with Google Gemini provider and system message."""
+        # Setup
+        mock_client = Mock()
+        mock_response = Mock()
+        mock_response.text = "gemini result with system"
+        mock_client.generate_content.return_value = mock_response
+        mock_create_client.return_value = mock_client
+
+        messages = [
+            {"role": "system", "content": "You are a helpful assistant"},
+            {"role": "user", "content": "Hello"},
+            {"role": "assistant", "content": "Hi there"},
+        ]
+
+        # Mock MODEL to use google provider
+        with patch("arklex.evaluation.chatgpt_utils.MODEL", {"llm_provider": "google"}):
+            # Execute
+            result = chatgpt_chatbot(messages, client=mock_client)
+
+            # Assert
+            assert result == "gemini result with system"
+            mock_client.generate_content.assert_called_once()
+
+    @patch("arklex.evaluation.chatgpt_utils.create_client")
+    def test_chatgpt_chatbot_unsupported_provider(
+        self, mock_create_client: Mock
+    ) -> None:
+        """Test chatgpt_chatbot with unsupported provider raises ValueError."""
+        # Setup
+        mock_client = Mock()
+        mock_create_client.return_value = mock_client
+
+        messages = [{"role": "user", "content": "Hello"}]
+
+        # Mock MODEL to use unsupported provider
+        with (
+            patch(
+                "arklex.evaluation.chatgpt_utils.MODEL", {"llm_provider": "unsupported"}
+            ),
+            pytest.raises(ValueError, match="Unsupported LLM provider: unsupported"),
+        ):
+            chatgpt_chatbot(messages, client=mock_client)
+
+    def test_convert_messages_to_gemini_format_basic(self) -> None:
+        """Test _convert_messages_to_gemini_format with basic messages."""
+        # Setup
+        messages = [
+            {"role": "user", "content": "Hello"},
+            {"role": "assistant", "content": "Hi there"},
+            {"role": "user", "content": "How are you?"},
+        ]
+
+        # Execute
+        result = _convert_messages_to_gemini_format(messages)
+
+        # Assert
+        assert len(result) == 3
+        assert result[0]["role"] == "user"
+        assert result[0]["parts"][0]["text"] == "Hello"
+        assert result[1]["role"] == "model"
+        assert result[1]["parts"][0]["text"] == "Hi there"
+        assert result[2]["role"] == "user"
+        assert result[2]["parts"][0]["text"] == "How are you?"
+
+    def test_convert_messages_to_gemini_format_with_system_message(self) -> None:
+        """Test _convert_messages_to_gemini_format with system message."""
+        # Setup
+        messages = [
+            {"role": "system", "content": "You are a helpful assistant"},
+            {"role": "user", "content": "Hello"},
+            {"role": "assistant", "content": "Hi there"},
+        ]
+
+        # Execute
+        result = _convert_messages_to_gemini_format(messages)
+
+        # Assert
+        assert len(result) == 2
+        assert result[0]["role"] == "user"
+        assert result[0]["parts"][0]["text"] == "You are a helpful assistant\n\nHello"
+        assert result[1]["role"] == "model"
+        assert result[1]["parts"][0]["text"] == "Hi there"
+
+    def test_convert_messages_to_gemini_format_system_message_no_user(self) -> None:
+        """Test _convert_messages_to_gemini_format with system message but no user message."""
+        # Setup
+        messages = [
+            {"role": "system", "content": "You are a helpful assistant"},
+            {"role": "assistant", "content": "Hi there"},
+        ]
+
+        # Execute
+        result = _convert_messages_to_gemini_format(messages)
+
+        # Assert
+        assert len(result) == 1
+        assert result[0]["role"] == "model"
+        assert result[0]["parts"][0]["text"] == "Hi there"
+
+    def test_convert_messages_to_gemini_format_empty_messages(self) -> None:
+        """Test _convert_messages_to_gemini_format with empty messages list."""
+        # Setup
+        messages = []
+
+        # Execute
+        result = _convert_messages_to_gemini_format(messages)
+
+        # Assert
+        assert result == []
+
+    def test_convert_messages_to_gemini_format_only_system(self) -> None:
+        """Test _convert_messages_to_gemini_format with only system message."""
+        # Setup
+        messages = [{"role": "system", "content": "You are a helpful assistant"}]
+
+        # Execute
+        result = _convert_messages_to_gemini_format(messages)
+
+        # Assert
+        assert result == []
 
     def test_flip_hist_with_system_message_continue_statement(self) -> None:
         """Test flip_hist function with system message to cover continue statement (line 142)."""
