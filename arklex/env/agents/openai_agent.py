@@ -120,34 +120,16 @@ class OpenAIAgent(BaseAgent):
                             tool_calls=[tool_call],
                         ).model_dump()
                     )
-                    if "http_tool" in tool_name:
-                        slots: list[dict[str, str]] = []
-                        all_slots = self.tool_slots.get(tool_name, [])
-                        for name, value in tool_call.get("args", {}).items():
-                            slots.append(
-                                {
-                                    "name": name,
-                                    "value": value,
-                                }
-                            )
-                        for slot in all_slots:
-                            if slot.name not in tool_call.get("args", {}):
-                                slots.append(
-                                    {
-                                        "name": slot.name,
-                                        "value": None,
-                                    }
-                                )
-                        tool_response = self.tool_map[tool_name](
-                            slots=slots,
-                            **self.tool_args.get(tool_name, {}),
-                        )
-                    else:
-                        tool_response = self.tool_map[tool_name](
-                            state=state,
-                            **tool_call.get("args"),
-                            **self.tool_args.get(tool_name, {}),
-                        )
+
+                    # Prepare arguments for tool execution
+                    tool_args = {
+                        **tool_call.get("args", {}),
+                        **self.tool_args.get(tool_name, {}),
+                    }
+
+                    # Call tool with unified interface
+                    tool_response = self._execute_tool(tool_name, state, tool_args)
+
                     state.function_calling_trajectory.append(
                         ToolMessage(
                             name=tool_name,
@@ -224,3 +206,38 @@ class OpenAIAgent(BaseAgent):
         end_conversation_tool_def["function"]["name"] = "end_conversation"
         self.tool_defs.append(end_conversation_tool_def)
         self.tool_map["end_conversation"] = end_conversation_tool.func
+
+    def _execute_tool(
+        self, tool_name: str, state: MessageState, tool_args: dict[str, Any]
+    ) -> Any:  # noqa: ANN401
+        """Execute a tool with unified interface.
+
+        This method handles the different calling patterns for different types of tools.
+        For http_tool, it prepares the slots parameter. For other tools, it passes state directly.
+
+        Args:
+            tool_name: Name of the tool to execute
+            state: Current message state
+            tool_args: Arguments for the tool
+
+        Returns:
+            Tool execution result
+        """
+        if "http_tool" in tool_name:
+            slots: list[dict[str, str]] = []
+            all_slots = self.tool_slots.get(tool_name, [])
+
+            for name, value in tool_args.items():
+                if name not in ["slots"]:
+                    slots.append({"name": name, "value": value})
+
+            # Add missing slots from tool configuration
+            for slot in all_slots:
+                if slot.name not in tool_args:
+                    slots.append({"name": slot.name, "value": None})
+
+            # Call http_tool with slots parameter
+            return self.tool_map[tool_name](slots=slots, **tool_args)
+        else:
+            # Call other tools with state parameter
+            return self.tool_map[tool_name](state=state, **tool_args)
