@@ -535,7 +535,7 @@ class ReactPlanner(DefaultPlanner):
         # contain a single user message with system instructions.
         # If model provider is Anthropic, messages can contain a system prompt, but must also
         # contain at least one user message.
-        messages: list[dict[str, Any]]
+        messages: list[dict[str, Any]] = []
         if self.llm_provider.lower() in ["openai", "gemini"]:
             messages = [{"role": self.system_role, "content": system_prompt.text}]
         elif self.llm_provider.lower() == "anthropic":
@@ -543,6 +543,9 @@ class ReactPlanner(DefaultPlanner):
                 {"role": self.system_role, "content": system_prompt.text},
                 {"role": "user", "content": user_message},
             ]
+        else:
+            # Default case for unknown providers
+            messages = [{"role": self.system_role, "content": system_prompt.text}]
 
         # Initialize LLM if needed
         self._initialize_llm()

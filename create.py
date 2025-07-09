@@ -10,6 +10,7 @@ import argparse
 import json
 import logging
 import os
+import sys
 import tempfile
 import time
 import zipfile
@@ -319,10 +320,10 @@ def main() -> None:
         log_context.error(
             f"   Required environment variable: {args.llm_provider.upper()}_API_KEY"
         )
-        return
+        sys.exit(1)
     except Exception as e:
         log_context.error(f"❌ Unexpected error during API key validation: {e}")
-        return
+        sys.exit(1)
 
     log_context.info("🚀 Starting task graph generation...")
     start_time = time.time()

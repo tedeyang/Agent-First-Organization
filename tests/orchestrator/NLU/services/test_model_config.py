@@ -53,6 +53,7 @@ class TestModelConfig:
         assert kwargs["api_key"] == "test-key"
         assert "n" not in kwargs  # Anthropic doesn't use 'n' parameter
 
+    @patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"})
     def test_get_model_kwargs_without_api_key(self) -> None:
         """Test model kwargs without API key."""
         config = {
@@ -60,12 +61,12 @@ class TestModelConfig:
             "llm_provider": "openai",
         }
 
-        kwargs = ModelConfig.get_model_kwargs(config)
+        with pytest.raises(
+            ValueError, match="API key for provider 'openai' is missing or empty"
+        ):
+            ModelConfig.get_model_kwargs(config)
 
-        assert kwargs["model"] == "gpt-4"
-        assert kwargs["temperature"] == 0.1
-        assert "api_key" not in kwargs
-
+    @patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"})
     def test_get_model_kwargs_empty_api_key(self) -> None:
         """Test model kwargs with empty API key."""
         config = {
@@ -74,9 +75,10 @@ class TestModelConfig:
             "api_key": "",
         }
 
-        kwargs = ModelConfig.get_model_kwargs(config)
-
-        assert "api_key" not in kwargs
+        with pytest.raises(
+            ValueError, match="API key for provider 'openai' is missing or empty"
+        ):
+            ModelConfig.get_model_kwargs(config)
 
     def test_get_model_kwargs_none_api_key(self) -> None:
         """Test model kwargs with None API key."""
@@ -86,9 +88,10 @@ class TestModelConfig:
             "api_key": None,
         }
 
-        kwargs = ModelConfig.get_model_kwargs(config)
-
-        assert "api_key" not in kwargs
+        with pytest.raises(
+            ValueError, match="API key for provider 'openai' is missing or empty"
+        ):
+            ModelConfig.get_model_kwargs(config)
 
     def test_get_model_kwargs_endpoint_for_non_openai_anthropic(self) -> None:
         """Test that endpoint is not added for non-OpenAI/Anthropic providers."""
@@ -225,7 +228,8 @@ class TestModelConfig:
         }
 
         with pytest.raises(
-            ValueError, match="Unsupported provider: unsupported-provider"
+            ValueError,
+            match="API key for provider 'unsupported-provider' is missing or empty",
         ):
             ModelConfig.get_model_instance(config)
 
@@ -390,18 +394,21 @@ class TestModelConfigEdgeCases:
         with pytest.raises(KeyError):
             ModelConfig.get_model_kwargs(config)
 
+    @patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"})
     def test_get_model_kwargs_missing_model_type(self) -> None:
         """Test get_model_kwargs with missing model_type_or_path."""
         config = {"llm_provider": "openai"}
 
-        with pytest.raises(KeyError):
+        with pytest.raises(KeyError, match="'model_type_or_path'"):
             ModelConfig.get_model_kwargs(config)
 
     def test_get_model_kwargs_missing_provider(self) -> None:
         """Test get_model_kwargs with missing llm_provider."""
         config = {"model_type_or_path": "gpt-4"}
 
-        with pytest.raises(KeyError):
+        with pytest.raises(
+            ValueError, match="API key for provider '' is missing or empty"
+        ):
             ModelConfig.get_model_kwargs(config)
 
     def test_get_model_instance_missing_required_fields(self) -> None:
@@ -424,6 +431,7 @@ class TestModelConfigEdgeCases:
         config = {
             "model_type_or_path": "test-model",
             "llm_provider": "openai",
+            "api_key": "test-key",  # Add API key to avoid validation error
         }
 
         with pytest.raises(Exception, match="Initialization failed"):

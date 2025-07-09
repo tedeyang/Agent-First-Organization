@@ -47,15 +47,23 @@ class TestGetApiKeyForProvider:
 
     def test_get_api_key_missing_environment_variable(self) -> None:
         """Test getting API key when environment variable is not set."""
-        with patch.dict(os.environ, {}, clear=True):
-            api_key = get_api_key_for_provider("openai")
-            assert api_key == ""
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            pytest.raises(
+                ValueError, match="API key for provider 'openai' is missing or empty"
+            ),
+        ):
+            get_api_key_for_provider("openai")
 
     def test_get_api_key_empty_environment_variable(self) -> None:
         """Test getting API key when environment variable is empty."""
-        with patch.dict(os.environ, {"OPENAI_API_KEY": ""}):
-            api_key = get_api_key_for_provider("openai")
-            assert api_key == ""
+        with (
+            patch.dict(os.environ, {"OPENAI_API_KEY": ""}),
+            pytest.raises(
+                ValueError, match="API key for provider 'openai' is missing or empty"
+            ),
+        ):
+            get_api_key_for_provider("openai")
 
     def test_get_api_key_case_sensitivity(self) -> None:
         """Test that provider names are case-sensitive."""
@@ -199,14 +207,13 @@ class TestGetProviderConfig:
 
     def test_get_provider_config_missing_api_key(self) -> None:
         """Test getting configuration when API key is not set."""
-        with patch.dict(os.environ, {}, clear=True):
-            config = get_provider_config("openai", "gpt-4")
-
-            assert config["model_name"] == "gpt-4"
-            assert config["model_type_or_path"] == "gpt-4"
-            assert config["llm_provider"] == "openai"
-            assert config["api_key"] == ""
-            assert config["endpoint"] == "https://api.openai.com/v1"
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            pytest.raises(
+                ValueError, match="API key for provider 'openai' is missing or empty"
+            ),
+        ):
+            get_provider_config("openai", "gpt-4")
 
     def test_get_provider_config_empty_model_name(self) -> None:
         """Test getting configuration with empty model name."""
@@ -267,7 +274,10 @@ class TestGetProviderConfig:
 
     def test_get_provider_config_immutability(self) -> None:
         """Test that provider config is not affected by subsequent calls."""
-        with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}):
+        with patch.dict(
+            os.environ,
+            {"OPENAI_API_KEY": "test-key", "ANTHROPIC_API_KEY": "test-anthropic-key"},
+        ):
             config1 = get_provider_config("openai", "gpt-4")
             config2 = get_provider_config("anthropic", "claude-3-sonnet")
 

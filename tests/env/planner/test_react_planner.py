@@ -185,7 +185,7 @@ def patched_sample_config(
     mock_aimessage_to_dict: Mock,
 ) -> dict[str, Any]:
     with (
-        patch("arklex.env.planner.react_planner.PROVIDER_MAP", mock_provider_map),
+        patch("arklex.utils.model_provider_config.PROVIDER_MAP", mock_provider_map),
         patch("arklex.env.planner.react_planner.ChatOpenAI", mock_chat_openai),
         patch(
             "arklex.env.planner.react_planner.PROVIDER_EMBEDDING_MODELS",

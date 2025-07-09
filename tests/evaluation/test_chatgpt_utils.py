@@ -30,6 +30,10 @@ class TestChatGPTUtils:
         return client
 
     @patch("arklex.evaluation.chatgpt_utils.create_client")
+    @patch(
+        "arklex.evaluation.chatgpt_utils.MODEL",
+        {"llm_provider": "openai", "model_type_or_path": "gpt-3.5-turbo"},
+    )
     def test_chatgpt_chatbot_with_messages(
         self, mock_create_client: Mock, mock_client: Mock
     ) -> None:
@@ -49,6 +53,10 @@ class TestChatGPTUtils:
         mock_client.chat.completions.create.assert_called_once()
 
     @patch("arklex.evaluation.chatgpt_utils.create_client")
+    @patch(
+        "arklex.evaluation.chatgpt_utils.MODEL",
+        {"llm_provider": "openai", "model_type_or_path": "gpt-3.5-turbo"},
+    )
     def test_chatgpt_chatbot_with_string(
         self, mock_create_client: Mock, mock_client: Mock
     ) -> None:
@@ -65,6 +73,10 @@ class TestChatGPTUtils:
         mock_client.chat.completions.create.assert_called_once()
 
     @patch("arklex.evaluation.chatgpt_utils.create_client")
+    @patch(
+        "arklex.evaluation.chatgpt_utils.MODEL",
+        {"llm_provider": "openai", "model_type_or_path": "gpt-3.5-turbo"},
+    )
     def test_chatgpt_chatbot_with_model_parameter(
         self, mock_create_client: Mock, mock_client: Mock
     ) -> None:
@@ -192,6 +204,10 @@ class TestChatGPTUtils:
         assert result[3]["role"] == "user"
 
     @patch("arklex.evaluation.chatgpt_utils.create_client")
+    @patch(
+        "arklex.evaluation.chatgpt_utils.MODEL",
+        {"llm_provider": "openai", "model_type_or_path": "gpt-3.5-turbo"},
+    )
     def test_chatgpt_chatbot_error_handling(
         self, mock_create_client: Mock, mock_client: Mock
     ) -> None:
@@ -312,6 +328,10 @@ class TestChatGPTUtils:
             mock_generative_model.assert_called_once_with("gemini-pro")
 
     @patch("arklex.evaluation.chatgpt_utils.chatgpt_chatbot")
+    @patch(
+        "arklex.evaluation.chatgpt_utils.MODEL",
+        {"llm_provider": "openai", "model_type_or_path": "gpt-3.5-turbo"},
+    )
     def test_adjust_goal(self, mock_chatgpt_chatbot: Mock) -> None:
         """Test adjust_goal returns a string."""
         from arklex.evaluation.chatgpt_utils import adjust_goal
@@ -853,6 +873,10 @@ class TestChatGPTUtils:
             _print_goals(goals)
             mock_print.assert_called_once_with(goals)
 
+    @patch(
+        "arklex.evaluation.chatgpt_utils.MODEL",
+        {"llm_provider": "openai", "model_type_or_path": "gpt-3.5-turbo"},
+    )
     def test_chatgpt_chatbot_openai_branch(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -920,6 +944,7 @@ class TestChatGPTUtils:
             patch(
                 "arklex.evaluation.chatgpt_utils.anthropic.Anthropic"
             ) as mock_anthropic,
+            patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}),
         ):
             mock_client = Mock()
             mock_anthropic.return_value = mock_client

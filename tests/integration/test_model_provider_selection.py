@@ -289,7 +289,8 @@ class TestModelProviderSelectionIntegration:
         }
 
         with pytest.raises(
-            ValueError, match="Unsupported provider: unsupported-provider"
+            ValueError,
+            match="API key for provider 'unsupported-provider' is missing or empty",
         ):
             ModelConfig.get_model_instance(config)
 
@@ -302,6 +303,15 @@ class TestModelProviderSelectionIntegration:
         with pytest.raises(KeyError):
             ModelConfig.get_model_instance(incomplete_config)
 
+    @patch.dict(
+        os.environ,
+        {
+            "OPENAI_API_KEY": "test-openai-key",
+            "ANTHROPIC_API_KEY": "test-anthropic-key",
+            "GOOGLE_API_KEY": "test-google-key",
+            "HUGGINGFACE_API_KEY": "test-hf-key",
+        },
+    )
     def test_provider_selection_with_different_model_types(self) -> None:
         """Test provider selection with different model types and names."""
         test_cases = [
@@ -399,6 +409,15 @@ class TestModelProviderSelectionRealModels:
             # Check that the model was created with the right config
             assert hasattr(model, "model_name") or hasattr(model, "model")
 
+    @patch.dict(
+        os.environ,
+        {
+            "OPENAI_API_KEY": "test-openai-key",
+            "ANTHROPIC_API_KEY": "test-anthropic-key",
+            "GOOGLE_API_KEY": "test-google-key",
+            "HUGGINGFACE_API_KEY": "test-hf-key",
+        },
+    )
     def test_real_anthropic_model_initialization(self) -> None:
         """Test initialization with real Anthropic model (mocked for testing)."""
         from langchain_anthropic import ChatAnthropic
@@ -445,6 +464,15 @@ class TestModelProviderSelectionRealModels:
 class TestModelProviderSelectionCommandLine:
     """Integration tests simulating command line provider selection."""
 
+    @patch.dict(
+        os.environ,
+        {
+            "OPENAI_API_KEY": "test-openai-key",
+            "ANTHROPIC_API_KEY": "test-anthropic-key",
+            "GOOGLE_API_KEY": "test-google-key",
+            "HUGGINGFACE_API_KEY": "test-hf-key",
+        },
+    )
     def test_command_line_provider_selection_simulation(self) -> None:
         """Simulate command line provider selection."""
         # Simulate command line arguments
@@ -476,6 +504,15 @@ class TestModelProviderSelectionCommandLine:
             assert model is not None
             mock_class.assert_called_once()
 
+    @patch.dict(
+        os.environ,
+        {
+            "OPENAI_API_KEY": "test-openai-key",
+            "ANTHROPIC_API_KEY": "test-anthropic-key",
+            "GOOGLE_API_KEY": "test-google-key",
+            "HUGGINGFACE_API_KEY": "test-hf-key",
+        },
+    )
     def test_command_line_provider_selection_all_providers(self) -> None:
         """Test command line provider selection for all providers."""
         test_args = [

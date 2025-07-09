@@ -427,7 +427,9 @@ class TestRephraseAnswer:
         mock_message_state.bot_config.llm_config.model_type_or_path = "gpt-3.5-turbo"
 
         with (
-            patch("arklex.orchestrator.post_process.PROVIDER_MAP") as mock_provider_map,
+            patch(
+                "arklex.orchestrator.post_process.validate_and_get_model_class"
+            ) as mock_validate_and_get_model_class,
             patch("arklex.orchestrator.post_process.load_prompts") as mock_load_prompts,
             patch(
                 "arklex.orchestrator.post_process.PromptTemplate"
@@ -439,13 +441,15 @@ class TestRephraseAnswer:
             mock_llm.__or__ = Mock(return_value=Mock())
 
             # Configure the mock to return the LLM
-            mock_provider_map.get.return_value = Mock(return_value=mock_llm)
+            mock_validate_and_get_model_class.return_value.return_value = mock_llm
 
             mock_prompts = {"regenerate_response": "test prompt template"}
             mock_load_prompts.return_value = mock_prompts
 
             mock_prompt = Mock()
-            mock_prompt.invoke.return_value = Mock()
+            mock_prompt_invoke = Mock()
+            mock_prompt_invoke.text = "test prompt text"
+            mock_prompt.invoke.return_value = mock_prompt_invoke
             mock_prompt_template.from_template.return_value = mock_prompt
 
             # Mock the final chain
@@ -915,14 +919,13 @@ class TestShouldTriggerHandoff:
         mock_message_state.bot_config.llm_config.model_type_or_path = "gpt-3.5-turbo"
 
         with patch(
-            "arklex.orchestrator.post_process.PROVIDER_MAP"
-        ) as mock_provider_map:
+            "arklex.orchestrator.post_process.validate_and_get_model_class"
+        ) as mock_validate_and_get_model_class:
             mock_llm = Mock()
-            mock_llm.__or__ = Mock(return_value=Mock())
             mock_chain = Mock()
             mock_chain.invoke.return_value = "YES"
-            mock_llm.__or__.return_value = mock_chain
-            mock_provider_map.get.return_value.return_value = mock_llm
+            mock_llm.__or__ = Mock(return_value=mock_chain)
+            mock_validate_and_get_model_class.return_value.return_value = mock_llm
 
             result = should_trigger_handoff(mock_message_state)
             assert result is True
@@ -934,14 +937,13 @@ class TestShouldTriggerHandoff:
         mock_message_state.bot_config.llm_config.model_type_or_path = "gpt-3.5-turbo"
 
         with patch(
-            "arklex.orchestrator.post_process.PROVIDER_MAP"
-        ) as mock_provider_map:
+            "arklex.orchestrator.post_process.validate_and_get_model_class"
+        ) as mock_validate_and_get_model_class:
             mock_llm = Mock()
-            mock_llm.__or__ = Mock(return_value=Mock())
             mock_chain = Mock()
             mock_chain.invoke.return_value = "NO"
-            mock_llm.__or__.return_value = mock_chain
-            mock_provider_map.get.return_value.return_value = mock_llm
+            mock_llm.__or__ = Mock(return_value=mock_chain)
+            mock_validate_and_get_model_class.return_value.return_value = mock_llm
 
             result = should_trigger_handoff(mock_message_state)
             assert result is False
@@ -955,14 +957,13 @@ class TestShouldTriggerHandoff:
         mock_message_state.bot_config.llm_config.model_type_or_path = "gpt-3.5-turbo"
 
         with patch(
-            "arklex.orchestrator.post_process.PROVIDER_MAP"
-        ) as mock_provider_map:
+            "arklex.orchestrator.post_process.validate_and_get_model_class"
+        ) as mock_validate_and_get_model_class:
             mock_llm = Mock()
-            mock_llm.__or__ = Mock(return_value=Mock())
             mock_chain = Mock()
             mock_chain.invoke.return_value = "yes"
-            mock_llm.__or__.return_value = mock_chain
-            mock_provider_map.get.return_value.return_value = mock_llm
+            mock_llm.__or__ = Mock(return_value=mock_chain)
+            mock_validate_and_get_model_class.return_value.return_value = mock_llm
 
             result = should_trigger_handoff(mock_message_state)
             assert result is True
@@ -976,14 +977,13 @@ class TestShouldTriggerHandoff:
         mock_message_state.bot_config.llm_config.model_type_or_path = "gpt-3.5-turbo"
 
         with patch(
-            "arklex.orchestrator.post_process.PROVIDER_MAP"
-        ) as mock_provider_map:
+            "arklex.orchestrator.post_process.validate_and_get_model_class"
+        ) as mock_validate_and_get_model_class:
             mock_llm = Mock()
-            mock_llm.__or__ = Mock(return_value=Mock())
             mock_chain = Mock()
             mock_chain.invoke.return_value = " YES "
-            mock_llm.__or__.return_value = mock_chain
-            mock_provider_map.get.return_value.return_value = mock_llm
+            mock_llm.__or__ = Mock(return_value=mock_chain)
+            mock_validate_and_get_model_class.return_value.return_value = mock_llm
 
             result = should_trigger_handoff(mock_message_state)
             assert result is True
@@ -997,14 +997,13 @@ class TestShouldTriggerHandoff:
         mock_message_state.bot_config.llm_config.model_type_or_path = "gpt-3.5-turbo"
 
         with patch(
-            "arklex.orchestrator.post_process.PROVIDER_MAP"
-        ) as mock_provider_map:
+            "arklex.orchestrator.post_process.validate_and_get_model_class"
+        ) as mock_validate_and_get_model_class:
             mock_llm = Mock()
-            mock_llm.__or__ = Mock(return_value=Mock())
             mock_chain = Mock()
             mock_chain.invoke.return_value = "Maybe"
-            mock_llm.__or__.return_value = mock_chain
-            mock_provider_map.get.return_value.return_value = mock_llm
+            mock_llm.__or__ = Mock(return_value=mock_chain)
+            mock_validate_and_get_model_class.return_value.return_value = mock_llm
 
             result = should_trigger_handoff(mock_message_state)
             assert result is False
@@ -1018,12 +1017,12 @@ class TestShouldTriggerHandoff:
         mock_message_state.bot_config.llm_config.model_type_or_path = "gpt-3.5-turbo"
 
         with patch(
-            "arklex.orchestrator.post_process.PROVIDER_MAP"
-        ) as mock_provider_map:
-            # Patch PROVIDER_MAP.get to return ChatOpenAI
+            "arklex.orchestrator.post_process.validate_and_get_model_class"
+        ) as mock_validate_and_get_model_class:
+            # Patch validate_and_get_model_class to return ChatOpenAI
             from arklex.orchestrator.post_process import ChatOpenAI
 
-            mock_provider_map.get.return_value = ChatOpenAI
+            mock_validate_and_get_model_class.return_value = ChatOpenAI
             with patch(
                 "arklex.orchestrator.post_process.ChatOpenAI"
             ) as mock_chat_openai:

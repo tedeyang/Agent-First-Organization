@@ -209,25 +209,11 @@ class TestModelProviderE2E:
             ]
 
             for provider, model in zip(providers, models, strict=False):
-                config = get_provider_config(provider, model)
-
-                # API key should be empty
-                assert config["api_key"] == ""
-
-                # Model kwargs should not include api_key
-                kwargs = ModelConfig.get_model_kwargs(config)
-                assert "api_key" not in kwargs
-
-                # Model instance creation should still work (without API key)
-                with patch(
-                    "arklex.orchestrator.NLU.services.model_config.PROVIDER_MAP"
-                ) as mock_provider_map:
-                    mock_class = Mock()
-                    mock_provider_map.__contains__.return_value = True
-                    mock_provider_map.__getitem__.return_value = mock_class
-
-                    model_instance = ModelConfig.get_model_instance(config)
-                    assert model_instance is not None
+                with pytest.raises(
+                    ValueError,
+                    match=f"API key for provider '{provider}' is missing or empty",
+                ):
+                    get_provider_config(provider, model)
 
     def test_provider_with_custom_endpoints(self) -> None:
         """Test provider configuration with custom endpoints."""
@@ -267,41 +253,50 @@ class TestModelProviderE2E:
         ]
 
         for provider, model, response_format in test_cases:
-            config = get_provider_config(provider, model)
+            # Mock the API key for each provider
+            env_key = {
+                "openai": "OPENAI_API_KEY",
+                "anthropic": "ANTHROPIC_API_KEY",
+                "google": "GOOGLE_API_KEY",
+                "huggingface": "HUGGINGFACE_API_KEY",
+            }.get(provider, "OPENAI_API_KEY")
 
-            # Test model initialization
-            with patch(
-                "arklex.orchestrator.NLU.services.model_config.PROVIDER_MAP"
-            ) as mock_provider_map:
-                mock_class = Mock()
-                mock_model_instance = Mock()
-                mock_model_instance.bind.return_value = (
-                    mock_model_instance  # Make bind return the same model
-                )
-                mock_class.return_value = mock_model_instance
-                mock_provider_map.__contains__.return_value = True
-                mock_provider_map.__getitem__.return_value = mock_class
+            with patch.dict(os.environ, {env_key: "test-key"}):
+                config = get_provider_config(provider, model)
 
-                model_instance = ModelConfig.get_model_instance(config)
-                configured_model = ModelConfig.configure_response_format(
-                    model_instance, config, response_format
-                )
-
-                if provider == "openai":
-                    # OpenAI should have response format configured
-                    expected_format = (
-                        {"type": "json_object"}
-                        if response_format == "json"
-                        else {"type": "text"}
+                # Test model initialization
+                with patch(
+                    "arklex.orchestrator.NLU.services.model_config.PROVIDER_MAP"
+                ) as mock_provider_map:
+                    mock_class = Mock()
+                    mock_model_instance = Mock()
+                    mock_model_instance.bind.return_value = (
+                        mock_model_instance  # Make bind return the same model
                     )
-                    mock_model_instance.bind.assert_called_once_with(
-                        response_format=expected_format
-                    )
-                else:
-                    # Non-OpenAI providers should not have bind called
-                    mock_model_instance.bind.assert_not_called()
+                    mock_class.return_value = mock_model_instance
+                    mock_provider_map.__contains__.return_value = True
+                    mock_provider_map.__getitem__.return_value = mock_class
 
-                assert configured_model == mock_model_instance
+                    model_instance = ModelConfig.get_model_instance(config)
+                    configured_model = ModelConfig.configure_response_format(
+                        model_instance, config, response_format
+                    )
+
+                    if provider == "openai":
+                        # OpenAI should have response format configured
+                        expected_format = (
+                            {"type": "json_object"}
+                            if response_format == "json"
+                            else {"type": "text"}
+                        )
+                        mock_model_instance.bind.assert_called_once_with(
+                            response_format=expected_format
+                        )
+                    else:
+                        # Non-OpenAI providers should not have bind called
+                        mock_model_instance.bind.assert_not_called()
+
+                    assert configured_model == mock_model_instance
 
     def test_provider_error_handling(self) -> None:
         """Test error handling for different provider scenarios."""
@@ -312,7 +307,8 @@ class TestModelProviderE2E:
         }
 
         with pytest.raises(
-            ValueError, match="Unsupported provider: unsupported-provider"
+            ValueError,
+            match="API key for provider 'unsupported-provider' is missing or empty",
         ):
             ModelConfig.get_model_instance(config)
 
@@ -499,7 +495,15 @@ class TestModelProviderE2EWithRealTools:
         valid_providers = ["openai", "anthropic", "google", "huggingface"]
 
         for provider in valid_providers:
-            with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}):
+            with patch.dict(
+                os.environ,
+                {
+                    "OPENAI_API_KEY": "test-openai-key",
+                    "ANTHROPIC_API_KEY": "test-anthropic-key",
+                    "GOOGLE_API_KEY": "test-google-key",
+                    "HUGGINGFACE_API_KEY": "test-hf-key",
+                },
+            ):
                 config = get_provider_config(provider, "test-model")
 
                 # Should not raise an exception

@@ -25,6 +25,8 @@ import logging
 import sys
 from typing import Any
 
+from langchain_openai import ChatOpenAI
+
 from arklex.orchestrator.generator.core.generator import (
     Generator as CoreGenerator,
 )
@@ -49,7 +51,7 @@ except ImportError:
     _UI_AVAILABLE = False
 
 # Export the main classes for backward compatibility
-__all__ = ["Generator", *_UI_EXPORTS]
+__all__ = ["Generator", "ChatOpenAI", *_UI_EXPORTS]
 
 # The original classes have been refactored into modular components.
 # All functionality is preserved in the new structure:
