@@ -437,7 +437,7 @@ class TestModelProviderE2EWithRealTools:
         """Test that run tool accepts provider arguments."""
         # Simulate command line arguments
         args = {
-            "llm_provider": "gemini",
+            "llm_provider": "google",
             "model": "gemini-pro",
             "task_graph_file": "test_taskgraph.json",
             "testcases_file": "test_testcases.json",
@@ -496,7 +496,7 @@ class TestModelProviderE2EWithRealTools:
     def test_provider_argument_validation(self) -> None:
         """Test that provider arguments are properly validated."""
         # Test with valid providers
-        valid_providers = ["openai", "anthropic", "gemini", "huggingface"]
+        valid_providers = ["openai", "anthropic", "google", "huggingface"]
 
         for provider in valid_providers:
             with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}):

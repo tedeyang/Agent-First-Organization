@@ -286,26 +286,29 @@ class TestChatGPTUtils:
 
     @patch("arklex.evaluation.chatgpt_utils.OpenAI")
     @patch("arklex.evaluation.chatgpt_utils.anthropic.Anthropic")
+    @patch("arklex.evaluation.chatgpt_utils.google.generativeai")
+    @patch("arklex.evaluation.chatgpt_utils.GenerativeModel")
     @patch(
         "arklex.evaluation.chatgpt_utils.MODEL",
-        {"llm_provider": "gemini", "model_type_or_path": "gemini-pro"},
+        {"llm_provider": "google", "model_type_or_path": "gemini-pro"},
     )
     def test_create_client_gemini(
-        self, mock_anthropic: Mock, mock_openai: Mock
+        self,
+        mock_generative_model: Mock,
+        mock_genai: Mock,
+        mock_anthropic: Mock,
+        mock_openai: Mock,
     ) -> None:
-        """Test create_client with Gemini provider."""
+        """Test create_client with Google Generative AI provider."""
         # Mock environment variables
         with patch.dict("os.environ", {"GOOGLE_API_KEY": "test_key"}):
             from arklex.evaluation.chatgpt_utils import create_client
 
             create_client()
 
-            # Verify OpenAI client was created with Gemini base URL
-            mock_openai.assert_called_once_with(
-                api_key="test_key",
-                base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-                organization=None,
-            )
+            # Verify Google Generative AI was configured and client was created
+            mock_genai.configure.assert_called_once_with(api_key="test_key")
+            mock_generative_model.assert_called_once_with("gemini-pro")
 
     @patch("arklex.evaluation.chatgpt_utils.chatgpt_chatbot")
     def test_adjust_goal(self, mock_chatgpt_chatbot: Mock) -> None:
@@ -379,7 +382,9 @@ class TestChatGPTUtils:
 
             from arklex.evaluation.chatgpt_utils import chatgpt_chatbot
 
-            result = chatgpt_chatbot(messages, client=mock_client)
+            result = chatgpt_chatbot(
+                messages, client=mock_client, model="claude-3-sonnet"
+            )
 
             # Verify the correct kwargs were passed to Anthropic
             mock_client.messages.create.assert_called_once_with(
@@ -418,7 +423,9 @@ class TestChatGPTUtils:
 
             from arklex.evaluation.chatgpt_utils import chatgpt_chatbot
 
-            result = chatgpt_chatbot(messages, client=mock_client)
+            result = chatgpt_chatbot(
+                messages, client=mock_client, model="claude-3-sonnet"
+            )
 
             # Verify the correct kwargs were passed to Anthropic
             mock_client.messages.create.assert_called_once_with(
@@ -567,7 +574,6 @@ class TestChatGPTUtils:
             # Verify OpenAI client was created with organization
             mock_openai.assert_called_once_with(
                 api_key="test_key",
-                base_url=None,
                 organization="org_test",
             )
 
@@ -588,7 +594,6 @@ class TestChatGPTUtils:
             # Verify OpenAI client was created without organization
             mock_openai.assert_called_once_with(
                 api_key="test_key",
-                base_url=None,
                 organization=None,
             )
 

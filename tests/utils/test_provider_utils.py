@@ -30,7 +30,7 @@ class TestGetApiKeyForProvider:
     def test_get_api_key_gemini(self) -> None:
         """Test getting Gemini API key."""
         with patch.dict(os.environ, {"GOOGLE_API_KEY": "test-google-key"}):
-            api_key = get_api_key_for_provider("gemini")
+            api_key = get_api_key_for_provider("google")
             assert api_key == "test-google-key"
 
     def test_get_api_key_huggingface(self) -> None:
@@ -77,7 +77,7 @@ class TestGetApiKeyForProvider:
         with patch.dict(os.environ, test_env):
             assert get_api_key_for_provider("openai") == "test-openai-key"
             assert get_api_key_for_provider("anthropic") == "test-anthropic-key"
-            assert get_api_key_for_provider("gemini") == "test-google-key"
+            assert get_api_key_for_provider("google") == "test-google-key"
             assert get_api_key_for_provider("huggingface") == "test-hf-key"
 
 
@@ -96,7 +96,7 @@ class TestGetEndpointForProvider:
 
     def test_get_endpoint_gemini(self) -> None:
         """Test getting Gemini endpoint."""
-        endpoint = get_endpoint_for_provider("gemini")
+        endpoint = get_endpoint_for_provider("google")
         assert endpoint == "https://generativelanguage.googleapis.com"
 
     def test_get_endpoint_huggingface(self) -> None:
@@ -121,7 +121,7 @@ class TestGetEndpointForProvider:
         expected_endpoints = {
             "openai": "https://api.openai.com/v1",
             "anthropic": "https://api.anthropic.com",
-            "gemini": "https://generativelanguage.googleapis.com",
+            "google": "https://generativelanguage.googleapis.com",
             "huggingface": "https://api-inference.huggingface.co",
         }
 
@@ -165,11 +165,11 @@ class TestGetProviderConfig:
     def test_get_provider_config_gemini(self) -> None:
         """Test getting complete configuration for Gemini."""
         with patch.dict(os.environ, {"GOOGLE_API_KEY": "test-google-key"}):
-            config = get_provider_config("gemini", "gemini-pro")
+            config = get_provider_config("google", "gemini-pro")
 
             assert config["model_name"] == "gemini-pro"
             assert config["model_type_or_path"] == "gemini-pro"
-            assert config["llm_provider"] == "gemini"
+            assert config["llm_provider"] == "google"
             assert config["api_key"] == "test-google-key"
             assert config["endpoint"] == "https://generativelanguage.googleapis.com"
 
@@ -231,7 +231,7 @@ class TestGetProviderConfig:
         test_cases = [
             ("openai", "gpt-4"),
             ("anthropic", "claude-3-sonnet"),
-            ("gemini", "gemini-pro"),
+            ("google", "gemini-pro"),
             ("huggingface", "microsoft/DialoGPT-medium"),
         ]
 

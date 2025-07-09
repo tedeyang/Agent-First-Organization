@@ -106,10 +106,10 @@ class TestModelProviderSelectionIntegration:
     def test_gemini_provider_selection(self) -> None:
         """Test complete Gemini provider selection flow."""
         # Get provider configuration
-        config = get_provider_config("gemini", "gemini-pro")
+        config = get_provider_config("google", "gemini-pro")
 
         # Verify configuration
-        assert config["llm_provider"] == "gemini"
+        assert config["llm_provider"] == "google"
         assert config["model_type_or_path"] == "gemini-pro"
         assert config["api_key"] == "test-google-key"
         assert config["endpoint"] == "https://generativelanguage.googleapis.com"
@@ -190,7 +190,7 @@ class TestModelProviderSelectionIntegration:
         providers_and_models = [
             ("openai", "gpt-4"),
             ("anthropic", "claude-3-sonnet"),
-            ("gemini", "gemini-pro"),
+            ("google", "gemini-pro"),
             ("huggingface", "microsoft/DialoGPT-medium"),
         ]
 

@@ -52,10 +52,12 @@ def create_client() -> OpenAI | anthropic.Anthropic | GenerativeModel:
         )
         return client
 
-    elif provider == "gemini":
-        client = GenerativeModel(
-            model_name="gemini-pro", api_key=get_api_key_for_provider("gemini")
-        )
+    elif provider == "google":
+        # Set the API key for Google Generative AI
+        import google.generativeai as genai
+
+        genai.configure(api_key=get_api_key_for_provider("google"))
+        client = GenerativeModel("gemini-pro")
         return client
 
     elif provider == "anthropic":
@@ -110,7 +112,7 @@ def chatgpt_chatbot(
             ),
         }
         answer: str = client.messages.create(**kwargs).content[0].text.strip()
-    elif provider == "gemini":
+    elif provider == "google":
         # Convert messages to Gemini format
         gemini_messages = []
         for msg in messages:
