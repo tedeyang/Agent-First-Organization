@@ -2,7 +2,7 @@
 
 ## Overview
 
-Successfully refactored the Arklex codebase to enable model provider selection via command line flags. The functionality was previously partially implemented but disabled or incomplete. This refactoring fully enables users to select different language model providers (OpenAI, Anthropic, Google Gemini, HuggingFace) when running the framework.
+Successfully refactored the Arklex codebase to enable model provider selection via command line flags. The functionality was previously partially implemented but disabled or incomplete. This refactoring fully enables users to select different language model providers (OpenAI, Anthropic, Google) when running the framework.
 
 **Important:** OpenAI remains the default provider, ensuring backward compatibility. Users can override this by explicitly specifying a different provider via command line flags.
 
@@ -18,14 +18,12 @@ Successfully refactored the Arklex codebase to enable model provider selection v
 
 - `openai`: Uses `OPENAI_API_KEY` environment variable
 - `anthropic`: Uses `ANTHROPIC_API_KEY` environment variable
-- `gemini`: Uses `GOOGLE_API_KEY` environment variable
-- `huggingface`: Uses `HUGGINGFACE_API_KEY` environment variable
+- `google`: Uses `GOOGLE_API_KEY` environment variable
 
 ### 2. Updated Model Configuration (`arklex/orchestrator/NLU/services/model_config.py`)
 
 - Enhanced `get_model_kwargs()` to properly handle API keys and endpoints
 - Updated `get_model_instance()` to support provider-specific initialization
-- Added proper handling for HuggingFace models (function vs class initialization)
 
 ### 3. Fixed Command Line Interface Files
 
@@ -57,7 +55,7 @@ Successfully refactored the Arklex codebase to enable model provider selection v
 ### 4. Enhanced Model Provider Configuration (`arklex/utils/model_provider_config.py`)
 
 - Already had comprehensive provider mappings
-- Supports OpenAI, Google Gemini, Anthropic, and HuggingFace
+- Supports OpenAI, Google, and Anthropic
 - Includes proper model classes and embedding configurations
 
 ## Usage Examples
@@ -71,11 +69,8 @@ python create.py --config ./examples/customer_service_config.json --output-dir .
 # Anthropic
 python create.py --config ./examples/customer_service_config.json --output-dir ./examples/customer_service --model claude-3-5-haiku-20241022 --llm-provider anthropic
 
-# Google Gemini
-python create.py --config ./examples/customer_service_config.json --output-dir ./examples/customer_service --model gemini-2.0-flash --llm-provider gemini
-
-# HuggingFace
-python create.py --config ./examples/customer_service_config.json --output-dir ./examples/customer_service --model microsoft/Phi-3-mini-4k-instruct --llm-provider huggingface
+# Google
+python create.py --config ./examples/customer_service_config.json --output-dir ./examples/customer_service --model gemini-2.0-flash --llm-provider google
 ```
 
 ### Running the Bot
@@ -87,11 +82,8 @@ python run.py --input-dir ./examples/customer_service --model gpt-4o --llm-provi
 # Anthropic
 python run.py --input-dir ./examples/customer_service --model claude-3-5-haiku-20241022 --llm-provider anthropic
 
-# Google Gemini
-python run.py --input-dir ./examples/customer_service --model gemini-2.0-flash-lite --llm-provider gemini
-
-# HuggingFace
-python run.py --input-dir ./examples/customer_service --model microsoft/Phi-3-mini-4k-instruct --llm-provider huggingface
+# Google
+python run.py --input-dir ./examples/customer_service --model gemini-2.0-flash-lite --llm-provider google
 ```
 
 ### API Server
@@ -125,11 +117,8 @@ OPENAI_API_KEY=your_openai_api_key_here
 # For Anthropic
 ANTHROPIC_API_KEY=your_anthropic_api_key_here
 
-# For Google Gemini
+# For Google
 GOOGLE_API_KEY=your_google_api_key_here
-
-# For HuggingFace
-HUGGINGFACE_API_KEY=your_huggingface_api_key_here
 ```
 
 ## Supported Models
@@ -140,7 +129,7 @@ HUGGINGFACE_API_KEY=your_huggingface_api_key_here
 - `gpt-4o-mini`
 - `gpt-4.5-preview`
 
-### Google Gemini
+### Google
 
 - `gemini-1.5-flash`
 - `gemini-2.0-flash`
@@ -152,11 +141,6 @@ HUGGINGFACE_API_KEY=your_huggingface_api_key_here
 - `claude-3-5-haiku-20241022`
 - `claude-3-haiku-20240307`
 - `claude-3-7-sonnet-20250219`
-
-### HuggingFace
-
-- `microsoft/Phi-3-mini-4k-instruct`
-- **Note:** Tool calling is NOT supported for HuggingFace
 
 ## Key Benefits
 
