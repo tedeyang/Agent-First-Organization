@@ -25,8 +25,6 @@ import logging
 import sys
 from typing import Any
 
-from langchain_openai import ChatOpenAI
-
 from arklex.orchestrator.generator.core.generator import (
     Generator as CoreGenerator,
 )
@@ -93,7 +91,17 @@ def main() -> None:
         config = load_config(args.file_path)
 
         log_context.info("Initializing language model...")
-        model = PROVIDER_MAP.get(MODEL.get("llm_provider", "openai"), ChatOpenAI)(
+        provider = MODEL.get("llm_provider")
+        if not provider:
+            raise ValueError(
+                "llm_provider must be explicitly specified in MODEL configuration"
+            )
+
+        model_class = PROVIDER_MAP.get(provider)
+        if not model_class:
+            raise ValueError(f"Unsupported provider: {provider}")
+
+        model = model_class(
             model=MODEL.get("model_type_or_path", "gpt-4"), timeout=30000
         )
 
