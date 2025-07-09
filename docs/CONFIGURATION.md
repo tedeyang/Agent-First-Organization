@@ -660,7 +660,7 @@ config.prod.json
 
 # Load based on environment
 export ENVIRONMENT=production
-python create.py --config config.${ENVIRONMENT}.json
+python create.py --config config.${ENVIRONMENT}.json --llm_provider openai --model gpt-4o
 ```
 
 ### Configuration Validation
