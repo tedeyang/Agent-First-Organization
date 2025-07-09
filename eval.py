@@ -87,7 +87,7 @@ if __name__ == "__main__":
         "--model", type=str, default="gpt-4o-mini", help="Model to use for evaluation"
     )
     parser.add_argument(
-        "--llm-provider",
+        "--llm_provider",
         type=str,
         default="openai",
         choices=LLM_PROVIDERS,

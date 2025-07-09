@@ -29,14 +29,14 @@ Add the appropriate API key to your `.env` file:
 Generate taskgraphs using the `create.py` script:
 
 ```bash
-python create.py --config ./examples/customer_service_config.json --output-dir ./examples/customer_service --model <MODEL> --llm-provider <PROVIDER>
+python create.py --config ./examples/customer_service_config.json --output-dir ./examples/customer_service --model <MODEL> --llm_provider <PROVIDER>
 ```
 
 **Examples:**
 
-- OpenAI: `--model gpt-4o-mini --llm-provider openai`
-- Google Gemini: `--model gemini-2.0-flash --llm-provider gemini`
-- Anthropic: `--model claude-3-5-haiku-20241022 --llm-provider anthropic`
+- OpenAI: `--model gpt-4o-mini --llm_provider openai`
+- Google Gemini: `--model gemini-2.0-flash --llm_provider gemini`
+- Anthropic: `--model claude-3-5-haiku-20241022 --llm_provider anthropic`
 
 **Note:** Hugging Face is not supported for taskgraph generation (will be implemented in the future).
 
@@ -45,15 +45,15 @@ python create.py --config ./examples/customer_service_config.json --output-dir .
 Run the bot using the `run.py` script:
 
 ```bash
-python run.py --input-dir ./examples/customer_service --model <MODEL> --llm-provider <PROVIDER>
+python run.py --input-dir ./examples/customer_service --model <MODEL> --llm_provider <PROVIDER>
 ```
 
 **Examples:**
 
-- OpenAI: `--model gpt-4o-mini --llm-provider openai`
-- Google Gemini: `--model gemini-2.0-flash-lite --llm-provider gemini`
-- Anthropic: `--model claude-3-5-haiku-20241022 --llm-provider anthropic`
-- Hugging Face: `--model microsoft/Phi-3-mini-4k-instruct --llm-provider huggingface`
+- OpenAI: `--model gpt-4o-mini --llm_provider openai`
+- Google Gemini: `--model gemini-2.0-flash-lite --llm_provider gemini`
+- Anthropic: `--model claude-3-5-haiku-20241022 --llm_provider anthropic`
+- Hugging Face: `--model microsoft/Phi-3-mini-4k-instruct --llm_provider huggingface`
 
 **Note:** For Hugging Face models, you may need to request access to specific models via the Hugging Face website.
 
@@ -62,7 +62,7 @@ python run.py --input-dir ./examples/customer_service --model <MODEL> --llm-prov
 Run the bot with:
 
 ```bash
-python run.py --input-dir ./examples/customer_service --model claude-3-5-haiku-20241022 --llm-provider anthropic
+python run.py --input-dir ./examples/customer_service --model claude-3-5-haiku-20241022 --llm_provider anthropic
 ```
 
 ### Example Output

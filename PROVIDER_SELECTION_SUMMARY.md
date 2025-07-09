@@ -29,7 +29,7 @@ Successfully refactored the Arklex codebase to enable model provider selection v
 
 #### `create.py`
 
-- ✅ Added missing `--llm-provider` argument
+- ✅ Added missing `--llm_provider` argument
 - ✅ Added `--model` argument for model selection
 - ✅ Updated model initialization to use proper provider configuration
 - ✅ Integrated centralized provider utilities
@@ -64,46 +64,46 @@ Successfully refactored the Arklex codebase to enable model provider selection v
 
 ```bash
 # OpenAI
-python create.py --config ./examples/customer_service_config.json --output-dir ./examples/customer_service --model gpt-4o --llm-provider openai
+python create.py --config ./examples/customer_service_config.json --output-dir ./examples/customer_service --model gpt-4o --llm_provider openai
 
 # Anthropic
-python create.py --config ./examples/customer_service_config.json --output-dir ./examples/customer_service --model claude-3-5-haiku-20241022 --llm-provider anthropic
+python create.py --config ./examples/customer_service_config.json --output-dir ./examples/customer_service --model claude-3-5-haiku-20241022 --llm_provider anthropic
 
 # Google
-python create.py --config ./examples/customer_service_config.json --output-dir ./examples/customer_service --model gemini-2.0-flash --llm-provider google
+python create.py --config ./examples/customer_service_config.json --output-dir ./examples/customer_service --model gemini-2.0-flash --llm_provider google
 ```
 
 ### Running the Bot
 
 ```bash
 # OpenAI
-python run.py --input-dir ./examples/customer_service --model gpt-4o --llm-provider openai
+python run.py --input-dir ./examples/customer_service --model gpt-4o --llm_provider openai
 
 # Anthropic
-python run.py --input-dir ./examples/customer_service --model claude-3-5-haiku-20241022 --llm-provider anthropic
+python run.py --input-dir ./examples/customer_service --model claude-3-5-haiku-20241022 --llm_provider anthropic
 
 # Google
-python run.py --input-dir ./examples/customer_service --model gemini-2.0-flash-lite --llm-provider google
+python run.py --input-dir ./examples/customer_service --model gemini-2.0-flash-lite --llm_provider google
 ```
 
 ### API Server
 
 ```bash
 # OpenAI
-python model_api.py --input-dir ./examples/test --model gpt-4o --llm-provider openai --port 8000
+python model_api.py --input-dir ./examples/test --model gpt-4o --llm_provider openai --port 8000
 
 # Anthropic
-python model_api.py --input-dir ./examples/test --model claude-3-5-haiku-20241022 --llm-provider anthropic --port 8000
+python model_api.py --input-dir ./examples/test --model claude-3-5-haiku-20241022 --llm_provider anthropic --port 8000
 ```
 
 ### Evaluation
 
 ```bash
 # OpenAI
-python eval.py --model_api openai --model gpt-4o --llm-provider openai --config config.json
+python eval.py --model_api openai --model gpt-4o --llm_provider openai --config config.json
 
 # Anthropic
-python eval.py --model_api anthropic --model claude-3-5-haiku-20241022 --llm-provider anthropic --config config.json
+python eval.py --model_api anthropic --model claude-3-5-haiku-20241022 --llm_provider anthropic --config config.json
 ```
 
 ## Environment Variables Required

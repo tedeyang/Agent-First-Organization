@@ -121,7 +121,7 @@ if __name__ == "__main__":
         help="Model to use (e.g., gpt-4o, claude-3-5-haiku-20241022, gemini-1.5-flash)",
     )
     parser.add_argument(
-        "--llm-provider",
+        "--llm_provider",
         type=str,
         default="openai",
         choices=LLM_PROVIDERS,
