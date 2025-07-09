@@ -64,7 +64,6 @@ except ImportError:
 import janus
 from dotenv import load_dotenv
 from langchain_core.runnables import RunnableLambda
-from langchain_openai.chat_models import ChatOpenAI
 
 from arklex.env.env import Environment
 from arklex.env.nested_graph.nested_graph import NESTED_GRAPH_ID, NestedGraph
@@ -88,7 +87,7 @@ from arklex.utils.graph_state import (
 )
 from arklex.utils.logging_utils import LogContext
 from arklex.utils.model_config import MODEL
-from arklex.utils.model_provider_config import PROVIDER_MAP
+from arklex.utils.provider_utils import validate_and_get_model_class
 from arklex.utils.utils import format_chat_history
 
 load_dotenv()
@@ -172,7 +171,9 @@ class AgentOrg:
         )
 
         # Initialize LLM directly
-        self.llm = PROVIDER_MAP.get(self.llm_config.llm_provider, ChatOpenAI)(
+        model_class = validate_and_get_model_class(self.llm_config)
+
+        self.llm = model_class(
             model=self.llm_config.model_type_or_path,
             temperature=0.0,
         )

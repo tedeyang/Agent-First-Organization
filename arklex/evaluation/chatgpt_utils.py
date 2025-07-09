@@ -45,6 +45,11 @@ def create_client() -> OpenAI | anthropic.Anthropic | GenerativeModel:
 
     provider = MODEL["llm_provider"]
 
+    if not provider:
+        raise ValueError(
+            "llm_provider must be explicitly specified in MODEL configuration"
+        )
+
     if provider == "openai":
         client: OpenAI = OpenAI(
             api_key=get_api_key_for_provider("openai"),
@@ -90,6 +95,11 @@ def chatgpt_chatbot(
         str: The model's response text.
     """
     provider = MODEL["llm_provider"]
+
+    if not provider:
+        raise ValueError(
+            "llm_provider must be explicitly specified in MODEL configuration"
+        )
 
     if provider == "openai":
         answer: str = (

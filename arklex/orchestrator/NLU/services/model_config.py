@@ -11,6 +11,7 @@ from typing import Any
 from langchain_core.language_models import BaseChatModel
 
 from arklex.utils.model_provider_config import PROVIDER_MAP
+from arklex.utils.provider_utils import validate_api_key_presence
 
 # Model configuration constants
 DEFAULT_TEMPERATURE: float = 0.1  # Default temperature for model generation
@@ -61,15 +62,20 @@ class ModelConfig:
 
         Raises:
             KeyError: If required configuration keys are missing
+            ValueError: If API key is missing or empty
         """
         kwargs: dict[str, Any] = {
             "model": model_config["model_type_or_path"],
             "temperature": DEFAULT_TEMPERATURE,
         }
 
-        # Add API key if provided
-        if "api_key" in model_config and model_config["api_key"]:
-            kwargs["api_key"] = model_config["api_key"]
+        # Validate and add API key
+        api_key = model_config.get("api_key", "")
+        provider = model_config.get("llm_provider", "")
+
+        # Validate API key presence
+        validate_api_key_presence(provider, api_key)
+        kwargs["api_key"] = api_key
 
         # Add base URL if provided and not using default endpoints
         if (
@@ -110,13 +116,7 @@ class ModelConfig:
         if provider not in PROVIDER_MAP:
             raise ValueError(f"Unsupported provider: {provider}")
 
-        # Handle special cases for different providers
-        if provider == "huggingface":
-            # HuggingFace uses a function instead of a class
-            return PROVIDER_MAP[provider](**kwargs)
-        else:
-            # For other providers, use the class directly
-            return PROVIDER_MAP[provider](**kwargs)
+        return PROVIDER_MAP[provider](**kwargs)
 
     @staticmethod
     def configure_response_format(
