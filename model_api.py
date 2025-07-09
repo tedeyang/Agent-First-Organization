@@ -15,7 +15,7 @@ from typing import Any
 import uvicorn
 from fastapi import FastAPI
 
-from arklex.env.env import Env
+from arklex.env.env import Environment
 from arklex.orchestrator.orchestrator import AgentOrg
 from arklex.utils.logging_utils import LogContext
 from arklex.utils.model_config import MODEL
@@ -34,7 +34,7 @@ def get_api_bot_response(
     history: list[dict[str, str]],
     user_text: str,
     parameters: dict[str, Any],
-    env: Env,
+    env: Environment,
 ) -> tuple[str, dict[str, Any]]:
     """Get a response from the bot based on the provided input.
 
@@ -46,7 +46,7 @@ def get_api_bot_response(
         history (List[Dict[str, str]]): List of previous chat messages.
         user_text (str): The current user message.
         parameters (Dict[str, Any]): Additional parameters for the bot response.
-        env (Env): Environment object containing tools and workers.
+        env (Environment): Environment object containing tools and workers.
 
     Returns:
         Tuple[str, Dict[str, Any]]: A tuple containing the bot's response and updated parameters.
@@ -100,7 +100,7 @@ def predict(data: dict[str, Any]) -> dict[str, Any]:
     user_text: str = history[-1]["content"]
 
     # Initialize environment with provided workers and tools
-    env: Env = Env(tools=tools, workers=workers, slotsfillapi="")
+    env: Environment = Environment(tools=tools, workers=workers, slotsfillapi="")
 
     # Get bot response using the orchestrator
     answer: str
@@ -114,9 +114,18 @@ if __name__ == "__main__":
         description="Start FastAPI with custom config."
     )
     parser.add_argument("--input-dir", type=str, default="./examples/test")
-    parser.add_argument("--model", type=str, default=MODEL["model_type_or_path"])
     parser.add_argument(
-        "--llm-provider", type=str, default=MODEL["llm_provider"], choices=LLM_PROVIDERS
+        "--model",
+        type=str,
+        default="gpt-4o-mini",
+        help="Model to use (e.g., gpt-4o, claude-3-5-haiku-20241022, gemini-1.5-flash)",
+    )
+    parser.add_argument(
+        "--llm-provider",
+        type=str,
+        default="openai",
+        choices=LLM_PROVIDERS,
+        help="LLM provider to use (openai, anthropic, google, huggingface)",
     )
     parser.add_argument(
         "--port", type=int, default=8000, help="Port to run the FastAPI app"

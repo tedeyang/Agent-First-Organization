@@ -16,16 +16,17 @@ import zipfile
 from typing import Any
 
 from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI
 
 from arklex.env.tools.database.build_database import build_database
 from arklex.env.tools.RAG.build_rag import build_rag
 from arklex.orchestrator.generator.generator import Generator
 from arklex.utils.loader import Loader
 from arklex.utils.logging_utils import LogContext
-from arklex.utils.model_config import MODEL
-from arklex.utils.model_provider_config import LLM_PROVIDERS, PROVIDER_MAP
-from arklex.utils.provider_utils import get_provider_config
+from arklex.utils.model_provider_config import LLM_PROVIDERS
+from arklex.utils.provider_utils import (
+    get_provider_config,
+    validate_and_get_model_class,
+)
 
 log_context = LogContext(__name__)
 load_dotenv()
@@ -40,9 +41,41 @@ def generate_taskgraph(args: argparse.Namespace) -> None:
     Args:
         args (argparse.Namespace): Command-line arguments containing configuration and output settings.
     """
-    model = PROVIDER_MAP.get(MODEL["llm_provider"], ChatOpenAI)(
-        model=MODEL["model_type_or_path"], timeout=30000
-    )
+    # Validate API key before proceeding
+    try:
+        provider_config = get_provider_config(args.llm_provider, args.model)
+        log_context.info(f"✅ API key for {args.llm_provider} provider is configured")
+    except ValueError as e:
+        log_context.error(f"❌ API key validation failed: {e}")
+        log_context.error(
+            "💡 Please ensure your .env file contains the correct API key."
+        )
+        log_context.error(
+            f"   Required environment variable: {args.llm_provider.upper()}_API_KEY"
+        )
+        return
+    except Exception as e:
+        log_context.error(f"❌ Unexpected error during API key validation: {e}")
+        return
+
+    # Create a temporary config object for validation
+    temp_config = type("TempConfig", (), {"llm_provider": args.llm_provider})()
+    model_class = validate_and_get_model_class(temp_config)
+
+    # Initialize model with proper API key validation
+    if args.llm_provider == "huggingface":
+        model = model_class(model=args.model, timeout=30000)
+    elif args.llm_provider == "google":
+        # Google models use google_api_key parameter
+        model = model_class(
+            model=args.model, google_api_key=provider_config["api_key"], timeout=30000
+        )
+    else:
+        # Other providers use api_key parameter
+        model = model_class(
+            model=args.model, api_key=provider_config["api_key"], timeout=30000
+        )
+
     with open(args.config) as f:
         config: dict[str, Any] = json.load(f)
     generator = Generator(config, model, args.output_dir)
@@ -251,15 +284,15 @@ def main() -> None:
     parser.add_argument(
         "--model",
         type=str,
-        default=MODEL["model_type_or_path"],
-        help="Model to use for generation",
+        default="gpt-4o-mini",
+        help="Model to use for generation (e.g., gpt-4o, claude-3-5-haiku-20241022, gemini-1.5-flash)",
     )
     parser.add_argument(
         "--llm-provider",
         type=str,
-        default=MODEL["llm_provider"],
+        default="openai",
         choices=LLM_PROVIDERS,
-        help="LLM provider to use",
+        help="LLM provider to use (openai, anthropic, google, huggingface)",
     )
     args = parser.parse_args()
 
@@ -271,6 +304,25 @@ def main() -> None:
 
     # Set up logging
     log_context.setLevel(getattr(logging, args.log_level.upper()))
+
+    # Early API key validation - terminate if API key is not provided
+    log_context.info("🔑 Validating API key configuration...")
+    try:
+        # This will raise ValueError if API key is missing or empty
+        provider_config = get_provider_config(args.llm_provider, args.model)
+        log_context.info(f"✅ API key for {args.llm_provider} provider is configured")
+    except ValueError as e:
+        log_context.error(f"❌ API key validation failed: {e}")
+        log_context.error(
+            "💡 Please ensure your .env file contains the correct API key."
+        )
+        log_context.error(
+            f"   Required environment variable: {args.llm_provider.upper()}_API_KEY"
+        )
+        return
+    except Exception as e:
+        log_context.error(f"❌ Unexpected error during API key validation: {e}")
+        return
 
     log_context.info("🚀 Starting task graph generation...")
     start_time = time.time()
@@ -290,11 +342,12 @@ def main() -> None:
         f"🤖 Initializing language model (provider: {args.llm_provider}, model: {args.model})..."
     )
 
-    # Get provider configuration with API key and endpoint
-    provider_config = get_provider_config(args.llm_provider, args.model)
+    # Provider configuration already obtained during validation
 
     # Initialize model using the provider map with proper API key
-    model_class = PROVIDER_MAP.get(args.llm_provider, ChatOpenAI)
+    # Create a temporary config object for validation
+    temp_config = type("TempConfig", (), {"llm_provider": args.llm_provider})()
+    model_class = validate_and_get_model_class(temp_config)
 
     if args.llm_provider == "huggingface":
         model = model_class(model=args.model, timeout=30000)

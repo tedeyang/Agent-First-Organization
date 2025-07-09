@@ -83,9 +83,15 @@ if __name__ == "__main__":
     parser.add_argument("--documents_dir", type=str)
     parser.add_argument("--config", type=str)
     parser.add_argument("--output_dir", type=str)
-    parser.add_argument("--model", type=str, default=MODEL["model_type_or_path"])
     parser.add_argument(
-        "--llm-provider", type=str, default=MODEL["llm_provider"], choices=LLM_PROVIDERS
+        "--model", type=str, default="gpt-4o-mini", help="Model to use for evaluation"
+    )
+    parser.add_argument(
+        "--llm-provider",
+        type=str,
+        default="openai",
+        choices=LLM_PROVIDERS,
+        help="LLM provider to use",
     )
     parser.add_argument(
         "--customer_type", type=str, default=None, choices=["b2b", "b2c"]
