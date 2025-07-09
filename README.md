@@ -36,10 +36,15 @@ python test_api_keys.py
 # Create your first agent
 python create.py \
   --config ./examples/customer_service/customer_service_config.json \
-  --output-dir ./examples/customer_service
+  --output-dir ./examples/customer_service \
+  --llm_provider openai \
+  --model gpt-4o
 
 # Run agent
-python run.py --input-dir ./examples/customer_service
+python run.py \
+  --input-dir ./examples/customer_service \
+  --llm_provider openai \
+  --model gpt-4o
 ```
 
 ▶️ **[Watch: Build a Customer Service Agent in 20 Minutes](https://youtu.be/y1P2Ethvy0I)**
