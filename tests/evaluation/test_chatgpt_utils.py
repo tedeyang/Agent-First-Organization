@@ -295,7 +295,7 @@ class TestChatGPTUtils:
     ) -> None:
         """Test create_client with Gemini provider."""
         # Mock environment variables
-        with patch.dict("os.environ", {"GEMINI_API_KEY": "test_key"}):
+        with patch.dict("os.environ", {"GOOGLE_API_KEY": "test_key"}):
             from arklex.evaluation.chatgpt_utils import create_client
 
             create_client()
