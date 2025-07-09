@@ -280,119 +280,182 @@ def run_command_with_realtime_output(
     print(f"⏱️  Timeout: {timeout} seconds")
     print("=" * 80)
 
-    process = subprocess.Popen(
-        cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        stdin=subprocess.PIPE if input_text else None,
-        text=True,
-        env=env,
-        bufsize=0,  # Unbuffered for immediate output
-        universal_newlines=True,
-    )
+    # Use communicate() for input handling to avoid stdin issues
+    if input_text:
+        print("📝 Sending input to process...")
+        print(f"📤 Input preview: {repr(input_text[:100])}...")
 
-    stdout_lines = []
-    stderr_lines = []
-    last_output_time = time.time()
-    output_count = 0
-    last_progress_time = time.time()
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            stdin=subprocess.PIPE,
+            text=True,
+            env=env,
+            bufsize=0,  # Unbuffered for immediate output
+            universal_newlines=True,
+        )
 
-    try:
-        start_time = time.time()
+        # Use communicate() to handle input properly
+        stdout_lines = []
+        stderr_lines = []
+        output_count = 0
 
-        # If we have input, write it to stdin
-        if input_text:
-            print("📝 Sending input to process...")
-            print(f"📤 Input preview: {repr(input_text[:100])}...")
-            process.stdin.write(input_text)
-            process.stdin.flush()
-            process.stdin.close()
+        try:
+            start_time = time.time()
+            print("🔄 Waiting for process output...")
+            print("💡 Output will be displayed in real-time as it comes...")
+            print("⏳ Process started, waiting for first output...")
 
-        print("🔄 Waiting for process output...")
-        print("💡 Output will be displayed in real-time as it comes...")
-        print("⏳ Process started, waiting for first output...")
+            # Use communicate with input to avoid stdin issues
+            stdout, stderr = process.communicate(input=input_text, timeout=timeout)
 
-        while process.poll() is None:
-            # Check for timeout
-            if time.time() - start_time > timeout:
-                print(f"⏰ Command timed out after {timeout} seconds")
-                process.terminate()
-                raise subprocess.TimeoutExpired(cmd, timeout)
+            # Process the output
+            if stdout:
+                lines = stdout.split("\n")
+                for _i, line in enumerate(lines):
+                    if line.strip():
+                        output_count += 1
+                        print(f"📤 STDOUT [{output_count}]: {line}")
+                        stdout_lines.append(line + "\n")
 
-            # Use select for non-blocking I/O (if available)
-            import select
+            if stderr:
+                lines = stderr.split("\n")
+                for _i, line in enumerate(lines):
+                    if line.strip():
+                        output_count += 1
+                        print(f"📤 STDERR [{output_count}]: {line}")
+                        stderr_lines.append(line + "\n")
 
-            # Check if we can read from stdout or stderr
-            reads = []
-            if process.stdout:
-                reads.append(process.stdout)
-            if process.stderr:
-                reads.append(process.stderr)
+            elapsed_time = int(time.time() - start_time)
+            print("=" * 80)
+            print(
+                f"🏁 Command finished with return code: {process.returncode} (elapsed: {elapsed_time}s, total outputs: {output_count})"
+            )
 
-            if reads:
-                try:
-                    ready, _, _ = select.select(reads, [], [], 0.1)  # 100ms timeout
+            if process.returncode == 0:
+                print("✅ Command completed successfully")
+            else:
+                print("❌ Command failed")
 
-                    for stream in ready:
-                        if stream == process.stdout:
-                            line = stream.readline()
-                            if line:
-                                output_count += 1
-                                print(f"📤 STDOUT [{output_count}]: {line.rstrip()}")
-                                stdout_lines.append(line)
-                                last_output_time = time.time()
+            return process.returncode, "".join(stdout_lines), "".join(stderr_lines)
 
-                        elif stream == process.stderr:
-                            line = stream.readline()
-                            if line:
-                                output_count += 1
-                                print(f"📤 STDERR [{output_count}]: {line.rstrip()}")
-                                stderr_lines.append(line)
-                                last_output_time = time.time()
-                except (OSError, ValueError):
-                    # select might fail on some systems, fall back to polling
-                    pass
+        except subprocess.TimeoutExpired:
+            print(f"⏰ Command timed out after {timeout} seconds")
+            process.terminate()
+            raise
 
-            # Show progress indicator if no output for a while
-            current_time = time.time()
-            if (
-                current_time - last_output_time > 2
-                and current_time - start_time > 3
-                and current_time - last_progress_time > 5
-            ):
-                elapsed = int(current_time - start_time)
-                print(
-                    f"⏳ Still running... (elapsed: {elapsed}s, outputs: {output_count})"
-                )
-                last_progress_time = current_time
-            time.sleep(0.01)  # Very short sleep for more responsive output
-
-        # Read any remaining output
-        remaining_stdout, remaining_stderr = process.communicate()
-        if remaining_stdout:
-            print(f"📤 FINAL STDOUT: {remaining_stdout}")
-            stdout_lines.append(remaining_stdout)
-        if remaining_stderr:
-            print(f"📤 FINAL STDERR: {remaining_stderr}")
-            stderr_lines.append(remaining_stderr)
-
-    except subprocess.TimeoutExpired:
-        print(f"⏰ Command timed out after {timeout} seconds")
-        process.terminate()
-        raise
-
-    elapsed_time = int(time.time() - start_time)
-    print("=" * 80)
-    print(
-        f"🏁 Command finished with return code: {process.returncode} (elapsed: {elapsed_time}s, total outputs: {output_count})"
-    )
-
-    if process.returncode == 0:
-        print("✅ Command completed successfully")
     else:
-        print("❌ Command failed")
+        # No input needed, use the original real-time approach
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            stdin=None,
+            text=True,
+            env=env,
+            bufsize=0,  # Unbuffered for immediate output
+            universal_newlines=True,
+        )
 
-    return process.returncode, "".join(stdout_lines), "".join(stderr_lines)
+        stdout_lines = []
+        stderr_lines = []
+        last_output_time = time.time()
+        output_count = 0
+        last_progress_time = time.time()
+
+        try:
+            start_time = time.time()
+
+            print("🔄 Waiting for process output...")
+            print("💡 Output will be displayed in real-time as it comes...")
+            print("⏳ Process started, waiting for first output...")
+
+            while process.poll() is None:
+                # Check for timeout
+                if time.time() - start_time > timeout:
+                    print(f"⏰ Command timed out after {timeout} seconds")
+                    process.terminate()
+                    raise subprocess.TimeoutExpired(cmd, timeout)
+
+                # Use select for non-blocking I/O (if available)
+                import select
+
+                # Check if we can read from stdout or stderr
+                reads = []
+                if process.stdout:
+                    reads.append(process.stdout)
+                if process.stderr:
+                    reads.append(process.stderr)
+
+                if reads:
+                    try:
+                        ready, _, _ = select.select(reads, [], [], 0.1)  # 100ms timeout
+
+                        for stream in ready:
+                            if stream == process.stdout:
+                                line = stream.readline()
+                                if line:
+                                    output_count += 1
+                                    print(
+                                        f"📤 STDOUT [{output_count}]: {line.rstrip()}"
+                                    )
+                                    stdout_lines.append(line)
+                                    last_output_time = time.time()
+
+                            elif stream == process.stderr:
+                                line = stream.readline()
+                                if line:
+                                    output_count += 1
+                                    print(
+                                        f"📤 STDERR [{output_count}]: {line.rstrip()}"
+                                    )
+                                    stderr_lines.append(line)
+                                    last_output_time = time.time()
+                    except (OSError, ValueError):
+                        # select might fail on some systems, fall back to polling
+                        pass
+
+                # Show progress indicator if no output for a while
+                current_time = time.time()
+                if (
+                    current_time - last_output_time > 2
+                    and current_time - start_time > 3
+                    and current_time - last_progress_time > 5
+                ):
+                    elapsed = int(current_time - start_time)
+                    print(
+                        f"⏳ Still running... (elapsed: {elapsed}s, outputs: {output_count})"
+                    )
+                    last_progress_time = current_time
+                time.sleep(0.01)  # Very short sleep for more responsive output
+
+            # Read any remaining output
+            remaining_stdout, remaining_stderr = process.communicate()
+            if remaining_stdout:
+                print(f"📤 FINAL STDOUT: {remaining_stdout}")
+                stdout_lines.append(remaining_stdout)
+            if remaining_stderr:
+                print(f"📤 FINAL STDERR: {remaining_stderr}")
+                stderr_lines.append(remaining_stderr)
+
+        except subprocess.TimeoutExpired:
+            print(f"⏰ Command timed out after {timeout} seconds")
+            process.terminate()
+            raise
+
+        elapsed_time = int(time.time() - start_time)
+        print("=" * 80)
+        print(
+            f"🏁 Command finished with return code: {process.returncode} (elapsed: {elapsed_time}s, total outputs: {output_count})"
+        )
+
+        if process.returncode == 0:
+            print("✅ Command completed successfully")
+        else:
+            print("❌ Command failed")
+
+        return process.returncode, "".join(stdout_lines), "".join(stderr_lines)
 
 
 def test_environment_loading() -> bool:
