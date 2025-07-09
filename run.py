@@ -20,7 +20,6 @@ from arklex.env.env import Environment
 from arklex.orchestrator.NLU.services.model_service import ModelService
 from arklex.orchestrator.orchestrator import AgentOrg
 from arklex.utils.logging_utils import LogContext
-from arklex.utils.model_config import MODEL
 from arklex.utils.model_provider_config import LLM_PROVIDERS
 from arklex.utils.provider_utils import get_provider_config
 
@@ -82,9 +81,18 @@ if __name__ == "__main__":
     # Set up command line argument parsing for configuration
     parser = argparse.ArgumentParser()
     parser.add_argument("--input-dir", type=str, default="./examples/test")
-    parser.add_argument("--model", type=str, default=MODEL["model_type_or_path"])
     parser.add_argument(
-        "--llm-provider", type=str, default=MODEL["llm_provider"], choices=LLM_PROVIDERS
+        "--model",
+        type=str,
+        default="gpt-4o-mini",
+        help="Model to use (e.g., gpt-4o, claude-3-5-haiku-20241022, gemini-1.5-flash)",
+    )
+    parser.add_argument(
+        "--llm-provider",
+        type=str,
+        default="openai",
+        choices=LLM_PROVIDERS,
+        help="LLM provider to use (openai, anthropic, google, huggingface)",
     )
     args = parser.parse_args()
 
