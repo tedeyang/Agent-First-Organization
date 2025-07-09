@@ -1019,19 +1019,15 @@ class TestShouldTriggerHandoff:
         with patch(
             "arklex.orchestrator.post_process.validate_and_get_model_class"
         ) as mock_validate_and_get_model_class:
-            # Patch validate_and_get_model_class to return ChatOpenAI
-            from arklex.orchestrator.post_process import ChatOpenAI
-
-            mock_validate_and_get_model_class.return_value = ChatOpenAI
+            # Patch validate_and_get_model_class to return a mock ChatOpenAI class
+            mock_chat_openai_class = Mock()
+            mock_validate_and_get_model_class.return_value = mock_chat_openai_class
+            mock_llm = Mock()
+            mock_chat_openai_class.return_value = mock_llm
+            # Patch the invoke method on RunnableSequence to always return 'YES'
             with patch(
-                "arklex.orchestrator.post_process.ChatOpenAI"
-            ) as mock_chat_openai:
-                mock_llm = Mock()
-                mock_chat_openai.return_value = mock_llm
-                # Patch the invoke method on RunnableSequence to always return 'YES'
-                with patch(
-                    "langchain_core.runnables.base.RunnableSequence.invoke",
-                    return_value="YES",
-                ):
-                    result = should_trigger_handoff(mock_message_state)
-                    assert result is True
+                "langchain_core.runnables.base.RunnableSequence.invoke",
+                return_value="YES",
+            ):
+                result = should_trigger_handoff(mock_message_state)
+                assert result is True
