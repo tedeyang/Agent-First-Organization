@@ -269,7 +269,7 @@ class ReactPlanner(DefaultPlanner):
             model=self.model_name,
             temperature=0.0,
         )
-        self.system_role: str = "user" if self.llm_provider == "gemini" else "system"
+        self.system_role: str = "user" if self.llm_provider == "google" else "system"
 
         # Store worker and tool info in single resources dict with standardized formatting
         formatted_worker_info: dict[str, PlannerResource] = self._format_worker_info(
@@ -310,7 +310,7 @@ class ReactPlanner(DefaultPlanner):
             model=self.model_name,
             temperature=0.0,
         )
-        self.system_role: str = "user" if self.llm_provider == "gemini" else "system"
+        self.system_role: str = "user" if self.llm_provider == "google" else "system"
 
         # Create documents containing tool/worker info
         resource_docs: list[Document] = self._create_resource_rag_docs(

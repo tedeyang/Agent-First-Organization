@@ -82,7 +82,7 @@ class DummyLLM:
 # List of supported language model providers
 LLM_PROVIDERS: list[str] = [
     "openai",  # OpenAI's language models
-    "gemini",  # Google's Gemini models
+    "google",  # Google's models
     "anthropic",  # Anthropic's Claude models
     "huggingface",  # HuggingFace's open-source models
 ]
@@ -90,7 +90,7 @@ LLM_PROVIDERS: list[str] = [
 # Mapping of provider names to their LLM classes
 PROVIDER_MAP: dict[str, type] = {
     "anthropic": ChatAnthropic,  # Anthropic's Claude models
-    "gemini": ChatGoogleGenerativeAI,  # Google's Gemini models
+    "google": ChatGoogleGenerativeAI,  # Google's models
     "openai": ChatOpenAI,  # OpenAI's GPT models
     "huggingface": get_huggingface_llm,  # HuggingFace's models
     "dummy": DummyLLM,  # Dummy provider for tests
@@ -99,7 +99,7 @@ PROVIDER_MAP: dict[str, type] = {
 # Mapping of provider names to their embedding classes
 PROVIDER_EMBEDDINGS: dict[str, type] = {
     "anthropic": HuggingFaceEmbeddings,  # Anthropic uses HuggingFace embeddings
-    "gemini": GoogleGenerativeAIEmbeddings,  # Google's Gemini embeddings
+    "google": GoogleGenerativeAIEmbeddings,  # Google's embeddings
     "openai": OpenAIEmbeddings,  # OpenAI's embeddings
     "huggingface": HuggingFaceEmbeddings,  # HuggingFace's embeddings
 }
@@ -107,7 +107,7 @@ PROVIDER_EMBEDDINGS: dict[str, type] = {
 # Mapping of provider names to their default embedding model identifiers
 PROVIDER_EMBEDDING_MODELS: dict[str, str] = {
     "anthropic": "sentence-transformers/sentence-t5-base",  # T5-based embeddings
-    "gemini": "models/embedding-001",  # Gemini embeddings
+    "google": "models/embedding-001",  # Google embeddings
     "openai": "text-embedding-ada-002",  # OpenAI's Ada embeddings
     "huggingface": "sentence-transformers/all-mpnet-base-v2",  # MPNet embeddings
 }

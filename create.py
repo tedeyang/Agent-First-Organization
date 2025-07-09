@@ -298,8 +298,8 @@ def main() -> None:
 
     if args.llm_provider == "huggingface":
         model = model_class(model=args.model, timeout=30000)
-    elif args.llm_provider == "gemini":
-        # Google Gemini uses google_api_key parameter
+    elif args.llm_provider == "google":
+        # Google models use google_api_key parameter
         model = model_class(
             model=args.model, google_api_key=provider_config["api_key"], timeout=30000
         )

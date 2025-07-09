@@ -38,7 +38,7 @@ def get_api_key_for_provider(provider: str) -> str:
     provider_api_keys = {
         "openai": "OPENAI_API_KEY",
         "anthropic": "ANTHROPIC_API_KEY",
-        "gemini": "GOOGLE_API_KEY",  # Google API key is used for Gemini
+        "google": "GOOGLE_API_KEY",  # Google API key is used for Google models
         "huggingface": "HUGGINGFACE_API_KEY",
     }
 
@@ -61,7 +61,7 @@ def get_endpoint_for_provider(provider: str) -> str:
     provider_endpoints = {
         "openai": "https://api.openai.com/v1",
         "anthropic": "https://api.anthropic.com",
-        "gemini": "https://generativelanguage.googleapis.com",
+        "google": "https://generativelanguage.googleapis.com",
         "huggingface": "https://api-inference.huggingface.co",
     }
 

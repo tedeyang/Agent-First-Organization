@@ -6,7 +6,7 @@ It should be run manually by developers to verify their API keys work correctly.
 
 This script provides a modular test framework that validates:
 1. Environment configuration and API key loading
-2. API key validation for OpenAI, Anthropic, and Google Gemini
+2. API key validation for OpenAI, Anthropic, and Google
 3. Provider utility functions with real API keys
 4. End-to-end testing of customer service examples
 5. Network connectivity and package requirements
@@ -16,7 +16,7 @@ on each test step, making it easy to identify and resolve issues.
 
 Usage:
     python test_api_keys.py                           # Test all providers
-    python test_api_keys.py --providers openai gemini # Test specific providers
+    python test_api_keys.py --providers openai google # Test specific providers
     python test_api_keys.py --providers openai anthropic
 
 Requirements:
@@ -56,24 +56,24 @@ class APITestConfiguration:
     ENV_TO_PROVIDER_MAP = {
         "OPENAI_API_KEY": "openai",
         "ANTHROPIC_API_KEY": "anthropic",
-        "GOOGLE_API_KEY": "gemini",
+        "GOOGLE_API_KEY": "google",
     }
 
     # Default models for each provider
     DEFAULT_MODELS = {
         "openai": "gpt-4o-mini",
         "anthropic": "claude-3-haiku-20240307",
-        "gemini": "gemini-1.5-flash",
+        "google": "gemini-1.5-flash",
     }
 
     # All supported providers
-    ALL_PROVIDERS = ["openai", "anthropic", "gemini"]
+    ALL_PROVIDERS = ["openai", "anthropic", "google"]
 
     # API endpoints for connectivity testing
     API_ENDPOINTS = [
         ("https://api.openai.com", "OpenAI API"),
         ("https://api.anthropic.com", "Anthropic API"),
-        ("https://generativelanguage.googleapis.com", "Google Gemini API"),
+        ("https://generativelanguage.googleapis.com", "Google API"),
     ]
 
     # Test configuration
@@ -81,6 +81,21 @@ class APITestConfiguration:
     PROCESS_TIMEOUT_SECONDS = 600
     CONNECTIVITY_TIMEOUT_SECONDS = 5
     PROGRESS_UPDATE_INTERVAL_SECONDS = 5
+
+    @classmethod
+    def get_env_key_for_provider(cls, provider: str) -> str:
+        """
+        Get the correct environment variable name for a given provider.
+
+        Args:
+            provider: The provider name (e.g., 'openai', 'anthropic', 'google')
+
+        Returns:
+            The environment variable name for the provider
+        """
+        # Create reverse mapping
+        provider_to_env_map = {v: k for k, v in cls.ENV_TO_PROVIDER_MAP.items()}
+        return provider_to_env_map.get(provider, f"{provider.upper()}_API_KEY")
 
 
 class EnvironmentManager:
@@ -196,7 +211,7 @@ class APIKeyValidator:
         Prints detailed feedback about the validation process and result.
 
         Args:
-            provider: The provider name (e.g., 'openai', 'anthropic', 'gemini').
+            provider: The provider name (e.g., 'openai', 'anthropic', 'google').
             api_key: The API key to validate.
 
         Returns:
@@ -210,8 +225,8 @@ class APIKeyValidator:
                 return self._validate_openai_api_key(api_key)
             elif provider == "anthropic":
                 return self._validate_anthropic_api_key(api_key)
-            elif provider == "gemini":
-                return self._validate_gemini_api_key(api_key)
+            elif provider == "google":
+                return self._validate_google_api_key(api_key)
             else:
                 print(f"❌ Unknown provider: {provider}")
                 return False
@@ -298,18 +313,18 @@ class APIKeyValidator:
 
         return self._process_api_response(response, "Anthropic")
 
-    def _validate_gemini_api_key(self, api_key: str) -> bool:
+    def _validate_google_api_key(self, api_key: str) -> bool:
         """
-        Validate a Google Gemini API key by making a test content generation request.
+        Validate a Google API key by making a test content generation request.
         Prints request and response details for debugging.
 
         Args:
-            api_key: The Google Gemini API key to validate.
+            api_key: The Google API key to validate.
 
         Returns:
             True if the API key is valid, False otherwise.
         """
-        print("🌐 Making Google Gemini API call...")
+        print("🌐 Making Google API call...")
         print(
             "📡 Request URL: https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
         )
@@ -329,7 +344,7 @@ class APIKeyValidator:
             timeout=self.timeout,
         )
 
-        return self._process_api_response(response, "Google Gemini")
+        return self._process_api_response(response, "Google")
 
     def _process_api_response(
         self, response: requests.Response, provider_name: str
@@ -384,7 +399,7 @@ class APIKeyValidator:
                 content = response_data["content"][0].get("text", "")
                 print(f"📤 Response preview: {content[:50]}...")
             elif (
-                provider_name == "Google Gemini"
+                provider_name == "Google"
                 and "candidates" in response_data
                 and len(response_data["candidates"]) > 0
             ):
@@ -437,7 +452,7 @@ class ProviderUtilityTester:
         results = []
 
         for provider in providers:
-            env_key = f"{provider.upper()}_API_KEY"
+            env_key = APITestConfiguration.get_env_key_for_provider(provider)
             api_key = env_vars.get(env_key, "")
 
             if not api_key:
@@ -1009,7 +1024,7 @@ class CustomerServiceExampleTester:
         results = []
 
         for provider in providers:
-            env_key = f"{provider.upper()}_API_KEY"
+            env_key = APITestConfiguration.get_env_key_for_provider(provider)
             api_key = env_vars.get(env_key, "")
 
             if not api_key:
@@ -1043,10 +1058,12 @@ class CustomerServiceExampleTester:
         print(f"🔧 Testing both create.py and run.py with {provider}")
 
         if not self.validator.validate_api_key(provider, api_key):
-            print(f"❌ Skipping {provider} - API key is invalid")
+            print(
+                f"❌ Skipping {provider} - API key is invalid or cannot generate responses"
+            )
             return False
 
-        env_key = f"{provider.upper()}_API_KEY"
+        env_key = APITestConfiguration.get_env_key_for_provider(provider)
         env = os.environ.copy()
         env[env_key] = api_key
 
@@ -1419,7 +1436,7 @@ class TestRunner:
             print("✅ create.py working with --no-ui flag")
             print("✅ run.py working in interactive mode")
             print("✅ End-to-end customer service example working")
-            print("✅ All providers tested in order: OpenAI → Anthropic → Gemini")
+            print("✅ All providers tested in order: OpenAI → Anthropic → Google")
             return True
         else:
             print("⚠️  Some tests failed. Please check:")
@@ -1443,7 +1460,7 @@ def parse_arguments() -> argparse.Namespace:
         epilog="""
 Examples:
   python test_api_keys.py                    # Test all providers
-  python test_api_keys.py --providers openai gemini
+  python test_api_keys.py --providers openai google
   python test_api_keys.py --providers openai anthropic
         """,
     )
