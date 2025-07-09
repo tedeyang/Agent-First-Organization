@@ -70,7 +70,7 @@ Create a `.env` file in the root directory:
 # Required: Choose one LLM provider
 OPENAI_API_KEY=your_key_here
 # OR ANTHROPIC_API_KEY=your_key_here
-# OR GEMINI_API_KEY=your_key_here
+# OR GOOGLE_API_KEY=your_key_here
 
 # Optional: Enhanced features
 MILVUS_URI=your_milvus_uri

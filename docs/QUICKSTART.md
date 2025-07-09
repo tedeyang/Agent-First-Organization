@@ -59,7 +59,7 @@ OPENAI_ORG_ID=your_org_id_here  # Optional
 ANTHROPIC_API_KEY=your_anthropic_key_here
 
 # Google Gemini (alternative)
-GEMINI_API_KEY=your_gemini_key_here
+GOOGLE_API_KEY=your_gemini_key_here
 
 # Mistral (alternative)
 MISTRAL_API_KEY=your_mistral_key_here

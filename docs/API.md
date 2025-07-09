@@ -463,7 +463,7 @@ python eval.py \
 |--------------|-----------------|--------------|
 | `OPENAI_API_KEY` | OpenAI API key | Yes (if using OpenAI) |
 | `ANTHROPIC_API_KEY` | Anthropic API key | Yes (if using Anthropic) |
-| `GEMINI_API_KEY` | Google Gemini API key | Yes (if using Gemini) |
+| `GOOGLE_API_KEY` | Google Gemini API key | Yes (if using Gemini) |
 | `MILVUS_URI` | Milvus connection URI | No |
 | `MYSQL_USERNAME` | MySQL username | No |
 | `MYSQL_PASSWORD` | MySQL password | No |
