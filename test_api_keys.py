@@ -592,7 +592,6 @@ def test_customer_service_example_directly() -> bool:
                     provider,
                     "--model",
                     models[provider],
-                    "--no-ui",
                 ]
 
                 print(f"🤖 Running customer service agent with {provider}...")
@@ -623,6 +622,17 @@ def test_customer_service_example_directly() -> bool:
 
     print("❌ No working provider found for customer service example")
     return False
+
+
+def check_connectivity(url: str, name: str, timeout: int = 5) -> bool:
+    """Check connectivity to a specific URL."""
+    try:
+        requests.get(url, timeout=timeout)
+        print(f"✅ Network connectivity to {name} is working")
+        return True
+    except Exception as e:
+        print(f"⚠️  {name} connectivity test failed: {e}")
+        return False
 
 
 def check_requirements() -> bool:
@@ -662,12 +672,33 @@ def check_requirements() -> bool:
 
     # Test network connectivity
     print("🌐 Testing network connectivity...")
-    try:
-        requests.get("https://api.openai.com", timeout=5)
-        print("✅ Network connectivity to OpenAI API is working")
-    except Exception as e:
-        print(f"⚠️  Network connectivity test failed: {e}")
-        print("   This might affect API key validation")
+
+    # Define API endpoints to test
+    api_endpoints = [
+        ("https://api.openai.com", "OpenAI API"),
+        ("https://api.anthropic.com", "Anthropic API"),
+        ("https://generativelanguage.googleapis.com", "Google Gemini API"),
+    ]
+
+    connectivity_results = []
+    for url, name in api_endpoints:
+        result = check_connectivity(url, name)
+        connectivity_results.append(result)
+
+    # Summary
+    successful_connections = sum(connectivity_results)
+    total_connections = len(connectivity_results)
+
+    if successful_connections == total_connections:
+        print(f"✅ All {total_connections} API endpoints are reachable")
+    elif successful_connections > 0:
+        print(
+            f"⚠️  {successful_connections}/{total_connections} API endpoints are reachable"
+        )
+    else:
+        print(f"❌ None of the {total_connections} API endpoints are reachable")
+
+    print("💡 If any connectivity tests failed, API key validation might be affected")
 
     return True
 
