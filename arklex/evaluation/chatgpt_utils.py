@@ -114,30 +114,7 @@ def chatgpt_chatbot(
         answer: str = client.messages.create(**kwargs).content[0].text.strip()
     elif provider == "google":
         # Convert messages to Gemini format
-        gemini_messages = []
-        for msg in messages:
-            if msg["role"] == "system":
-                # Gemini doesn't have system messages, so we'll prepend to the first user message
-                continue
-            elif msg["role"] == "user":
-                gemini_messages.append(
-                    {"role": "user", "parts": [{"text": msg["content"]}]}
-                )
-            elif msg["role"] == "assistant":
-                gemini_messages.append(
-                    {"role": "model", "parts": [{"text": msg["content"]}]}
-                )
-
-        # Add system message to the first user message if it exists
-        if (
-            messages
-            and messages[0]["role"] == "system"
-            and gemini_messages
-            and gemini_messages[0]["role"] == "user"
-        ):
-            gemini_messages[0]["parts"][0]["text"] = (
-                f"{messages[0]['content']}\n\n{gemini_messages[0]['parts'][0]['text']}"
-            )
+        gemini_messages = _convert_messages_to_gemini_format(messages)
 
         response = client.generate_content(
             gemini_messages,
@@ -148,6 +125,49 @@ def chatgpt_chatbot(
         raise ValueError(f"Unsupported LLM provider: {provider}")
 
     return answer
+
+
+def _convert_messages_to_gemini_format(
+    messages: list[dict[str, str]],
+) -> list[dict[str, Any]]:
+    """Convert OpenAI/Anthropic message format to Gemini format.
+
+    This function converts a list of messages from OpenAI/Anthropic format to
+    Gemini's expected format. System messages are prepended to the first user message
+    since Gemini doesn't support system messages directly.
+
+    Args:
+        messages (List[Dict[str, str]]): List of messages in OpenAI/Anthropic format.
+
+    Returns:
+        List[Dict[str, Any]]: List of messages in Gemini format.
+    """
+    gemini_messages = []
+    system_content = ""
+
+    # Extract system message if present
+    if messages and messages[0]["role"] == "system":
+        system_content = messages[0]["content"]
+        messages = messages[1:]  # Remove system message from processing
+
+    # Convert remaining messages
+    for msg in messages:
+        if msg["role"] == "user":
+            gemini_messages.append(
+                {"role": "user", "parts": [{"text": msg["content"]}]}
+            )
+        elif msg["role"] == "assistant":
+            gemini_messages.append(
+                {"role": "model", "parts": [{"text": msg["content"]}]}
+            )
+
+    # Prepend system content to first user message if it exists
+    if system_content and gemini_messages and gemini_messages[0]["role"] == "user":
+        gemini_messages[0]["parts"][0]["text"] = (
+            f"{system_content}\n\n{gemini_messages[0]['parts'][0]['text']}"
+        )
+
+    return gemini_messages
 
 
 # flip roles in convo history, only keep role and content
