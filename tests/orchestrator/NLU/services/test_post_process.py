@@ -2,6 +2,9 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from arklex.memory.entities.memory_entities import ResourceRecord
+from arklex.orchestrator.entities.msg_state_entities import Metadata
+from arklex.orchestrator.entities.orch_entities import MessageState, Params
 from arklex.orchestrator.post_process import (
     RAG_NODES_STEPS,
     TRIGGER_LIVE_CHAT_PROMPT,
@@ -17,7 +20,6 @@ from arklex.orchestrator.post_process import (
     post_process_response,
     should_trigger_handoff,
 )
-from arklex.utils.graph_state import MessageState, Metadata, Params, ResourceRecord
 
 
 @pytest.fixture
