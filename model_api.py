@@ -28,6 +28,9 @@ from arklex.utils.provider_utils import (
 log_context = LogContext(__name__)
 app: FastAPI = FastAPI()
 
+# Global variable to store command line arguments
+args: argparse.Namespace = None
+
 
 def get_api_bot_response(
     args: argparse.Namespace,
@@ -92,6 +95,8 @@ def predict(data: dict[str, Any]) -> dict[str, Any]:
             - answer: The bot's response text
             - parameters: Updated conversation parameters
     """
+    global args
+
     # Extract conversation components from input data
     history: list[dict[str, str]] = data["history"]
     params: dict[str, Any] = data["parameters"]
@@ -100,7 +105,9 @@ def predict(data: dict[str, Any]) -> dict[str, Any]:
     user_text: str = history[-1]["content"]
 
     # Initialize environment with provided workers and tools
-    env: Environment = Environment(tools=tools, workers=workers, slotsfillapi="")
+    env: Environment = Environment(
+        tools=tools, workers=workers, agents=[], slotsfillapi=""
+    )
 
     # Get bot response using the orchestrator
     answer: str
@@ -137,7 +144,7 @@ if __name__ == "__main__":
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
     )
 
-    args: argparse.Namespace = parser.parse_args()
+    args = parser.parse_args()
     os.environ["DATA_DIR"] = args.input_dir
 
     # Update model configuration with proper provider settings
