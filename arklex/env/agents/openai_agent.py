@@ -224,6 +224,8 @@ class OpenAIAgent(BaseAgent):
             Tool execution result
         """
         if "http_tool" in tool_name:
+            # TODO: Use better way to determine if tool is http_tool
+            # or make the http_tool execution consistent with the rest of the tools
             slots: list[dict[str, str]] = []
             all_slots = self.tool_slots.get(tool_name, [])
 
