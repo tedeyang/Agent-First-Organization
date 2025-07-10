@@ -1,7 +1,9 @@
 from collections.abc import Callable
 from typing import Any
 
-from arklex.utils.graph_state import NodeInfo, Params, PathNode, StatusEnum
+from arklex.orchestrator.entities.msg_state_entities import StatusEnum
+from arklex.orchestrator.entities.orch_entities import Params
+from arklex.orchestrator.entities.taskgraph_entities import NodeInfo, PathNode
 
 NESTED_GRAPH_ID: str = "nested_graph"
 
