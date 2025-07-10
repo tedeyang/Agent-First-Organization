@@ -90,7 +90,74 @@ jobs:
           echo "📅 **Run Time**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
           echo "🔗 **Workflow**: [View full run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
 
-      - name: Send Success Notification
+      - name: Send Success Email
+        if: steps.summary.outputs.overall_status == 'success'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.CHRISTIAN_EMAIL_USERNAME }}
+          password: ${{ secrets.CHRISTIAN_EMAIL_PASSWORD_FOR_GITHUB_ACTION }}
+          subject: "✅ Nightly Regression Tests Passed - Arklex AI"
+          to: christian.lim@arklex.ai
+          from: GitHub Actions
+          body: |
+            Hello Christian,
+
+            The nightly regression tests have completed successfully! 🎉
+
+            **Test Results:**
+            - Lint: ✅ Passed
+            - TaskGraph: ✅ Passed  
+            - Coverage: ✅ Passed
+
+            **Details:**
+            - Workflow: Nightly Regression Tests
+            - Run ID: ${{ github.run_id }}
+            - Repository: ${{ github.repository }}
+            - View Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            The codebase is in good health and all tests are passing.
+
+            Best regards,
+            GitHub Actions Bot
+        continue-on-error: true
+
+      - name: Send Failure Email
+        if: steps.summary.outputs.overall_status == 'failure'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "❌ Nightly Regression Tests Failed - Arklex AI"
+          to: alerts@arklex.ai
+          from: GitHub Actions
+          body: |
+            ALERT: Nightly regression tests have failed! ⚠️
+
+            **Failed Tests:**
+            ${{ steps.summary.outputs.notification_message }}
+
+            **Details:**
+            - Workflow: Nightly Regression Tests
+            - Run ID: ${{ github.run_id }}
+            - Repository: ${{ github.repository }}
+            - View Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            **Test Results:**
+            - Lint: ${{ needs.lint.result == 'success' && '✅ Passed' || '❌ Failed' }}
+            - TaskGraph: ${{ needs.taskgraph.result == 'success' && '✅ Passed' || '❌ Failed' }}
+            - Coverage: ${{ needs.coverage-check.result == 'success' && '✅ Passed' || '❌ Failed' }}
+
+            Please review the workflow logs and address any issues immediately.
+
+            Best regards,
+            GitHub Actions Bot
+        continue-on-error: true
+
+      - name: Send Success Slack Notification
         if: steps.summary.outputs.overall_status == 'success'
         uses: 8398a7/action-slack@v3
         env:
@@ -110,7 +177,7 @@ jobs:
           icon_emoji: ":robot_face:"
         continue-on-error: true
 
-      - name: Send Failure Notification
+      - name: Send Failure Slack Notification
         if: steps.summary.outputs.overall_status == 'failure'
         uses: 8398a7/action-slack@v3
         env:
@@ -132,6 +199,7 @@ jobs:
 
       - name: Log Notification Status
         run: |
-          echo "📧 Slack notification steps completed."
-          echo "Note: If SLACK_WEBHOOK_URL is not configured, the notification steps will fail silently."
+          echo "📧 Email and Slack notification steps completed."
+          echo "Note: If EMAIL_USERNAME/EMAIL_PASSWORD or SLACK_WEBHOOK_URL are not configured, the notification steps will fail silently."
+          echo "To enable email notifications, add EMAIL_USERNAME and EMAIL_PASSWORD secrets to your repository settings."
           echo "To enable Slack notifications, add the SLACK_WEBHOOK_URL secret to your repository settings."
