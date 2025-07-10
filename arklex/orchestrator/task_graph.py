@@ -272,8 +272,11 @@ class TaskGraph(TaskGraphBase):
         )
         log_context.info(f"intent in _get_node: {intent}")
         node_info: dict[str, Any] = self.graph.nodes[sample_node]
-        resource_name: str = node_info["resource"]["name"]
-        resource_id: str = node_info["resource"]["id"]
+        # Handle missing resource gracefully
+        resource_name: str = node_info.get("resource", {}).get(
+            "name", "default_resource"
+        )
+        resource_id: str = node_info.get("resource", {}).get("id", "default_id")
         if intent and intent in params.taskgraph.available_global_intents:
             # delete the corresponding node item from the intent list
             for item in params.taskgraph.available_global_intents.get(intent, []):
@@ -375,10 +378,13 @@ class TaskGraph(TaskGraphBase):
         If current node is unknown, use start node
         """
         curr_node: str | None = params.taskgraph.curr_node
-        if not curr_node or curr_node not in self.graph.nodes:
+        if not curr_node:
             curr_node = self.start_node
         else:
             curr_node = str(curr_node)
+            # Only fallback to start_node if the node is not in the graph
+            if curr_node not in self.graph.nodes:
+                curr_node = self.start_node
         params.taskgraph.curr_node = curr_node
         return curr_node, params
 
@@ -393,10 +399,12 @@ class TaskGraph(TaskGraphBase):
         )
         if not available_global_intents:
             available_global_intents = copy.deepcopy(self.intents)
-            if self.unsure_intent.get("intent") not in available_global_intents:
-                available_global_intents[self.unsure_intent.get("intent")] = [
-                    self.unsure_intent
-                ]
+
+        # Always ensure unsure_intent is present
+        if self.unsure_intent.get("intent") not in available_global_intents:
+            available_global_intents[self.unsure_intent.get("intent")] = [
+                self.unsure_intent
+            ]
         log_context.info(f"Available global intents: {available_global_intents}")
         return available_global_intents
 
@@ -454,8 +462,11 @@ class TaskGraph(TaskGraphBase):
         status: StatusEnum = node_status.get(curr_node, StatusEnum.COMPLETE)
         if status == StatusEnum.STAY:
             node_info: dict[str, Any] = self.graph.nodes[curr_node]
-            resource_name: str = node_info["resource"]["name"]
-            resource_id: str = node_info["resource"]["id"]
+            # Handle missing resource gracefully
+            resource_name: str = node_info.get("resource", {}).get(
+                "name", "default_resource"
+            )
+            resource_id: str = node_info.get("resource", {}).get("id", "default_id")
             node_info = NodeInfo(
                 type=node_info.get("type", ""),
                 node_id=curr_node,
@@ -741,6 +752,8 @@ class TaskGraph(TaskGraphBase):
         """
 
         def is_leaf(node: str) -> bool:
+            if node not in self.graph.nodes:
+                return True  # Consider non-existent nodes as leaf nodes
             return len(list(self.graph.successors(node))) == 0
 
         # if not leaf, return directly current node
@@ -830,6 +843,16 @@ class TaskGraph(TaskGraphBase):
             )
             if is_global_intent_found:
                 return node_output, params
+            # If global intent prediction failed but we have a pred_intent that's not unsure,
+            # try random next node
+            if pred_intent and pred_intent != self.unsure_intent.get("intent"):
+                has_random_next_node: bool
+                node_output: dict[str, Any]
+                has_random_next_node, node_output, params = (
+                    self.handle_random_next_node(curr_node, params)
+                )
+                if has_random_next_node:
+                    return node_output, params
 
         # if current node is incompleted -> return current node
         is_incomplete_node: bool
