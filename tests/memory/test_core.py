@@ -51,9 +51,9 @@ class TestShortTermMemory:
     ) -> ShortTermMemory:
         """Create a ShortTermMemory instance for testing."""
         with (
-            patch("arklex.memory.core.PROVIDER_MAP"),
-            patch("arklex.memory.core.PROVIDER_EMBEDDINGS"),
-            patch("arklex.memory.core.PROVIDER_EMBEDDING_MODELS"),
+            patch("arklex.utils.model_provider_config.PROVIDER_MAP"),
+            patch("arklex.utils.model_provider_config.PROVIDER_EMBEDDINGS"),
+            patch("arklex.utils.model_provider_config.PROVIDER_EMBEDDING_MODELS"),
         ):
             memory = ShortTermMemory(
                 trajectory=mock_trajectory,
@@ -70,10 +70,14 @@ class TestShortTermMemory:
     ) -> None:
         """Test ShortTermMemory initialization."""
         with (
-            patch("arklex.memory.core.PROVIDER_MAP") as mock_provider_map,
-            patch("arklex.memory.core.PROVIDER_EMBEDDINGS") as mock_embeddings,
             patch(
-                "arklex.memory.core.PROVIDER_EMBEDDING_MODELS"
+                "arklex.utils.model_provider_config.PROVIDER_MAP"
+            ) as mock_provider_map,
+            patch(
+                "arklex.utils.model_provider_config.PROVIDER_EMBEDDINGS"
+            ) as mock_embeddings,
+            patch(
+                "arklex.utils.model_provider_config.PROVIDER_EMBEDDING_MODELS"
             ) as mock_embedding_models,
         ):
             mock_provider_map.get.return_value = Mock()
@@ -93,10 +97,14 @@ class TestShortTermMemory:
     def test_initialization_none_values(self, mock_llm_config: LLMConfig) -> None:
         """Test ShortTermMemory initialization with None values."""
         with (
-            patch("arklex.memory.core.PROVIDER_MAP") as mock_provider_map,
-            patch("arklex.memory.core.PROVIDER_EMBEDDINGS") as mock_embeddings,
             patch(
-                "arklex.memory.core.PROVIDER_EMBEDDING_MODELS"
+                "arklex.utils.model_provider_config.PROVIDER_MAP"
+            ) as mock_provider_map,
+            patch(
+                "arklex.utils.model_provider_config.PROVIDER_EMBEDDINGS"
+            ) as mock_embeddings,
+            patch(
+                "arklex.utils.model_provider_config.PROVIDER_EMBEDDING_MODELS"
             ) as mock_embedding_models,
         ):
             mock_provider_map.get.return_value = Mock()
@@ -349,8 +357,8 @@ class TestShortTermMemory:
             # The method is called twice, but the test should expect that
             assert mock_get_embedding.call_count == 2
 
-    @patch("arklex.memory.core.PROVIDER_MAP")
-    @patch("arklex.memory.core.PROVIDER_EMBEDDINGS")
+    @patch("arklex.utils.model_provider_config.PROVIDER_MAP")
+    @patch("arklex.utils.model_provider_config.PROVIDER_EMBEDDINGS")
     def test_chat_history_parsing(
         self,
         mock_provider_embeddings: Mock,

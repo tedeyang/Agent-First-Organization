@@ -2,12 +2,11 @@ import re
 
 from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from langchain_openai import ChatOpenAI
 
 from arklex.env.prompts import load_prompts
 from arklex.utils.graph_state import MessageState, Params, ResourceRecord
 from arklex.utils.logging_utils import LogContext
-from arklex.utils.model_provider_config import PROVIDER_MAP
+from arklex.utils.provider_utils import validate_and_get_model_class
 
 log_context = LogContext(__name__)
 
@@ -138,9 +137,9 @@ def _remove_invalid_links(response: str, links: set) -> str:
 def _rephrase_answer(state: MessageState) -> str:
     """Rephrases the answer using an LLM after link removal."""
     llm_config = state.bot_config.llm_config
-    llm = PROVIDER_MAP.get(llm_config.llm_provider, ChatOpenAI)(
-        model=llm_config.model_type_or_path, temperature=0.1
-    )
+    model_class = validate_and_get_model_class(llm_config)
+
+    llm = model_class(model=llm_config.model_type_or_path, temperature=0.1)
     prompt: PromptTemplate = PromptTemplate.from_template(
         load_prompts(state.bot_config)["regenerate_response"]
     )
@@ -258,9 +257,9 @@ def should_trigger_handoff(state: MessageState) -> bool:
     """
 
     llm_config = state.bot_config.llm_config
-    llm = PROVIDER_MAP.get(llm_config.llm_provider, ChatOpenAI)(
-        model=llm_config.model_type_or_path, temperature=0.1
-    )
+    model_class = validate_and_get_model_class(llm_config)
+
+    llm = model_class(model=llm_config.model_type_or_path, temperature=0.1)
 
     final_chain = llm | StrOutputParser()
     result: str = final_chain.invoke(input_prompt)

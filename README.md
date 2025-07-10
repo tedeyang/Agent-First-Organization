@@ -30,13 +30,21 @@ pip install arklex
 # Create .env file
 echo "OPENAI_API_KEY=your_key_here" > .env
 
+# Test your API keys (recommended)
+python test_api_keys.py
+
 # Create your first agent
 python create.py \
   --config ./examples/customer_service/customer_service_config.json \
-  --output-dir ./examples/customer_service
+  --output-dir ./examples/customer_service \
+  --llm_provider openai \
+  --model gpt-4o
 
 # Run agent
-python run.py --input-dir ./examples/customer_service
+python run.py \
+  --input-dir ./examples/customer_service \
+  --llm_provider openai \
+  --model gpt-4o
 ```
 
 ▶️ **[Watch: Build a Customer Service Agent in 20 Minutes](https://youtu.be/y1P2Ethvy0I)**
@@ -104,15 +112,27 @@ graph TB
 **Requirements:** Python 3.10+, API keys
 
 ```env
-# Required: Choose one LLM provider
+# Required: Choose one or more LLM providers
 OPENAI_API_KEY=your_key_here
 # OR ANTHROPIC_API_KEY=your_key_here
-# OR GEMINI_API_KEY=your_key_here
+# OR GOOGLE_API_KEY=your_key_here
 
 # Optional: Enhanced features
 MILVUS_URI=your_milvus_uri
 MYSQL_USERNAME=your_username
 TAVILY_API_KEY=your_tavily_key
+```
+
+**Testing API Keys:**
+After adding your API keys to the `.env` file, run the test script to verify they work correctly:
+
+```bash
+# Test all configured API keys
+python test_api_keys.py
+
+# Test specific providers only
+python test_api_keys.py --providers openai gemini
+python test_api_keys.py --providers openai anthropic
 ```
 
 ---

@@ -185,18 +185,19 @@ def patched_sample_config(
     mock_aimessage_to_dict: Mock,
 ) -> dict[str, Any]:
     with (
-        patch("arklex.env.planner.react_planner.PROVIDER_MAP", mock_provider_map),
-        patch("arklex.env.planner.react_planner.ChatOpenAI", mock_chat_openai),
+        patch("arklex.utils.model_provider_config.PROVIDER_MAP", mock_provider_map),
+        patch("arklex.utils.model_provider_config.ChatOpenAI", mock_chat_openai),
         patch(
-            "arklex.env.planner.react_planner.PROVIDER_EMBEDDING_MODELS",
+            "arklex.utils.model_provider_config.PROVIDER_EMBEDDING_MODELS",
             mock_embedding_models,
         ),
         patch(
-            "arklex.env.planner.react_planner.PROVIDER_EMBEDDINGS",
+            "arklex.utils.model_provider_config.PROVIDER_EMBEDDINGS",
             mock_provider_embeddings,
         ),
         patch(
-            "arklex.env.planner.react_planner.OpenAIEmbeddings", mock_openai_embeddings
+            "arklex.utils.model_provider_config.OpenAIEmbeddings",
+            mock_openai_embeddings,
         ),
         patch("arklex.env.planner.react_planner.FAISS", mock_faiss),
         patch(
