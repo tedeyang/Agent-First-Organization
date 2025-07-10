@@ -1707,9 +1707,9 @@ class TestBuildUserProfiles:
             # Verify the prompt used contains ADD_ATTRIBUTES_WO_DOC content
             call_args = mock_chatbot.call_args[0][0]
             # Check that it uses the wo_doc prompt (no company_doc field)
-            assert "company_doc" not in call_args
-            assert (
-                "Here is the summary fo the company:" in call_args
+            assert "company_doc" not in str(call_args)
+            assert "Here is the summary of the company:" in str(
+                call_args
             )  # Part of ADD_ATTRIBUTES_WO_DOC
 
             # Verify the result includes both original and new values

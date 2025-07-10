@@ -83,7 +83,10 @@ def test_chatgpt_chatbot_google_provider() -> None:
     ]
 
     # Mock MODEL to use google provider
-    with patch("arklex.evaluation.chatgpt_utils.MODEL", {"llm_provider": "google"}):
+    with patch(
+        "arklex.evaluation.chatgpt_utils.MODEL",
+        {"llm_provider": "google", "model_type_or_path": "gemini-pro"},
+    ):
         result = chatgpt_chatbot(messages, client=mock_client)
 
         assert result == "gemini result"
@@ -108,7 +111,10 @@ def test_chatgpt_chatbot_google_provider_with_system_message() -> None:
     ]
 
     # Mock MODEL to use google provider
-    with patch("arklex.evaluation.chatgpt_utils.MODEL", {"llm_provider": "google"}):
+    with patch(
+        "arklex.evaluation.chatgpt_utils.MODEL",
+        {"llm_provider": "google", "model_type_or_path": "gemini-pro"},
+    ):
         result = chatgpt_chatbot(messages, client=mock_client)
 
         assert result == "gemini result with system"
@@ -121,7 +127,10 @@ def test_chatgpt_chatbot_unsupported_provider() -> None:
     messages = [{"role": "user", "content": "Hello"}]
 
     with (
-        patch("arklex.evaluation.chatgpt_utils.MODEL", {"llm_provider": "unsupported"}),
+        patch(
+            "arklex.evaluation.chatgpt_utils.MODEL",
+            {"llm_provider": "unsupported", "model_type_or_path": "test-model"},
+        ),
         pytest.raises(ValueError, match="Unsupported LLM provider: unsupported"),
     ):
         chatgpt_chatbot(messages, client=mock_client)

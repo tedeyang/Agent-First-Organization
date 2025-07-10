@@ -634,7 +634,10 @@ class TestChatGPTUtils:
         ]
 
         # Mock MODEL to use google provider
-        with patch("arklex.evaluation.chatgpt_utils.MODEL", {"llm_provider": "google"}):
+        with patch(
+            "arklex.evaluation.chatgpt_utils.MODEL",
+            {"llm_provider": "google", "model_type_or_path": "gemini-pro"},
+        ):
             # Execute
             result = chatgpt_chatbot(messages, client=mock_client)
 
@@ -665,7 +668,10 @@ class TestChatGPTUtils:
         ]
 
         # Mock MODEL to use google provider
-        with patch("arklex.evaluation.chatgpt_utils.MODEL", {"llm_provider": "google"}):
+        with patch(
+            "arklex.evaluation.chatgpt_utils.MODEL",
+            {"llm_provider": "google", "model_type_or_path": "gemini-pro"},
+        ):
             # Execute
             result = chatgpt_chatbot(messages, client=mock_client)
 
@@ -687,7 +693,8 @@ class TestChatGPTUtils:
         # Mock MODEL to use unsupported provider
         with (
             patch(
-                "arklex.evaluation.chatgpt_utils.MODEL", {"llm_provider": "unsupported"}
+                "arklex.evaluation.chatgpt_utils.MODEL",
+                {"llm_provider": "unsupported", "model_type_or_path": "test-model"},
             ),
             pytest.raises(ValueError, match="Unsupported LLM provider: unsupported"),
         ):
@@ -921,6 +928,7 @@ class TestChatGPTUtils:
         # Patch MODEL to anthropic
         orig_model = chatgpt_utils.MODEL.copy()
         chatgpt_utils.MODEL["llm_provider"] = "anthropic"
+        chatgpt_utils.MODEL["model_type_or_path"] = "claude-3-sonnet-20240229"
         try:
             result = chatgpt_utils.chatgpt_chatbot(messages, DummyAnthropic())
             assert result == "anthropic result"

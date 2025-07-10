@@ -62,7 +62,9 @@ def create_client() -> OpenAI | anthropic.Anthropic | GenerativeModel:
         import google.generativeai as genai
 
         genai.configure(api_key=get_api_key_for_provider("google"))
-        client = GenerativeModel("gemini-pro")
+        # Use the model from MODEL configuration instead of hardcoding
+        model_name = MODEL.get("model_type_or_path", "gemini-1.5-flash")
+        client = GenerativeModel(model_name)
         return client
 
     elif provider == "anthropic":
@@ -78,7 +80,7 @@ def create_client() -> OpenAI | anthropic.Anthropic | GenerativeModel:
 def chatgpt_chatbot(
     messages: list[dict[str, str]],
     client: OpenAI | anthropic.Anthropic | GenerativeModel,
-    model: str = MODEL["model_type_or_path"],
+    model: str = None,
 ) -> str:
     """Send messages to a language model and get a response.
 
@@ -94,11 +96,21 @@ def chatgpt_chatbot(
     Returns:
         str: The model's response text.
     """
+    # Get model from MODEL config if not provided
+    if model is None:
+        model = MODEL["model_type_or_path"]
+
     provider = MODEL["llm_provider"]
 
     if not provider:
         raise ValueError(
             "llm_provider must be explicitly specified in MODEL configuration"
+        )
+
+    # Ensure model is not empty
+    if not model:
+        raise ValueError(
+            "Model parameter cannot be empty. Please check MODEL configuration."
         )
 
     if provider == "openai":
