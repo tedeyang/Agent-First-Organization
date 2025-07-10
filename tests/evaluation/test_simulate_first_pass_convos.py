@@ -535,6 +535,10 @@ class TestSimulateFirstPassConvos:
 
         # Assert
         assert len(result) == 2
+
+        # Sort results by id to make the test deterministic
+        result.sort(key=lambda x: x["id"])
+
         assert result[0]["id"] == 0
         assert result[0]["profile"] == "profile1"
         assert result[0]["goal"] == "goal1"

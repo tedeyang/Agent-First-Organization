@@ -614,8 +614,9 @@ class TestTaskGraphIntentHandling:
         sample_params.taskgraph.available_global_intents = {"existing_intent": []}
         available_intents = task_graph.get_available_global_intents(sample_params)
         assert "existing_intent" in available_intents
-        # The method should return the existing intents as-is
-        assert len(available_intents) == 1
+        # The method should return the existing intents plus the unsure intent
+        assert len(available_intents) == 2
+        assert "others" in available_intents
 
     def test_update_node_limit(
         self,

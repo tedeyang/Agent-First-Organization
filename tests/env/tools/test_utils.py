@@ -1,6 +1,6 @@
 """Test utilities for the Arklex framework."""
 
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
@@ -185,6 +185,241 @@ class TestToolGenerator:
         assert result == state
         assert state.response == '{"result": "dummy response"}'
         assert state.message_flow == ""
+
+    @patch("arklex.utils.model_provider_config.PROVIDER_MAP")
+    @patch("arklex.env.tools.utils.get_prompt_template")
+    @patch("arklex.env.tools.utils.log_context")
+    @patch("arklex.utils.provider_utils.validate_and_get_model_class")
+    def test_context_generate_without_relevant_records(
+        self,
+        mock_validate_model: Mock,
+        mock_log_context: Mock,
+        mock_get_prompt: Mock,
+        mock_provider_map: Mock,
+    ) -> None:
+        """Test ToolGenerator.context_generate method without relevant_records."""
+        # Setup
+        state = Mock(spec=MessageState)
+        state.bot_config = Mock()
+        state.bot_config.llm_config = Mock()
+        state.bot_config.llm_config.llm_provider = "openai"
+        state.bot_config.llm_config.model_type_or_path = "gpt-3.5-turbo"
+        state.user_message = Mock()
+        state.user_message.history = "test history"
+        state.sys_instruct = "test instruction"
+        state.message_flow = "test flow"
+        state.relevant_records = None  # This is the missing coverage case
+        # Add mock trajectory to prevent AttributeError in trace
+        mock_trajectory_item = Mock()
+        mock_trajectory_item.steps = []
+        state.trajectory = [[mock_trajectory_item]]
+
+        mock_llm = Mock()
+        mock_validate_model.return_value = Mock(return_value=mock_llm)
+
+        mock_prompt = Mock()
+        mock_prompt.invoke.return_value.text = "test prompt"
+        mock_get_prompt.return_value = mock_prompt
+
+        # Create a proper mock chain that returns the expected string
+        mock_chain = Mock()
+        mock_chain.invoke.return_value = "test response"
+        # Mock the __or__ method to return the chain
+        mock_llm.__or__ = Mock(return_value=mock_chain)
+
+        # Execute
+        result = ToolGenerator.context_generate(state)
+
+        # Assert
+        assert result == state
+        assert state.response == '{"result": "dummy response"}'
+        assert state.message_flow == ""
+
+    @patch("arklex.utils.model_provider_config.PROVIDER_MAP")
+    @patch("arklex.env.tools.utils.get_prompt_template")
+    @patch("arklex.env.tools.utils.log_context")
+    @patch("arklex.utils.provider_utils.validate_and_get_model_class")
+    def test_stream_context_generate(
+        self,
+        mock_provider_map: Mock,
+        mock_get_prompt: Mock,
+        mock_log_context: Mock,
+        mock_validate_model: Mock,
+    ) -> None:
+        """Test ToolGenerator.stream_context_generate method."""
+        # Setup
+        state = Mock(spec=MessageState)
+        state.bot_config = Mock()
+        state.bot_config.llm_config = Mock()
+        state.bot_config.llm_config.llm_provider = "openai"
+        state.bot_config.llm_config.model_type_or_path = "gpt-3.5-turbo"
+        state.user_message = Mock()
+        state.user_message.history = "test history"
+        state.sys_instruct = "test instruction"
+        state.message_flow = "test flow"
+        state.relevant_records = [
+            Mock(
+                info="test info",
+                personalized_intent="test intent",
+                output="test output",
+                steps=[{"step1": "value1", "step2": "value2"}],
+            )
+        ]
+        state.message_queue = Mock()
+        # Add mock trajectory to prevent AttributeError in trace
+        mock_trajectory_item = Mock()
+        mock_trajectory_item.steps = []
+        state.trajectory = [[mock_trajectory_item]]
+
+        # Create a proper mock LLM that can handle the __or__ operation
+        mock_llm = Mock()
+        mock_validate_model.return_value = Mock(return_value=mock_llm)
+
+        mock_prompt = Mock()
+        mock_prompt.invoke.return_value.text = "test prompt"
+        mock_get_prompt.return_value = mock_prompt
+
+        # Patch RunnableSequence.stream to return our mock iterator
+        with patch(
+            "langchain_core.runnables.base.RunnableSequence.stream",
+            return_value=iter(["chunk1", "chunk2", "chunk3"]),
+        ):
+            # Execute
+            result = ToolGenerator.stream_context_generate(state)
+
+        # Assert
+        assert result == state
+        assert state.response == "chunk1chunk2chunk3"
+        assert state.message_flow == ""
+        assert state.message_queue.put.call_count == 3
+
+    @patch("arklex.env.tools.utils.StrOutputParser")
+    @patch("arklex.utils.model_provider_config.PROVIDER_MAP")
+    @patch("arklex.env.tools.utils.get_prompt_template")
+    @patch("arklex.env.tools.utils.log_context")
+    @patch("arklex.utils.provider_utils.validate_and_get_model_class")
+    def test_stream_context_generate_without_relevant_records(
+        self,
+        mock_validate_model: Mock,
+        mock_log_context: Mock,
+        mock_get_prompt: Mock,
+        mock_provider_map: Mock,
+        mock_str_output_parser: Mock,
+    ) -> None:
+        """Test ToolGenerator.stream_context_generate method without relevant_records."""
+        # Setup
+        state = Mock(spec=MessageState)
+        state.bot_config = Mock()
+        state.bot_config.llm_config = Mock()
+        state.bot_config.llm_config.llm_provider = "openai"
+        state.bot_config.llm_config.model_type_or_path = "gpt-3.5-turbo"
+        state.user_message = Mock()
+        state.user_message.history = "test history"
+        state.sys_instruct = "test instruction"
+        state.message_flow = "test flow"
+        state.relevant_records = None
+        state.message_queue = Mock()
+        mock_trajectory_item = Mock()
+        mock_trajectory_item.steps = []
+        state.trajectory = [[mock_trajectory_item]]
+
+        # Create a proper mock LLM that can handle the __or__ operation
+        mock_llm = Mock()
+        mock_validate_model.return_value = Mock(return_value=mock_llm)
+        mock_prompt = Mock()
+        mock_prompt.invoke.return_value.text = "test prompt"
+        mock_get_prompt.return_value = mock_prompt
+        mock_str_output_parser.return_value = Mock()
+
+        # Patch RunnableSequence.stream to return our mock iterator
+        with patch(
+            "langchain_core.runnables.base.RunnableSequence.stream",
+            return_value=iter(["chunk1", "chunk2"]),
+        ):
+            result = ToolGenerator.stream_context_generate(state)
+        assert result == state
+        assert state.response == "chunk1chunk2"
+        assert state.message_flow == ""
+        assert state.message_queue.put.call_count == 2
+
+    @patch("arklex.utils.provider_utils.validate_and_get_model_class")
+    @patch("arklex.env.tools.utils.log_context")
+    @patch("arklex.env.tools.utils.get_prompt_template")
+    @patch("arklex.utils.model_provider_config.PROVIDER_MAP")
+    def test_stream_generate(
+        self,
+        mock_provider_map: Mock,
+        mock_get_prompt: Mock,
+        mock_log_context: Mock,
+        mock_validate_model: Mock,
+    ) -> None:
+        """Test ToolGenerator.stream_generate method."""
+        state = Mock(spec=MessageState)
+        state.bot_config = Mock()
+        state.bot_config.llm_config = Mock()
+        state.bot_config.llm_config.llm_provider = "openai"
+        state.bot_config.llm_config.model_type_or_path = "gpt-3.5-turbo"
+        state.user_message = Mock()
+        state.user_message.history = "test history"
+        state.sys_instruct = "test instruction"
+        state.message_queue = Mock()
+        mock_llm = MagicMock()
+        mock_validate_model.return_value = Mock(return_value=mock_llm)
+        mock_prompt = Mock()
+        mock_prompt.invoke.return_value.text = "test prompt"
+        mock_get_prompt.return_value = mock_prompt
+        # Patch RunnableSequence.stream to return our mock iterator
+        with patch(
+            "langchain_core.runnables.base.RunnableSequence.stream",
+            return_value=iter(["chunk1", "chunk2", "chunk3"]),
+        ):
+            from arklex.env.tools import utils as utils_mod
+
+            result = utils_mod.ToolGenerator.stream_generate(state)
+            assert result == state
+            assert state.response == "chunk1chunk2chunk3"
+            assert state.message_queue.put.call_count == 3
+
+    @patch("arklex.env.tools.utils.StrOutputParser")
+    @patch("arklex.utils.model_provider_config.PROVIDER_MAP")
+    @patch("arklex.env.tools.utils.get_prompt_template")
+    @patch("arklex.env.tools.utils.log_context")
+    @patch("arklex.utils.provider_utils.validate_and_get_model_class")
+    def test_stream_generate_empty_stream(
+        self,
+        mock_validate_model: Mock,
+        mock_log_context: Mock,
+        mock_get_prompt: Mock,
+        mock_provider_map: Mock,
+        mock_str_output_parser: Mock,
+    ) -> None:
+        """Test ToolGenerator.stream_generate method with empty stream."""
+        state = Mock(spec=MessageState)
+        state.bot_config = Mock()
+        state.bot_config.llm_config = Mock()
+        state.bot_config.llm_config.llm_provider = "openai"
+        state.bot_config.llm_config.model_type_or_path = "gpt-3.5-turbo"
+        state.user_message = Mock()
+        state.user_message.history = "test history"
+        state.sys_instruct = "test instruction"
+        state.message_queue = Mock()
+        # Create a proper mock LLM that can handle the __or__ operation
+        mock_llm = Mock()
+        mock_validate_model.return_value = Mock(return_value=mock_llm)
+        mock_prompt = Mock()
+        mock_prompt.invoke.return_value.text = "test prompt"
+        mock_get_prompt.return_value = mock_prompt
+        mock_str_output_parser.return_value = Mock()
+
+        # Patch RunnableSequence.stream to return our mock iterator
+        with patch(
+            "langchain_core.runnables.base.RunnableSequence.stream",
+            return_value=iter([]),
+        ):
+            result = ToolGenerator.stream_generate(state)
+        assert result == state
+        assert state.response == ""
+        assert state.message_queue.put.call_count == 0
 
 
 class TestTrace:

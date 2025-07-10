@@ -183,13 +183,17 @@ class AgentOrg:
         if self.env.planner:
             self.env.planner.set_llm_config_and_build_resource_library(self.llm_config)
         # Extra configuration settings
-        self.settings = self.task_graph.product_kwargs.get("settings", {})
+        self.settings = self.task_graph.product_kwargs.get("settings", {}) or {}
         # HITL settings
         self.hitl_worker_available = any(
             worker.get("name") == "HITLWorkerChatFlag"
-            for worker in self.task_graph.product_kwargs["workers"]
+            for worker in self.task_graph.product_kwargs.get("workers", [])
         )
-        self.hitl_proposal_enabled = self.settings.get("hitl_proposal") is True
+        self.hitl_proposal_enabled = (
+            self.settings.get("hitl_proposal") is True
+            if self.settings and isinstance(self.settings, dict)
+            else False
+        )
 
     def init_params(
         self, inputs: dict[str, Any]
