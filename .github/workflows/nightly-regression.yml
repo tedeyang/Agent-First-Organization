@@ -129,8 +129,8 @@ jobs:
         with:
           server_address: smtp.gmail.com
           server_port: 587
-          username: ${{ secrets.EMAIL_USERNAME }}
-          password: ${{ secrets.EMAIL_PASSWORD }}
+          username: ${{ secrets.CHRISTIAN_EMAIL_USERNAME }}
+          password: ${{ secrets.CHRISTIAN_EMAIL_PASSWORD_FOR_GITHUB_ACTION }}
           subject: "❌ Nightly Regression Tests Failed - Arklex AI"
           to: alerts@arklex.ai
           from: GitHub Actions
