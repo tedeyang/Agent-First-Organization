@@ -57,6 +57,22 @@ python run.py --input-dir ./examples/customer_service --model <MODEL> --llm_prov
 
 **Note:** For Hugging Face models, you may need to request access to specific models via the Hugging Face website.
 
+## Evaluation
+
+For evaluation and testing, you can also use the model API server:
+
+1. First, start the model API server (defaults to OpenAI with "gpt-4o-mini" model):
+
+```bash
+python model_api.py --input-dir ./examples/customer_service
+```
+
+2. Then run evaluation (in a separate terminal):
+
+```bash
+python eval.py --model_api http://127.0.0.1:8000/eval/chat --config "examples/customer_service/customer_service_config.json" --documents_dir "examples/customer_service" --model "claude-3-haiku-20240307" --llm_provider "anthropic" --task "all"
+```
+
 ## Sample Conversation
 
 Run the bot with:
