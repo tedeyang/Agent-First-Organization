@@ -169,11 +169,13 @@ class OpenAIAgent(BaseAgent):
         """
         for node in predecessors:
             if node.type == "tool":
-                self.available_tools[
-                    f"{node.resource_id}_{node.attributes['task'].replace(' ', '_')}"
+                tool_id = (
+                    f"{node.resource_id}_{node.attributes['task']}"
                     if node.attributes.get("task")
                     else node.resource_id
-                ] = (tools[node.resource_id], node)
+                )
+                tool_id = tool_id.replace(" ", "_").replace("/", "_")
+                self.available_tools[tool_id] = (tools[node.resource_id], node)
 
     def _configure_tools(self) -> None:
         """
