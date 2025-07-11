@@ -155,8 +155,8 @@ class OpenAIAgent(BaseAgent):
     def _execute(self, msg_state: MessageState, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         model_class = validate_and_get_model_class(msg_state.bot_config.llm_config)
 
-        llm = model_class(model=msg_state.bot_config.llm_config.model_type_or_path)
-        llm = llm.bind_tools(self.tool_defs)
+        self.llm = model_class(model=msg_state.bot_config.llm_config.model_type_or_path)
+        self.llm = self.llm.bind_tools(self.tool_defs)
         self.prompt: str = kwargs.get("prompt", "")
         graph = self.action_graph.compile()
         result = graph.invoke(msg_state)
