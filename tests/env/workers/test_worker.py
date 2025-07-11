@@ -10,8 +10,7 @@ import pytest
 
 from arklex.env.workers.worker import BaseWorker, WorkerKwargs, register_worker
 from arklex.memory.entities.memory_entities import ResourceRecord
-from arklex.orchestrator.entities.msg_state_entities import StatusEnum
-from arklex.orchestrator.entities.orch_entities import MessageState
+from arklex.orchestrator.entities.msg_state_entities import MessageState, StatusEnum
 
 
 class TestRegisterWorkerDecorator:

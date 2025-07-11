@@ -4,11 +4,8 @@ import pytest
 
 from arklex.env.env import DefaultResourceInitializer, Environment
 from arklex.env.planner.react_planner import ReactPlanner
-from arklex.orchestrator.entities.orch_entities import (
-    MessageState,
-    Params,
-    StatusEnum,
-)
+from arklex.orchestrator.entities.msg_state_entities import MessageState, StatusEnum
+from arklex.orchestrator.entities.orchestrator_params_entities import OrchestratorParams
 from arklex.orchestrator.entities.taskgraph_entities import NodeInfo
 from arklex.orchestrator.NLU.core.slot import SlotFiller
 from arklex.orchestrator.NLU.services.model_service import DummyModelService
@@ -84,7 +81,7 @@ def test_environment_step_tool_executes_and_updates_params() -> None:
         env = Environment(tools=tools, workers=[], agents=[])
 
         # Setup params and state
-        class DummyParams:
+        class DummyOrchestratorParams:
             memory = MagicMock()
             taskgraph = MagicMock()
             taskgraph.dialog_states = {}
@@ -95,7 +92,7 @@ def test_environment_step_tool_executes_and_updates_params() -> None:
             additional_args = {"foo": "bar"}
 
         state = MagicMock()
-        params = DummyParams()
+        params = DummyOrchestratorParams()
         node_info = DummyNodeInfo()
         env.tools["t1"]["fixed_args"] = {"baz": 1}
         result_state, result_params = env.step("t1", state, params, node_info)
@@ -108,7 +105,7 @@ def test_environment_step_invalid_id_raises() -> None:
     # The step method doesn't raise KeyError for invalid IDs, it falls back to planner
     # So we should test that it doesn't raise an exception
     message_state = MessageState()
-    params = Params()
+    params = OrchestratorParams()
     node_info = NodeInfo()
 
     # This should not raise an exception, it should use the planner
@@ -116,7 +113,7 @@ def test_environment_step_invalid_id_raises() -> None:
         "not_a_tool", message_state, params, node_info
     )
     assert isinstance(response_state, MessageState)
-    assert isinstance(updated_params, Params)
+    assert isinstance(updated_params, OrchestratorParams)
 
 
 def test_environment_step_worker_executes_and_updates_params() -> None:
@@ -134,7 +131,7 @@ def test_environment_step_worker_executes_and_updates_params() -> None:
     }
     env.id2name = {"worker1": "test_worker"}
     message_state = MessageState()
-    params = Params()
+    params = OrchestratorParams()
     params.memory.function_calling_trajectory = []
     params.taskgraph.curr_node = "node1"
     node_info = NodeInfo()
@@ -161,7 +158,7 @@ def test_environment_step_worker_without_init_slotfilling() -> None:
     }
     env.id2name = {"worker1": "test_worker"}
     message_state = MessageState()
-    params = Params()
+    params = OrchestratorParams()
     params.memory.function_calling_trajectory = []
     params.taskgraph.curr_node = "node1"
     node_info = NodeInfo()
@@ -186,7 +183,7 @@ def test_environment_step_worker_with_response_content() -> None:
     }
     env.id2name = {"worker1": "test_worker"}
     message_state = MessageState()
-    params = Params()
+    params = OrchestratorParams()
     params.memory.function_calling_trajectory = []
     params.taskgraph.curr_node = "node1"
     node_info = NodeInfo()
@@ -216,7 +213,7 @@ def test_environment_step_worker_with_message_flow() -> None:
     }
     env.id2name = {"worker1": "test_worker"}
     message_state = MessageState()
-    params = Params()
+    params = OrchestratorParams()
     params.memory.function_calling_trajectory = []
     params.taskgraph.curr_node = "node1"
     node_info = NodeInfo()
@@ -238,7 +235,7 @@ def test_environment_step_planner_executes() -> None:
     env = Environment(tools=[], workers=[], agents=[])
     env.planner = mock_planner
     message_state = MessageState()
-    params = Params()
+    params = OrchestratorParams()
     params.memory.function_calling_trajectory = []
     node_info = NodeInfo()
     result_state, result_params = env.step(
@@ -274,7 +271,7 @@ def test_environment_step_agent_executes() -> None:
     env.id2name = {"agent1": "test_agent"}
 
     message_state = MessageState()
-    params = Params()
+    params = OrchestratorParams()
     params.memory.function_calling_trajectory = []
     params.taskgraph.curr_node = "node1"
     params.taskgraph.node_status = {}
@@ -346,7 +343,7 @@ def test_environment_step_agent_with_empty_additional_args() -> None:
     env.agents = {"agent1": {"name": "test_agent", "execute": mock_agent_class}}
 
     message_state = MessageState()
-    params = Params()
+    params = OrchestratorParams()
     params.memory.function_calling_trajectory = []
     params.taskgraph.curr_node = "node1"
     params.taskgraph.node_status = {}
