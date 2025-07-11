@@ -49,7 +49,7 @@ import numpy as np
 
 from arklex.env.nested_graph.nested_graph import NestedGraph
 from arklex.orchestrator.entities.msg_state_entities import LLMConfig, StatusEnum
-from arklex.orchestrator.entities.orch_entities import Params
+from arklex.orchestrator.entities.orchestrator_params_entities import OrchestratorParams
 from arklex.orchestrator.entities.taskgraph_entities import NodeInfo, PathNode
 from arklex.orchestrator.NLU.core.intent import IntentDetector
 from arklex.orchestrator.NLU.core.slot import SlotFiller
@@ -264,8 +264,8 @@ class TaskGraph(TaskGraphBase):
         )
 
     def _get_node(
-        self, sample_node: str, params: Params, intent: str | None = None
-    ) -> tuple[NodeInfo, Params]:
+        self, sample_node: str, params: OrchestratorParams, intent: str | None = None
+    ) -> tuple[NodeInfo, OrchestratorParams]:
         """
         Get the output format (NodeInfo, Params) that get_node should return
         """
@@ -374,7 +374,9 @@ class TaskGraph(TaskGraphBase):
             found_pred_in_avil = True
         return found_pred_in_avil, real_intent, idx
 
-    def get_current_node(self, params: Params) -> tuple[str, Params]:
+    def get_current_node(
+        self, params: OrchestratorParams
+    ) -> tuple[str, OrchestratorParams]:
         """
         Get current node
         If current node is unknown, use start node
@@ -391,7 +393,7 @@ class TaskGraph(TaskGraphBase):
         return curr_node, params
 
     def get_available_global_intents(
-        self, params: Params
+        self, params: OrchestratorParams
     ) -> dict[str, list[dict[str, Any]]]:
         """
         Get available global intents
@@ -410,7 +412,7 @@ class TaskGraph(TaskGraphBase):
         log_context.info(f"Available global intents: {available_global_intents}")
         return available_global_intents
 
-    def update_node_limit(self, params: Params) -> Params:
+    def update_node_limit(self, params: OrchestratorParams) -> OrchestratorParams:
         """
         Update the node_limit in params which will be used to check if we can skip the node or not
         """
@@ -424,7 +426,7 @@ class TaskGraph(TaskGraphBase):
         return params
 
     def get_local_intent(
-        self, curr_node: str, params: Params
+        self, curr_node: str, params: OrchestratorParams
     ) -> dict[str, list[dict[str, Any]]]:
         """
         Get the local intent of a current node
@@ -442,7 +444,7 @@ class TaskGraph(TaskGraphBase):
         log_context.info(f"Current local intent: {candidates_intents}")
         return dict(candidates_intents)
 
-    def get_last_flow_stack_node(self, params: Params) -> PathNode | None:
+    def get_last_flow_stack_node(self, params: OrchestratorParams) -> PathNode | None:
         """
         Get the last flow stack node from path
         """
@@ -454,8 +456,8 @@ class TaskGraph(TaskGraphBase):
         return None
 
     def handle_multi_step_node(
-        self, curr_node: str, params: Params
-    ) -> tuple[bool, NodeInfo, Params]:
+        self, curr_node: str, params: OrchestratorParams
+    ) -> tuple[bool, NodeInfo, OrchestratorParams]:
         """
         In case of a node having status == STAY, returned directly the same node
         """
@@ -509,8 +511,8 @@ class TaskGraph(TaskGraphBase):
         return False, NodeInfo(), params
 
     def handle_incomplete_node(
-        self, curr_node: str, params: Params
-    ) -> tuple[bool, dict[str, Any], Params]:
+        self, curr_node: str, params: OrchestratorParams
+    ) -> tuple[bool, dict[str, Any], OrchestratorParams]:
         """
         If node is incomplete, return directly the node
         """
@@ -530,10 +532,10 @@ class TaskGraph(TaskGraphBase):
     def global_intent_prediction(
         self,
         curr_node: str,
-        params: Params,
+        params: OrchestratorParams,
         available_global_intents: dict[str, list[dict[str, Any]]],
         excluded_intents: dict[str, Any],
-    ) -> tuple[bool, str | None, dict[str, Any], Params]:
+    ) -> tuple[bool, str | None, dict[str, Any], OrchestratorParams]:
         """
         Do global intent prediction
         """
@@ -619,8 +621,8 @@ class TaskGraph(TaskGraphBase):
         return False, pred_intent, {}, params
 
     def handle_random_next_node(
-        self, curr_node: str, params: Params
-    ) -> tuple[bool, dict[str, Any], Params]:
+        self, curr_node: str, params: OrchestratorParams
+    ) -> tuple[bool, dict[str, Any], OrchestratorParams]:
         candidate_samples: list[str] = []
         candidates_nodes_weights: list[float] = []
         for out_edge in self.graph.out_edges(curr_node, data=True):
@@ -660,9 +662,9 @@ class TaskGraph(TaskGraphBase):
     def local_intent_prediction(
         self,
         curr_node: str,
-        params: Params,
+        params: OrchestratorParams,
         curr_local_intents: dict[str, list[dict[str, Any]]],
-    ) -> tuple[bool, dict[str, Any], Params]:
+    ) -> tuple[bool, dict[str, Any], OrchestratorParams]:
         """
         Do local intent prediction
         """
@@ -715,8 +717,8 @@ class TaskGraph(TaskGraphBase):
         return False, {}, params
 
     def handle_unknown_intent(
-        self, curr_node: str, params: Params
-    ) -> tuple[NodeInfo, Params]:
+        self, curr_node: str, params: OrchestratorParams
+    ) -> tuple[NodeInfo, OrchestratorParams]:
         """
         If unknown intent, call planner
         """
@@ -747,7 +749,9 @@ class TaskGraph(TaskGraphBase):
         )
         return node_info, params
 
-    def handle_leaf_node(self, curr_node: str, params: Params) -> tuple[str, Params]:
+    def handle_leaf_node(
+        self, curr_node: str, params: OrchestratorParams
+    ) -> tuple[str, OrchestratorParams]:
         """
         if leaf node, first check if it's in a nested graph
         if not in nested graph, check if we have flow stack
@@ -781,13 +785,13 @@ class TaskGraph(TaskGraphBase):
 
         return curr_node, params
 
-    def get_node(self, inputs: dict[str, Any]) -> tuple[NodeInfo, Params]:
+    def get_node(self, inputs: dict[str, Any]) -> tuple[NodeInfo, OrchestratorParams]:
         """
         Get the next node
         """
         self.text: str = inputs["text"]
         self.chat_history_str: str = inputs["chat_history_str"]
-        params: Params = inputs["parameters"]
+        params: OrchestratorParams = inputs["parameters"]
         # boolean to check if we allow global intent switch or not.
         allow_global_intent_switch: bool = inputs["allow_global_intent_switch"]
         params.taskgraph.nlu_records = []
@@ -921,10 +925,10 @@ class TaskGraph(TaskGraphBase):
         return node_output, params
 
     def postprocess_node(
-        self, node: tuple[NodeInfo, Params]
-    ) -> tuple[NodeInfo, Params]:
+        self, node: tuple[NodeInfo, OrchestratorParams]
+    ) -> tuple[NodeInfo, OrchestratorParams]:
         node_info: NodeInfo = node[0]
-        params: Params = node[1]
+        params: OrchestratorParams = node[1]
         # TODO: future node postprocessing
         return node_info, params
 

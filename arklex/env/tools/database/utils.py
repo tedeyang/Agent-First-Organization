@@ -210,6 +210,10 @@ class DatabaseActions:
                 msg_state.message_flow = self.slot_prompts[0]
             else:
                 msg_state.message_flow = MULTIPLE_SHOWS_MESSAGE
+        elif not self.slots or not any(slot.confirmed for slot in self.slots):
+            # No specific show information provided
+            msg_state.status = StatusEnum.INCOMPLETE
+            msg_state.message_flow = "Please provide specific show information to book."
         else:
             column_names: list[str] = [column[0] for column in cursor.description]
             results: dict[str, Any] = dict(zip(column_names, rows[0], strict=False))
@@ -296,14 +300,15 @@ class DatabaseActions:
             cursor.execute(
                 """DELETE FROM booking WHERE show_id = ?
             """,
-                (show["id"],),
+                (show["show_id"],),
             )
+            conn.commit()
             # Respond to user the cancellation
             results_df: pd.DataFrame = pd.DataFrame(results)
+            msg_state.status = StatusEnum.COMPLETE
             msg_state.message_flow = "The cancelled show is:\n" + results_df.to_string(
                 index=False
             )
-        msg_state.status = StatusEnum.COMPLETE
         cursor.close()
         conn.close()
         return msg_state

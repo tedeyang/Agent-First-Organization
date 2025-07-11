@@ -33,6 +33,9 @@ class DataBaseWorker(BaseWorker):
 
             model_config = MODEL
 
+        # Store the model_config for access by tests
+        self.model_config = model_config
+
         # Initialize LLM with provided configuration
         from arklex.utils.model_provider_config import PROVIDER_MAP
 

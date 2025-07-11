@@ -73,11 +73,12 @@ from arklex.orchestrator.entities.msg_state_entities import (
     BotConfig,
     ConvoMessage,
     LLMConfig,
+    MessageState,
     OrchestratorMessage,
     OrchestratorResp,
     StatusEnum,
 )
-from arklex.orchestrator.entities.orch_entities import MessageState, Params
+from arklex.orchestrator.entities.orchestrator_params_entities import OrchestratorParams
 from arklex.orchestrator.entities.taskgraph_entities import (
     NodeInfo,
     NodeTypeEnum,
@@ -197,7 +198,7 @@ class AgentOrg:
 
     def init_params(
         self, inputs: dict[str, Any]
-    ) -> tuple[str, str, Params, MessageState]:
+    ) -> tuple[str, str, OrchestratorParams, MessageState]:
         """Initialize parameters for a new conversation turn.
 
         This function processes the input text, chat history, and parameters to initialize
@@ -208,7 +209,7 @@ class AgentOrg:
             inputs (Dict[str, Any]): Dictionary containing text, chat history, and parameters.
 
         Returns:
-            Tuple[str, str, Params, MessageState]: A tuple containing the processed text,
+            Tuple[str, str, OrchestratorParams, MessageState]: A tuple containing the processed text,
                 formatted chat history, updated parameters, and new message state.
         """
         text: str = inputs["text"]
@@ -216,11 +217,11 @@ class AgentOrg:
         input_params: dict[str, Any] | None = inputs["parameters"]
 
         # Create base params with defaults
-        params: Params = Params()
+        params: OrchestratorParams = OrchestratorParams()
 
         # Update with any provided values
         if input_params:
-            params = Params.model_validate(input_params)
+            params = OrchestratorParams.model_validate(input_params)
 
         # Update specific fields
         chat_history_copy: list[dict[str, str]] = copy.deepcopy(chat_history)
@@ -267,7 +268,7 @@ class AgentOrg:
 
         Args:
             node_info (NodeInfo): Information about the current node.
-            params (Params): Current parameters and state of the conversation.
+            params (OrchestratorParams): Current parameters and state of the conversation.
 
         Returns:
             bool: True if the node can be skipped, False otherwise.
@@ -305,8 +306,11 @@ Answer with only 'yes' or 'no'"""
             return False
 
     def post_process_node(
-        self, node_info: NodeInfo, params: Params, update_info: dict[str, Any] = None
-    ) -> Params:
+        self,
+        node_info: NodeInfo,
+        params: OrchestratorParams,
+        update_info: dict[str, Any] = None,
+    ) -> OrchestratorParams:
         """Process a node after its execution.
 
         This function updates the task graph path with the current node's information,
@@ -315,12 +319,12 @@ Answer with only 'yes' or 'no'"""
 
         Args:
             node_info (NodeInfo): Information about the current node.
-            params (Params): Current parameters and state of the conversation.
+            params (OrchestratorParams): Current parameters and state of the conversation.
             update_info (Dict[str, Any], optional): Additional information about the node's execution.
                 Defaults to an empty dictionary.
 
         Returns:
-            Params: Updated parameters after processing the node.
+            OrchestratorParams: Updated parameters after processing the node.
         """
         if update_info is None:
             update_info = {}
@@ -341,8 +345,8 @@ Answer with only 'yes' or 'no'"""
         return params
 
     def handl_direct_node(
-        self, node_info: NodeInfo, params: Params
-    ) -> tuple[bool, OrchestratorResp | None, Params]:
+        self, node_info: NodeInfo, params: OrchestratorParams
+    ) -> tuple[bool, OrchestratorResp | None, OrchestratorParams]:
         """Handle a direct response node in the task graph.
 
         This function processes nodes that are configured to return direct responses,
@@ -351,10 +355,10 @@ Answer with only 'yes' or 'no'"""
 
         Args:
             node_info (NodeInfo): Information about the current node.
-            params (Params): Current parameters and state of the conversation.
+            params (OrchestratorParams): Current parameters and state of the conversation.
 
         Returns:
-            Tuple[bool, Optional[OrchestratorResp], Params]: A tuple containing a boolean
+            Tuple[bool, Optional[OrchestratorResp], OrchestratorParams]: A tuple containing a boolean
                 indicating if a direct response was handled, the response if applicable,
                 and updated parameters.
         """
@@ -377,12 +381,12 @@ Answer with only 'yes' or 'no'"""
         self,
         message_state: MessageState,
         node_info: NodeInfo,
-        params: Params,
+        params: OrchestratorParams,
         text: str,
         chat_history_str: str,
         stream_type: StreamType | None,
         message_queue: janus.SyncQueue | None,
-    ) -> tuple[NodeInfo, MessageState, Params]:
+    ) -> tuple[NodeInfo, MessageState, OrchestratorParams]:
         """Execute a node in the task graph.
 
         This function processes a node in the task graph, handling nested graph nodes,
@@ -392,14 +396,14 @@ Answer with only 'yes' or 'no'"""
         Args:
             message_state (MessageState): Current state of the conversation.
             node_info (NodeInfo): Information about the current node.
-            params (Params): Current parameters and state of the conversation.
+            params (OrchestratorParams): Current parameters and state of the conversation.
             text (str): The current user message.
             chat_history_str (str): Formatted chat history.
             stream_type (Optional[StreamType]): Type of stream for the response.
             message_queue (Optional[janus.SyncQueue]): Queue for streaming messages.
 
         Returns:
-            Tuple[NodeInfo, MessageState, Params]: A tuple containing updated node information,
+            Tuple[NodeInfo, MessageState, OrchestratorParams]: A tuple containing updated node information,
                 message state, and parameters.
         """
         # Tool/Worker
@@ -447,8 +451,8 @@ Answer with only 'yes' or 'no'"""
         return node_info, response_state, params
 
     def handle_nested_graph_node(
-        self, node_info: NodeInfo, params: Params
-    ) -> tuple[NodeInfo, Params]:
+        self, node_info: NodeInfo, params: OrchestratorParams
+    ) -> tuple[NodeInfo, OrchestratorParams]:
         """Handle a nested graph node in the task graph.
 
         This function processes nodes that represent nested graphs, updating the current node
@@ -457,10 +461,10 @@ Answer with only 'yes' or 'no'"""
 
         Args:
             node_info (NodeInfo): Information about the current node.
-            params (Params): Current parameters and state of the conversation.
+            params (OrchestratorParams): Current parameters and state of the conversation.
 
         Returns:
-            Tuple[NodeInfo, Params]: A tuple containing updated node information and parameters.
+            Tuple[NodeInfo, OrchestratorParams]: A tuple containing updated node information and parameters.
         """
         if node_info.resource_id != NESTED_GRAPH_ID:
             return node_info, params
@@ -508,7 +512,7 @@ Answer with only 'yes' or 'no'"""
         """
         text: str
         chat_history_str: str
-        params: Params
+        params: OrchestratorParams
         message_state: MessageState
         text, chat_history_str, params, message_state = self.init_params(inputs)
         # TaskGraph Chain

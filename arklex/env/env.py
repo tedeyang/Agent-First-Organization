@@ -15,7 +15,8 @@ from arklex.env.agents.agent import BaseAgent
 from arklex.env.planner.react_planner import DefaultPlanner, ReactPlanner
 from arklex.env.tools.tools import Tool
 from arklex.env.workers.worker import BaseWorker
-from arklex.orchestrator.entities.orch_entities import MessageState, Params
+from arklex.orchestrator.entities.msg_state_entities import MessageState
+from arklex.orchestrator.entities.orchestrator_params_entities import OrchestratorParams
 from arklex.orchestrator.entities.taskgraph_entities import NodeInfo
 from arklex.orchestrator.NLU.core.slot import SlotFiller
 from arklex.orchestrator.NLU.services.api_service import APIClientService
@@ -311,8 +312,12 @@ class Environment:
             return SlotFiller(model_service=self.model_service)
 
     def step(
-        self, id: str, message_state: MessageState, params: Params, node_info: NodeInfo
-    ) -> tuple[MessageState, Params]:
+        self,
+        id: str,
+        message_state: MessageState,
+        params: OrchestratorParams,
+        node_info: NodeInfo,
+    ) -> tuple[MessageState, OrchestratorParams]:
         """Execute a step in the environment.
 
         Args:

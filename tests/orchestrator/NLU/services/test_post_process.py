@@ -3,8 +3,8 @@ from unittest.mock import Mock, patch
 import pytest
 
 from arklex.memory.entities.memory_entities import ResourceRecord
-from arklex.orchestrator.entities.msg_state_entities import Metadata
-from arklex.orchestrator.entities.orch_entities import MessageState, Params
+from arklex.orchestrator.entities.msg_state_entities import MessageState, Metadata
+from arklex.orchestrator.entities.orchestrator_params_entities import OrchestratorParams
 from arklex.orchestrator.post_process import (
     RAG_NODES_STEPS,
     TRIGGER_LIVE_CHAT_PROMPT,
@@ -40,7 +40,7 @@ def mock_message_state() -> Mock:
 
 @pytest.fixture
 def mock_params() -> Mock:
-    return Mock(spec=Params)
+    return Mock(spec=OrchestratorParams)
 
 
 @pytest.fixture
