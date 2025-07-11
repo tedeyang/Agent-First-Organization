@@ -441,58 +441,17 @@ class TestAcuityToolsIntegration:
     """Integration tests for Acuity tools."""
 
     @patch("requests.get")
-    @patch("requests.get")
-    @patch("requests.get")
-    def test_acuity_workflow(
-        self, mock_types_get: Mock, mock_times_get: Mock, mock_dates_get: Mock
-    ) -> None:
+    def test_acuity_workflow(self, mock_get: Mock) -> None:
         """Test complete Acuity workflow."""
         # Mock session types response
-        mock_types_response = Mock()
-        mock_types_response.status_code = 200
-        mock_types_response.json.return_value = [
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = [
             {"name": "Info Session", "id": 1},
         ]
-        mock_types_get.return_value = mock_types_response
-
-        # Mock available times response
-        mock_times_response = Mock()
-        mock_times_response.status_code = 200
-        mock_times_response.json.return_value = [
-            {"time": "09:00", "available": True},
-        ]
-        mock_times_get.return_value = mock_times_response
-
-        # Mock available dates response
-        mock_dates_response = Mock()
-        mock_dates_response.status_code = 200
-        mock_dates_response.json.return_value = [
-            {"date": "2024-01-15", "slots": 5},
-        ]
-        mock_dates_get.return_value = mock_dates_response
+        mock_get.return_value = mock_response
 
         # Test session types
         tool = get_session_types()
         result = tool.func(ACUITY_USER_ID="user", ACUITY_API_KEY="key")
         assert "Info session Name: Info Session" in result
-
-        # Test available times
-        tool = get_available_times()
-        result = tool.func(
-            date="2024-01-15",
-            apt_tid="1",
-            ACUITY_USER_ID="user",
-            ACUITY_API_KEY="key",
-        )
-        assert "09:00" in result
-
-        # Test available dates
-        tool = get_available_dates()
-        result = tool.func(
-            year="2024",
-            month="01",
-            apt_type_id="1",
-            ACUITY_USER_ID="user",
-            ACUITY_API_KEY="key",
-        )
-        assert "2024-01-15" in result

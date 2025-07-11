@@ -32,7 +32,14 @@ class TestDataBaseWorkerInitialization:
                 mock_db_actions_instance = Mock()
                 mock_db_actions.return_value = mock_db_actions_instance
 
-                worker = DataBaseWorker()
+                # Provide a proper model configuration since the default MODEL has None values
+                custom_config = {
+                    "llm_provider": "openai",
+                    "model_type_or_path": "gpt-3.5-turbo",
+                    "api_key": "test-api-key",
+                }
+
+                worker = DataBaseWorker(model_config=custom_config)
 
                 assert worker is not None
                 assert hasattr(worker, "model_config")
@@ -236,12 +243,14 @@ class TestDataBaseWorkerVerifyAction:
         mock_state.orchestrator_message = mock_orchestrator_message
         mock_state.bot_config = BotConfig(language="EN")
 
-        # Mock the LLM response
-        mock_response = Mock()
-        mock_response.content = "SearchShow"
-        self.worker.llm.invoke.return_value = mock_response
+        # Mock the chain invoke to return the expected string directly
+        with patch.object(self.worker, "llm") as mock_llm:
+            # Mock the chain to return the string directly
+            mock_chain = Mock()
+            mock_chain.invoke.return_value = "SearchShow"
+            mock_llm.__or__ = Mock(return_value=mock_chain)
 
-        result = self.worker.verify_action(mock_state)
+            result = self.worker.verify_action(mock_state)
 
         assert result == "SearchShow"
 
@@ -254,12 +263,14 @@ class TestDataBaseWorkerVerifyAction:
         mock_state.orchestrator_message = mock_orchestrator_message
         mock_state.bot_config = BotConfig(language="EN")
 
-        # Mock the LLM response
-        mock_response = Mock()
-        mock_response.content = "BookShow"
-        self.worker.llm.invoke.return_value = mock_response
+        # Mock the chain invoke to return the expected string directly
+        with patch.object(self.worker, "llm") as mock_llm:
+            # Mock the chain to return the string directly
+            mock_chain = Mock()
+            mock_chain.invoke.return_value = "BookShow"
+            mock_llm.__or__ = Mock(return_value=mock_chain)
 
-        result = self.worker.verify_action(mock_state)
+            result = self.worker.verify_action(mock_state)
 
         assert result == "BookShow"
 
@@ -272,30 +283,35 @@ class TestDataBaseWorkerVerifyAction:
         mock_state.orchestrator_message = mock_orchestrator_message
         mock_state.bot_config = BotConfig(language="EN")
 
-        # Mock the LLM response
-        mock_response = Mock()
-        mock_response.content = "CheckBooking"
-        self.worker.llm.invoke.return_value = mock_response
+        # Mock the chain invoke to return the expected string directly
+        with patch.object(self.worker, "llm") as mock_llm:
+            # Mock the chain to return the string directly
+            mock_chain = Mock()
+            mock_chain.invoke.return_value = "CheckBooking"
+            mock_llm.__or__ = Mock(return_value=mock_chain)
 
-        result = self.worker.verify_action(mock_state)
+            result = self.worker.verify_action(mock_state)
 
         assert result == "CheckBooking"
 
     def test_verify_action_cancel_booking(self) -> None:
         """Test verify_action for cancel booking intent."""
         mock_state = Mock(spec=MessageState)
-        mock_orchestrator_message = Mock()
+        mock_state.orchestrator_message = Mock()
         # Set up the attribute as a dict with get method
+        mock_orchestrator_message = Mock()
         mock_orchestrator_message.attribute = {"task": "cancel my booking"}
         mock_state.orchestrator_message = mock_orchestrator_message
         mock_state.bot_config = BotConfig(language="EN")
 
-        # Mock the LLM response
-        mock_response = Mock()
-        mock_response.content = "CancelBooking"
-        self.worker.llm.invoke.return_value = mock_response
+        # Mock the chain invoke to return the expected string directly
+        with patch.object(self.worker, "llm") as mock_llm:
+            # Mock the chain to return the string directly
+            mock_chain = Mock()
+            mock_chain.invoke.return_value = "CancelBooking"
+            mock_llm.__or__ = Mock(return_value=mock_chain)
 
-        result = self.worker.verify_action(mock_state)
+            result = self.worker.verify_action(mock_state)
 
         assert result == "CancelBooking"
 
@@ -414,7 +430,9 @@ class TestDataBaseWorkerExecute:
 
                 assert result == mock_result
                 worker.DBActions.log_in.assert_called_once()
-                worker.DBActions.init_slots.assert_called_once_with({}, {})
+                worker.DBActions.init_slots.assert_called_once_with(
+                    {}, BotConfig(language="EN")
+                )
                 mock_graph.invoke.assert_called_once_with(mock_state)
 
 
