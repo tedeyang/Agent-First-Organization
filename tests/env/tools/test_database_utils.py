@@ -1,6 +1,8 @@
+import contextlib
 import os
 import sqlite3
 import tempfile
+import uuid
 from collections.abc import Generator
 from datetime import datetime
 from unittest.mock import MagicMock, patch
@@ -30,94 +32,133 @@ from arklex.orchestrator.entities.msg_state_entities import (
 # Helper to create a temp DB with required schema and data
 def setup_temp_db() -> None:
     db_path = os.path.join(os.environ["DATA_DIR"], "show_booking_db.sqlite")
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS user (
-            id VARCHAR(40) PRIMARY KEY,
-            first_name VARCHAR(40),
-            last_name VARCHAR(40),
-            email VARCHAR(60),
-            register_at TIMESTAMP,
-            last_login TIMESTAMP
-        )
-    """)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS show (
-            id VARCHAR(40) PRIMARY KEY,
-            show_name VARCHAR(100),
-            genre VARCHAR(40),
-            date DATE,
-            time TIME,
-            description TEXT,
-            location VARCHAR(100),
-            price DECIMAL,
-            available_seats INTEGER
-        )
-    """)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS booking (
-            id VARCHAR(40) PRIMARY KEY,
-            show_id VARCHAR(40),
-            user_id VARCHAR(40),
-            created_at TIMESTAMP
-        )
-    """)
-    # Insert a user
-    cursor.execute(
-        "INSERT OR IGNORE INTO user (id, first_name, last_name, email, register_at, last_login) VALUES (?, ?, ?, ?, ?, ?)",
-        (
-            "user_be6e1836-8fe9-4938-b2d0-48f810648e72",
-            "Test",
-            "User",
-            "test@example.com",
-            "2024-01-01 00:00:00",
-            "2024-01-01 00:00:00",
-        ),
-    )
-    # Insert multiple shows for testing
-    shows = [
-        (
-            "show_1",
-            "Test Show",
-            "Opera",
-            "2024-12-31",
-            "20:00:00",
-            "A test show.",
-            "Test Location",
-            100.0,
-            50,
-        ),
-        (
-            "show_2",
-            "Another Show",
-            "Comedy",
-            "2024-12-31",
-            "21:00:00",
-            "Another test show.",
-            "Test Location",
-            150.0,
-            30,
-        ),
-        (
-            "show_3",
-            "Test Show",
-            "Drama",
-            "2024-01-15",
-            "19:00:00",
-            "A different test show.",
-            "Other Location",
-            75.0,
-            25,
-        ),
-    ]
-    for show in shows:
+
+    # Remove existing database file if it exists to avoid corruption
+    if os.path.exists(db_path):
+        try:
+            os.remove(db_path)
+        except OSError:
+            # If we can't remove it, try to create a new one with a different name
+            import tempfile
+
+            db_path = os.path.join(
+                tempfile.gettempdir(), f"show_booking_db_{uuid.uuid4().hex[:8]}.sqlite"
+            )
+            os.environ["DATA_DIR"] = tempfile.gettempdir()
+
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Create tables with proper error handling
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS user (
+                id VARCHAR(40) PRIMARY KEY,
+                first_name VARCHAR(40),
+                last_name VARCHAR(40),
+                email VARCHAR(60),
+                register_at TIMESTAMP,
+                last_login TIMESTAMP
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS show (
+                id VARCHAR(40) PRIMARY KEY,
+                show_name VARCHAR(100),
+                genre VARCHAR(40),
+                date DATE,
+                time TIME,
+                description TEXT,
+                location VARCHAR(100),
+                price DECIMAL,
+                available_seats INTEGER
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS booking (
+                id VARCHAR(40) PRIMARY KEY,
+                show_id VARCHAR(40),
+                user_id VARCHAR(40),
+                created_at TIMESTAMP
+            )
+        """)
+
+        # Insert a user
         cursor.execute(
-            "INSERT OR IGNORE INTO show (id, show_name, genre, date, time, description, location, price, available_seats) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            show,
+            "INSERT OR IGNORE INTO user (id, first_name, last_name, email, register_at, last_login) VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                "user_be6e1836-8fe9-4938-b2d0-48f810648e72",
+                "Test",
+                "User",
+                "test@example.com",
+                "2024-01-01 00:00:00",
+                "2024-01-01 00:00:00",
+            ),
         )
-    conn.commit()
-    conn.close()
+
+        # Insert multiple shows for testing
+        shows = [
+            (
+                "show_1",
+                "Test Show",
+                "Opera",
+                "2024-12-31",
+                "20:00:00",
+                "A test show.",
+                "Test Location",
+                100.0,
+                50,
+            ),
+            (
+                "show_2",
+                "Another Show",
+                "Comedy",
+                "2024-12-31",
+                "21:00:00",
+                "Another test show.",
+                "Test Location",
+                150.0,
+                30,
+            ),
+            (
+                "show_3",
+                "Test Show",
+                "Drama",
+                "2024-01-15",
+                "19:00:00",
+                "A different test show.",
+                "Other Location",
+                75.0,
+                25,
+            ),
+        ]
+        for show in shows:
+            cursor.execute(
+                "INSERT OR IGNORE INTO show (id, show_name, genre, date, time, description, location, price, available_seats) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                show,
+            )
+
+        conn.commit()
+        conn.close()
+
+        # Verify the database was created successfully
+        test_conn = sqlite3.connect(db_path)
+        test_cursor = test_conn.cursor()
+        test_cursor.execute("SELECT COUNT(*) FROM show")
+        show_count = test_cursor.fetchone()[0]
+        test_cursor.execute("SELECT COUNT(*) FROM user")
+        user_count = test_cursor.fetchone()[0]
+        test_conn.close()
+
+        if show_count == 0 or user_count == 0:
+            raise Exception("Database setup failed - tables are empty")
+
+    except Exception as e:
+        # If setup fails, try to clean up and raise a more informative error
+        if os.path.exists(db_path):
+            with contextlib.suppress(OSError):
+                os.remove(db_path)
+        raise Exception(f"Failed to setup test database: {e}") from e
 
 
 @pytest.fixture(autouse=True)
@@ -236,14 +277,31 @@ class TestDatabaseActionsInitSlots:
 
     @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
     @patch("arklex.env.tools.database.utils.load_prompts")
+    @patch("arklex.env.tools.database.utils.sqlite3.connect")
     def test_init_slots_with_empty_slots(
-        self, mock_load_prompts: object, mock_llm: object
+        self, mock_sqlite_connect: object, mock_load_prompts: object, mock_llm: object
     ) -> None:
         """Test init_slots with empty slots list."""
         mock_load_prompts.return_value = {
             "database_slot_prompt": "template {slot} {value} {value_list}"
         }
+
+        # Mock database connection and cursor
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_sqlite_connect.return_value = mock_conn
+        mock_conn.cursor.return_value = mock_cursor
+        mock_cursor.fetchall.return_value = [("Test Show",), ("Another Show",)]
+
+        # Mock LLM response
+        mock_llm_instance = MagicMock()
+        parser = MagicMock()
+        parser.invoke.return_value = "Test Show"
+        mock_llm_instance.__or__.return_value = parser
+        mock_llm.return_value = mock_llm_instance
+
         db = DatabaseActions()
+        db.llm = mock_llm_instance
         bot_config = {}
         result = db.init_slots([], bot_config)
         assert isinstance(result, list)
@@ -388,8 +446,38 @@ class TestDatabaseActionsSearchShow:
     """Test the search_show method."""
 
     @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
-    def test_search_show_with_confirmed_slots(self, mock_llm: object) -> None:
+    @patch("arklex.env.tools.database.utils.sqlite3.connect")
+    def test_search_show_with_confirmed_slots(
+        self, mock_sqlite_connect: object, mock_llm: object
+    ) -> None:
         """Test search_show with confirmed slots."""
+        # Mock database connection and cursor
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_sqlite_connect.return_value = mock_conn
+        mock_conn.cursor.return_value = mock_cursor
+
+        # Mock query results
+        mock_cursor.execute.return_value = None
+        mock_cursor.fetchall.return_value = [
+            (
+                "Test Show",
+                "2024-12-31",
+                "20:00:00",
+                "A test show.",
+                "Test Location",
+                100.0,
+            )
+        ]
+        mock_cursor.description = [
+            ("show_name",),
+            ("date",),
+            ("time",),
+            ("description",),
+            ("location",),
+            ("price",),
+        ]
+
         db = DatabaseActions()
         db.slots = [
             SlotDetail(
@@ -409,9 +497,51 @@ class TestDatabaseActionsSearchShow:
         assert isinstance(result, MessageState)
         assert result.status in (StatusEnum.COMPLETE, StatusEnum.INCOMPLETE)
 
+        # Verify database was called correctly
+        mock_cursor.execute.assert_called_once()
+        mock_conn.close.assert_called_once()
+
     @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
-    def test_search_show_with_no_confirmed_slots(self, mock_llm: object) -> None:
+    @patch("arklex.env.tools.database.utils.sqlite3.connect")
+    def test_search_show_with_no_confirmed_slots(
+        self, mock_sqlite_connect: object, mock_llm: object
+    ) -> None:
         """Test search_show with no confirmed slots."""
+        # Mock database connection and cursor
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_sqlite_connect.return_value = mock_conn
+        mock_conn.cursor.return_value = mock_cursor
+
+        # Mock query results - all shows returned when no filters
+        mock_cursor.execute.return_value = None
+        mock_cursor.fetchall.return_value = [
+            (
+                "Test Show",
+                "2024-12-31",
+                "20:00:00",
+                "A test show.",
+                "Test Location",
+                100.0,
+            ),
+            (
+                "Another Show",
+                "2024-12-31",
+                "21:00:00",
+                "Another test show.",
+                "Test Location",
+                150.0,
+            ),
+        ]
+        mock_cursor.description = [
+            ("show_name",),
+            ("date",),
+            ("time",),
+            ("description",),
+            ("location",),
+            ("price",),
+        ]
+
         db = DatabaseActions()
         db.slots = [
             SlotDetail(
@@ -432,9 +562,26 @@ class TestDatabaseActionsSearchShow:
         # Should return all shows when no filters applied
         assert result.status in (StatusEnum.COMPLETE, StatusEnum.INCOMPLETE)
 
+        # Verify database was called correctly
+        mock_cursor.execute.assert_called_once()
+        mock_conn.close.assert_called_once()
+
     @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
-    def test_search_show_no_results(self, mock_llm: object) -> None:
+    @patch("arklex.env.tools.database.utils.sqlite3.connect")
+    def test_search_show_no_results(
+        self, mock_sqlite_connect: object, mock_llm: object
+    ) -> None:
         """Test search_show when no shows match criteria."""
+        # Mock database connection and cursor
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_sqlite_connect.return_value = mock_conn
+        mock_conn.cursor.return_value = mock_cursor
+
+        # Mock query results - no shows found
+        mock_cursor.execute.return_value = None
+        mock_cursor.fetchall.return_value = []
+
         db = DatabaseActions()
         db.slots = [
             SlotDetail(
@@ -455,9 +602,40 @@ class TestDatabaseActionsSearchShow:
         assert result.status == StatusEnum.INCOMPLETE
         assert NO_SHOW_MESSAGE in result.message_flow
 
+        # Verify database was called correctly
+        mock_cursor.execute.assert_called_once()
+        mock_conn.close.assert_called_once()
+
     @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
-    def test_search_show_multiple_filters(self, mock_llm: object) -> None:
+    @patch("arklex.env.tools.database.utils.sqlite3.connect")
+    def test_search_show_multiple_filters(
+        self, mock_sqlite_connect: object, mock_llm: object
+    ) -> None:
         """Test search_show with multiple confirmed slots."""
+        # Mock database connection and cursor
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_sqlite_connect.return_value = mock_conn
+        mock_conn.cursor.return_value = mock_cursor
+        mock_cursor.fetchall.return_value = [
+            (
+                "Test Show",
+                "2024-12-31",
+                "20:00:00",
+                "A test show.",
+                "Test Location",
+                100.0,
+            )
+        ]
+        mock_cursor.description = [
+            ("show_name",),
+            ("date",),
+            ("time",),
+            ("description",),
+            ("location",),
+            ("price",),
+        ]
+
         db = DatabaseActions()
         db.slots = [
             SlotDetail(
@@ -491,8 +669,40 @@ class TestDatabaseActionsBookShow:
     """Test the book_show method."""
 
     @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
-    def test_book_show_success(self, mock_llm: object) -> None:
+    @patch("arklex.env.tools.database.utils.sqlite3.connect")
+    def test_book_show_success(
+        self, mock_sqlite_connect: object, mock_llm: object
+    ) -> None:
         """Test successful booking."""
+        # Mock database connection and cursor
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_sqlite_connect.return_value = mock_conn
+        mock_conn.cursor.return_value = mock_cursor
+
+        # Mock query results - single show found
+        mock_cursor.execute.return_value = None
+        mock_cursor.fetchall.return_value = [
+            (
+                "show_1",
+                "Test Show",
+                "2024-12-31",
+                "20:00:00",
+                "A test show.",
+                "Test Location",
+                100.0,
+            )
+        ]
+        mock_cursor.description = [
+            ("id",),
+            ("show_name",),
+            ("date",),
+            ("time",),
+            ("description",),
+            ("location",),
+            ("price",),
+        ]
+
         db = DatabaseActions()
         db.slots = [
             SlotDetail(
@@ -513,9 +723,23 @@ class TestDatabaseActionsBookShow:
         assert isinstance(result, MessageState)
         assert result.status in (StatusEnum.COMPLETE, StatusEnum.INCOMPLETE)
 
+        # Verify database was called correctly
+        assert mock_cursor.execute.call_count >= 1  # At least one query executed
+        mock_conn.close.assert_called_once()
+
     @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
-    def test_book_show_no_shows_found(self, mock_llm: object) -> None:
+    @patch("arklex.env.tools.database.utils.sqlite3.connect")
+    def test_book_show_no_shows_found(
+        self, mock_sqlite_connect: object, mock_llm: object
+    ) -> None:
         """Test booking when no shows match criteria."""
+        # Mock database connection and cursor
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_sqlite_connect.return_value = mock_conn
+        mock_conn.cursor.return_value = mock_cursor
+        mock_cursor.fetchall.return_value = []  # No shows found
+
         db = DatabaseActions()
         db.slots = [
             SlotDetail(
@@ -538,8 +762,49 @@ class TestDatabaseActionsBookShow:
         assert NO_SHOW_MESSAGE in result.message_flow
 
     @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
-    def test_book_show_multiple_shows_found(self, mock_llm: object) -> None:
+    @patch("arklex.env.tools.database.utils.sqlite3.connect")
+    def test_book_show_multiple_shows_found(
+        self, mock_sqlite_connect: object, mock_llm: object
+    ) -> None:
         """Test booking when multiple shows match criteria."""
+        # Mock database connection and cursor
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_sqlite_connect.return_value = mock_conn
+        mock_conn.cursor.return_value = mock_cursor
+
+        # Mock query results - multiple shows found
+        mock_cursor.execute.return_value = None
+        mock_cursor.fetchall.return_value = [
+            (
+                "show_1",
+                "Test Show",
+                "2024-12-31",
+                "20:00:00",
+                "A test show.",
+                "Test Location",
+                100.0,
+            ),
+            (
+                "show_2",
+                "Another Show",
+                "2024-12-31",
+                "21:00:00",
+                "Another test show.",
+                "Test Location",
+                150.0,
+            ),
+        ]
+        mock_cursor.description = [
+            ("id",),
+            ("show_name",),
+            ("date",),
+            ("time",),
+            ("description",),
+            ("location",),
+            ("price",),
+        ]
+
         db = DatabaseActions()
         db.slots = [
             SlotDetail(
@@ -561,9 +826,63 @@ class TestDatabaseActionsBookShow:
         assert result.status == StatusEnum.INCOMPLETE
         assert result.message_flow in (db.slot_prompts[0], MULTIPLE_SHOWS_MESSAGE)
 
+        # Verify database was called correctly
+        mock_cursor.execute.assert_called_once()
+        mock_conn.close.assert_called_once()
+
     @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
-    def test_book_show_no_slots_confirmed(self, mock_llm: object) -> None:
+    @patch("arklex.env.tools.database.utils.sqlite3.connect")
+    def test_book_show_no_slots_confirmed(
+        self, mock_sqlite_connect: object, mock_llm: object
+    ) -> None:
         """Test booking when no slots are confirmed."""
+        # Mock database connection and cursor
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_sqlite_connect.return_value = mock_conn
+        mock_conn.cursor.return_value = mock_cursor
+
+        # Mock query results - multiple shows found (no filters applied)
+        mock_cursor.execute.return_value = None
+        mock_cursor.fetchall.return_value = [
+            (
+                "show_1",
+                "Test Show",
+                "2024-12-31",
+                "20:00:00",
+                "A test show.",
+                "Test Location",
+                100.0,
+            ),
+            (
+                "show_2",
+                "Another Show",
+                "2024-12-31",
+                "21:00:00",
+                "Another test show.",
+                "Test Location",
+                150.0,
+            ),
+            (
+                "show_3",
+                "Test Show",
+                "2024-01-15",
+                "19:00:00",
+                "A different test show.",
+                "Other Location",
+                75.0,
+            ),
+        ]
+        mock_cursor.description = [
+            ("id",),
+            ("show_name",),
+            ("date",),
+            ("time",),
+            ("description",),
+            ("location",),
+            ("price",),
+        ]
+
         db = DatabaseActions()
         db.slots = [
             SlotDetail(
@@ -587,9 +906,63 @@ class TestDatabaseActionsBookShow:
         # because the query returns all shows (3 shows in our test data)
         assert MULTIPLE_SHOWS_MESSAGE in result.message_flow
 
+        # Verify database was called correctly
+        mock_cursor.execute.assert_called_once()
+        mock_conn.close.assert_called_once()
+
     @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
-    def test_book_show_empty_slots(self, mock_llm: object) -> None:
+    @patch("arklex.env.tools.database.utils.sqlite3.connect")
+    def test_book_show_empty_slots(
+        self, mock_sqlite_connect: object, mock_llm: object
+    ) -> None:
         """Test booking with empty slots."""
+        # Mock database connection and cursor
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_sqlite_connect.return_value = mock_conn
+        mock_conn.cursor.return_value = mock_cursor
+
+        # Mock query results - multiple shows found (no filters applied)
+        mock_cursor.execute.return_value = None
+        mock_cursor.fetchall.return_value = [
+            (
+                "show_1",
+                "Test Show",
+                "2024-12-31",
+                "20:00:00",
+                "A test show.",
+                "Test Location",
+                100.0,
+            ),
+            (
+                "show_2",
+                "Another Show",
+                "2024-12-31",
+                "21:00:00",
+                "Another test show.",
+                "Test Location",
+                150.0,
+            ),
+            (
+                "show_3",
+                "Test Show",
+                "2024-01-15",
+                "19:00:00",
+                "A different test show.",
+                "Other Location",
+                75.0,
+            ),
+        ]
+        mock_cursor.description = [
+            ("id",),
+            ("show_name",),
+            ("date",),
+            ("time",),
+            ("description",),
+            ("location",),
+            ("price",),
+        ]
+
         db = DatabaseActions()
         db.slots = []
         db.slot_prompts = []
@@ -603,25 +976,58 @@ class TestDatabaseActionsBookShow:
         # because the query returns all shows (3 shows in our test data)
         assert MULTIPLE_SHOWS_MESSAGE in result.message_flow
 
+        # Verify database was called correctly
+        mock_cursor.execute.assert_called_once()
+        mock_conn.close.assert_called_once()
+
 
 class TestDatabaseActionsCheckBooking:
     """Test the check_booking method."""
 
     @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
-    def test_check_booking_with_bookings(self, mock_llm: object) -> None:
+    @patch("arklex.env.tools.database.utils.sqlite3.connect")
+    def test_check_booking_with_bookings(
+        self, mock_sqlite_connect: object, mock_llm: object
+    ) -> None:
         """Test check_booking when user has bookings."""
+        # Mock database connection and cursor
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_sqlite_connect.return_value = mock_conn
+        mock_conn.cursor.return_value = mock_cursor
+
+        # Mock query results - user has bookings
+        mock_cursor.execute.return_value = None
+        mock_cursor.fetchall.return_value = [
+            (
+                "booking_1",
+                "show_1",
+                "user_1",
+                "2024-01-01",
+                "Test Show",
+                "2024-12-31",
+                "20:00:00",
+                "A test show.",
+                "Test Location",
+                100.0,
+                50,
+            )
+        ]
+        mock_cursor.description = [
+            ("id",),
+            ("show_id",),
+            ("user_id",),
+            ("created_at",),
+            ("show_name",),
+            ("date",),
+            ("time",),
+            ("description",),
+            ("location",),
+            ("price",),
+            ("available_seats",),
+        ]
+
         db = DatabaseActions()
-
-        # Insert a booking first
-        conn = sqlite3.connect(db.db_path)
-        cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO booking (id, show_id, user_id, created_at) VALUES (?, ?, ?, ?)",
-            ("booking_1", "show_1", db.user_id, datetime.now()),
-        )
-        conn.commit()
-        conn.close()
-
         msg_state = MessageState()
         result = db.check_booking(msg_state)
 
@@ -629,9 +1035,26 @@ class TestDatabaseActionsCheckBooking:
         assert result.status == StatusEnum.COMPLETE
         assert "Booked shows are:" in result.message_flow
 
+        # Verify database was called correctly
+        mock_cursor.execute.assert_called_once()
+        mock_conn.close.assert_called_once()
+
     @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
-    def test_check_booking_no_bookings(self, mock_llm: object) -> None:
+    @patch("arklex.env.tools.database.utils.sqlite3.connect")
+    def test_check_booking_no_bookings(
+        self, mock_sqlite_connect: object, mock_llm: object
+    ) -> None:
         """Test check_booking when user has no bookings."""
+        # Mock database connection and cursor
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_sqlite_connect.return_value = mock_conn
+        mock_conn.cursor.return_value = mock_cursor
+
+        # Mock query results - no bookings
+        mock_cursor.execute.return_value = None
+        mock_cursor.fetchall.return_value = []
+
         db = DatabaseActions()
         msg_state = MessageState()
         result = db.check_booking(msg_state)
@@ -640,25 +1063,58 @@ class TestDatabaseActionsCheckBooking:
         assert result.status == StatusEnum.COMPLETE
         assert NO_BOOKING_MESSAGE in result.message_flow
 
+        # Verify database was called correctly
+        mock_cursor.execute.assert_called_once()
+        mock_conn.close.assert_called_once()
+
 
 class TestDatabaseActionsCancelBooking:
     """Test the cancel_booking method."""
 
     @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
-    def test_cancel_booking_success(self, mock_llm: object) -> None:
+    @patch("arklex.env.tools.database.utils.sqlite3.connect")
+    def test_cancel_booking_success(
+        self, mock_sqlite_connect: object, mock_llm: object
+    ) -> None:
         """Test successful booking cancellation."""
+        # Mock database connection and cursor
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_sqlite_connect.return_value = mock_conn
+        mock_conn.cursor.return_value = mock_cursor
+
+        # Mock query results - single booking found
+        mock_cursor.execute.return_value = None
+        mock_cursor.fetchall.return_value = [
+            (
+                "booking_1",
+                "show_1",
+                "user_1",
+                "2024-01-01",
+                "Test Show",
+                "2024-12-31",
+                "20:00:00",
+                "A test show.",
+                "Test Location",
+                100.0,
+                50,
+            )
+        ]
+        mock_cursor.description = [
+            ("id",),
+            ("show_id",),
+            ("user_id",),
+            ("created_at",),
+            ("show_name",),
+            ("date",),
+            ("time",),
+            ("description",),
+            ("location",),
+            ("price",),
+            ("available_seats",),
+        ]
+
         db = DatabaseActions()
-
-        # Insert a booking first
-        conn = sqlite3.connect(db.db_path)
-        cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO booking (id, show_id, user_id, created_at) VALUES (?, ?, ?, ?)",
-            ("booking_1", "show_1", db.user_id, datetime.now()),
-        )
-        conn.commit()
-        conn.close()
-
         msg_state = MessageState()
         result = db.cancel_booking(msg_state)
 
@@ -666,9 +1122,26 @@ class TestDatabaseActionsCancelBooking:
         assert result.status == StatusEnum.COMPLETE
         assert "cancelled show" in result.message_flow.lower()
 
+        # Verify database was called correctly
+        assert mock_cursor.execute.call_count >= 1  # At least one query executed
+        mock_conn.close.assert_called_once()
+
     @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
-    def test_cancel_booking_no_bookings(self, mock_llm: object) -> None:
+    @patch("arklex.env.tools.database.utils.sqlite3.connect")
+    def test_cancel_booking_no_bookings(
+        self, mock_sqlite_connect: object, mock_llm: object
+    ) -> None:
         """Test cancel_booking when user has no bookings."""
+        # Mock database connection and cursor
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_sqlite_connect.return_value = mock_conn
+        mock_conn.cursor.return_value = mock_cursor
+
+        # Mock query results - no bookings
+        mock_cursor.execute.return_value = None
+        mock_cursor.fetchall.return_value = []
+
         db = DatabaseActions()
         msg_state = MessageState()
         result = db.cancel_booking(msg_state)
@@ -677,25 +1150,67 @@ class TestDatabaseActionsCancelBooking:
         assert result.status == StatusEnum.COMPLETE
         assert NO_BOOKING_MESSAGE in result.message_flow
 
+        # Verify database was called correctly
+        mock_cursor.execute.assert_called_once()
+        mock_conn.close.assert_called_once()
+
     @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
-    def test_cancel_booking_multiple_bookings(self, mock_llm: object) -> None:
+    @patch("arklex.env.tools.database.utils.sqlite3.connect")
+    def test_cancel_booking_multiple_bookings(
+        self, mock_sqlite_connect: object, mock_llm: object
+    ) -> None:
         """Test cancel_booking when user has multiple bookings."""
+        # Mock database connection and cursor
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_sqlite_connect.return_value = mock_conn
+        mock_conn.cursor.return_value = mock_cursor
+
+        # Mock query results - multiple bookings found
+        mock_cursor.execute.return_value = None
+        mock_cursor.fetchall.return_value = [
+            (
+                "booking_1",
+                "show_1",
+                "user_1",
+                "2024-01-01",
+                "Test Show",
+                "2024-12-31",
+                "20:00:00",
+                "A test show.",
+                "Test Location",
+                100.0,
+                50,
+            ),
+            (
+                "booking_2",
+                "show_2",
+                "user_1",
+                "2024-01-01",
+                "Another Show",
+                "2024-12-31",
+                "21:00:00",
+                "Another test show.",
+                "Test Location",
+                150.0,
+                30,
+            ),
+        ]
+        mock_cursor.description = [
+            ("id",),
+            ("show_id",),
+            ("user_id",),
+            ("created_at",),
+            ("show_name",),
+            ("date",),
+            ("time",),
+            ("description",),
+            ("location",),
+            ("price",),
+            ("available_seats",),
+        ]
+
         db = DatabaseActions()
-
-        # Insert multiple bookings
-        conn = sqlite3.connect(db.db_path)
-        cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO booking (id, show_id, user_id, created_at) VALUES (?, ?, ?, ?)",
-            ("booking_1", "show_1", db.user_id, datetime.now()),
-        )
-        cursor.execute(
-            "INSERT INTO booking (id, show_id, user_id, created_at) VALUES (?, ?, ?, ?)",
-            ("booking_2", "show_2", db.user_id, datetime.now()),
-        )
-        conn.commit()
-        conn.close()
-
         db.slot_prompts = ["Please specify which booking to cancel"]
         msg_state = MessageState()
         result = db.cancel_booking(msg_state)
@@ -705,6 +1220,10 @@ class TestDatabaseActionsCancelBooking:
         # instead of cancelling anything
         assert result.status == StatusEnum.INCOMPLETE
         assert result.message_flow == "Please specify which booking to cancel"
+
+        # Verify database was called correctly
+        mock_cursor.execute.assert_called_once()
+        mock_conn.close.assert_called_once()
 
 
 class TestDatabaseActionsIntegration:
