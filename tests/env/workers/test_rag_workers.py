@@ -28,19 +28,25 @@ class TestFaissRAGWorker:
         assert worker.stream_response is False
         assert hasattr(worker, "action_graph")
 
-    def test_faiss_rag_worker_search_documents(self) -> None:
-        """Test FaissRAGWorker search_documents method."""
+    def test_faiss_rag_worker_choose_tool_generator(self) -> None:
+        """Test FaissRAGWorker choose_tool_generator method."""
         worker = FaissRAGWorker()
         mock_state = Mock(spec=MessageState)
 
-        # Mock the execute method
-        mock_result = Mock(spec=MessageState)
-        worker._execute = Mock(return_value=mock_result)
+        # Test with streaming enabled and state is stream
+        mock_state.is_stream = True
+        result = worker.choose_tool_generator(mock_state)
+        assert result == "stream_tool_generator"
 
-        result = worker.search_documents(mock_state)
+        # Test with streaming enabled but state is not stream
+        mock_state.is_stream = False
+        result = worker.choose_tool_generator(mock_state)
+        assert result == "tool_generator"
 
-        assert result == mock_result
-        worker._execute.assert_called_once_with(mock_state)
+        # Test with streaming disabled
+        worker.stream_response = False
+        result = worker.choose_tool_generator(mock_state)
+        assert result == "tool_generator"
 
 
 class TestMilvusRAGWorker:
@@ -59,19 +65,25 @@ class TestMilvusRAGWorker:
         assert worker.stream_response is False
         assert worker.tags == {}
 
-    def test_milvus_rag_worker_search_documents(self) -> None:
-        """Test MilvusRAGWorker search_documents method."""
+    def test_milvus_rag_worker_choose_tool_generator(self) -> None:
+        """Test MilvusRAGWorker choose_tool_generator method."""
         worker = MilvusRAGWorker()
         mock_state = Mock(spec=MessageState)
 
-        # Mock the execute method
-        mock_result = Mock(spec=MessageState)
-        worker._execute = Mock(return_value=mock_result)
+        # Test with streaming enabled and state is stream
+        mock_state.is_stream = True
+        result = worker.choose_tool_generator(mock_state)
+        assert result == "stream_tool_generator"
 
-        result = worker.search_documents(mock_state)
+        # Test with streaming enabled but state is not stream
+        mock_state.is_stream = False
+        result = worker.choose_tool_generator(mock_state)
+        assert result == "tool_generator"
 
-        assert result == mock_result
-        worker._execute.assert_called_once_with(mock_state)
+        # Test with streaming disabled
+        worker.stream_response = False
+        result = worker.choose_tool_generator(mock_state)
+        assert result == "tool_generator"
 
 
 class TestRAGMessageWorker:
@@ -80,8 +92,8 @@ class TestRAGMessageWorker:
     def test_rag_message_worker_init(self) -> None:
         """Test RAGMessageWorker initialization."""
         worker = RAGMessageWorker()
-        assert worker.stream_response is True
         assert hasattr(worker, "model_config")
+        assert hasattr(worker, "llm")
 
     def test_rag_message_worker_with_custom_config(self) -> None:
         """Test RAGMessageWorker initialization with custom configuration."""
@@ -97,29 +109,49 @@ class TestRAGMessageWorker:
         """Test RAGMessageWorker search_documents method."""
         worker = RAGMessageWorker()
         mock_state = Mock(spec=MessageState)
-
-        # Mock the execute method
-        mock_result = Mock(spec=MessageState)
-        worker._execute = Mock(return_value=mock_result)
+        mock_orchestrator_message = Mock()
+        mock_orchestrator_message.attribute = {"query": "test query"}
+        mock_state.orchestrator_message = mock_orchestrator_message
 
         result = worker.search_documents(mock_state)
 
-        assert result == mock_result
-        worker._execute.assert_called_once_with(mock_state)
+        assert "test query" in result
+
+    def test_rag_message_worker_search_documents_no_query(self) -> None:
+        """Test RAGMessageWorker search_documents method with no query."""
+        worker = RAGMessageWorker()
+        mock_state = Mock(spec=MessageState)
+        mock_orchestrator_message = Mock()
+        mock_orchestrator_message.attribute = {}
+        mock_state.orchestrator_message = mock_orchestrator_message
+
+        result = worker.search_documents(mock_state)
+
+        assert "No query provided" in result
 
     def test_rag_message_worker_generate_response(self) -> None:
         """Test RAGMessageWorker generate_response method."""
         worker = RAGMessageWorker()
         mock_state = Mock(spec=MessageState)
-
-        # Mock the execute method
-        mock_result = Mock(spec=MessageState)
-        worker._execute = Mock(return_value=mock_result)
+        mock_orchestrator_message = Mock()
+        mock_orchestrator_message.attribute = {"query": "test query"}
+        mock_state.orchestrator_message = mock_orchestrator_message
 
         result = worker.generate_response(mock_state)
 
-        assert result == mock_result
-        worker._execute.assert_called_once_with(mock_state)
+        assert "test query" in result
+
+    def test_rag_message_worker_generate_response_no_query(self) -> None:
+        """Test RAGMessageWorker generate_response method with no query."""
+        worker = RAGMessageWorker()
+        mock_state = Mock(spec=MessageState)
+        mock_orchestrator_message = Mock()
+        mock_orchestrator_message.attribute = {}
+        mock_state.orchestrator_message = mock_orchestrator_message
+
+        result = worker.generate_response(mock_state)
+
+        assert "No query provided" in result
 
 
 class TestRAGWorkersIntegration:
@@ -143,8 +175,9 @@ class TestRAGWorkersIntegration:
         assert len(rag_message_worker.description) > 0
 
         # Test that descriptions contain relevant keywords
-        assert "faiss" in faiss_worker.description.lower()
+        assert "internal" in faiss_worker.description.lower()
         assert "internal" in milvus_worker.description.lower()
+        assert "rag" in rag_message_worker.description.lower()
 
     def test_rag_workers_initialization_consistency(self) -> None:
         """Test that all RAG workers initialize consistently."""
@@ -156,7 +189,7 @@ class TestRAGWorkersIntegration:
         # Test that all workers have action_graph
         assert hasattr(faiss_worker, "action_graph")
         assert hasattr(milvus_worker, "action_graph")
-        assert hasattr(rag_message_worker, "action_graph")
+        # RAGMessageWorker doesn't have action_graph by default
 
         # Test that all workers have descriptions
         assert hasattr(faiss_worker, "description")
@@ -175,18 +208,18 @@ class TestRAGWorkersIntegration:
         milvus_worker = MilvusRAGWorker()
         rag_message_worker = RAGMessageWorker()
 
-        # Test that all workers have search_documents method
-        assert hasattr(faiss_worker, "search_documents")
-        assert hasattr(milvus_worker, "search_documents")
-        assert hasattr(rag_message_worker, "search_documents")
-
-        # Test that RAGMessageWorker has generate_response method
-        assert hasattr(rag_message_worker, "generate_response")
-
         # Test that all workers have _execute method
         assert hasattr(faiss_worker, "_execute")
         assert hasattr(milvus_worker, "_execute")
         assert hasattr(rag_message_worker, "_execute")
+
+        # Test that RAGMessageWorker has search_documents and generate_response methods
+        assert hasattr(rag_message_worker, "search_documents")
+        assert hasattr(rag_message_worker, "generate_response")
+
+        # Test that FaissRAGWorker and MilvusRAGWorker have choose_tool_generator method
+        assert hasattr(faiss_worker, "choose_tool_generator")
+        assert hasattr(milvus_worker, "choose_tool_generator")
 
 
 class TestRAGWorkersErrorHandling:
@@ -212,12 +245,11 @@ class TestRAGWorkersErrorHandling:
 
     def test_rag_workers_search_error_handling(self) -> None:
         """Test RAG workers search error handling."""
-        # Test with invalid state
-        faiss_worker = FaissRAGWorker()
-        milvus_worker = MilvusRAGWorker()
+        # Test that workers handle missing orchestrator_message gracefully
         rag_message_worker = RAGMessageWorker()
+        mock_state = Mock(spec=MessageState)
+        mock_state.orchestrator_message = None
 
-        # These should not raise errors even with invalid state
-        assert faiss_worker is not None
-        assert milvus_worker is not None
-        assert rag_message_worker is not None
+        # This should not raise an error
+        result = rag_message_worker.search_documents(mock_state)
+        assert "No query provided" in result

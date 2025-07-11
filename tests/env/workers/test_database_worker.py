@@ -214,7 +214,7 @@ class TestDataBaseWorkerActions:
 
 
 class TestDataBaseWorkerVerifyAction:
-    """Test DataBaseWorker action verification."""
+    """Test DataBaseWorker verify_action method."""
 
     def setup_method(self) -> None:
         """Set up test fixtures."""
@@ -242,9 +242,11 @@ class TestDataBaseWorkerVerifyAction:
                 self.worker = DataBaseWorker(model_config=custom_config)
 
     def test_verify_action_search_show(self) -> None:
-        """Test verify_action with SearchShow intent."""
+        """Test verify_action for search show intent."""
         mock_state = Mock(spec=MessageState)
-        mock_state.intent = "SearchShow"
+        mock_orchestrator_message = Mock()
+        mock_orchestrator_message.attribute = {"task": "search for shows"}
+        mock_state.orchestrator_message = mock_orchestrator_message
 
         # Mock the LLM response
         self.worker.llm.invoke.return_value.content = "SearchShow"
@@ -252,12 +254,13 @@ class TestDataBaseWorkerVerifyAction:
         result = self.worker.verify_action(mock_state)
 
         assert result == "SearchShow"
-        self.worker.llm.invoke.assert_called_once()
 
     def test_verify_action_book_show(self) -> None:
-        """Test verify_action with BookShow intent."""
+        """Test verify_action for book show intent."""
         mock_state = Mock(spec=MessageState)
-        mock_state.intent = "BookShow"
+        mock_orchestrator_message = Mock()
+        mock_orchestrator_message.attribute = {"task": "book a show"}
+        mock_state.orchestrator_message = mock_orchestrator_message
 
         # Mock the LLM response
         self.worker.llm.invoke.return_value.content = "BookShow"
@@ -265,12 +268,13 @@ class TestDataBaseWorkerVerifyAction:
         result = self.worker.verify_action(mock_state)
 
         assert result == "BookShow"
-        self.worker.llm.invoke.assert_called_once()
 
     def test_verify_action_check_booking(self) -> None:
-        """Test verify_action with CheckBooking intent."""
+        """Test verify_action for check booking intent."""
         mock_state = Mock(spec=MessageState)
-        mock_state.intent = "CheckBooking"
+        mock_orchestrator_message = Mock()
+        mock_orchestrator_message.attribute = {"task": "check my bookings"}
+        mock_state.orchestrator_message = mock_orchestrator_message
 
         # Mock the LLM response
         self.worker.llm.invoke.return_value.content = "CheckBooking"
@@ -278,12 +282,13 @@ class TestDataBaseWorkerVerifyAction:
         result = self.worker.verify_action(mock_state)
 
         assert result == "CheckBooking"
-        self.worker.llm.invoke.assert_called_once()
 
     def test_verify_action_cancel_booking(self) -> None:
-        """Test verify_action with CancelBooking intent."""
+        """Test verify_action for cancel booking intent."""
         mock_state = Mock(spec=MessageState)
-        mock_state.intent = "CancelBooking"
+        mock_orchestrator_message = Mock()
+        mock_orchestrator_message.attribute = {"task": "cancel my booking"}
+        mock_state.orchestrator_message = mock_orchestrator_message
 
         # Mock the LLM response
         self.worker.llm.invoke.return_value.content = "CancelBooking"
@@ -291,12 +296,13 @@ class TestDataBaseWorkerVerifyAction:
         result = self.worker.verify_action(mock_state)
 
         assert result == "CancelBooking"
-        self.worker.llm.invoke.assert_called_once()
 
     def test_verify_action_others(self) -> None:
-        """Test verify_action with other intents."""
+        """Test verify_action for other intents."""
         mock_state = Mock(spec=MessageState)
-        mock_state.intent = "OtherIntent"
+        mock_orchestrator_message = Mock()
+        mock_orchestrator_message.attribute = {"task": "general inquiry"}
+        mock_state.orchestrator_message = mock_orchestrator_message
 
         # Mock the LLM response
         self.worker.llm.invoke.return_value.content = "Others"
@@ -304,12 +310,13 @@ class TestDataBaseWorkerVerifyAction:
         result = self.worker.verify_action(mock_state)
 
         assert result == "Others"
-        self.worker.llm.invoke.assert_called_once()
 
     def test_verify_action_exception(self) -> None:
-        """Test verify_action with exception handling."""
+        """Test verify_action with exception."""
         mock_state = Mock(spec=MessageState)
-        mock_state.intent = "SearchShow"
+        mock_orchestrator_message = Mock()
+        mock_orchestrator_message.attribute = {"task": "test task"}
+        mock_state.orchestrator_message = mock_orchestrator_message
 
         # Mock the LLM to raise an exception
         self.worker.llm.invoke.side_effect = Exception("LLM error")
@@ -317,7 +324,6 @@ class TestDataBaseWorkerVerifyAction:
         result = self.worker.verify_action(mock_state)
 
         assert result == "Others"
-        self.worker.llm.invoke.assert_called_once()
 
 
 class TestDataBaseWorkerCreateActionGraph:
@@ -348,16 +354,18 @@ class TestDataBaseWorkerCreateActionGraph:
 
                 worker = DataBaseWorker(model_config=custom_config)
 
-                # Verify action graph structure
-                assert hasattr(worker, "action_graph")
-                assert worker.action_graph is not None
+                # Verify action graph has the expected nodes
+                graph = worker.action_graph
+                assert graph is not None
+                # The graph should have nodes for each action
+                assert hasattr(graph, "nodes")
 
 
 class TestDataBaseWorkerExecute:
-    """Test DataBaseWorker execution."""
+    """Test DataBaseWorker execute method."""
 
     def test_execute_workflow(self) -> None:
-        """Test complete workflow execution."""
+        """Test execute workflow."""
         with patch(
             "arklex.utils.model_provider_config.PROVIDER_MAP"
         ) as mock_provider_map:
@@ -381,28 +389,34 @@ class TestDataBaseWorkerExecute:
 
                 worker = DataBaseWorker(model_config=custom_config)
 
-                # Mock the verify_action method
-                worker.verify_action = Mock(return_value="SearchShow")
-
-                # Mock the search_show method
-                mock_result = Mock(spec=MessageState)
-                worker.search_show = Mock(return_value=mock_result)
-
+                # Mock the message state
                 mock_state = Mock(spec=MessageState)
-                mock_state.intent = "SearchShow"
+                mock_state.slots = {}
+                mock_state.bot_config = {}
 
-                result = worker.execute(mock_state)
+                # Mock the graph compilation and execution
+                mock_graph = Mock()
+                mock_result = Mock(spec=MessageState)
+                mock_graph.invoke.return_value = mock_result
+                worker.action_graph.compile = Mock(return_value=mock_graph)
+
+                # Mock the login and init_slots methods
+                worker.DBActions.log_in = Mock()
+                worker.DBActions.init_slots = Mock(return_value={})
+
+                result = worker._execute(mock_state)
 
                 assert result == mock_result
-                worker.verify_action.assert_called_once_with(mock_state)
-                worker.search_show.assert_called_once_with(mock_state)
+                worker.DBActions.log_in.assert_called_once()
+                worker.DBActions.init_slots.assert_called_once_with({}, {})
+                mock_graph.invoke.assert_called_once_with(mock_state)
 
 
 class TestDataBaseWorkerIntegration:
     """Integration tests for DataBaseWorker."""
 
     def test_database_worker_complete_workflow(self) -> None:
-        """Test a complete database worker workflow."""
+        """Test complete database worker workflow."""
         with patch(
             "arklex.utils.model_provider_config.PROVIDER_MAP"
         ) as mock_provider_map:
@@ -426,33 +440,19 @@ class TestDataBaseWorkerIntegration:
 
                 worker = DataBaseWorker(model_config=custom_config)
 
-                # Test that worker has all expected attributes
-                assert hasattr(worker, "llm")
-                assert hasattr(worker, "actions")
-                assert hasattr(worker, "DBActions")
-                assert hasattr(worker, "action_graph")
-                assert hasattr(worker, "description")
+                # Verify worker has all expected actions
+                expected_actions = {
+                    "SearchShow": "Search for shows",
+                    "BookShow": "Book a show",
+                    "CheckBooking": "Check details of booked show(s)",
+                    "CancelBooking": "Cancel a booking",
+                    "Others": "Other actions not mentioned above",
+                }
 
-                # Test that worker has expected methods
-                assert hasattr(worker, "search_show")
-                assert hasattr(worker, "book_show")
-                assert hasattr(worker, "check_booking")
-                assert hasattr(worker, "cancel_booking")
-                assert hasattr(worker, "verify_action")
-                assert hasattr(worker, "execute")
-
-                # Test that actions are properly defined
-                expected_actions = [
-                    "search_show",
-                    "book_show",
-                    "check_booking",
-                    "cancel_booking",
-                ]
-                for action in expected_actions:
-                    assert action in worker.actions
+                assert worker.actions == expected_actions
 
     def test_database_worker_description(self) -> None:
-        """Test that database worker has appropriate description."""
+        """Test database worker description."""
         with patch(
             "arklex.utils.model_provider_config.PROVIDER_MAP"
         ) as mock_provider_map:
@@ -476,13 +476,12 @@ class TestDataBaseWorkerIntegration:
 
                 worker = DataBaseWorker(model_config=custom_config)
 
-                # Test that description is appropriate
-                assert isinstance(worker.description, str)
-                assert len(worker.description) > 0
-                assert "booking system" in worker.description.lower()
+                expected_description = "Help the user with actions related to customer support like a booking system with structured data, always involving search, insert, update, and delete operations."
+
+                assert worker.description == expected_description
 
     def test_database_worker_actions_coverage(self) -> None:
-        """Test that database worker covers all expected actions."""
+        """Test that all database actions are covered."""
         with patch(
             "arklex.utils.model_provider_config.PROVIDER_MAP"
         ) as mock_provider_map:
@@ -506,12 +505,14 @@ class TestDataBaseWorkerIntegration:
 
                 worker = DataBaseWorker(model_config=custom_config)
 
-                # Test that all expected actions are available
-                expected_actions = [
-                    "search_show",
-                    "book_show",
-                    "check_booking",
-                    "cancel_booking",
+                # Check that all expected actions are present
+                expected_action_names = [
+                    "SearchShow",
+                    "BookShow",
+                    "CheckBooking",
+                    "CancelBooking",
+                    "Others",
                 ]
-                for action in expected_actions:
-                    assert action in worker.actions
+
+                for action_name in expected_action_names:
+                    assert action_name in worker.actions

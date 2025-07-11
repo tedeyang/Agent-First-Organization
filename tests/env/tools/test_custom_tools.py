@@ -11,6 +11,7 @@ import pytest
 import requests
 
 from arklex.env.tools.custom_tools.http_tool import http_tool, replace_placeholders
+from arklex.utils.exceptions import ToolExecutionError
 
 
 class TestReplacePlaceholders:
@@ -207,10 +208,10 @@ class TestHTTPTool:
 
     @patch("requests.request")
     def test_http_tool_request_exception(self, mock_request: Mock) -> None:
-        """Test HTTP request with request exception."""
+        """Test HTTP tool with request exception."""
         mock_request.side_effect = requests.exceptions.RequestException("Network error")
 
-        with pytest.raises(requests.exceptions.RequestException):
+        with pytest.raises(ToolExecutionError):
             http_tool().func(
                 method="GET",
                 endpoint="https://api.example.com/test",
@@ -221,10 +222,10 @@ class TestHTTPTool:
 
     @patch("requests.request")
     def test_http_tool_general_exception(self, mock_request: Mock) -> None:
-        """Test HTTP request with general exception."""
+        """Test HTTP tool with general exception."""
         mock_request.side_effect = Exception("Unexpected error")
 
-        with pytest.raises(RuntimeError):
+        with pytest.raises(ToolExecutionError):
             http_tool().func(
                 method="GET",
                 endpoint="https://api.example.com/test",
@@ -235,13 +236,12 @@ class TestHTTPTool:
 
     @patch("requests.request")
     def test_http_tool_with_slot_objects(self, mock_request: Mock) -> None:
-        """Test HTTP request with slot objects."""
+        """Test HTTP tool with slot objects."""
         mock_response = Mock()
         mock_response.json.return_value = {"status": "success"}
         mock_response.raise_for_status.return_value = None
         mock_request.return_value = mock_response
 
-        # Create slot objects
         class SlotObject:
             def __init__(
                 self, name: str, value: str | int | bool | None, target: str
@@ -272,13 +272,12 @@ class TestHTTPTool:
 
     @patch("requests.request")
     def test_http_tool_with_mixed_slot_types(self, mock_request: Mock) -> None:
-        """Test HTTP request with mixed slot types."""
+        """Test HTTP tool with mixed slot types."""
         mock_response = Mock()
         mock_response.json.return_value = {"status": "success"}
         mock_response.raise_for_status.return_value = None
         mock_request.return_value = mock_response
 
-        # Mix of dict and object slots
         class SlotObject:
             def __init__(
                 self, name: str, value: str | int | bool | None, target: str
@@ -309,16 +308,16 @@ class TestHTTPTool:
 
     @patch("requests.request")
     def test_http_tool_with_invalid_slots(self, mock_request: Mock) -> None:
-        """Test HTTP request with invalid slots."""
+        """Test HTTP tool with invalid slot structure."""
         mock_response = Mock()
         mock_response.json.return_value = {"status": "success"}
         mock_response.raise_for_status.return_value = None
         mock_request.return_value = mock_response
 
-        # Invalid slot structure
+        # Slots with missing required attributes
         slots = [
-            {"invalid": "slot"},  # Missing required fields
-            {"name": "user_id", "value": 123},  # Missing target
+            {"name": "user_id"},  # Missing value and target
+            {"value": "John"},  # Missing name and target
         ]
 
         result = http_tool().func(
@@ -330,20 +329,21 @@ class TestHTTPTool:
             slots=slots,
         )
 
+        # Should still work without the invalid slots
         assert "success" in result
         mock_request.assert_called_once()
 
     @patch("requests.request")
     def test_http_tool_with_none_slots(self, mock_request: Mock) -> None:
-        """Test HTTP request with None slots."""
+        """Test HTTP tool with None slots parameter."""
         mock_response = Mock()
         mock_response.json.return_value = {"status": "success"}
         mock_response.raise_for_status.return_value = None
         mock_request.return_value = mock_response
 
         result = http_tool().func(
-            method="POST",
-            endpoint="https://api.example.com/users",
+            method="GET",
+            endpoint="https://api.example.com/test",
             headers={"Content-Type": "application/json"},
             body={},
             params={},
@@ -359,36 +359,34 @@ class TestHTTPToolIntegration:
 
     @patch("requests.request")
     def test_http_tool_complete_workflow(self, mock_request: Mock) -> None:
-        """Test a complete HTTP tool workflow."""
+        """Test complete HTTP tool workflow."""
         mock_response = Mock()
-        mock_response.json.return_value = {"status": "success", "data": "test"}
+        mock_response.json.return_value = {"id": 1, "name": "John", "status": "active"}
         mock_response.raise_for_status.return_value = None
         mock_request.return_value = mock_response
 
         slots = [
-            {"name": "user_id", "value": 123, "target": "params"},
+            {"name": "user_id", "value": 1, "target": "params"},
             {"name": "user_name", "value": "John", "target": "body"},
-            {"name": "user_email", "value": "john@example.com", "target": "body"},
         ]
 
         result = http_tool().func(
             method="POST",
             endpoint="https://api.example.com/users",
             headers={"Content-Type": "application/json"},
-            body={
-                "name": "{{user_name}}",
-                "email": "{{user_email}}",
-                "optional": "{{optional_field}}",
-            },
+            body={"name": "{{user_name}}"},
             params={"id": "{{user_id}}"},
             slots=slots,
         )
 
-        assert "success" in result
-        assert "test" in result
+        assert "id" in result
+        assert "name" in result
+        assert "status" in result
         mock_request.assert_called_once()
+
+        # Verify the request was made with correct parameters
         call_args = mock_request.call_args
-        assert call_args[1]["params"]["id"] == 123
+        assert call_args[1]["method"] == "POST"
+        assert call_args[1]["url"] == "https://api.example.com/users"
         assert call_args[1]["json"]["name"] == "John"
-        assert call_args[1]["json"]["email"] == "john@example.com"
-        assert "optional" not in call_args[1]["json"]
+        assert call_args[1]["params"]["user_id"] == 1

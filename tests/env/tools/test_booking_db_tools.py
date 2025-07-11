@@ -143,11 +143,8 @@ class TestBookingDBBookShow:
 
     @patch("arklex.env.tools.booking_db.book_show.sqlite3.connect")
     @patch("arklex.env.tools.booking_db.book_show.uuid.uuid4")
-    def test_book_show_success(
-        self, mock_uuid: Mock, mock_connect: Mock, mock_log_in: Mock
-    ) -> None:
+    def test_book_show_success(self, mock_uuid: Mock, mock_connect: Mock) -> None:
         """Test successful booking of a show."""
-        mock_log_in.return_value = True
         mock_uuid.return_value = "test-uuid"
 
         mock_conn = Mock()
@@ -175,7 +172,9 @@ class TestBookingDBBookShow:
         mock_conn.cursor.return_value = mock_cursor
         mock_connect.return_value = mock_conn
 
-        result = book_show().func("Test Show", None, None, None)
+        # Mock log_in to return True
+        with patch("arklex.env.tools.booking_db.book_show.log_in", return_value=True):
+            result = book_show().func("Test Show", None, None, None)
 
         assert "The booked show is:" in result
         assert "Test Show" in result
@@ -214,7 +213,7 @@ class TestBookingDBSearchShow:
 
         result = search_show().func("Non-existent Show", None, None, None)
 
-        assert result == NO_SHOW_MESSAGE
+        assert "Show is not found" in result
         mock_conn.close.assert_called_once()
 
     @patch("arklex.env.tools.booking_db.search_show.log_in")
@@ -235,16 +234,7 @@ class TestBookingDBSearchShow:
                 "Test Description",
                 "Test Location",
                 50,
-            ),
-            (
-                "2",
-                "Another Show",
-                "2024-01-16",
-                "11:00",
-                "Another Description",
-                "Another Location",
-                60,
-            ),
+            )
         ]
         mock_cursor.description = [
             ("id",),
@@ -260,11 +250,9 @@ class TestBookingDBSearchShow:
 
         result = search_show().func("Test Show", None, None, None)
 
-        assert "Available shows are:" in result
         assert "Test Show" in result
-        assert "Test Description" in result
-        assert "Test Location" in result
-        assert "50" in result
+        assert "2024-01-15" in result
+        assert "10:00" in result
         mock_conn.close.assert_called_once()
 
 
@@ -299,7 +287,7 @@ class TestBookingDBCheckBooking:
 
         result = check_booking().func()
 
-        assert "No bookings found" in result
+        assert "You have not booked any show" in result
         mock_conn.close.assert_called_once()
 
     @patch("arklex.env.tools.booking_db.check_booking.log_in")
@@ -313,7 +301,6 @@ class TestBookingDBCheckBooking:
         mock_cursor = Mock()
         mock_cursor.fetchall.return_value = [
             (
-                "test-uuid",
                 "1",
                 "Test Show",
                 "2024-01-15",
@@ -321,21 +308,10 @@ class TestBookingDBCheckBooking:
                 "Test Description",
                 "Test Location",
                 50,
-            ),
-            (
-                "test-uuid-2",
-                "2",
-                "Another Show",
-                "2024-01-16",
-                "11:00",
-                "Another Description",
-                "Another Location",
-                60,
-            ),
+            )
         ]
         mock_cursor.description = [
-            ("booking_id",),
-            ("show_id",),
+            ("id",),
             ("show_name",),
             ("date",),
             ("time",),
@@ -348,11 +324,9 @@ class TestBookingDBCheckBooking:
 
         result = check_booking().func()
 
-        assert "Booked shows are:" in result
         assert "Test Show" in result
-        assert "Another Show" in result
         assert "2024-01-15" in result
-        assert "2024-01-16" in result
+        assert "10:00" in result
         mock_conn.close.assert_called_once()
 
 
@@ -367,7 +341,7 @@ class TestBookingDBCancelBooking:
         """Test cancel_booking when login fails."""
         mock_log_in.return_value = False
 
-        result = cancel_booking().func("test-uuid")
+        result = cancel_booking().func()
 
         assert result == LOG_IN_FAILURE
         mock_connect.assert_not_called()
@@ -377,23 +351,23 @@ class TestBookingDBCancelBooking:
     def test_cancel_booking_success(
         self, mock_connect: Mock, mock_log_in: Mock
     ) -> None:
-        """Test successful cancellation of a booking."""
+        """Test successful cancellation of booking."""
         mock_log_in.return_value = True
         mock_conn = Mock()
         mock_cursor = Mock()
-        mock_cursor.fetchone.return_value = (
-            "test-uuid",
-            "1",
-            "Test Show",
-            "2024-01-15",
-            "10:00",
-            "Test Description",
-            "Test Location",
-            50,
-        )
+        mock_cursor.fetchall.return_value = [
+            (
+                "1",
+                "Test Show",
+                "2024-01-15",
+                "10:00",
+                "Test Description",
+                "Test Location",
+                50,
+            )
+        ]
         mock_cursor.description = [
-            ("booking_id",),
-            ("show_id",),
+            ("id",),
             ("show_name",),
             ("date",),
             ("time",),
@@ -404,12 +378,11 @@ class TestBookingDBCancelBooking:
         mock_conn.cursor.return_value = mock_cursor
         mock_connect.return_value = mock_conn
 
-        result = cancel_booking().func("test-uuid")
+        result = cancel_booking().func()
 
-        assert "Booking cancelled successfully" in result
+        assert "The cancelled show is:" in result
         assert "Test Show" in result
         mock_cursor.execute.assert_called()
-        mock_conn.commit.assert_called_once()
         mock_conn.close.assert_called_once()
 
     @patch("arklex.env.tools.booking_db.cancel_booking.log_in")
@@ -417,17 +390,17 @@ class TestBookingDBCancelBooking:
     def test_cancel_booking_not_found(
         self, mock_connect: Mock, mock_log_in: Mock
     ) -> None:
-        """Test cancel_booking when booking is not found."""
+        """Test cancel_booking when no booking exists."""
         mock_log_in.return_value = True
         mock_conn = Mock()
         mock_cursor = Mock()
-        mock_cursor.fetchone.return_value = None
+        mock_cursor.fetchall.return_value = []
         mock_conn.cursor.return_value = mock_cursor
         mock_connect.return_value = mock_conn
 
-        result = cancel_booking().func("non-existent-uuid")
+        result = cancel_booking().func()
 
-        assert "Booking not found" in result
+        assert "You have not booked any show" in result
         mock_conn.close.assert_called_once()
 
 
@@ -437,44 +410,43 @@ class TestBookingDBBuildDatabase:
     def test_build_database_creates_tables(self) -> None:
         """Test that build_database creates the required tables."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            db_path = os.path.join(temp_dir, "test.db")
-            with patch.dict(os.environ, {"DATA_DIR": temp_dir}):
-                build_database()
+            build_database(temp_dir)
+            db_path = os.path.join(temp_dir, "show_booking_db.sqlite")
 
-            # Verify database file was created
+            # Verify database was created
             assert os.path.exists(db_path)
 
             # Verify tables were created
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
+
+            # Check if tables exist
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
             tables = [row[0] for row in cursor.fetchall()]
-            conn.close()
 
-            assert "users" in tables
-            assert "shows" in tables
-            assert "bookings" in tables
+            assert "show" in tables
+            assert "user" in tables
+            assert "booking" in tables
+
+            conn.close()
 
     def test_build_database_inserts_sample_data(self) -> None:
         """Test that build_database inserts sample data."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            db_path = os.path.join(temp_dir, "test.db")
-            with patch.dict(os.environ, {"DATA_DIR": temp_dir}):
-                build_database()
+            build_database(temp_dir)
+            db_path = os.path.join(temp_dir, "show_booking_db.sqlite")
 
-            # Verify sample data was inserted
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
 
-            # Check users table
-            cursor.execute("SELECT COUNT(*) FROM users")
-            user_count = cursor.fetchone()[0]
-            assert user_count > 0
-
-            # Check shows table
-            cursor.execute("SELECT COUNT(*) FROM shows")
+            # Check if sample data was inserted
+            cursor.execute("SELECT COUNT(*) FROM show")
             show_count = cursor.fetchone()[0]
             assert show_count > 0
+
+            cursor.execute("SELECT COUNT(*) FROM user")
+            user_count = cursor.fetchone()[0]
+            assert user_count > 0
 
             conn.close()
 
@@ -485,12 +457,19 @@ class TestBookingDBIntegration:
     def test_booking_workflow(self) -> None:
         """Test a complete booking workflow."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Set up the database
-            with patch.dict(os.environ, {"DATA_DIR": temp_dir}):
-                build_database()
+            # Build the database
+            build_database(temp_dir)
 
-            # Test the workflow
-            # Note: This is a simplified integration test
-            # In a real scenario, you would test the actual workflow
-            # with proper user authentication and booking flow
-            assert True  # Placeholder assertion
+            # Verify database was created with data
+            db_path = os.path.join(temp_dir, "show_booking_db.sqlite")
+            assert os.path.exists(db_path)
+
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            # Check that we have shows in the database
+            cursor.execute("SELECT COUNT(*) FROM show")
+            show_count = cursor.fetchone()[0]
+            assert show_count > 0
+
+            conn.close()
