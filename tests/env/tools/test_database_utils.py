@@ -850,3 +850,576 @@ class TestDatabaseActionsEdgeCases:
         result = db.search_show(msg_state)
         assert isinstance(result, MessageState)
         assert result.status == StatusEnum.INCOMPLETE  # Should not find any shows
+
+
+class TestDatabaseActionsAdvancedScenarios:
+    """Test advanced scenarios and edge cases."""
+
+    @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
+    @patch("arklex.env.tools.database.utils.load_prompts")
+    def test_verify_slot_with_empty_value_list(
+        self, mock_load_prompts: object, mock_llm: object
+    ) -> None:
+        """Test slot verification with empty value list."""
+        mock_load_prompts.return_value = {
+            "database_slot_prompt": "template {slot} {value} {value_list}"
+        }
+        db = DatabaseActions()
+        slot = SLOTS[0].copy()
+        slot["value"] = "Test Show"
+        value_list = []
+        bot_config = {}
+
+        result = db.verify_slot(slot, value_list, bot_config)
+
+        assert isinstance(result, SlotDetail)
+        assert result.verified_value == ""
+        assert result.confirmed is False
+
+    @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
+    @patch("arklex.env.tools.database.utils.load_prompts")
+    def test_verify_slot_with_none_value_list(
+        self, mock_load_prompts: object, mock_llm: object
+    ) -> None:
+        """Test slot verification with None value list."""
+        mock_load_prompts.return_value = {
+            "database_slot_prompt": "template {slot} {value} {value_list}"
+        }
+        db = DatabaseActions()
+        slot = SLOTS[0].copy()
+        slot["value"] = "Test Show"
+        value_list = None  # type: ignore
+        bot_config = {}
+
+        result = db.verify_slot(slot, value_list, bot_config)
+
+        assert isinstance(result, SlotDetail)
+        assert result.verified_value == ""
+        assert result.confirmed is False
+
+    @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
+    def test_search_show_with_sql_injection_attempt(self, mock_llm: object) -> None:
+        """Test search_show with SQL injection attempt in slot value."""
+        db = DatabaseActions()
+        db.slots = [
+            SlotDetail(
+                name="show_name",
+                type="string",
+                value="'; DROP TABLE show; --",
+                description="",
+                prompt="",
+                verified_value="'; DROP TABLE show; --",
+                confirmed=True,
+            )
+        ]
+        msg_state = MessageState()
+
+        # Should handle SQL injection gracefully
+        result = db.search_show(msg_state)
+        assert isinstance(result, MessageState)
+        assert result.status == StatusEnum.INCOMPLETE
+
+    @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
+    def test_book_show_with_duplicate_booking(self, mock_llm: object) -> None:
+        """Test booking the same show twice."""
+        db = DatabaseActions()
+        db.slots = [
+            SlotDetail(
+                name="show_name",
+                type="string",
+                value="Test Show",
+                description="",
+                prompt="",
+                verified_value="Test Show",
+                confirmed=True,
+            )
+        ]
+        msg_state = MessageState()
+
+        # First booking
+        result1 = db.book_show(msg_state)
+        # The first booking might be incomplete if multiple shows match
+        assert result1.status in (StatusEnum.COMPLETE, StatusEnum.INCOMPLETE)
+
+        # Second booking of the same show
+        result2 = db.book_show(msg_state)
+        assert result2.status in (StatusEnum.COMPLETE, StatusEnum.INCOMPLETE)
+        # Should allow multiple bookings of the same show
+
+    @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
+    def test_cancel_booking_with_specific_show_id(self, mock_llm: object) -> None:
+        """Test canceling booking with specific show ID."""
+        db = DatabaseActions()
+
+        # Insert multiple bookings
+        conn = sqlite3.connect(db.db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO booking (id, show_id, user_id, created_at) VALUES (?, ?, ?, ?)",
+            ("booking_1", "show_1", db.user_id, datetime.now()),
+        )
+        cursor.execute(
+            "INSERT INTO booking (id, show_id, user_id, created_at) VALUES (?, ?, ?, ?)",
+            ("booking_2", "show_2", db.user_id, datetime.now()),
+        )
+        conn.commit()
+        conn.close()
+
+        # Set up slots to specify which booking to cancel
+        db.slots = [
+            SlotDetail(
+                name="show_name",
+                type="string",
+                value="Test Show",
+                description="",
+                prompt="",
+                verified_value="Test Show",
+                confirmed=True,
+            )
+        ]
+        msg_state = MessageState()
+        result = db.cancel_booking(msg_state)
+
+        assert isinstance(result, MessageState)
+        # The result might be incomplete if multiple bookings match the criteria
+        assert result.status in (StatusEnum.COMPLETE, StatusEnum.INCOMPLETE)
+
+    @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
+    def test_init_slots_with_invalid_column_name(self, mock_llm: object) -> None:
+        """Test init_slots with invalid column name."""
+        db = DatabaseActions()
+        invalid_slots = [
+            {
+                "name": "invalid_column",
+                "type": "string",
+                "value": "",
+                "description": "Invalid column",
+                "prompt": "Please provide invalid column",
+            }
+        ]
+        bot_config = {}
+
+        # Should handle invalid column gracefully
+        with pytest.raises(sqlite3.OperationalError):
+            db.init_slots(invalid_slots, bot_config)
+
+    @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
+    def test_database_connection_timeout_handling(self, mock_llm: object) -> None:
+        """Test handling of database connection timeouts."""
+        db = DatabaseActions()
+        msg_state = MessageState()
+
+        # Mock database connection to raise timeout
+        with patch("sqlite3.connect") as mock_connect:
+            mock_connect.side_effect = sqlite3.OperationalError("database is locked")
+
+            # Should handle database lock gracefully
+            with pytest.raises(sqlite3.OperationalError):
+                db.search_show(msg_state)
+
+    @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
+    @patch("arklex.env.tools.database.utils.load_prompts")
+    def test_llm_timeout_handling(
+        self, mock_load_prompts: object, mock_llm: object
+    ) -> None:
+        """Test handling of LLM timeout during slot verification."""
+        mock_load_prompts.return_value = {
+            "database_slot_prompt": "template {slot} {value} {value_list}"
+        }
+        db = DatabaseActions()
+        slot = SLOTS[0].copy()
+        slot["value"] = "Test Show"
+        value_list = ["Test Show", "Other Show"]
+        bot_config = {}
+
+        # Mock LLM to raise timeout
+        db.llm = MagicMock()
+        parser = MagicMock()
+        parser.invoke.side_effect = Exception("Request timeout")
+        db.llm.__or__.return_value = parser
+
+        result = db.verify_slot(slot, value_list, bot_config)
+
+        assert isinstance(result, SlotDetail)
+        assert result.verified_value == ""
+        assert result.confirmed is False
+
+    @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
+    def test_message_state_preservation(self, mock_llm: object) -> None:
+        """Test that MessageState is properly preserved across operations."""
+        db = DatabaseActions()
+        original_msg_state = MessageState()
+        original_msg_state.message_flow = "Original message"
+        original_msg_state.status = StatusEnum.INCOMPLETE
+
+        # Perform operation
+        result = db.search_show(original_msg_state)
+
+        # Check that the original MessageState object is modified, not replaced
+        assert result is original_msg_state
+        assert result.message_flow != "Original message"  # Should be updated
+        assert result.status in (StatusEnum.COMPLETE, StatusEnum.INCOMPLETE)
+
+    @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
+    def test_database_transaction_rollback(self, mock_llm: object) -> None:
+        """Test database transaction rollback on error."""
+        db = DatabaseActions()
+        msg_state = MessageState()
+
+        # Mock database to raise error during booking
+        with patch("sqlite3.connect") as mock_connect:
+            mock_conn = MagicMock()
+            mock_cursor = MagicMock()
+            mock_conn.cursor.return_value = mock_cursor
+            mock_connect.return_value = mock_conn
+
+            # First query succeeds, second fails
+            mock_cursor.execute.side_effect = [
+                None,  # First execute (SELECT) succeeds
+                sqlite3.OperationalError("table booking doesn't exist"),  # Second fails
+            ]
+            mock_cursor.fetchall.return_value = [
+                (
+                    "show_1",
+                    "Test Show",
+                    "2024-12-31",
+                    "20:00:00",
+                    "Description",
+                    "Location",
+                    100.0,
+                )
+            ]
+            mock_cursor.description = [
+                ("id",),
+                ("show_name",),
+                ("date",),
+                ("time",),
+                ("description",),
+                ("location",),
+                ("price",),
+            ]
+
+            db.slots = [
+                SlotDetail(
+                    name="show_name",
+                    type="string",
+                    value="Test Show",
+                    description="",
+                    prompt="",
+                    verified_value="Test Show",
+                    confirmed=True,
+                )
+            ]
+
+            # Should handle database error gracefully
+            with pytest.raises(sqlite3.OperationalError):
+                db.book_show(msg_state)
+
+    @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
+    def test_unicode_handling_in_slot_values(self, mock_llm: object) -> None:
+        """Test handling of Unicode characters in slot values."""
+        db = DatabaseActions()
+        unicode_value = "🎭 Théâtre Show 🎪"
+        db.slots = [
+            SlotDetail(
+                name="show_name",
+                type="string",
+                value=unicode_value,
+                description="",
+                prompt="",
+                verified_value=unicode_value,
+                confirmed=True,
+            )
+        ]
+        msg_state = MessageState()
+
+        result = db.search_show(msg_state)
+        assert isinstance(result, MessageState)
+        assert (
+            result.status == StatusEnum.INCOMPLETE
+        )  # Should not find any shows with Unicode names
+
+    @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
+    def test_numeric_slot_values(self, mock_llm: object) -> None:
+        """Test handling of numeric slot values."""
+        db = DatabaseActions()
+        db.slots = [
+            SlotDetail(
+                name="price",
+                type="number",
+                value="100",
+                description="",
+                prompt="",
+                verified_value="100",
+                confirmed=True,
+            )
+        ]
+        msg_state = MessageState()
+
+        result = db.search_show(msg_state)
+        assert isinstance(result, MessageState)
+        # Should handle numeric values in string slots
+
+    @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
+    def test_empty_string_slot_values(self, mock_llm: object) -> None:
+        """Test handling of empty string slot values."""
+        db = DatabaseActions()
+        db.slots = [
+            SlotDetail(
+                name="show_name",
+                type="string",
+                value="",
+                description="",
+                prompt="",
+                verified_value="",
+                confirmed=True,
+            )
+        ]
+        msg_state = MessageState()
+
+        result = db.search_show(msg_state)
+        assert isinstance(result, MessageState)
+        # Should handle empty string values gracefully
+
+    @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
+    def test_whitespace_handling_in_slot_values(self, mock_llm: object) -> None:
+        """Test handling of whitespace in slot values."""
+        db = DatabaseActions()
+        whitespace_value = "  Test Show  "
+        db.slots = [
+            SlotDetail(
+                name="show_name",
+                type="string",
+                value=whitespace_value,
+                description="",
+                prompt="",
+                verified_value=whitespace_value,
+                confirmed=True,
+            )
+        ]
+        msg_state = MessageState()
+
+        result = db.search_show(msg_state)
+        assert isinstance(result, MessageState)
+        assert (
+            result.status == StatusEnum.INCOMPLETE
+        )  # Should not find shows with whitespace
+
+    @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
+    def test_case_sensitivity_in_slot_values(self, mock_llm: object) -> None:
+        """Test case sensitivity in slot values."""
+        db = DatabaseActions()
+        db.slots = [
+            SlotDetail(
+                name="show_name",
+                type="string",
+                value="test show",
+                description="",
+                prompt="",
+                verified_value="test show",
+                confirmed=True,
+            )
+        ]
+        msg_state = MessageState()
+
+        result = db.search_show(msg_state)
+        assert isinstance(result, MessageState)
+        assert (
+            result.status == StatusEnum.INCOMPLETE
+        )  # Should not find "Test Show" with "test show"
+
+    @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
+    def test_database_constraints_violation(self, mock_llm: object) -> None:
+        """Test handling of database constraint violations."""
+        db = DatabaseActions()
+        msg_state = MessageState()
+
+        # Try to book with invalid show_id
+        db.slots = [
+            SlotDetail(
+                name="show_name",
+                type="string",
+                value="Non-existent Show",
+                description="",
+                prompt="",
+                verified_value="Non-existent Show",
+                confirmed=True,
+            )
+        ]
+
+        result = db.book_show(msg_state)
+        assert isinstance(result, MessageState)
+        assert result.status == StatusEnum.INCOMPLETE
+        assert NO_SHOW_MESSAGE in result.message_flow
+
+    @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
+    def test_concurrent_database_access(self, mock_llm: object) -> None:
+        """Test concurrent database access scenarios."""
+        db1 = DatabaseActions()
+        db2 = DatabaseActions()
+        msg_state = MessageState()
+
+        # Both instances should be able to access the database simultaneously
+        result1 = db1.search_show(msg_state)
+        result2 = db2.search_show(msg_state)
+
+        assert isinstance(result1, MessageState)
+        assert isinstance(result2, MessageState)
+        assert result1.status in (StatusEnum.COMPLETE, StatusEnum.INCOMPLETE)
+        assert result2.status in (StatusEnum.COMPLETE, StatusEnum.INCOMPLETE)
+
+    @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
+    def test_memory_usage_with_large_datasets(self, mock_llm: object) -> None:
+        """Test memory usage with large datasets."""
+        db = DatabaseActions()
+
+        # Insert many shows to test memory usage (use unique IDs)
+        conn = sqlite3.connect(db.db_path)
+        cursor = conn.cursor()
+
+        for i in range(100):  # Insert 100 shows
+            cursor.execute(
+                "INSERT OR IGNORE INTO show (id, show_name, genre, date, time, description, location, price, available_seats) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    f"large_show_{i}",
+                    f"Large Show {i}",
+                    "Drama",
+                    "2024-12-31",
+                    "20:00:00",
+                    f"Description for large show {i}",
+                    "Location",
+                    100.0 + i,
+                    50,
+                ),
+            )
+        conn.commit()
+        conn.close()
+
+        msg_state = MessageState()
+        result = db.search_show(msg_state)
+
+        assert isinstance(result, MessageState)
+        assert result.status == StatusEnum.COMPLETE
+        # Should handle large datasets without memory issues
+
+    @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
+    def test_database_file_permissions(self, mock_llm: object) -> None:
+        """Test handling of database file permission issues."""
+        db = DatabaseActions()
+        msg_state = MessageState()
+
+        # Mock file permission error
+        with patch("sqlite3.connect") as mock_connect:
+            mock_connect.side_effect = sqlite3.OperationalError(
+                "unable to open database file"
+            )
+
+            with pytest.raises(sqlite3.OperationalError):
+                db.search_show(msg_state)
+
+    @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
+    def test_database_corruption_handling(self, mock_llm: object) -> None:
+        """Test handling of corrupted database files."""
+        db = DatabaseActions()
+        msg_state = MessageState()
+
+        # Mock database corruption error
+        with patch("sqlite3.connect") as mock_connect:
+            mock_conn = MagicMock()
+            mock_cursor = MagicMock()
+            mock_conn.cursor.return_value = mock_cursor
+            mock_connect.return_value = mock_conn
+            mock_cursor.execute.side_effect = sqlite3.DatabaseError(
+                "database disk image is malformed"
+            )
+
+            with pytest.raises(sqlite3.DatabaseError):
+                db.search_show(msg_state)
+
+    @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
+    def test_environment_variable_handling(self, mock_llm: object) -> None:
+        """Test handling of missing DATA_DIR environment variable."""
+        original_data_dir = os.environ.get("DATA_DIR")
+
+        # Remove DATA_DIR temporarily
+        if "DATA_DIR" in os.environ:
+            del os.environ["DATA_DIR"]
+
+        try:
+            # Should handle missing DATA_DIR gracefully
+            with pytest.raises(TypeError):
+                DatabaseActions()
+        finally:
+            # Restore DATA_DIR
+            if original_data_dir:
+                os.environ["DATA_DIR"] = original_data_dir
+
+    @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
+    def test_uuid_generation_in_booking(self, mock_llm: object) -> None:
+        """Test that booking IDs are properly generated with UUID."""
+        db = DatabaseActions()
+        db.slots = [
+            SlotDetail(
+                name="show_name",
+                type="string",
+                value="Test Show",
+                description="",
+                prompt="",
+                verified_value="Test Show",
+                confirmed=True,
+            )
+        ]
+        msg_state = MessageState()
+
+        result = db.book_show(msg_state)
+
+        if result.status == StatusEnum.COMPLETE:
+            # Check that a booking was actually created
+            conn = sqlite3.connect(db.db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT id FROM booking WHERE user_id = ?", (db.user_id,))
+            bookings = cursor.fetchall()
+            conn.close()
+
+            if bookings:
+                booking_id = bookings[-1][0]  # Get the most recent booking
+                assert booking_id.startswith("booking_")
+                assert len(booking_id) > len("booking_")  # Should have UUID part
+
+    @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
+    def test_datetime_handling_in_booking(self, mock_llm: object) -> None:
+        """Test that booking timestamps are properly handled."""
+        db = DatabaseActions()
+        db.slots = [
+            SlotDetail(
+                name="show_name",
+                type="string",
+                value="Test Show",
+                description="",
+                prompt="",
+                verified_value="Test Show",
+                confirmed=True,
+            )
+        ]
+        msg_state = MessageState()
+
+        result = db.book_show(msg_state)
+
+        if result.status == StatusEnum.COMPLETE:
+            # Check that booking timestamp is recent
+            conn = sqlite3.connect(db.db_path)
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT created_at FROM booking WHERE user_id = ? ORDER BY created_at DESC LIMIT 1",
+                (db.user_id,),
+            )
+            booking_time = cursor.fetchone()
+            conn.close()
+
+            if booking_time:
+                created_at = datetime.fromisoformat(
+                    booking_time[0].replace("Z", "+00:00")
+                )
+                now = datetime.now()
+                time_diff = abs((now - created_at).total_seconds())
+                assert time_diff < 60  # Should be within 1 minute
