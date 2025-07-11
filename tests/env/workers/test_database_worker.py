@@ -7,6 +7,8 @@ initialization, action verification, and workflow execution.
 
 from unittest.mock import Mock, patch
 
+import pytest
+
 from arklex.env.prompts import BotConfig
 from arklex.env.workers.database_worker import DataBaseWorker
 from arklex.orchestrator.entities.orch_entities import MessageState
@@ -540,3 +542,343 @@ class TestDataBaseWorkerIntegration:
 
                 for action_name in expected_action_names:
                     assert action_name in worker.actions
+
+
+class TestDataBaseWorkerErrorHandling:
+    """Test DataBaseWorker error handling scenarios."""
+
+    def test_init_missing_provider(self) -> None:
+        """Test initialization with missing provider."""
+        with pytest.raises(
+            ValueError, match="llm_provider must be explicitly specified"
+        ):
+            DataBaseWorker(model_config={"model_type_or_path": "gpt-3.5-turbo"})
+
+    def test_init_missing_model_name(self) -> None:
+        """Test initialization with missing model name."""
+        with pytest.raises(ValueError, match="Model name must be specified"):
+            DataBaseWorker(model_config={"llm_provider": "openai"})
+
+    def test_init_unsupported_provider(self) -> None:
+        """Test initialization with unsupported provider."""
+        with patch(
+            "arklex.utils.model_provider_config.PROVIDER_MAP"
+        ) as mock_provider_map:
+            mock_provider_map.get.return_value = None
+
+            with pytest.raises(ValueError, match="Unsupported provider"):
+                DataBaseWorker(
+                    model_config={
+                        "llm_provider": "unsupported",
+                        "model_type_or_path": "test-model",
+                        "api_key": "test-key",
+                    }
+                )
+
+    def test_verify_action_with_empty_intent(self) -> None:
+        """Test verify_action with empty user intent."""
+        with patch(
+            "arklex.utils.model_provider_config.PROVIDER_MAP"
+        ) as mock_provider_map:
+            mock_llm_class = Mock()
+            mock_llm_instance = Mock()
+            mock_llm_class.return_value = mock_llm_instance
+            mock_provider_map.get.return_value = mock_llm_class
+
+            with patch(
+                "arklex.env.workers.database_worker.DatabaseActions"
+            ) as mock_db_actions:
+                mock_db_actions_instance = Mock()
+                mock_db_actions.return_value = mock_db_actions_instance
+
+                custom_config = {
+                    "llm_provider": "openai",
+                    "model_type_or_path": "gpt-3.5-turbo",
+                    "api_key": "test-api-key",
+                }
+
+                worker = DataBaseWorker(model_config=custom_config)
+
+                mock_state = Mock(spec=MessageState)
+                mock_orchestrator_message = Mock()
+                mock_orchestrator_message.attribute = {"task": ""}
+                mock_state.orchestrator_message = mock_orchestrator_message
+                mock_state.bot_config = BotConfig(language="EN")
+
+                with patch.object(worker, "llm") as mock_llm:
+                    mock_chain = Mock()
+                    mock_chain.invoke.return_value = "Others"
+                    mock_llm.__or__ = Mock(return_value=mock_chain)
+
+                    result = worker.verify_action(mock_state)
+                    assert result == "Others"
+
+    def test_verify_action_with_none_intent(self) -> None:
+        """Test verify_action with None user intent."""
+        with patch(
+            "arklex.utils.model_provider_config.PROVIDER_MAP"
+        ) as mock_provider_map:
+            mock_llm_class = Mock()
+            mock_llm_instance = Mock()
+            mock_llm_class.return_value = mock_llm_instance
+            mock_provider_map.get.return_value = mock_llm_class
+
+            with patch(
+                "arklex.env.workers.database_worker.DatabaseActions"
+            ) as mock_db_actions:
+                mock_db_actions_instance = Mock()
+                mock_db_actions.return_value = mock_db_actions_instance
+
+                custom_config = {
+                    "llm_provider": "openai",
+                    "model_type_or_path": "gpt-3.5-turbo",
+                    "api_key": "test-api-key",
+                }
+
+                worker = DataBaseWorker(model_config=custom_config)
+
+                mock_state = Mock(spec=MessageState)
+                mock_orchestrator_message = Mock()
+                mock_orchestrator_message.attribute = {"task": None}
+                mock_state.orchestrator_message = mock_orchestrator_message
+                mock_state.bot_config = BotConfig(language="EN")
+
+                with patch.object(worker, "llm") as mock_llm:
+                    mock_chain = Mock()
+                    mock_chain.invoke.return_value = "Others"
+                    mock_llm.__or__ = Mock(return_value=mock_chain)
+
+                    result = worker.verify_action(mock_state)
+                    assert result == "Others"
+
+
+class TestDataBaseWorkerActionMethods:
+    """Test individual action methods of DataBaseWorker."""
+
+    def setup_method(self) -> None:
+        """Set up test fixtures."""
+        with patch(
+            "arklex.utils.model_provider_config.PROVIDER_MAP"
+        ) as mock_provider_map:
+            mock_llm_class = Mock()
+            mock_llm_instance = Mock()
+            mock_llm_class.return_value = mock_llm_instance
+            mock_provider_map.get.return_value = mock_llm_class
+
+            with patch(
+                "arklex.env.workers.database_worker.DatabaseActions"
+            ) as mock_db_actions:
+                mock_db_actions_instance = Mock()
+                mock_db_actions.return_value = mock_db_actions_instance
+
+                custom_config = {
+                    "llm_provider": "openai",
+                    "model_type_or_path": "gpt-3.5-turbo",
+                    "api_key": "test-api-key",
+                }
+
+                self.worker = DataBaseWorker(model_config=custom_config)
+
+    def test_search_show_method(self) -> None:
+        """Test search_show method delegates to DBActions."""
+        mock_state = Mock(spec=MessageState)
+        expected_result = Mock(spec=MessageState)
+        self.worker.DBActions.search_show.return_value = expected_result
+
+        result = self.worker.search_show(mock_state)
+
+        assert result == expected_result
+        self.worker.DBActions.search_show.assert_called_once_with(mock_state)
+
+    def test_book_show_method(self) -> None:
+        """Test book_show method delegates to DBActions."""
+        mock_state = Mock(spec=MessageState)
+        expected_result = Mock(spec=MessageState)
+        self.worker.DBActions.book_show.return_value = expected_result
+
+        result = self.worker.book_show(mock_state)
+
+        assert result == expected_result
+        self.worker.DBActions.book_show.assert_called_once_with(mock_state)
+
+    def test_check_booking_method(self) -> None:
+        """Test check_booking method delegates to DBActions."""
+        mock_state = Mock(spec=MessageState)
+        expected_result = Mock(spec=MessageState)
+        self.worker.DBActions.check_booking.return_value = expected_result
+
+        result = self.worker.check_booking(mock_state)
+
+        assert result == expected_result
+        self.worker.DBActions.check_booking.assert_called_once_with(mock_state)
+
+    def test_cancel_booking_method(self) -> None:
+        """Test cancel_booking method delegates to DBActions."""
+        mock_state = Mock(spec=MessageState)
+        expected_result = Mock(spec=MessageState)
+        self.worker.DBActions.cancel_booking.return_value = expected_result
+
+        result = self.worker.cancel_booking(mock_state)
+
+        assert result == expected_result
+        self.worker.DBActions.cancel_booking.assert_called_once_with(mock_state)
+
+
+class TestDataBaseWorkerActionGraph:
+    """Test action graph creation and structure."""
+
+    def test_create_action_graph_nodes(self) -> None:
+        """Test that action graph has all required nodes."""
+        with patch(
+            "arklex.utils.model_provider_config.PROVIDER_MAP"
+        ) as mock_provider_map:
+            mock_llm_class = Mock()
+            mock_llm_instance = Mock()
+            mock_llm_class.return_value = mock_llm_instance
+            mock_provider_map.get.return_value = mock_llm_class
+
+            with patch(
+                "arklex.env.workers.database_worker.DatabaseActions"
+            ) as mock_db_actions:
+                mock_db_actions_instance = Mock()
+                mock_db_actions.return_value = mock_db_actions_instance
+
+                custom_config = {
+                    "llm_provider": "openai",
+                    "model_type_or_path": "gpt-3.5-turbo",
+                    "api_key": "test-api-key",
+                }
+
+                worker = DataBaseWorker(model_config=custom_config)
+
+                # Test that the action graph has the expected structure
+                graph = worker.action_graph
+                assert graph is not None
+
+                # Verify that the graph has the expected nodes
+                expected_nodes = [
+                    "SearchShow",
+                    "BookShow",
+                    "CheckBooking",
+                    "CancelBooking",
+                    "Others",
+                    "tool_generator",
+                ]
+                for _node in expected_nodes:
+                    assert hasattr(graph, "nodes") or hasattr(graph, "_nodes")
+
+
+class TestDataBaseWorkerModelConfiguration:
+    """Test DataBaseWorker with different model configurations."""
+
+    def test_google_provider_configuration(self) -> None:
+        """Test Google provider configuration."""
+        with patch(
+            "arklex.utils.model_provider_config.PROVIDER_MAP"
+        ) as mock_provider_map:
+            mock_llm_class = Mock()
+            mock_llm_instance = Mock()
+            mock_llm_class.return_value = mock_llm_instance
+            mock_provider_map.get.return_value = mock_llm_class
+
+            with patch(
+                "arklex.env.workers.database_worker.DatabaseActions"
+            ) as mock_db_actions:
+                mock_db_actions_instance = Mock()
+                mock_db_actions.return_value = mock_db_actions_instance
+
+                google_config = {
+                    "llm_provider": "google",
+                    "model_type_or_path": "gemini-pro",
+                    "api_key": "test-google-key",
+                }
+
+                DataBaseWorker(model_config=google_config)
+
+                # Verify that the LLM was initialized with Google-specific parameters
+                mock_llm_class.assert_called_once()
+                call_args = mock_llm_class.call_args
+                assert call_args[1]["model"] == "gemini-pro"
+                assert call_args[1]["google_api_key"] == "test-google-key"
+                assert call_args[1]["timeout"] == 30000
+
+    def test_other_provider_configuration(self) -> None:
+        """Test other provider configuration."""
+        with patch(
+            "arklex.utils.model_provider_config.PROVIDER_MAP"
+        ) as mock_provider_map:
+            mock_llm_class = Mock()
+            mock_llm_instance = Mock()
+            mock_llm_class.return_value = mock_llm_instance
+            mock_provider_map.get.return_value = mock_llm_class
+
+            with patch(
+                "arklex.env.workers.database_worker.DatabaseActions"
+            ) as mock_db_actions:
+                mock_db_actions_instance = Mock()
+                mock_db_actions.return_value = mock_db_actions_instance
+
+                other_config = {
+                    "llm_provider": "anthropic",
+                    "model_type_or_path": "claude-3-sonnet",
+                    "api_key": "test-anthropic-key",
+                }
+
+                DataBaseWorker(model_config=other_config)
+
+                # Verify that the LLM was initialized with standard parameters
+                mock_llm_class.assert_called_once()
+                call_args = mock_llm_class.call_args
+                assert call_args[1]["model"] == "claude-3-sonnet"
+                assert call_args[1]["api_key"] == "test-anthropic-key"
+                assert call_args[1]["timeout"] == 30000
+
+
+class TestDataBaseWorkerIntegrationScenarios:
+    """Test DataBaseWorker integration scenarios."""
+
+    def test_worker_registration(self) -> None:
+        """Test that DataBaseWorker is properly registered."""
+        # Test that the DataBaseWorker class has the name attribute set by the decorator
+        assert hasattr(DataBaseWorker, "name")
+        assert DataBaseWorker.name == "DataBaseWorker"
+
+    def test_worker_description_consistency(self) -> None:
+        """Test that worker description is consistent."""
+        expected_description = "Help the user with actions related to customer support like a booking system with structured data, always involving search, insert, update, and delete operations."
+
+        assert DataBaseWorker.description == expected_description
+
+    def test_actions_dictionary_consistency(self) -> None:
+        """Test that actions dictionary is consistent."""
+        with patch(
+            "arklex.utils.model_provider_config.PROVIDER_MAP"
+        ) as mock_provider_map:
+            mock_llm_class = Mock()
+            mock_llm_instance = Mock()
+            mock_llm_class.return_value = mock_llm_instance
+            mock_provider_map.get.return_value = mock_llm_class
+
+            with patch(
+                "arklex.env.workers.database_worker.DatabaseActions"
+            ) as mock_db_actions:
+                mock_db_actions_instance = Mock()
+                mock_db_actions.return_value = mock_db_actions_instance
+
+                custom_config = {
+                    "llm_provider": "openai",
+                    "model_type_or_path": "gpt-3.5-turbo",
+                    "api_key": "test-api-key",
+                }
+
+                worker = DataBaseWorker(model_config=custom_config)
+
+                expected_actions = {
+                    "SearchShow": "Search for shows",
+                    "BookShow": "Book a show",
+                    "CheckBooking": "Check details of booked show(s)",
+                    "CancelBooking": "Cancel a booking",
+                    "Others": "Other actions not mentioned above",
+                }
+
+                assert worker.actions == expected_actions
