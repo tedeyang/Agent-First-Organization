@@ -305,10 +305,10 @@ class DatabaseActions:
             conn.commit()
             # Respond to user the cancellation
             results_df: pd.DataFrame = pd.DataFrame(results)
+            msg_state.status = StatusEnum.COMPLETE
             msg_state.message_flow = "The cancelled show is:\n" + results_df.to_string(
                 index=False
             )
-        msg_state.status = StatusEnum.COMPLETE
         cursor.close()
         conn.close()
         return msg_state
