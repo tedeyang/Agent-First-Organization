@@ -121,6 +121,12 @@ class RAGMessageWorker(BaseWorker):
         Returns:
             str: Relevant document content or search results.
         """
+        if msg_state.orchestrator_message is None:
+            return "No query provided for document search."
+
+        if msg_state.orchestrator_message.attribute is None:
+            return "No query provided for document search."
+
         query = msg_state.orchestrator_message.attribute.get("query", "")
         if not query:
             return "No query provided for document search."
@@ -138,6 +144,12 @@ class RAGMessageWorker(BaseWorker):
         Returns:
             str: Generated response to the user's query.
         """
+        if msg_state.orchestrator_message is None:
+            return "No query provided for response generation."
+
+        if msg_state.orchestrator_message.attribute is None:
+            return "No query provided for response generation."
+
         query = msg_state.orchestrator_message.attribute.get("query", "")
         if not query:
             return "No query provided for response generation."
