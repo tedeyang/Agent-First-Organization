@@ -260,3 +260,9 @@ class TestRAGWorkersErrorHandling:
 
         result = rag_message_worker.search_documents(mock_state)
         assert "No query provided" in result
+
+        # Test with orchestrator_message and empty attribute dict
+        mock_state.orchestrator_message.attribute = {}
+
+        result = rag_message_worker.search_documents(mock_state)
+        assert "No query provided" in result
