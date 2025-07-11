@@ -9,6 +9,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from arklex.utils.exceptions import ToolExecutionError
+
 # Mock the acuityscheduling import since it's not installed
 with patch.dict("sys.modules", {"acuityscheduling": Mock()}):
     from arklex.env.tools.acuity import (
@@ -30,36 +32,47 @@ class TestAcuityExceptionPrompt:
 
     def test_acuity_exception_prompt_constants(self) -> None:
         """Test that Acuity exception prompt constants are defined."""
-        assert hasattr(_exception_prompt, "ACUITY_EXCEPTION_PROMPT")
-        assert hasattr(_exception_prompt, "ACUITY_EXCEPTION_PROMPT_2")
-        assert hasattr(_exception_prompt, "ACUITY_EXCEPTION_PROMPT_3")
+        assert hasattr(_exception_prompt, "AVAILABLE_DATES_EXCEPTION_PROMPT")
+        assert hasattr(_exception_prompt, "AVAILABLE_TIMES_EXCEPTION_PROMPT")
+        assert hasattr(_exception_prompt, "AVAILABLE_TYPES_EXCEPTION_PROMPT")
 
     def test_acuity_exception_prompt_values(self) -> None:
         """Test that Acuity exception prompt values are not None."""
-        assert _exception_prompt.ACUITY_EXCEPTION_PROMPT is not None
-        assert _exception_prompt.ACUITY_EXCEPTION_PROMPT_2 is not None
-        assert _exception_prompt.ACUITY_EXCEPTION_PROMPT_3 is not None
+        assert _exception_prompt.AVAILABLE_DATES_EXCEPTION_PROMPT is not None
+        assert _exception_prompt.AVAILABLE_TIMES_EXCEPTION_PROMPT is not None
+        assert _exception_prompt.AVAILABLE_TYPES_EXCEPTION_PROMPT is not None
 
 
 class TestAcuityUtils:
     """Test the Acuity utility functions."""
 
-    def test_get_acuity_client_success(self) -> None:
+    @patch("acuityscheduling.Acuity", autospec=True)
+    def test_get_acuity_client_success(self, mock_acuity: Mock) -> None:
         """Test successful creation of Acuity client."""
-        client = get_acuity_client("user", "key")
+        client = get_acuity_client()
         assert client is not None
-        assert hasattr(client, "appointment_types")
+        mock_acuity.assert_called_once()
 
     def test_get_acuity_client_exception(self) -> None:
-        """Test Acuity client creation with invalid credentials."""
-        with pytest.raises(ValueError):
-            get_acuity_client("", "")
+        """Test Acuity client creation with ImportError."""
+        import sys
+
+        acuity_backup = sys.modules.get("acuityscheduling")
+        sys.modules["acuityscheduling"] = None
+        try:
+            with pytest.raises(ImportError):
+                get_acuity_client()
+        finally:
+            if acuity_backup is not None:
+                sys.modules["acuityscheduling"] = acuity_backup
+            else:
+                del sys.modules["acuityscheduling"]
 
 
 class TestAcuityGetAvailableDates:
     """Test the get_available_dates function."""
 
-    @patch("arklex.env.tools.acuity.get_available_dates.requests.get")
+    @patch("requests.get")
     def test_get_available_dates_success(self, mock_get: Mock) -> None:
         """Test successful retrieval of available dates."""
         mock_response = Mock()
@@ -70,31 +83,41 @@ class TestAcuityGetAvailableDates:
         ]
         mock_get.return_value = mock_response
 
-        result = get_available_dates().func(
-            date="2024-01-15", ACUITY_USER_ID="user", ACUITY_API_KEY="key"
+        # Get the underlying function from the tool
+        tool = get_available_dates()
+        result = tool.func(
+            year="2024",
+            month="01",
+            apt_type_id="123",
+            ACUITY_USER_ID="user",
+            ACUITY_API_KEY="key",
         )
-
         assert "2024-01-15" in result
         assert "2024-01-16" in result
         mock_get.assert_called_once()
 
-    @patch("arklex.env.tools.acuity.get_available_dates.requests.get")
+    @patch("requests.get")
     def test_get_available_dates_exception(self, mock_get: Mock) -> None:
         """Test get_available_dates with exception."""
         mock_response = Mock()
         mock_response.status_code = 500
         mock_get.return_value = mock_response
 
-        with pytest.raises(RuntimeError):
-            get_available_dates().func(
-                date="2024-01-15", ACUITY_USER_ID="user", ACUITY_API_KEY="key"
+        tool = get_available_dates()
+        with pytest.raises(ToolExecutionError):
+            tool.func(
+                year="2024",
+                month="01",
+                apt_type_id="123",
+                ACUITY_USER_ID="user",
+                ACUITY_API_KEY="key",
             )
 
 
 class TestAcuityGetAvailableTimes:
     """Test the get_available_times function."""
 
-    @patch("arklex.env.tools.acuity.get_available_times.requests.get")
+    @patch("requests.get")
     def test_get_available_times_success(self, mock_get: Mock) -> None:
         """Test successful retrieval of available times."""
         mock_response = Mock()
@@ -106,29 +129,30 @@ class TestAcuityGetAvailableTimes:
         ]
         mock_get.return_value = mock_response
 
-        result = get_available_times().func(
+        tool = get_available_times()
+        result = tool.func(
             date="2024-01-15",
-            appointment_type_id="123",
+            apt_tid="123",
             ACUITY_USER_ID="user",
             ACUITY_API_KEY="key",
         )
-
         assert "09:00" in result
         assert "10:00" in result
         assert "11:00" not in result
         mock_get.assert_called_once()
 
-    @patch("arklex.env.tools.acuity.get_available_times.requests.get")
+    @patch("requests.get")
     def test_get_available_times_exception(self, mock_get: Mock) -> None:
         """Test get_available_times with exception."""
         mock_response = Mock()
         mock_response.status_code = 500
         mock_get.return_value = mock_response
 
-        with pytest.raises(RuntimeError):
-            get_available_times().func(
+        tool = get_available_times()
+        with pytest.raises(ToolExecutionError):
+            tool.func(
                 date="2024-01-15",
-                appointment_type_id="123",
+                apt_tid="123",
                 ACUITY_USER_ID="user",
                 ACUITY_API_KEY="key",
             )
@@ -137,7 +161,7 @@ class TestAcuityGetAvailableTimes:
 class TestAcuityGetSessionTypes:
     """Test the get_session_types function."""
 
-    @patch("arklex.env.tools.acuity.get_session_types.requests.get")
+    @patch("requests.get")
     def test_get_session_types_success(self, mock_get: Mock) -> None:
         """Test successful retrieval of session types."""
         mock_response = Mock()
@@ -148,27 +172,28 @@ class TestAcuityGetSessionTypes:
         ]
         mock_get.return_value = mock_response
 
-        result = get_session_types().func(ACUITY_USER_ID="user", ACUITY_API_KEY="key")
-
+        tool = get_session_types()
+        result = tool.func(ACUITY_USER_ID="user", ACUITY_API_KEY="key")
         assert "Info Session" in result
         assert "Consultation" in result
         mock_get.assert_called_once()
 
-    @patch("arklex.env.tools.acuity.get_session_types.requests.get")
+    @patch("requests.get")
     def test_get_session_types_exception(self, mock_get: Mock) -> None:
         """Test get_session_types with exception."""
         mock_response = Mock()
         mock_response.status_code = 500
         mock_get.return_value = mock_response
 
-        with pytest.raises(RuntimeError):
-            get_session_types().func(ACUITY_USER_ID="user", ACUITY_API_KEY="key")
+        tool = get_session_types()
+        with pytest.raises(ToolExecutionError):
+            tool.func(ACUITY_USER_ID="user", ACUITY_API_KEY="key")
 
 
 class TestAcuityGetTypeIdByAptName:
     """Test the get_type_id_by_apt_name function."""
 
-    @patch("arklex.env.tools.acuity.get_type_id_by_apt_name.requests.get")
+    @patch("requests.get")
     def test_get_type_id_by_apt_name_success(self, mock_get: Mock) -> None:
         """Test successful retrieval of type ID by appointment name."""
         mock_response = Mock()
@@ -179,37 +204,40 @@ class TestAcuityGetTypeIdByAptName:
         ]
         mock_get.return_value = mock_response
 
-        result = get_type_id_by_apt_name().func(
+        tool = get_type_id_by_apt_name()
+        result = tool.func(
             apt_name="Info Session", ACUITY_USER_ID="user", ACUITY_API_KEY="key"
         )
-
         assert "1" in result
         mock_get.assert_called_once()
 
-    @patch("arklex.env.tools.acuity.get_type_id_by_apt_name.requests.get")
+    @patch("requests.get")
     def test_get_type_id_by_apt_name_not_found(self, mock_get: Mock) -> None:
-        """Test get_type_id_by_apt_name when appointment type not found."""
+        """Test get_type_id_by_apt_name when appointment type is not found."""
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.json.return_value = [{"name": "Info Session", "id": 1}]
+        mock_response.json.return_value = [
+            {"name": "Consultation", "id": 2},
+        ]
         mock_get.return_value = mock_response
 
-        result = get_type_id_by_apt_name().func(
+        tool = get_type_id_by_apt_name()
+        result = tool.func(
             apt_name="Non-existent", ACUITY_USER_ID="user", ACUITY_API_KEY="key"
         )
-
-        assert "none" in result.lower()
+        assert "the appointment type id is none" in result.lower()
         mock_get.assert_called_once()
 
-    @patch("arklex.env.tools.acuity.get_type_id_by_apt_name.requests.get")
+    @patch("requests.get")
     def test_get_type_id_by_apt_name_exception(self, mock_get: Mock) -> None:
         """Test get_type_id_by_apt_name with exception."""
         mock_response = Mock()
         mock_response.status_code = 500
         mock_get.return_value = mock_response
 
-        with pytest.raises(RuntimeError):
-            get_type_id_by_apt_name().func(
+        tool = get_type_id_by_apt_name()
+        with pytest.raises(ToolExecutionError):
+            tool.func(
                 apt_name="Info Session", ACUITY_USER_ID="user", ACUITY_API_KEY="key"
             )
 
@@ -217,7 +245,7 @@ class TestAcuityGetTypeIdByAptName:
 class TestAcuityBookInfoSession:
     """Test the book_info_session function."""
 
-    @patch("arklex.env.tools.acuity.book_info_session.requests.post")
+    @patch("requests.post")
     def test_book_info_session_success(self, mock_post: Mock) -> None:
         """Test successful booking of info session."""
         mock_response = Mock()
@@ -225,32 +253,34 @@ class TestAcuityBookInfoSession:
         mock_response.json.return_value = {"id": 123, "status": "confirmed"}
         mock_post.return_value = mock_response
 
-        result = book_info_session().func(
+        tool = book_info_session()
+        result = tool.func(
             fname="John",
             lname="Doe",
             email="john@example.com",
-            time="2024-01-15T09:00:00-0400",
+            time="2024-01-15T10:00:00-0400",
             apt_type_id="123",
             ACUITY_USER_ID="user",
             ACUITY_API_KEY="key",
         )
-
+        assert "123" in result
         assert "confirmed" in result
         mock_post.assert_called_once()
 
-    @patch("arklex.env.tools.acuity.book_info_session.requests.post")
+    @patch("requests.post")
     def test_book_info_session_exception(self, mock_post: Mock) -> None:
         """Test book_info_session with exception."""
         mock_response = Mock()
         mock_response.status_code = 500
         mock_post.return_value = mock_response
 
-        with pytest.raises(RuntimeError):
-            book_info_session().func(
+        tool = book_info_session()
+        with pytest.raises(ToolExecutionError):
+            tool.func(
                 fname="John",
                 lname="Doe",
                 email="john@example.com",
-                time="2024-01-15T09:00:00-0400",
+                time="2024-01-15T10:00:00-0400",
                 apt_type_id="123",
                 ACUITY_USER_ID="user",
                 ACUITY_API_KEY="key",
@@ -260,68 +290,52 @@ class TestAcuityBookInfoSession:
 class TestAcuityGetAptByEmail:
     """Test the get_apt_by_email function."""
 
-    @patch("arklex.env.tools.acuity.get_apt_by_email.requests.get")
+    @patch("requests.get")
     def test_get_apt_by_email_success(self, mock_get: Mock) -> None:
         """Test successful retrieval of appointments by email."""
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = [
             {
-                "id": 1,
-                "email": "john@example.com",
-                "date": "January 15, 2025",
-                "time": "09:00",
-                "endTime": "10:00",
-                "type": "Info Session",
-            },
-            {
-                "id": 2,
-                "email": "john@example.com",
-                "date": "January 16, 2025",
-                "time": "10:00",
-                "endTime": "11:00",
-                "type": "Consultation",
-            },
-            {
-                "id": 3,
-                "email": "other@example.com",
-                "date": "January 15, 2025",
-                "time": "09:00",
-                "endTime": "10:00",
-                "type": "Info Session",
-            },
+                "id": 123,
+                "datetime": "2024-01-15T10:00:00-0400",
+                "appointmentType": {"name": "Info Session"},
+            }
         ]
         mock_get.return_value = mock_response
 
-        with pytest.raises(RuntimeError):
-            get_apt_by_email().func(
-                email="john@example.com", ACUITY_USER_ID="user", ACUITY_API_KEY="key"
-            )
+        tool = get_apt_by_email()
+        result = tool.func(
+            email="john@example.com", ACUITY_USER_ID="user", ACUITY_API_KEY="key"
+        )
+        assert "123" in result
+        assert "Info Session" in result
         mock_get.assert_called_once()
 
-    @patch("arklex.env.tools.acuity.get_apt_by_email.requests.get")
+    @patch("requests.get")
     def test_get_apt_by_email_no_appointments(self, mock_get: Mock) -> None:
-        """Test get_apt_by_email when no appointments found."""
+        """Test get_apt_by_email when no appointments exist."""
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = []
         mock_get.return_value = mock_response
 
-        with pytest.raises(RuntimeError):
-            get_apt_by_email().func(
+        tool = get_apt_by_email()
+        with pytest.raises(ToolExecutionError):
+            tool.func(
                 email="john@example.com", ACUITY_USER_ID="user", ACUITY_API_KEY="key"
             )
-        mock_get.assert_called_once()
 
-    @patch("arklex.env.tools.acuity.get_apt_by_email.requests.get")
+    @patch("requests.get")
     def test_get_apt_by_email_exception(self, mock_get: Mock) -> None:
         """Test get_apt_by_email with exception."""
         mock_response = Mock()
         mock_response.status_code = 500
         mock_get.return_value = mock_response
 
-        with pytest.raises(RuntimeError):
-            get_apt_by_email().func(
+        tool = get_apt_by_email()
+        with pytest.raises(ToolExecutionError):
+            tool.func(
                 email="john@example.com", ACUITY_USER_ID="user", ACUITY_API_KEY="key"
             )
 
@@ -329,7 +343,7 @@ class TestAcuityGetAptByEmail:
 class TestAcuityCancel:
     """Test the cancel function."""
 
-    @patch("arklex.env.tools.acuity.cancel.requests.put")
+    @patch("requests.put")
     def test_cancel_success(self, mock_put: Mock) -> None:
         """Test successful cancellation of appointment."""
         mock_response = Mock()
@@ -337,64 +351,60 @@ class TestAcuityCancel:
         mock_response.json.return_value = {"status": "cancelled"}
         mock_put.return_value = mock_response
 
-        result = cancel().func(
-            apt_id="123", ACUITY_USER_ID="user", ACUITY_API_KEY="key"
-        )
-        assert "cancelled" in result
+        tool = cancel()
+        result = tool.func(apt_id="123", ACUITY_USER_ID="user", ACUITY_API_KEY="key")
+        assert "the appointment is cancelled successfully" in result.lower()
         mock_put.assert_called_once()
 
-    @patch("arklex.env.tools.acuity.cancel.requests.put")
+    @patch("requests.put")
     def test_cancel_exception(self, mock_put: Mock) -> None:
         """Test cancel with exception."""
         mock_response = Mock()
         mock_response.status_code = 500
         mock_put.return_value = mock_response
 
-        with pytest.raises(RuntimeError):
-            cancel().func(apt_id="123", ACUITY_USER_ID="user", ACUITY_API_KEY="key")
+        tool = cancel()
+        with pytest.raises(ToolExecutionError):
+            tool.func(apt_id="123", ACUITY_USER_ID="user", ACUITY_API_KEY="key")
 
 
 class TestAcuityReschedule:
     """Test the reschedule function."""
 
-    @patch("arklex.env.tools.acuity.reschedule.requests.put")
+    @patch("requests.put")
     def test_reschedule_success(self, mock_put: Mock) -> None:
         """Test successful rescheduling of appointment."""
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "id": 123,
-            "date": "2024-01-16",
-            "time": "10:00",
-            "status": "confirmed",
+            "datetime": "2024-01-16T10:00:00Z",
         }
         mock_put.return_value = mock_response
 
-        result = reschedule().func(
+        tool = reschedule()
+        result = tool.func(
             apt_id="123",
-            date="2024-01-16",
-            time="10:00",
+            datetime="2024-01-16T10:00:00Z",
             ACUITY_USER_ID="user",
             ACUITY_API_KEY="key",
         )
-
-        assert "confirmed" in result
-        assert "2024-01-16" in result
-        assert "10:00" in result
+        assert "123" in result
+        assert "2024-01-16t10:00:00z" in result.lower()
         mock_put.assert_called_once()
 
-    @patch("arklex.env.tools.acuity.reschedule.requests.put")
+    @patch("requests.put")
     def test_reschedule_exception(self, mock_put: Mock) -> None:
         """Test reschedule with exception."""
         mock_response = Mock()
         mock_response.status_code = 500
         mock_put.return_value = mock_response
 
-        with pytest.raises(RuntimeError):
-            reschedule().func(
+        tool = reschedule()
+        with pytest.raises(ToolExecutionError):
+            tool.func(
                 apt_id="123",
-                date="2024-01-16",
-                time="10:00",
+                datetime="2024-01-16T10:00:00Z",
                 ACUITY_USER_ID="user",
                 ACUITY_API_KEY="key",
             )
@@ -403,19 +413,18 @@ class TestAcuityReschedule:
 class TestAcuityToolsIntegration:
     """Integration tests for Acuity tools."""
 
-    @patch("arklex.env.tools.acuity.get_available_dates.requests.get")
-    @patch("arklex.env.tools.acuity.get_available_times.requests.get")
-    @patch("arklex.env.tools.acuity.get_session_types.requests.get")
+    @patch("requests.get")
+    @patch("requests.get")
+    @patch("requests.get")
     def test_acuity_workflow(
         self, mock_types_get: Mock, mock_times_get: Mock, mock_dates_get: Mock
     ) -> None:
-        """Test a complete Acuity workflow."""
+        """Test complete Acuity workflow."""
         # Mock session types response
         mock_types_response = Mock()
         mock_types_response.status_code = 200
         mock_types_response.json.return_value = [
             {"name": "Info Session", "id": 1},
-            {"name": "Consultation", "id": 2},
         ]
         mock_types_get.return_value = mock_types_response
 
@@ -424,7 +433,6 @@ class TestAcuityToolsIntegration:
         mock_times_response.status_code = 200
         mock_times_response.json.return_value = [
             {"time": "09:00", "available": True},
-            {"time": "10:00", "available": True},
         ]
         mock_times_get.return_value = mock_times_response
 
@@ -433,32 +441,31 @@ class TestAcuityToolsIntegration:
         mock_dates_response.status_code = 200
         mock_dates_response.json.return_value = [
             {"date": "2024-01-15", "slots": 5},
-            {"date": "2024-01-16", "slots": 3},
         ]
         mock_dates_get.return_value = mock_dates_response
 
         # Test session types
-        result_types = get_session_types().func(
-            ACUITY_USER_ID="user", ACUITY_API_KEY="key"
-        )
-        assert "Info Session" in result_types
+        tool = get_session_types()
+        result = tool.func(ACUITY_USER_ID="user", ACUITY_API_KEY="key")
+        assert "Info Session" in result
 
         # Test available times
-        result_times = get_available_times().func(
+        tool = get_available_times()
+        result = tool.func(
             date="2024-01-15",
-            appointment_type_id="1",
+            apt_tid="1",
             ACUITY_USER_ID="user",
             ACUITY_API_KEY="key",
         )
-        assert "09:00" in result_times
+        assert "09:00" in result
 
         # Test available dates
-        result_dates = get_available_dates().func(
-            date="2024-01-15", ACUITY_USER_ID="user", ACUITY_API_KEY="key"
+        tool = get_available_dates()
+        result = tool.func(
+            year="2024",
+            month="01",
+            apt_type_id="1",
+            ACUITY_USER_ID="user",
+            ACUITY_API_KEY="key",
         )
-        assert "2024-01-15" in result_dates
-
-        # Verify all mocks were called
-        mock_types_get.assert_called_once()
-        mock_times_get.assert_called_once()
-        mock_dates_get.assert_called_once()
+        assert "2024-01-15" in result

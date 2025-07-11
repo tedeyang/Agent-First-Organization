@@ -247,6 +247,7 @@ class TestDataBaseWorkerVerifyAction:
         mock_orchestrator_message = Mock()
         mock_orchestrator_message.attribute = {"task": "search for shows"}
         mock_state.orchestrator_message = mock_orchestrator_message
+        mock_state.bot_config = {}
 
         # Mock the LLM response
         self.worker.llm.invoke.return_value.content = "SearchShow"
@@ -261,6 +262,7 @@ class TestDataBaseWorkerVerifyAction:
         mock_orchestrator_message = Mock()
         mock_orchestrator_message.attribute = {"task": "book a show"}
         mock_state.orchestrator_message = mock_orchestrator_message
+        mock_state.bot_config = {}
 
         # Mock the LLM response
         self.worker.llm.invoke.return_value.content = "BookShow"
@@ -275,6 +277,7 @@ class TestDataBaseWorkerVerifyAction:
         mock_orchestrator_message = Mock()
         mock_orchestrator_message.attribute = {"task": "check my bookings"}
         mock_state.orchestrator_message = mock_orchestrator_message
+        mock_state.bot_config = {}
 
         # Mock the LLM response
         self.worker.llm.invoke.return_value.content = "CheckBooking"
@@ -289,6 +292,7 @@ class TestDataBaseWorkerVerifyAction:
         mock_orchestrator_message = Mock()
         mock_orchestrator_message.attribute = {"task": "cancel my booking"}
         mock_state.orchestrator_message = mock_orchestrator_message
+        mock_state.bot_config = {}
 
         # Mock the LLM response
         self.worker.llm.invoke.return_value.content = "CancelBooking"
@@ -303,6 +307,7 @@ class TestDataBaseWorkerVerifyAction:
         mock_orchestrator_message = Mock()
         mock_orchestrator_message.attribute = {"task": "general inquiry"}
         mock_state.orchestrator_message = mock_orchestrator_message
+        mock_state.bot_config = {}
 
         # Mock the LLM response
         self.worker.llm.invoke.return_value.content = "Others"
@@ -317,6 +322,7 @@ class TestDataBaseWorkerVerifyAction:
         mock_orchestrator_message = Mock()
         mock_orchestrator_message.attribute = {"task": "test task"}
         mock_state.orchestrator_message = mock_orchestrator_message
+        mock_state.bot_config = {}
 
         # Mock the LLM to raise an exception
         self.worker.llm.invoke.side_effect = Exception("LLM error")

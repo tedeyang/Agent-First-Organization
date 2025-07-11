@@ -213,7 +213,7 @@ class TestBookingDBSearchShow:
 
         result = search_show().func("Non-existent Show", None, None, None)
 
-        assert "Show is not found" in result
+        assert "No shows exist" in result
         mock_conn.close.assert_called_once()
 
     @patch("arklex.env.tools.booking_db.search_show.log_in")

@@ -11,6 +11,7 @@ import pytest
 
 from arklex.env.workers.search_worker import SearchWorker
 from arklex.orchestrator.entities.orch_entities import MessageState
+from arklex.utils.exceptions import SearchError
 
 
 class TestSearchWorkerInitialization:
@@ -47,75 +48,67 @@ class TestSearchWorkerInitialization:
         assert worker is not None
 
 
-class TestSearchWorkerSearch:
-    """Test cases for SearchWorker search functionality."""
+class TestSearchWorkerExecute:
+    """Test cases for SearchWorker execute functionality."""
 
-    def test_search_documents_basic(self) -> None:
-        """Test basic search functionality."""
+    def test_execute_basic(self) -> None:
+        """Test basic execute functionality."""
         worker = SearchWorker()
         mock_state = Mock(spec=MessageState)
 
-        # Mock the execute method
-        mock_result = Mock(spec=MessageState)
-        worker._execute = Mock(return_value=mock_result)
+        # Mock the graph compilation and execution
+        mock_graph = Mock()
+        mock_result = {"search_results": "test results"}
+        mock_graph.invoke.return_value = mock_result
+        worker.action_graph.compile = Mock(return_value=mock_graph)
 
-        result = worker.search_documents(mock_state)
+        result = worker._execute(mock_state)
 
         assert result == mock_result
-        worker._execute.assert_called_once_with(mock_state)
+        mock_graph.invoke.assert_called_once_with(mock_state)
 
-    def test_search_documents_with_empty_query(self) -> None:
-        """Test search with empty query."""
+    def test_execute_with_empty_state(self) -> None:
+        """Test execute with empty state."""
         worker = SearchWorker()
         mock_state = Mock(spec=MessageState)
 
-        # Mock the execute method
-        mock_result = Mock(spec=MessageState)
-        worker._execute = Mock(return_value=mock_result)
+        # Mock the graph compilation and execution
+        mock_graph = Mock()
+        mock_result = {"search_results": "empty results"}
+        mock_graph.invoke.return_value = mock_result
+        worker.action_graph.compile = Mock(return_value=mock_graph)
 
-        result = worker.search_documents(mock_state)
+        result = worker._execute(mock_state)
 
         assert result == mock_result
-        worker._execute.assert_called_once_with(mock_state)
+        mock_graph.invoke.assert_called_once_with(mock_state)
 
-    def test_search_documents_with_none_query(self) -> None:
-        """Test search with None query."""
+    def test_execute_with_complex_state(self) -> None:
+        """Test execute with complex state."""
         worker = SearchWorker()
         mock_state = Mock(spec=MessageState)
 
-        # Mock the execute method
-        mock_result = Mock(spec=MessageState)
-        worker._execute = Mock(return_value=mock_result)
+        # Mock the graph compilation and execution
+        mock_graph = Mock()
+        mock_result = {"search_results": "complex results"}
+        mock_graph.invoke.return_value = mock_result
+        worker.action_graph.compile = Mock(return_value=mock_graph)
 
-        result = worker.search_documents(mock_state)
+        result = worker._execute(mock_state)
 
         assert result == mock_result
-        worker._execute.assert_called_once_with(mock_state)
+        mock_graph.invoke.assert_called_once_with(mock_state)
 
-    def test_search_documents_with_complex_query(self) -> None:
-        """Test search with complex query."""
+    def test_execute_error_handling(self) -> None:
+        """Test execute error handling."""
         worker = SearchWorker()
         mock_state = Mock(spec=MessageState)
 
-        # Mock the execute method
-        mock_result = Mock(spec=MessageState)
-        worker._execute = Mock(return_value=mock_result)
+        # Mock the graph compilation to raise an exception
+        worker.action_graph.compile = Mock()
+        worker.action_graph.compile.side_effect = SearchError("Search failed")
 
-        result = worker.search_documents(mock_state)
-
-        assert result == mock_result
-        worker._execute.assert_called_once_with(mock_state)
-
-    def test_search_documents_error_handling(self) -> None:
-        """Test search error handling."""
-        worker = SearchWorker()
-        mock_state = Mock(spec=MessageState)
-
-        # Mock the execute method to raise an exception
-        worker._execute = Mock()
-        worker._execute.side_effect = Exception("Search failed")
-
-        with pytest.raises(RuntimeError):
+        with pytest.raises(SearchError):
             worker._execute(mock_state)
 
 
@@ -127,14 +120,16 @@ class TestSearchWorkerIntegration:
         worker = SearchWorker()
         mock_state = Mock(spec=MessageState)
 
-        # Mock the execute method
-        mock_result = Mock(spec=MessageState)
-        worker._execute = Mock(return_value=mock_result)
+        # Mock the graph compilation and execution
+        mock_graph = Mock()
+        mock_result = {"search_results": "workflow results"}
+        mock_graph.invoke.return_value = mock_result
+        worker.action_graph.compile = Mock(return_value=mock_graph)
 
-        result = worker.search_documents(mock_state)
+        result = worker._execute(mock_state)
 
         assert result == mock_result
-        worker._execute.assert_called_once_with(mock_state)
+        mock_graph.invoke.assert_called_once_with(mock_state)
 
     def test_search_worker_description(self) -> None:
         """Test that the worker description is appropriate."""
@@ -151,6 +146,12 @@ class TestSearchWorkerIntegration:
         assert hasattr(worker, "description")
         assert isinstance(worker.description, str)
 
+    def test_search_worker_action_graph(self) -> None:
+        """Test that SearchWorker has a properly configured action graph."""
+        worker = SearchWorker()
+        assert hasattr(worker, "action_graph")
+        assert worker.action_graph is not None
+
 
 class TestSearchWorkerErrorHandling:
     """Test cases for SearchWorker error handling."""
@@ -161,17 +162,17 @@ class TestSearchWorkerErrorHandling:
         worker = SearchWorker()
         assert worker is not None
 
-    def test_search_worker_search_error_handling(self) -> None:
-        """Test error handling in SearchWorker search methods."""
+    def test_search_worker_execute_error_handling(self) -> None:
+        """Test error handling in SearchWorker execute methods."""
         worker = SearchWorker()
         mock_state = Mock(spec=MessageState)
 
-        # Mock the execute method to raise an exception
-        worker._execute = Mock()
-        worker._execute.side_effect = Exception("Search failed")
+        # Mock the graph compilation to raise an exception
+        worker.action_graph.compile = Mock()
+        worker.action_graph.compile.side_effect = SearchError("Search failed")
 
         # Should handle the exception gracefully
-        with pytest.raises(RuntimeError):
+        with pytest.raises(SearchError):
             worker._execute(mock_state)
 
     def test_search_worker_with_invalid_state(self) -> None:
@@ -179,8 +180,11 @@ class TestSearchWorkerErrorHandling:
         worker = SearchWorker()
         mock_state = Mock(spec=MessageState)
 
-        # Mock the execute method to return an error response
-        worker._execute = Mock(return_value={"error": "Invalid state"})
+        # Mock the graph compilation and execution
+        mock_graph = Mock()
+        mock_result = {"error": "Invalid state"}
+        mock_graph.invoke.return_value = mock_result
+        worker.action_graph.compile = Mock(return_value=mock_graph)
 
         result = worker._execute(mock_state)
 
@@ -191,8 +195,11 @@ class TestSearchWorkerErrorHandling:
         worker = SearchWorker()
         mock_state = Mock(spec=MessageState)
 
-        # Mock the execute method to return an error response
-        worker._execute = Mock(return_value={"error": "Missing attributes"})
+        # Mock the graph compilation and execution
+        mock_graph = Mock()
+        mock_result = {"error": "Missing attributes"}
+        mock_graph.invoke.return_value = mock_result
+        worker.action_graph.compile = Mock(return_value=mock_graph)
 
         result = worker._execute(mock_state)
 
@@ -207,39 +214,45 @@ class TestSearchWorkerEdgeCases:
         worker = SearchWorker()
         mock_state = Mock(spec=MessageState)
 
-        # Mock the execute method
-        mock_result = Mock(spec=MessageState)
-        worker._execute = Mock(return_value=mock_result)
+        # Mock the graph compilation and execution
+        mock_graph = Mock()
+        mock_result = {"search_results": "long query results"}
+        mock_graph.invoke.return_value = mock_result
+        worker.action_graph.compile = Mock(return_value=mock_graph)
 
-        result = worker.search_documents(mock_state)
+        result = worker._execute(mock_state)
 
         assert result == mock_result
-        worker._execute.assert_called_once_with(mock_state)
+        mock_graph.invoke.assert_called_once_with(mock_state)
 
     def test_search_worker_with_special_characters(self) -> None:
         """Test SearchWorker with special characters in query."""
         worker = SearchWorker()
         mock_state = Mock(spec=MessageState)
 
-        # Mock the execute method
-        mock_result = Mock(spec=MessageState)
-        worker._execute = Mock(return_value=mock_result)
+        # Mock the graph compilation and execution
+        mock_graph = Mock()
+        mock_result = {"search_results": "special chars results"}
+        mock_graph.invoke.return_value = mock_result
+        worker.action_graph.compile = Mock(return_value=mock_graph)
 
-        result = worker.search_documents(mock_state)
+        result = worker._execute(mock_state)
 
         assert result == mock_result
-        worker._execute.assert_called_once_with(mock_state)
+        mock_graph.invoke.assert_called_once_with(mock_state)
 
     def test_search_worker_with_unicode_characters(self) -> None:
         """Test SearchWorker with unicode characters in query."""
         worker = SearchWorker()
         mock_state = Mock(spec=MessageState)
 
-        # Mock the execute method
-        mock_result = Mock(spec=MessageState)
-        worker._execute = Mock(return_value=mock_result)
+        # Mock the graph compilation and execution
+        mock_graph = Mock()
+        mock_result = {"search_results": "unicode results"}
+        mock_graph.invoke.return_value = mock_result
+        worker.action_graph.compile = Mock(return_value=mock_graph)
 
-        result = worker.search_documents(mock_state)
+        result = worker._execute(mock_state)
 
         assert result == mock_result
-        worker._execute.assert_called_once_with(mock_state)
+        mock_graph.invoke.assert_called_once_with(mock_state)

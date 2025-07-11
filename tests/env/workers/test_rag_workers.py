@@ -253,3 +253,10 @@ class TestRAGWorkersErrorHandling:
         # This should not raise an error
         result = rag_message_worker.search_documents(mock_state)
         assert "No query provided" in result
+
+        # Test with orchestrator_message but no attribute
+        mock_state.orchestrator_message = Mock()
+        mock_state.orchestrator_message.attribute = None
+
+        result = rag_message_worker.search_documents(mock_state)
+        assert "No query provided" in result
