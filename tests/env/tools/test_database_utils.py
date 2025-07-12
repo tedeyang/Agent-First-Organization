@@ -9,10 +9,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Set test environment variable
-os.environ["ARKLEX_TEST_ENV"] = "local"
-os.environ["DATA_DIR"] = tempfile.gettempdir()
-
 from arklex.env.tools.database.utils import (
     DBNAME,
     MULTIPLE_SHOWS_MESSAGE,
@@ -28,10 +24,21 @@ from arklex.orchestrator.entities.msg_state_entities import (
     StatusEnum,
 )
 
+# Set test environment variable
+os.environ["ARKLEX_TEST_ENV"] = "local"
+
+# Create a temporary directory for test data
+test_data_dir = tempfile.mkdtemp(prefix="arklex_test_")
+os.environ["DATA_DIR"] = test_data_dir
+
 
 # Helper to create a temp DB with required schema and data
 def setup_temp_db() -> None:
-    db_path = os.path.join(os.environ["DATA_DIR"], "show_booking_db.sqlite")
+    # Ensure the data directory exists and is writable
+    data_dir = os.environ["DATA_DIR"]
+    os.makedirs(data_dir, exist_ok=True)
+
+    db_path = os.path.join(data_dir, "show_booking_db.sqlite")
 
     # Remove existing database file if it exists to avoid corruption
     if os.path.exists(db_path):
@@ -39,12 +46,9 @@ def setup_temp_db() -> None:
             os.remove(db_path)
         except OSError:
             # If we can't remove it, try to create a new one with a different name
-            import tempfile
-
             db_path = os.path.join(
-                tempfile.gettempdir(), f"show_booking_db_{uuid.uuid4().hex[:8]}.sqlite"
+                data_dir, f"show_booking_db_{uuid.uuid4().hex[:8]}.sqlite"
             )
-            os.environ["DATA_DIR"] = tempfile.gettempdir()
 
     try:
         conn = sqlite3.connect(db_path)
@@ -165,10 +169,18 @@ def setup_temp_db() -> None:
 def run_around_tests() -> Generator[None, None, None]:
     setup_temp_db()
     yield
-    # Clean up DB after test
-    db_path = os.path.join(os.environ["DATA_DIR"], "show_booking_db.sqlite")
-    if os.path.exists(db_path):
-        os.remove(db_path)
+    # Clean up DB and temp directory after test
+    import shutil
+
+    data_dir = os.environ["DATA_DIR"]
+    if os.path.exists(data_dir):
+        try:
+            shutil.rmtree(data_dir)
+        except OSError:
+            # If we can't remove the directory, try to remove just the DB file
+            db_path = os.path.join(data_dir, "show_booking_db.sqlite")
+            if os.path.exists(db_path):
+                os.remove(db_path)
 
 
 class TestConstants:
