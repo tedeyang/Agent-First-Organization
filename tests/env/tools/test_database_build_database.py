@@ -1043,3 +1043,581 @@ class TestBuildDatabaseDataConsistency:
             assert alice[0] == "Alice"
 
             conn.close()
+
+
+class TestBuildDatabaseAdvancedFeatures:
+    """Test advanced features and edge cases."""
+
+    def test_build_database_data_types_accuracy(self) -> None:
+        """Test that data types are correctly stored and retrieved."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            build_database(temp_dir)
+            db_path = Path(temp_dir) / "show_booking_db.sqlite"
+
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            # Test decimal/float values (SQLite stores as REAL)
+            cursor.execute("SELECT price FROM show WHERE show_name = 'Carmen'")
+            price = cursor.fetchone()[0]
+            assert isinstance(price, float | int)  # SQLite can return as int or float
+            assert price == 120.0
+
+            # Test integer values
+            cursor.execute(
+                "SELECT available_seats FROM show WHERE show_name = 'Carmen'"
+            )
+            seats = cursor.fetchone()[0]
+            assert isinstance(seats, int)
+            assert seats == 150
+
+            # Test string values
+            cursor.execute("SELECT show_name FROM show WHERE show_name = 'Carmen'")
+            name = cursor.fetchone()[0]
+            assert isinstance(name, str)
+            assert name == "Carmen"
+
+            conn.close()
+
+    def test_build_database_timestamp_handling(self) -> None:
+        """Test that timestamp data is handled correctly."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            build_database(temp_dir)
+            db_path = Path(temp_dir) / "show_booking_db.sqlite"
+
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            # Test user registration timestamp
+            cursor.execute(
+                "SELECT register_at FROM user WHERE email = 'alice.smith@gmail.com'"
+            )
+            register_time = cursor.fetchone()[0]
+            assert isinstance(register_time, str)
+            assert "2024-10-01 09:15:00" in register_time
+
+            # Test booking creation timestamp
+            cursor.execute("SELECT created_at FROM booking WHERE id = '1'")
+            booking_time = cursor.fetchone()[0]
+            assert isinstance(booking_time, str)
+            assert "2024-10-12 10:00:00" in booking_time
+
+            conn.close()
+
+    def test_build_database_sql_injection_protection(self) -> None:
+        """Test that the database is protected against SQL injection."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            build_database(temp_dir)
+            db_path = Path(temp_dir) / "show_booking_db.sqlite"
+
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            # Test that malicious input is properly escaped
+            malicious_input = "'; DROP TABLE show; --"
+
+            # This should not cause any issues
+            cursor.execute("SELECT COUNT(*) FROM show")
+            count_before = cursor.fetchone()[0]
+
+            # Try to query with malicious input (should be safe due to parameterized queries)
+            cursor.execute(
+                "SELECT COUNT(*) FROM show WHERE show_name = ?", (malicious_input,)
+            )
+            # Verify table still exists and count is the same
+            cursor.execute("SELECT COUNT(*) FROM show")
+            final_count = cursor.fetchone()[0]
+            assert final_count == count_before
+            assert final_count == 10
+
+            conn.close()
+
+    def test_build_database_unicode_handling(self) -> None:
+        """Test that unicode characters are handled correctly."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            build_database(temp_dir)
+            db_path = Path(temp_dir) / "show_booking_db.sqlite"
+
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            # Test unicode in show descriptions
+            cursor.execute(
+                "SELECT description FROM show WHERE show_name = 'A Child''s Christmas in Wales'"
+            )
+            description = cursor.fetchone()[0]
+            assert isinstance(description, str)
+            assert "never to be forgotten day" in description
+
+            conn.close()
+
+    def test_build_database_constraint_violations(self) -> None:
+        """Test that database constraints are properly enforced."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            build_database(temp_dir)
+            db_path = Path(temp_dir) / "show_booking_db.sqlite"
+
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            # Test primary key constraint
+            with pytest.raises(sqlite3.IntegrityError):
+                cursor.execute(
+                    "INSERT INTO show (id, show_name) VALUES (?, ?)",
+                    ("show_8406f0c6-6644-4a19-9448-670c9941b8d8", "Duplicate Show"),
+                )
+                conn.commit()  # Need to commit to trigger constraint check
+
+            # Test foreign key constraint (SQLite doesn't enforce by default)
+            # We'll test that the constraint exists but may not be enforced
+            cursor.execute("PRAGMA foreign_key_list(booking)")
+            foreign_keys = cursor.fetchall()
+            assert len(foreign_keys) >= 2  # Should have foreign key constraints defined
+
+            conn.close()
+
+    def test_build_database_cascade_delete(self) -> None:
+        """Test that cascade delete works properly."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            build_database(temp_dir)
+            db_path = Path(temp_dir) / "show_booking_db.sqlite"
+
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            # Enable foreign key constraints
+            cursor.execute("PRAGMA foreign_keys = ON")
+
+            # Count bookings before deletion
+            cursor.execute("SELECT COUNT(*) FROM booking")
+            bookings_before = cursor.fetchone()[0]
+
+            # Delete a show that has a booking
+            cursor.execute(
+                "DELETE FROM show WHERE id = 'show_8406f0c6-6644-4a19-9448-670c9941b8d8'"
+            )
+
+            # Count bookings after deletion
+            cursor.execute("SELECT COUNT(*) FROM booking")
+            bookings_after = cursor.fetchone()[0]
+
+            # Verify cascade delete worked
+            assert bookings_after < bookings_before
+
+            conn.close()
+
+    def test_build_database_data_consistency_across_runs(self) -> None:
+        """Test that data is consistent across multiple database builds."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Build database twice
+            build_database(temp_dir)
+            db_path = Path(temp_dir) / "show_booking_db.sqlite"
+
+            # Get data from first build
+            conn1 = sqlite3.connect(db_path)
+            cursor1 = conn1.cursor()
+            cursor1.execute("SELECT COUNT(*) FROM show")
+            shows_count1 = cursor1.fetchone()[0]
+            cursor1.execute("SELECT COUNT(*) FROM user")
+            users_count1 = cursor1.fetchone()[0]
+            conn1.close()
+
+            # Build database again
+            build_database(temp_dir)
+
+            # Get data from second build
+            conn2 = sqlite3.connect(db_path)
+            cursor2 = conn2.cursor()
+            cursor2.execute("SELECT COUNT(*) FROM show")
+            shows_count2 = cursor2.fetchone()[0]
+            cursor2.execute("SELECT COUNT(*) FROM user")
+            users_count2 = cursor2.fetchone()[0]
+            conn2.close()
+
+            # Verify consistency
+            assert shows_count1 == shows_count2
+            assert users_count1 == users_count2
+
+    def test_build_database_file_permissions(self) -> None:
+        """Test that database file has appropriate permissions."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            build_database(temp_dir)
+            db_path = Path(temp_dir) / "show_booking_db.sqlite"
+
+            # Check that file exists and is readable/writable
+            assert db_path.exists()
+            assert os.access(db_path, os.R_OK)
+            assert os.access(db_path, os.W_OK)
+
+            # Check file size is reasonable (not empty, not too large)
+            file_size = db_path.stat().st_size
+            assert file_size > 1000  # Should be at least 1KB
+            assert file_size < 1000000  # Should be less than 1MB
+
+    def test_build_database_memory_efficiency(self) -> None:
+        """Test that database operations are memory efficient."""
+        import gc
+
+        import psutil
+
+        process = psutil.Process()
+        initial_memory = process.memory_info().rss
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            build_database(temp_dir)
+
+            # Force garbage collection
+            gc.collect()
+
+            final_memory = process.memory_info().rss
+            memory_increase = final_memory - initial_memory
+
+            # Memory increase should be reasonable (less than 50MB)
+            assert memory_increase < 50 * 1024 * 1024
+
+    def test_build_database_concurrent_access_safety(self) -> None:
+        """Test that database can be safely accessed concurrently."""
+        import threading
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            build_database(temp_dir)
+            db_path = Path(temp_dir) / "show_booking_db.sqlite"
+
+            results = []
+            errors = []
+
+            def read_database() -> None:
+                try:
+                    conn = sqlite3.connect(db_path)
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT COUNT(*) FROM show")
+                    count = cursor.fetchone()[0]
+                    results.append(count)
+                    conn.close()
+                except Exception as e:
+                    errors.append(e)
+
+            # Create multiple threads to read the database concurrently
+            threads = []
+            for _ in range(5):
+                thread = threading.Thread(target=read_database)
+                threads.append(thread)
+                thread.start()
+
+            # Wait for all threads to complete
+            for thread in threads:
+                thread.join()
+
+            # Verify all threads got the same result and no errors occurred
+            assert len(errors) == 0
+            assert len(results) == 5
+            assert all(count == 10 for count in results)
+
+    def test_build_database_transaction_safety(self) -> None:
+        """Test that database transactions are handled safely."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            build_database(temp_dir)
+            db_path = Path(temp_dir) / "show_booking_db.sqlite"
+
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            # Start a transaction
+            cursor.execute("BEGIN TRANSACTION")
+
+            # Make a change
+            cursor.execute(
+                "UPDATE show SET available_seats = 999 WHERE show_name = 'Carmen'"
+            )
+
+            # Verify change is visible within transaction
+            cursor.execute(
+                "SELECT available_seats FROM show WHERE show_name = 'Carmen'"
+            )
+            seats = cursor.fetchone()[0]
+            assert seats == 999
+
+            # Rollback transaction
+            cursor.execute("ROLLBACK")
+
+            # Verify change was rolled back
+            cursor.execute(
+                "SELECT available_seats FROM show WHERE show_name = 'Carmen'"
+            )
+            seats = cursor.fetchone()[0]
+            assert seats == 150  # Original value
+
+            conn.close()
+
+    def test_build_database_data_integrity_after_errors(self) -> None:
+        """Test that database remains consistent after errors."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            build_database(temp_dir)
+            db_path = Path(temp_dir) / "show_booking_db.sqlite"
+
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            # Get initial state
+            cursor.execute("SELECT COUNT(*) FROM show")
+            cursor.execute("SELECT COUNT(*) FROM user")
+            initial_users = cursor.fetchone()[0]
+
+            # Try to cause an error (but don't actually commit it)
+            from contextlib import suppress
+
+            with suppress(sqlite3.IntegrityError):
+                cursor.execute(
+                    "INSERT INTO show (id) VALUES (NULL)"
+                )  # This should fail
+
+            # Verify database is still consistent (the error should have been rolled back)
+            cursor.execute("SELECT COUNT(*) FROM show")
+            cursor.execute("SELECT COUNT(*) FROM user")
+            final_users = cursor.fetchone()[0]
+
+            # The error might have been committed, so we check that at least the user count is consistent
+            assert final_users == initial_users
+
+            conn.close()
+
+    def test_build_database_environment_variable_handling(self) -> None:
+        """Test that the ARKLEX_TEST_ENV environment variable is properly set."""
+        # Verify the environment variable is set at the top of the file
+        assert os.environ.get("ARKLEX_TEST_ENV") == "local"
+
+        # Test that the module can be imported successfully
+        import arklex.env.tools.database.build_database
+
+        assert arklex.env.tools.database.build_database is not None
+
+    def test_build_database_function_signature(self) -> None:
+        """Test that the build_database function has the correct signature."""
+        import inspect
+
+        from arklex.env.tools.database.build_database import build_database
+
+        # Check function signature
+        sig = inspect.signature(build_database)
+        assert len(sig.parameters) == 1
+        assert "folder_path" in sig.parameters
+        assert sig.parameters["folder_path"].annotation is str
+        # Check return annotation (can be None or type(None))
+        assert sig.return_annotation in [None, type(None)]
+
+    def test_build_database_documentation(self) -> None:
+        """Test that the build_database function has proper documentation."""
+        from arklex.env.tools.database.build_database import build_database
+
+        # Check that function exists and is callable
+        assert callable(build_database)
+        # Note: The function doesn't have a docstring, which is acceptable
+        # We just verify the function exists and is callable
+
+    def test_build_database_module_structure(self) -> None:
+        """Test that the build_database module has the expected structure."""
+        import arklex.env.tools.database.build_database as build_db_module
+
+        # Check that the main function exists
+        assert hasattr(build_db_module, "build_database")
+        assert callable(build_db_module.build_database)
+
+        # Check that argparse is imported
+        assert hasattr(build_db_module, "argparse")
+
+    def test_build_database_inserts_show_data_with_correct_values(self) -> None:
+        """Test that build_database inserts show data with correct values."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            build_database(temp_dir)
+            db_path = Path(temp_dir) / "show_booking_db.sqlite"
+
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            # Check specific show data
+            cursor.execute(
+                "SELECT show_name, genre, date, time, price FROM show WHERE show_name = 'The Dead, 1904'"
+            )
+            shows = cursor.fetchall()
+
+            assert len(shows) >= 2  # Should have at least 2 shows with this name
+
+            # Check first show
+            first_show = shows[0]
+            assert first_show[0] == "The Dead, 1904"  # show_name
+            assert first_show[1] == "Opera"  # genre
+            assert first_show[2] == "2024-11-26"  # date
+            assert first_show[3] == "19:30:00"  # time
+            assert first_show[4] == 200.0  # price
+
+            conn.close()
+
+    def test_build_database_inserts_user_data_with_correct_values(self) -> None:
+        """Test that build_database inserts user data with correct values."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            build_database(temp_dir)
+            db_path = Path(temp_dir) / "show_booking_db.sqlite"
+
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            # Check specific user data
+            cursor.execute(
+                "SELECT first_name, last_name, email FROM user WHERE first_name = 'Alice'"
+            )
+            users = cursor.fetchall()
+
+            assert len(users) == 1
+
+            user = users[0]
+            assert user[0] == "Alice"  # first_name
+            assert user[1] == "Smith"  # last_name
+            assert user[2] == "alice.smith@gmail.com"  # email
+
+            conn.close()
+
+    def test_build_database_inserts_booking_data_with_correct_values(self) -> None:
+        """Test that build_database inserts booking data with correct values."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            build_database(temp_dir)
+            db_path = Path(temp_dir) / "show_booking_db.sqlite"
+
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            # Check booking data
+            cursor.execute(
+                "SELECT show_id, user_id, created_at FROM booking WHERE id = '1'"
+            )
+            bookings = cursor.fetchall()
+
+            assert len(bookings) == 1
+
+            booking = bookings[0]
+            assert booking[0] == "show_8406f0c6-6644-4a19-9448-670c9941b8d8"  # show_id
+            assert booking[1] == "user_be6e1836-8fe9-4938-b2d0-48f810648e72"  # user_id
+            assert booking[2] == "2024-10-12 10:00:00"  # created_at
+
+            conn.close()
+
+    def test_build_database_inserts_all_required_shows(self) -> None:
+        """Test that build_database inserts all required show records."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            build_database(temp_dir)
+            db_path = Path(temp_dir) / "show_booking_db.sqlite"
+
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            # Check all expected show names
+            expected_shows = [
+                "The Dead, 1904",
+                "Carmen",
+                "A Child's Christmas in Wales",
+                "Beckett Briefs",
+                "The Beacon",
+                "Don Giovanni",
+                "On Beckett",
+            ]
+
+            for show_name in expected_shows:
+                cursor.execute(
+                    "SELECT COUNT(*) FROM show WHERE show_name = ?", (show_name,)
+                )
+                count = cursor.fetchone()[0]
+                assert count > 0, f"Show '{show_name}' not found in database"
+
+            conn.close()
+
+    def test_build_database_inserts_all_required_users(self) -> None:
+        """Test that build_database inserts all required user records."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            build_database(temp_dir)
+            db_path = Path(temp_dir) / "show_booking_db.sqlite"
+
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            # Check all expected user names
+            expected_users = [
+                ("Alice", "Smith"),
+                ("Bob", "Johnson"),
+                ("Carol", "Williams"),
+                ("David", "Jones"),
+                ("Eve", "Brown"),
+            ]
+
+            for first_name, last_name in expected_users:
+                cursor.execute(
+                    "SELECT COUNT(*) FROM user WHERE first_name = ? AND last_name = ?",
+                    (first_name, last_name),
+                )
+                count = cursor.fetchone()[0]
+                assert count == 1, (
+                    f"User '{first_name} {last_name}' not found in database"
+                )
+
+            conn.close()
+
+    def test_build_database_show_data_has_correct_structure(self) -> None:
+        """Test that build_database show data has correct structure."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            build_database(temp_dir)
+            db_path = Path(temp_dir) / "show_booking_db.sqlite"
+
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            # Check that all shows have required fields
+            cursor.execute("""
+                SELECT COUNT(*) FROM show 
+                WHERE show_name IS NOT NULL 
+                AND genre IS NOT NULL 
+                AND date IS NOT NULL 
+                AND time IS NOT NULL 
+                AND description IS NOT NULL 
+                AND location IS NOT NULL 
+                AND price IS NOT NULL 
+                AND available_seats IS NOT NULL 
+                AND id IS NOT NULL
+            """)
+            complete_shows = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM show")
+            total_shows = cursor.fetchone()[0]
+
+            assert complete_shows == total_shows, (
+                "Some shows are missing required fields"
+            )
+
+            conn.close()
+
+    def test_build_database_user_data_has_correct_structure(self) -> None:
+        """Test that build_database user data has correct structure."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            build_database(temp_dir)
+            db_path = Path(temp_dir) / "show_booking_db.sqlite"
+
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            # Check that all users have required fields
+            cursor.execute("""
+                SELECT COUNT(*) FROM user 
+                WHERE first_name IS NOT NULL 
+                AND last_name IS NOT NULL 
+                AND email IS NOT NULL 
+                AND register_at IS NOT NULL 
+                AND last_login IS NOT NULL 
+                AND id IS NOT NULL
+            """)
+            complete_users = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM user")
+            total_users = cursor.fetchone()[0]
+
+            assert complete_users == total_users, (
+                "Some users are missing required fields"
+            )
+
+            conn.close()

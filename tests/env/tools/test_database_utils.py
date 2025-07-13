@@ -1919,38 +1919,215 @@ class TestDatabaseActionsAdvancedScenarios:
 
     @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
     def test_datetime_handling_in_booking(self, mock_llm: object) -> None:
-        """Test that booking timestamps are properly handled."""
-        db = DatabaseActions()
-        db.slots = [
-            SlotDetail(
-                name="show_name",
-                type="string",
-                value="Test Show",
-                description="",
-                prompt="",
-                verified_value="Test Show",
-                confirmed=True,
-            )
-        ]
+        """Test datetime handling in booking operations."""
+        db_actions = DatabaseActions()
         msg_state = MessageState()
 
-        result = db.book_show(msg_state)
+        # Mock database connection
+        with patch("arklex.env.tools.database.utils.sqlite3.connect") as mock_connect:
+            mock_conn = MagicMock()
+            mock_cursor = MagicMock()
+            mock_connect.return_value = mock_conn
+            mock_conn.cursor.return_value = mock_cursor
 
-        if result.status == StatusEnum.COMPLETE:
-            # Check that booking timestamp is recent
-            conn = sqlite3.connect(db.db_path)
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT created_at FROM booking WHERE user_id = ? ORDER BY created_at DESC LIMIT 1",
-                (db.user_id,),
-            )
-            booking_time = cursor.fetchone()
-            conn.close()
+            # Mock cursor description for column names
+            mock_cursor.description = [
+                ("id",),
+                ("show_id",),
+                ("user_id",),
+                ("created_at",),
+            ]
 
-            if booking_time:
-                created_at = datetime.fromisoformat(
-                    booking_time[0].replace("Z", "+00:00")
+            # Mock fetchall to return booking data
+            mock_cursor.fetchall.return_value = [
+                (
+                    "booking_1",
+                    "show_1",
+                    "user_be6e1836-8fe9-4938-b2d0-48f810648e72",
+                    "2024-01-15 14:30:00",
                 )
-                now = datetime.now()
-                time_diff = abs((now - created_at).total_seconds())
-                assert time_diff < 60  # Should be within 1 minute
+            ]
+
+            result = db_actions.check_booking(msg_state)
+
+            # Verify the result includes the datetime
+            assert "2024-01-15 14:30:00" in result.message_flow
+
+    @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
+    def test_verify_slot_exception_handling_with_specific_error(
+        self, mock_llm: object
+    ) -> None:
+        """Test verify_slot exception handling with specific error types."""
+        db_actions = DatabaseActions()
+        slot = {
+            "name": "test_slot",
+            "type": "str",
+            "value": "test_value",
+            "description": "Test slot description",
+            "prompt": "Test prompt",
+        }
+        value_list = ["value1", "value2"]
+        bot_config = {"test": "config"}
+
+        with (
+            patch("arklex.env.tools.database.utils.load_prompts") as mock_load_prompts,
+            patch("arklex.env.tools.database.utils.chunk_string") as mock_chunk,
+        ):
+            mock_load_prompts.return_value = {"database_slot_prompt": "test prompt"}
+            mock_chunk.return_value = ["chunk1", "chunk2"]
+
+            # Mock LLM to raise a specific exception
+            mock_llm_instance = MagicMock()
+            mock_llm.return_value = mock_llm_instance
+            mock_llm_instance.invoke.side_effect = ValueError("Test LLM error")
+
+            result = db_actions.verify_slot(slot, value_list, bot_config)
+
+            # Should return slot_detail with default values when exception occurs
+            assert isinstance(result, SlotDetail)
+            assert result.verified_value == ""
+            assert result.confirmed is False
+
+    @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
+    def test_verify_slot_exception_handling_with_connection_error(
+        self, mock_llm: object
+    ) -> None:
+        """Test verify_slot exception handling with connection error."""
+        db_actions = DatabaseActions()
+        slot = {
+            "name": "test_slot",
+            "type": "str",
+            "value": "test_value",
+            "description": "Test slot description",
+            "prompt": "Test prompt",
+        }
+        value_list = ["value1", "value2"]
+        bot_config = {"test": "config"}
+
+        with (
+            patch("arklex.env.tools.database.utils.load_prompts") as mock_load_prompts,
+            patch("arklex.env.tools.database.utils.chunk_string") as mock_chunk,
+        ):
+            mock_load_prompts.return_value = {"database_slot_prompt": "test prompt"}
+            mock_chunk.return_value = ["chunk1", "chunk2"]
+
+            # Mock LLM to raise a connection error
+            mock_llm_instance = MagicMock()
+            mock_llm.return_value = mock_llm_instance
+            mock_llm_instance.invoke.side_effect = ConnectionError(
+                "Test connection error"
+            )
+
+            result = db_actions.verify_slot(slot, value_list, bot_config)
+
+            # Should return slot_detail with default values when exception occurs
+            assert isinstance(result, SlotDetail)
+            assert result.verified_value == ""
+            assert result.confirmed is False
+
+    @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
+    def test_verify_slot_exception_handling_with_timeout_error(
+        self, mock_llm: object
+    ) -> None:
+        """Test verify_slot exception handling with timeout error."""
+        db_actions = DatabaseActions()
+        slot = {
+            "name": "test_slot",
+            "type": "str",
+            "value": "test_value",
+            "description": "Test slot description",
+            "prompt": "Test prompt",
+        }
+        value_list = ["value1", "value2"]
+        bot_config = {"test": "config"}
+
+        with (
+            patch("arklex.env.tools.database.utils.load_prompts") as mock_load_prompts,
+            patch("arklex.env.tools.database.utils.chunk_string") as mock_chunk,
+        ):
+            mock_load_prompts.return_value = {"database_slot_prompt": "test prompt"}
+            mock_chunk.return_value = ["chunk1", "chunk2"]
+
+            # Mock LLM to raise a timeout error
+            mock_llm_instance = MagicMock()
+            mock_llm.return_value = mock_llm_instance
+            mock_llm_instance.invoke.side_effect = TimeoutError("Test timeout error")
+
+            result = db_actions.verify_slot(slot, value_list, bot_config)
+
+            # Should return slot_detail with default values when exception occurs
+            assert isinstance(result, SlotDetail)
+            assert result.verified_value == ""
+            assert result.confirmed is False
+
+    @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
+    def test_verify_slot_exception_handling_with_attribute_error(
+        self, mock_llm: object
+    ) -> None:
+        """Test verify_slot exception handling with attribute error."""
+        db_actions = DatabaseActions()
+        slot = {
+            "name": "test_slot",
+            "type": "str",
+            "value": "test_value",
+            "description": "Test slot description",
+            "prompt": "Test prompt",
+        }
+        value_list = ["value1", "value2"]
+        bot_config = {"test": "config"}
+
+        with (
+            patch("arklex.env.tools.database.utils.load_prompts") as mock_load_prompts,
+            patch("arklex.env.tools.database.utils.chunk_string") as mock_chunk,
+        ):
+            mock_load_prompts.return_value = {"database_slot_prompt": "test prompt"}
+            mock_chunk.return_value = ["chunk1", "chunk2"]
+
+            # Mock LLM to raise an attribute error
+            mock_llm_instance = MagicMock()
+            mock_llm.return_value = mock_llm_instance
+            mock_llm_instance.invoke.side_effect = AttributeError(
+                "Test attribute error"
+            )
+
+            result = db_actions.verify_slot(slot, value_list, bot_config)
+
+            # Should return slot_detail with default values when exception occurs
+            assert isinstance(result, SlotDetail)
+            assert result.verified_value == ""
+            assert result.confirmed is False
+
+    @patch("arklex.env.tools.database.utils.ChatOpenAI", autospec=True)
+    def test_verify_slot_exception_handling_with_type_error(
+        self, mock_llm: object
+    ) -> None:
+        """Test verify_slot exception handling with type error."""
+        db_actions = DatabaseActions()
+        slot = {
+            "name": "test_slot",
+            "type": "str",
+            "value": "test_value",
+            "description": "Test slot description",
+            "prompt": "Test prompt",
+        }
+        value_list = ["value1", "value2"]
+        bot_config = {"test": "config"}
+
+        with (
+            patch("arklex.env.tools.database.utils.load_prompts") as mock_load_prompts,
+            patch("arklex.env.tools.database.utils.chunk_string") as mock_chunk,
+        ):
+            mock_load_prompts.return_value = {"database_slot_prompt": "test prompt"}
+            mock_chunk.return_value = ["chunk1", "chunk2"]
+
+            # Mock LLM to raise a type error
+            mock_llm_instance = MagicMock()
+            mock_llm.return_value = mock_llm_instance
+            mock_llm_instance.invoke.side_effect = TypeError("Test type error")
+
+            result = db_actions.verify_slot(slot, value_list, bot_config)
+
+            # Should return slot_detail with default values when exception occurs
+            assert isinstance(result, SlotDetail)
+            assert result.verified_value == ""
+            assert result.confirmed is False

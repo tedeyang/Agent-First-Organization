@@ -376,7 +376,7 @@ class TestBuildRAG:
     def test_build_rag_logs_crawling_info_for_urls(
         self, mock_loader_class: Mock, caplog: LogCaptureFixture
     ) -> None:
-        """Test that build_rag logs crawling info for URL documents."""
+        """Test that build_rag logs crawling information for URL documents."""
         # Arrange
         mock_loader = Mock()
         mock_loader_class.return_value = mock_loader
@@ -386,10 +386,110 @@ class TestBuildRAG:
             Mock(content="url content", source="http://example.com")
         ]
 
-        rag_docs = [{"source": "http://example.com", "type": "url", "num": 5}]
+        rag_docs = [{"source": "http://example.com", "type": "url", "num": 3}]
 
         # Act
         build_rag(self.test_folder_path, rag_docs)
 
         # Assert
         assert "Crawling http://example.com" in caplog.text
+
+    def test_build_rag_raises_exception_for_invalid_type_with_message(self) -> None:
+        """Test that build_rag raises exception with specific message for invalid type."""
+        rag_docs = [{"source": "test", "type": "invalid_type"}]
+
+        with pytest.raises(
+            Exception,
+            match="type must be one of \\[url, file, text\\] and it must be provided",
+        ):
+            build_rag(self.test_folder_path, rag_docs)
+
+    def test_build_rag_raises_exception_for_missing_type_with_message(self) -> None:
+        """Test that build_rag raises exception with specific message for missing type."""
+        rag_docs = [{"source": "test"}]  # No type specified
+
+        with pytest.raises(
+            Exception,
+            match="type must be one of \\[url, file, text\\] and it must be provided",
+        ):
+            build_rag(self.test_folder_path, rag_docs)
+
+    def test_build_rag_raises_exception_for_none_type(self) -> None:
+        """Test that build_rag raises exception when type is None."""
+        rag_docs = [{"source": "test", "type": None}]
+
+        with pytest.raises(
+            Exception,
+            match="type must be one of \\[url, file, text\\] and it must be provided",
+        ):
+            build_rag(self.test_folder_path, rag_docs)
+
+    def test_build_rag_raises_exception_for_empty_type(self) -> None:
+        """Test that build_rag raises exception when type is empty string."""
+        rag_docs = [{"source": "test", "type": ""}]
+
+        with pytest.raises(
+            Exception,
+            match="type must be one of \\[url, file, text\\] and it must be provided",
+        ):
+            build_rag(self.test_folder_path, rag_docs)
+
+    def test_build_rag_raises_exception_for_whitespace_type(self) -> None:
+        """Test that build_rag raises exception when type is whitespace."""
+        rag_docs = [{"source": "test", "type": "   "}]
+
+        with pytest.raises(
+            Exception,
+            match="type must be one of \\[url, file, text\\] and it must be provided",
+        ):
+            build_rag(self.test_folder_path, rag_docs)
+
+    def test_build_rag_raises_exception_for_uppercase_type(self) -> None:
+        """Test that build_rag raises exception when type is uppercase."""
+        rag_docs = [{"source": "test", "type": "URL"}]
+
+        with pytest.raises(
+            Exception,
+            match="type must be one of \\[url, file, text\\] and it must be provided",
+        ):
+            build_rag(self.test_folder_path, rag_docs)
+
+    def test_build_rag_raises_exception_for_mixed_case_type(self) -> None:
+        """Test that build_rag raises exception when type is mixed case."""
+        rag_docs = [{"source": "test", "type": "File"}]
+
+        with pytest.raises(
+            Exception,
+            match="type must be one of \\[url, file, text\\] and it must be provided",
+        ):
+            build_rag(self.test_folder_path, rag_docs)
+
+    def test_build_rag_raises_exception_for_numeric_type(self) -> None:
+        """Test that build_rag raises exception when type is numeric."""
+        rag_docs = [{"source": "test", "type": 123}]
+
+        with pytest.raises(
+            Exception,
+            match="type must be one of \\[url, file, text\\] and it must be provided",
+        ):
+            build_rag(self.test_folder_path, rag_docs)
+
+    def test_build_rag_raises_exception_for_list_type(self) -> None:
+        """Test that build_rag raises exception when type is a list."""
+        rag_docs = [{"source": "test", "type": ["url", "file"]}]
+
+        with pytest.raises(
+            Exception,
+            match="type must be one of \\[url, file, text\\] and it must be provided",
+        ):
+            build_rag(self.test_folder_path, rag_docs)
+
+    def test_build_rag_raises_exception_for_dict_type(self) -> None:
+        """Test that build_rag raises exception when type is a dictionary."""
+        rag_docs = [{"source": "test", "type": {"type": "url"}}]
+
+        with pytest.raises(
+            Exception,
+            match="type must be one of \\[url, file, text\\] and it must be provided",
+        ):
+            build_rag(self.test_folder_path, rag_docs)
