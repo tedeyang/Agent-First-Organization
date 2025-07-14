@@ -400,7 +400,10 @@ class Environment:
                 response_state.status
             )
         else:
-            log_context.info("planner selected")
+            # Resource not found in any registry, use planner as fallback
+            log_context.info(
+                f"Resource {id} not found in registries, using planner as fallback"
+            )
             action: str
             response_state: MessageState
             msg_history: list[dict[str, Any]]
