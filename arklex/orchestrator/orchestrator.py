@@ -211,7 +211,6 @@ class AgentOrg:
 
         # Create base params with defaults
         params: Params = Params()
-
         # Update with any provided values
         if input_params:
             params = Params.model_validate(input_params)
@@ -632,6 +631,12 @@ Answer with only 'yes' or 'no'"""
             self.hitl_worker_available,
             self.hitl_proposal_enabled,
         )
+
+        # Flatten nested lists in dialog_states before serialization
+        dialog_states = params.taskgraph.dialog_states
+        for key, slot_groups in dialog_states.items():
+            if slot_groups and isinstance(slot_groups[0], list):
+                dialog_states[key] = [slot for group in slot_groups for slot in group]
 
         return OrchestratorResp(
             answer=message_state.response,

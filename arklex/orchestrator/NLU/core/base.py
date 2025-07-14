@@ -58,6 +58,10 @@ class SlotResponse(BaseModel):
     )
 
 
+class SlotList(BaseModel):
+    slots: list[dict]
+
+
 class VerificationResponse(BaseModel):
     """Response from slot verification.
 

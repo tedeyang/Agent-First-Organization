@@ -322,38 +322,42 @@ class Tool:
         )
         log_context.info(f"{slots=}")
 
+        # Flatten the slots (list of lists) to a single list
+        all_slots = [slot for slot_group in slots for slot in slot_group]
         # Check if any required slots are missing or unverified
         missing_required = any(
-            not (slot.value and slot.verified) for slot in slots if slot.required
+            not (slot.value and slot.verified) for slot in all_slots if slot.required
         )
         if missing_required:
-            for slot in slots:
-                # if there is extracted slots values but haven't been verified
+            for slot in all_slots:
+                # If slot has a value but is not verified, attempt verification
                 if slot.value and not slot.verified:
-                    # check whether it verified or not
-                    verification_needed: bool
-                    thought: str
                     verification_needed, thought = self.slotfiller.verify_slot(
                         slot.model_dump(), chat_history_str, self.llm_config
                     )
                     if verification_needed:
-                        response: str = slot.prompt + "The reason is: " + thought
-                        slot_verification = True
+                        response = slot.prompt + " The reason is: " + thought
+                        slot_verification = (
+                            True  # you might want to store this for further logic
+                        )
                         reason = thought
-                        break
+                        break  # stop checking after verification needed
                     else:
+                        # Mark slot as verified if verification passes
                         slot.verified = True
                         log_context.info(f"Slot '{slot.name}' verified successfully")
-                # if there is no extracted slots values, then should prompt the user to fill the slot
+
+                # If slot is required but has no value, prompt user to fill it
                 if not slot.value and slot.required:
                     response = slot.prompt
                     break
 
+            # Set status to incomplete since not all required slots are filled/verified
             state.status = StatusEnum.INCOMPLETE
 
-        # Re-check if any required slots are still missing after verification
+        # Re-check missing required slots after verification
         missing_required = any(
-            not (slot.value and slot.verified) for slot in slots if slot.required
+            not (slot.value and slot.verified) for slot in all_slots if slot.required
         )
 
         # if all required slots are filled and verified, then execute the function
@@ -363,10 +367,9 @@ class Tool:
 
             try:
                 required_args = self._get_required_args()
-                grouped_slots = self._group_slots_by_name(slots)
                 # Execute tool calls
                 all_responses = self.call_tool_for_grouped_slots(
-                    state, grouped_slots, slots, fixed_args, required_args
+                    state, slots, fixed_args, required_args
                 )
                 tool_success = all(r.get("success") for r in all_responses)
                 response = "\n".join(f"{r.get('response')}" for r in all_responses)
@@ -415,12 +418,12 @@ class Tool:
                 )
                 # Make it clear that the LLM should ask the user for missing information
                 missing_slots = [
-                    slot.name for slot in slots if slot.required and not slot.value
+                    slot.name for slot in all_slots if slot.required and not slot.value
                 ]
                 if missing_slots:
                     slot_questions = [
                         slot.prompt
-                        for slot in slots
+                        for slot in all_slots
                         if slot.required and not slot.value
                     ]
                     questions_text = " ".join(slot_questions)
@@ -446,32 +449,21 @@ class Tool:
             if param.default == inspect.Parameter.empty
         ]
 
-    def _group_slots_by_name(self, slots: list[Slot]) -> dict[str, list[Slot]]:
-        grouped: dict[str, list[Slot]] = {}
-        for slot in slots:
-            grouped.setdefault(slot.name, []).append(slot)
-        return grouped
-
     def call_tool_for_grouped_slots(
         self,
         state: MessageState,
-        grouped_slots: dict[str, list[Slot]],
         slots: list[Slot],
         fixed_args: FixedArgs,
         required_args: list,
     ) -> list[dict[str, Any]]:
-        """Call the tool for grouped slots, making calls based on the maximum length of the slot lists."""
-        max_length = max(len(v) for v in grouped_slots.values())
+        """Call the tool for grouped slots"""
         all_responses = []
-
-        for i in range(max_length):
+        for slot_group in slots:
             kwargs: dict[str, Any] = {}
-
-            # Extract values from grouped slot lists by index
-            kwargs = {
-                name: slots[i].value if i < len(slots) else None
-                for name, slots in grouped_slots.items()
-            }
+            # Extract values from slots
+            for slot in slot_group:
+                # Always include the slot value, even if None
+                kwargs[slot.name] = slot.value if slot.value is not None else ""
 
             # Get the function signature to check parameters
             sig = inspect.signature(self.func)
@@ -504,7 +496,7 @@ class Tool:
                 response = str(e)
 
             call_id = str(uuid.uuid4())
-            log_context.info(f"Tool {self.name} response for iteration {i}: {response}")
+            log_context.info(f"Tool {self.name} response: {response}")
             self._log_tool_call(state, kwargs, response, call_id)
 
             all_responses.append(
@@ -514,7 +506,6 @@ class Tool:
                     "success": tool_success,
                 }
             )
-
         return all_responses
 
     def _log_tool_call(

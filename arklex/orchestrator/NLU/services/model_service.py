@@ -12,9 +12,11 @@ from typing import Any
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.output_parsers import JsonOutputParser
 
 from arklex.orchestrator.NLU.core.base import (
     IntentResponse,
+    SlotList,
     SlotResponse,
     VerificationResponse,
 )
@@ -30,6 +32,7 @@ from arklex.orchestrator.NLU.utils.validators import (
 from arklex.utils.exceptions import ModelError, ValidationError
 from arklex.utils.logging_utils import LOG_MESSAGES, LogContext, handle_exceptions
 from arklex.utils.model_config import MODEL
+from arklex.utils.slot import Slot
 
 from .model_config import ModelConfig
 
@@ -767,15 +770,20 @@ class ModelService:
 
             # Get response from model
             if response_format == "json_object":
-                self.model.kwargs["response_format"]["type"] = response_format
-            response = self.model.invoke(messages)
+                # this is for filling in the slots
+                self.model.with_structured_output(SlotList)
+                parser = JsonOutputParser(pydantic_object=SlotList)
+                chain = self.model | parser
+                response = chain.invoke(messages)
+                return json.dumps(response)
+            else:
+                response = self.model.invoke(messages)
             self.model.kwargs["response_format"]["type"] = "text"
             if not response or not response.content:
                 raise ValueError("Empty response from model")
 
             if note:
                 log_context.info(f"Model response for {note}: {response.content}")
-
             return response.content
         except Exception as e:
             log_context.error(f"Error getting model response: {str(e)}")
@@ -914,13 +922,35 @@ Please choose the most appropriate intent by providing the corresponding intent 
             slot_definitions.append(slot_def)
 
         # Create the prompts
-        system_prompt = (
-            "You are a slot-filling assistant. "
-            "Your task is to extract specific information from the user's input according to defined slots. "
-            "If multiple items are mentioned for the same slot, return them as a list. "
-            'For example, if the user says \'recommend hats and pillows\', extract: {"product_query": ["hats", "pillows"]}. '
-            'If only one item is mentioned, such as \'recommend pillows\', extract: {"product_query": "pillows"}. '
-        )
+        system_prompt = """
+        You are a slot-filling assistant. Your task is to extract information from the user's input according to the defined slots.
+
+            - If the user mentions multiple items for a single slot, return a list of dictionaries, each with that slot filled.
+            - If the function requires multiple slots for a single entity, group all related slots for that entity into one dictionary.
+            - If multiple entities are mentioned, return a list of dictionaries, each representing one entity with all required slots filled.
+            - If a slot value is not mentioned, set it to null.
+
+            Examples:
+
+            1. Single-slot extraction:
+            User says: "recommend hats and pillows"
+            Extract: [{"product_query": "hats"}, {"product_query": "pillows"}]
+
+            User says: "recommend pillows"
+            Extract: [{"product_query": "pillows"}]
+
+            2. Multi-slot extraction for related entities:
+            User says: "Create two tickets: one with email user1@example.com and issue 'broken screen', another with email user2@example.com and issue 'not powering on'"
+            Extract:
+            [
+            {"email": "user1@example.com", "issue": "broken screen"},
+            {"email": "user2@example.com", "issue": "not powering on"}
+            ]
+
+            Make sure to always group related slots together into one dictionary per entity.
+
+            Return a JSON list of dictionaries as shown above.
+        """
 
         user_prompt = (
             f"Context:\n{context}\n\n"
@@ -928,15 +958,13 @@ Please choose the most appropriate intent by providing the corresponding intent 
             "Please extract the values for the defined slots from the context. "
             "Extract values whenever the information is mentioned, whether the slot is required or optional. "
             "Set to null only if the information is not present in the context. "
-            "Return the results in JSON format with slot names as keys and "
-            "extracted values as values."
         )
 
         return user_prompt, system_prompt
 
     def process_slot_response(
         self, response: str, slots: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    ) -> list[list[Slot, Any]]:
         """Process the model's response for slot filling.
 
         Parses the model's response and updates the slot values accordingly.
@@ -954,40 +982,32 @@ Please choose the most appropriate intent by providing the corresponding intent 
         try:
             # Parse the JSON response
             extracted_values = json.loads(response)
+            # Ensure it is a list of dictionaries
+            if not isinstance(extracted_values, list) or not all(
+                isinstance(item, dict) for item in extracted_values
+            ):
+                log_context.warning(
+                    f"Extracted values not in expected format (list of dicts). Returning original slots. Got: {type(extracted_values)}"
+                )
+                # return base slots
+                return [[deepcopy(slot) for slot in slots]]
+
             new_slots = []
-
-            # Update slot values
-            for slot in slots:
-                # Handle both dict and Pydantic model inputs
-                is_dict = isinstance(slot, dict)
-                slot_name = slot.get("name") if is_dict else slot.name
-                base_slot = deepcopy(slot)
-
-                if slot_name in extracted_values:
-                    value = extracted_values[slot_name]
-
-                    # Handle multiple values
-                    if isinstance(value, list):
-                        # dynamically create new slots
-                        for item in value:
-                            new_slot = deepcopy(base_slot)
-                            if is_dict:
-                                new_slot["value"] = item
-                            else:
-                                new_slot.value = item
-                            new_slots.append(new_slot)
-                    else:
-                        if is_dict:
-                            base_slot["value"] = value
-                        else:
-                            base_slot.value = value
-                        new_slots.append(base_slot)
-                else:
-                    if is_dict:
-                        base_slot["value"] = None
-                    else:
-                        base_slot.value = None
-                    new_slots.append(base_slot)
+            for dic in extracted_values:
+                new_slot_list = []
+                # for each key val pair, add a slot to the list
+                for key, value in dic.items():
+                    try:
+                        # Find the corresponding slot template
+                        slot_template = next(s for s in slots if s.name == key)
+                        slot = deepcopy(slot_template)
+                        slot.value = value
+                        new_slot_list.append(slot)
+                    except StopIteration:
+                        log_context.warning(
+                            f"Slot with name '{key}' not found in slot definitions."
+                        )
+                new_slots.append(new_slot_list)
 
             return new_slots
         except json.JSONDecodeError as e:
