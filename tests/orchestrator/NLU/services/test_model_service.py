@@ -424,6 +424,72 @@ class TestModelServiceIntentProcessing:
         assert isinstance(result, tuple)
         assert len(result) == 4
 
+    def test_process_intent_with_definition_and_sample_utterances(
+        self, model_service: ModelService
+    ) -> None:
+        """Test processing intent with definition and sample utterances to cover lines 766 and 770."""
+        intent_data = [
+            {
+                "attribute": {
+                    "definition": "User greets the assistant",
+                    "sample_utterances": ["hello", "hi", "good morning"],
+                }
+            }
+        ]
+        result = model_service._process_intent(
+            "greeting", intent_data, 1, {"1": "greeting"}
+        )
+        assert isinstance(result, tuple)
+        assert len(result) == 4
+        # Verify that definition and sample utterances were processed
+        definition_str, exemplars_str, intents_choice, count = result
+        assert "greeting" in definition_str
+        assert "hello" in exemplars_str or "hi" in exemplars_str
+
+    def test_process_intent_with_only_definition(
+        self, model_service: ModelService
+    ) -> None:
+        """Test processing intent with only definition to cover line 766."""
+        intent_data = [
+            {
+                "attribute": {
+                    "definition": "User greets the assistant",
+                    "sample_utterances": [],
+                }
+            }
+        ]
+        result = model_service._process_intent(
+            "greeting", intent_data, 1, {"1": "greeting"}
+        )
+        assert isinstance(result, tuple)
+        assert len(result) == 4
+        # Verify that definition was processed but sample utterances were not
+        definition_str, exemplars_str, intents_choice, count = result
+        assert "greeting" in definition_str
+        assert exemplars_str == ""
+
+    def test_process_intent_with_only_sample_utterances(
+        self, model_service: ModelService
+    ) -> None:
+        """Test processing intent with only sample utterances to cover line 770."""
+        intent_data = [
+            {
+                "attribute": {
+                    "definition": "",
+                    "sample_utterances": ["hello", "hi", "good morning"],
+                }
+            }
+        ]
+        result = model_service._process_intent(
+            "greeting", intent_data, 1, {"1": "greeting"}
+        )
+        assert isinstance(result, tuple)
+        assert len(result) == 4
+        # Verify that sample utterances were processed but definition was not
+        definition_str, exemplars_str, intents_choice, count = result
+        assert definition_str == ""
+        assert "hello" in exemplars_str or "hi" in exemplars_str
+
     def test_format_intent_input(self, model_service: ModelService) -> None:
         """Test formatting intent input."""
         text = "hello there"
