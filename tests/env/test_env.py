@@ -736,6 +736,94 @@ def test_model_aware_resource_initializer_init_workers_worker_init_without_model
         assert "w1" in registry
         assert registry["w1"]["name"] == "test_worker"
         assert registry["w1"]["description"] == "test description"
+    """Test that init_agents logs error when worker registration fails."""
+    agents = [
+        {"id": "a1", "name": "bad_agent", "path": "bad_path"},
+    ]
+    with (
+        patch("importlib.import_module") as mock_import,
+        patch("arklex.env.env.log_context.error") as mock_error,
+    ):
+        mock_import.side_effect = Exception("import error")
+        registry = DefaultResourceInitializer.init_agents(agents)
+        assert registry == {}
+        mock_error.assert_called_once()
+
+
+def test_model_aware_resource_initializer_init_workers_with_model_config() -> None:
+    """Test ModelAwareResourceInitializer.init_workers with model_config parameter."""
+    from arklex.env.env import ModelAwareResourceInitializer
+
+    workers = [
+        {"id": "w1", "name": "test_worker", "path": "test_path"},
+    ]
+
+    # Create a mock worker class that accepts model_config
+    class MockWorkerClass:
+        def __init__(self, model_config: object | None = None) -> None:
+            self.model_config = model_config
+
+        description = "Test worker"
+
+    with (
+        patch("importlib.import_module") as mock_import,
+        patch("inspect.signature") as mock_signature,
+    ):
+        mock_module = Mock()
+        mock_module.test_worker = MockWorkerClass
+        mock_import.return_value = mock_module
+
+        # Mock signature to include model_config parameter
+        mock_sig = Mock()
+        mock_sig.parameters = {"model_config": Mock()}
+        mock_signature.return_value = mock_sig
+
+        initializer = ModelAwareResourceInitializer(model_config={"test": "config"})
+        registry = initializer.init_workers(workers)
+
+        assert "w1" in registry
+        # Verify that model_config was passed to the worker
+        worker_instance = registry["w1"]["execute"]()
+        assert worker_instance.model_config == {"test": "config"}
+
+
+def test_model_aware_resource_initializer_init_workers_without_model_config_parameter() -> (
+    None
+):
+    """Test ModelAwareResourceInitializer.init_workers when worker doesn't accept model_config."""
+    from arklex.env.env import ModelAwareResourceInitializer
+
+    workers = [
+        {"id": "w1", "name": "test_worker", "path": "test_path"},
+    ]
+
+    # Create a mock worker class that doesn't accept model_config
+    class MockWorkerClass:
+        def __init__(self, other_param: object | None = None) -> None:
+            self.other_param = other_param
+
+        description = "Test worker"
+
+    with (
+        patch("importlib.import_module") as mock_import,
+        patch("inspect.signature") as mock_signature,
+    ):
+        mock_module = Mock()
+        mock_module.test_worker = MockWorkerClass
+        mock_import.return_value = mock_module
+
+        # Mock signature to NOT include model_config parameter
+        mock_sig = Mock()
+        mock_sig.parameters = {"other_param": Mock()}
+        mock_signature.return_value = mock_sig
+
+        initializer = ModelAwareResourceInitializer(model_config={"test": "config"})
+        registry = initializer.init_workers(workers)
+
+        assert "w1" in registry
+        # Verify that model_config was NOT passed to the worker
+        worker_instance = registry["w1"]["execute"]()
+        assert not hasattr(worker_instance, "model_config")
 
 
 def test_model_aware_resource_initializer_init_workers_with_exception() -> None:
@@ -1200,3 +1288,47 @@ def test_environment_step_worker_with_empty_response_and_message_flow() -> None:
     assert len(result_params.memory.function_calling_trajectory) == 2
     # Check that empty string is used when both response and message_flow are empty strings
     assert result_params.memory.function_calling_trajectory[1]["content"] == ""
+
+    workers = [
+        {"id": "w1", "name": "bad_worker", "path": "bad_path"},
+    ]
+
+    with (
+        patch("importlib.import_module") as mock_import,
+        patch("arklex.env.env.log_context.error") as mock_error,
+    ):
+        mock_import.side_effect = Exception("import error")
+
+        initializer = ModelAwareResourceInitializer(model_config={"test": "config"})
+        registry = initializer.init_workers(workers)
+
+        assert registry == {}
+        mock_error.assert_called_once()
+
+
+def test_model_aware_resource_initializer_init_workers_without_model_config() -> None:
+    """Test ModelAwareResourceInitializer.init_workers when model_config is None."""
+    from arklex.env.env import ModelAwareResourceInitializer
+
+    workers = [
+        {"id": "w1", "name": "test_worker", "path": "test_path"},
+    ]
+
+    class MockWorkerClass:
+        def __init__(self) -> None:
+            pass
+
+        description = "Test worker"
+
+    with patch("importlib.import_module") as mock_import:
+        mock_module = Mock()
+        mock_module.test_worker = MockWorkerClass
+        mock_import.return_value = mock_module
+
+        initializer = ModelAwareResourceInitializer(model_config=None)
+        registry = initializer.init_workers(workers)
+
+        assert "w1" in registry
+        # Verify that no model_config was passed
+        worker_instance = registry["w1"]["execute"]()
+        assert not hasattr(worker_instance, "model_config")
