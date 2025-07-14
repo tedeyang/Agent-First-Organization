@@ -12,7 +12,6 @@ import uuid
 from collections.abc import Callable
 from typing import Any, TypedDict
 
-
 from arklex.env.tools.utils import generate_multi_slot_cohesive_response
 from arklex.orchestrator.entities.msg_state_entities import MessageState, StatusEnum
 from arklex.orchestrator.NLU.core.slot import SlotFiller
@@ -253,7 +252,7 @@ class Tool:
                  Slot(name="param2", type="int", required=False),  # Preserved
                  Slot(name="param3", type="bool", required=True)]  # Added
         """
-        if not slots:
+        if not slots or not isinstance(slots, list):
             return
 
         # Create a dictionary of existing slots for easy lookup
