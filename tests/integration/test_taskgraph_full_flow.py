@@ -23,8 +23,102 @@ from unittest.mock import Mock
 import pytest
 
 from arklex.env.env import Environment
+from arklex.env.tools.tools import Tool
+from arklex.env.workers.worker import BaseWorker
+from arklex.orchestrator.entities.msg_state_entities import MessageState, StatusEnum
 from arklex.orchestrator.entities.orchestrator_params_entities import OrchestratorParams
 from arklex.orchestrator.orchestrator import AgentOrg
+
+
+class MockTool(Tool):
+    """Mock tool for testing purposes."""
+
+    def __init__(self, name: str = "mock_tool") -> None:
+        self.name = name
+        self.description = f"Mock tool: {name}"
+
+    def execute(
+        self, message_state: MessageState, **kwargs: dict[str, Any]
+    ) -> MessageState:
+        """Execute the mock tool."""
+        message_state.response = f"Mock response from {self.name}"
+        message_state.status = StatusEnum.COMPLETE
+        return message_state
+
+
+class MockWorker(BaseWorker):
+    """Mock worker for testing purposes."""
+
+    def __init__(self, name: str = "mock_worker") -> None:
+        self.name = name
+        self.description = f"Mock worker: {name}"
+
+    def _execute(
+        self, message_state: MessageState, **kwargs: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Execute the mock worker's core functionality."""
+        return {
+            "response": f"Mock response from {self.name}",
+            "status": StatusEnum.COMPLETE,
+            "trajectory": message_state.trajectory or [],
+            "function_calling_trajectory": message_state.function_calling_trajectory
+            or [],
+            "slots": message_state.slots or {},
+            "metadata": message_state.metadata or {},
+            "user_message": message_state.user_message,
+            "orchestrator_message": message_state.orchestrator_message,
+            "relevant_records": message_state.relevant_records or [],
+            "is_stream": message_state.is_stream,
+            "stream_type": message_state.stream_type,
+            "message_queue": message_state.message_queue,
+            "message_flow": message_state.message_flow or "",
+        }
+
+
+# Mock functions for tools
+def get_user_details_admin() -> MockTool:
+    return MockTool("get_user_details_admin")
+
+
+def search_products() -> MockTool:
+    return MockTool("search_products")
+
+
+def get_order_details() -> MockTool:
+    return MockTool("get_order_details")
+
+
+def get_products() -> MockTool:
+    return MockTool("get_products")
+
+
+def get_web_product() -> MockTool:
+    return MockTool("get_web_product")
+
+
+def return_products() -> MockTool:
+    return MockTool("return_products")
+
+
+def cancel_order() -> MockTool:
+    return MockTool("cancel_order")
+
+
+def get_cart() -> MockTool:
+    return MockTool("get_cart")
+
+
+def cart_add_items() -> MockTool:
+    return MockTool("cart_add_items")
+
+
+# Mock functions for workers
+def FaissRAGWorker() -> MockWorker:
+    return MockWorker("FaissRAGWorker")
+
+
+def MessageWorker() -> MockWorker:
+    return MockWorker("MessageWorker")
 
 
 class TestTaskGraphFullFlow:
@@ -44,7 +138,145 @@ class TestTaskGraphFullFlow:
     @pytest.fixture
     def mock_environment(self) -> Environment:
         """Create a mock environment for testing."""
-        env = Environment(tools=[], workers=[], agents=[])
+        from arklex.env.env import BaseResourceInitializer
+
+        class MockResourceInitializer(BaseResourceInitializer):
+            """Mock resource initializer for testing."""
+
+            @staticmethod
+            def init_tools(tools: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+                """Initialize mock tools."""
+                tool_registry: dict[str, dict[str, Any]] = {}
+                tool_mapping = {
+                    "get_user_details_admin": get_user_details_admin,
+                    "search_products": search_products,
+                    "get_order_details": get_order_details,
+                    "get_products": get_products,
+                    "get_web_product": get_web_product,
+                    "return_products": return_products,
+                    "cancel_order": cancel_order,
+                    "get_cart": get_cart,
+                    "cart_add_items": cart_add_items,
+                }
+
+                for tool in tools:
+                    tool_id: str = tool["id"]
+                    name: str = tool["name"]
+                    if name in tool_mapping:
+                        func = tool_mapping[name]
+                        tool_registry[tool_id] = {
+                            "name": name,
+                            "description": f"Mock tool: {name}",
+                            "execute": func,
+                            "fixed_args": tool.get("fixed_args", {}),
+                        }
+                return tool_registry
+
+            @staticmethod
+            def init_workers(
+                workers: list[dict[str, Any]],
+            ) -> dict[str, dict[str, Any]]:
+                """Initialize mock workers."""
+                worker_registry: dict[str, dict[str, Any]] = {}
+                worker_mapping = {
+                    "FaissRAGWorker": FaissRAGWorker,
+                    "MessageWorker": MessageWorker,
+                }
+
+                for worker in workers:
+                    worker_id: str = worker["id"]
+                    name: str = worker["name"]
+                    if name in worker_mapping:
+                        func = worker_mapping[name]
+                        worker_registry[worker_id] = {
+                            "name": name,
+                            "description": f"Mock worker: {name}",
+                            "execute": func,
+                        }
+                return worker_registry
+
+            @staticmethod
+            def init_agents(agents: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+                """Initialize mock agents."""
+                return {}
+
+        # Create mock tools and workers that the taskgraph expects
+        mock_tools = [
+            {
+                "id": "55011bc1-2a55-4e21-bf39-e9624729c8d8",
+                "name": "get_user_details_admin",
+                "path": "shopify/get_user_details_admin.py",
+                "fixed_args": {},
+            },
+            {
+                "id": "2b275abc-6226-2013-ba05-t4ab83daalc3",
+                "name": "search_products",
+                "path": "shopify/search_products.py",
+                "fixed_args": {},
+            },
+            {
+                "id": "2a2750cb-6226-4068-ba05-a4db83da3e16",
+                "name": "get_order_details",
+                "path": "shopify/get_order_details.py",
+                "fixed_args": {},
+            },
+            {
+                "id": "22fae76f-085c-4098-9011-2ae1e1eb8dc3",
+                "name": "get_products",
+                "path": "shopify/get_products.py",
+                "fixed_args": {},
+            },
+            {
+                "id": "xl34e76f-025c-4xl2-0s2j-l4e1eal2naak",
+                "name": "get_web_product",
+                "path": "shopify/get_web_product.py",
+                "fixed_args": {},
+            },
+            {
+                "id": "alfse0ls-lx4f-a01m-1mch-a4dfsl010end",
+                "name": "return_products",
+                "path": "shopify/return_products.py",
+                "fixed_args": {},
+            },
+            {
+                "id": "alla05l2-3kd1-x9iw-10k3-algk3xenfsl9",
+                "name": "cancel_order",
+                "path": "shopify/cancel_order.py",
+                "fixed_args": {},
+            },
+            {
+                "id": "alfseal2-al94-2kdq-slci-aldjcjenfead",
+                "name": "get_cart",
+                "path": "shopify/get_cart.py",
+                "fixed_args": {},
+            },
+            {
+                "id": "2alak3db-sl36-4zk9-aa35-a4dlkfm3se16",
+                "name": "cart_add_items",
+                "path": "shopify/cart_add_items.py",
+                "fixed_args": {},
+            },
+        ]
+
+        mock_workers = [
+            {
+                "id": "FaissRAGWorker",
+                "name": "FaissRAGWorker",
+                "path": "faiss_rag_worker.py",
+            },
+            {
+                "id": "MessageWorker",
+                "name": "MessageWorker",
+                "path": "message_worker.py",
+            },
+        ]
+
+        env = Environment(
+            tools=mock_tools,
+            workers=mock_workers,
+            agents=[],
+            resource_initializer=MockResourceInitializer(),
+        )
         env.model_service = Mock()
         env.planner = None
         return env
@@ -262,8 +494,8 @@ class TestTaskGraphFullFlow:
         response = agent.get_response(user_input)
 
         # Validate response structure
-        assert "result" in response, "Response should contain 'result' field"
-        assert "status" in response, "Response should contain 'status' field"
+        assert "answer" in response, "Response should contain 'answer' field"
+        assert "parameters" in response, "Response should contain 'parameters' field"
 
     def test_order_inquiry_flow(
         self,
@@ -297,8 +529,8 @@ class TestTaskGraphFullFlow:
         response = agent.get_response(user_input)
 
         # Validate response structure
-        assert "result" in response, "Response should contain 'result' field"
-        assert "status" in response, "Response should contain 'status' field"
+        assert "answer" in response, "Response should contain 'answer' field"
+        assert "parameters" in response, "Response should contain 'parameters' field"
 
     def test_cart_inquiry_flow(
         self,
@@ -332,8 +564,8 @@ class TestTaskGraphFullFlow:
         response = agent.get_response(user_input)
 
         # Validate response structure
-        assert "result" in response, "Response should contain 'result' field"
-        assert "status" in response, "Response should contain 'status' field"
+        assert "answer" in response, "Response should contain 'answer' field"
+        assert "parameters" in response, "Response should contain 'parameters' field"
 
     def test_multi_turn_conversation_flow(
         self,
@@ -366,8 +598,8 @@ class TestTaskGraphFullFlow:
         }
 
         first_response = agent.get_response(first_input)
-        assert "result" in first_response, (
-            "First response should contain 'result' field"
+        assert "answer" in first_response, (
+            "First response should contain 'answer' field"
         )
 
         # Second turn: Follow-up question
@@ -375,14 +607,14 @@ class TestTaskGraphFullFlow:
             "text": "What about my order status?",
             "chat_history": [
                 {"role": "user", "content": "Do you have any shoes?"},
-                {"role": "assistant", "content": first_response.get("result", "")},
+                {"role": "assistant", "content": first_response.get("answer", "")},
             ],
             "parameters": {"user_id": "12345"},
         }
 
         second_response = agent.get_response(second_input)
-        assert "result" in second_response, (
-            "Second response should contain 'result' field"
+        assert "answer" in second_response, (
+            "Second response should contain 'answer' field"
         )
 
     def test_error_handling_flow(
@@ -413,8 +645,8 @@ class TestTaskGraphFullFlow:
         response = agent.get_response(user_input)
 
         # Even with errors, we should get a structured response
-        assert "result" in response, "Response should contain 'result' field"
-        assert "status" in response, "Response should contain 'status' field"
+        assert "answer" in response, "Response should contain 'answer' field"
+        assert "parameters" in response, "Response should contain 'parameters' field"
 
     def test_taskgraph_node_transitions(
         self,
