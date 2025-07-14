@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
+from pytest import LogCaptureFixture
 
 from arklex.env.env import DefaultResourceInitializer, Environment
 from arklex.env.planner.react_planner import ReactPlanner
@@ -596,17 +597,20 @@ def test_default_resource_initializer_init_agents_with_attribute_error() -> None
         assert "a2" not in registry  # attribute error case is skipped
 
 
-def test_default_resource_initializer_init_agents_logs_error() -> None:
+def test_default_resource_initializer_init_agents_logs_error(
+    caplog: LogCaptureFixture,
+) -> None:
     """Test that init_agents logs error when agent registration fails."""
     agents = [{"id": "a1", "name": "bad_agent", "path": "bad_path"}]
-    with (
-        patch("importlib.import_module") as mock_import,
-        patch("arklex.env.env.log_context.error") as mock_error,
-    ):
+    with patch("importlib.import_module") as mock_import:
         mock_import.side_effect = Exception("import error")
-        registry = DefaultResourceInitializer.init_agents(agents)
-        assert registry == {}
-        mock_error.assert_called_once()
+        with caplog.at_level("ERROR"):
+            registry = DefaultResourceInitializer.init_agents(agents)
+            assert registry == {}
+            assert any(
+                "Agent bad_agent is not registered, error: import error" in m
+                for m in caplog.text.splitlines()
+            )
 
 
 def test_model_aware_resource_initializer_init() -> None:
