@@ -597,14 +597,606 @@ def test_default_resource_initializer_init_agents_with_attribute_error() -> None
 
 
 def test_default_resource_initializer_init_agents_logs_error() -> None:
-    """Test init_agents method logs error when agent registration fails."""
-    agents = [
-        {"id": "a1", "name": "bad_agent", "path": "bad_path"},
-    ]
+    """Test that init_agents logs error when agent registration fails."""
+    agents = [{"id": "a1", "name": "bad_agent", "path": "bad_path"}]
     with patch("importlib.import_module") as mock_import:
-        mock_import.side_effect = Exception("Test error")
+        mock_import.side_effect = Exception("Import failed")
         registry = DefaultResourceInitializer.init_agents(agents)
-        assert len(registry) == 0
-        # The error is logged in the except block at lines 154-155
-        # We can't easily test the logging since it happens in the real code
-        # But we can verify that the agent was not registered due to the exception
+        assert registry == {}
+
+
+def test_model_aware_resource_initializer_init() -> None:
+    """Test ModelAwareResourceInitializer initialization."""
+    from arklex.env.env import ModelAwareResourceInitializer
+
+    # Test with model_config
+    model_config = {"model_name": "test_model"}
+    initializer = ModelAwareResourceInitializer(model_config=model_config)
+    assert initializer.model_config == model_config
+
+    # Test without model_config
+    initializer = ModelAwareResourceInitializer()
+    assert initializer.model_config is None
+
+
+def test_model_aware_resource_initializer_init_workers_with_model_config() -> None:
+    """Test ModelAwareResourceInitializer.init_workers with model_config."""
+    from arklex.env.env import ModelAwareResourceInitializer
+
+    model_config = {"model_name": "test_model"}
+    initializer = ModelAwareResourceInitializer(model_config=model_config)
+
+    workers = [{"id": "w1", "name": "test_worker", "path": "test_path"}]
+
+    with patch("importlib.import_module") as mock_import:
+        fake_module = MagicMock()
+        fake_func = MagicMock()
+        fake_func.description = "test description"
+
+        # Mock the worker class to have __init__ method that accepts model_config
+        class MockWorkerClass:
+            def __init__(self, model_config: object = None) -> None:
+                self.model_config = model_config
+
+            description = "test description"
+
+        fake_module.test_worker = MockWorkerClass
+        mock_import.return_value = fake_module
+
+        registry = initializer.init_workers(workers)
+
+        assert "w1" in registry
+        assert registry["w1"]["name"] == "test_worker"
+        assert registry["w1"]["description"] == "test description"
+
+
+def test_model_aware_resource_initializer_init_workers_without_model_config() -> None:
+    """Test ModelAwareResourceInitializer.init_workers without model_config."""
+    from arklex.env.env import ModelAwareResourceInitializer
+
+    initializer = ModelAwareResourceInitializer()  # No model_config
+
+    workers = [{"id": "w1", "name": "test_worker", "path": "test_path"}]
+
+    with patch("importlib.import_module") as mock_import:
+        fake_module = MagicMock()
+        fake_func = MagicMock()
+        fake_func.description = "test description"
+
+        # Mock the worker class to have __init__ method that accepts model_config
+        class MockWorkerClass:
+            def __init__(self, model_config: object = None) -> None:
+                self.model_config = model_config
+
+            description = "test description"
+
+        fake_module.test_worker = MockWorkerClass
+        mock_import.return_value = fake_module
+
+        registry = initializer.init_workers(workers)
+
+        assert "w1" in registry
+        assert registry["w1"]["name"] == "test_worker"
+        assert registry["w1"]["description"] == "test description"
+
+
+def test_model_aware_resource_initializer_init_workers_worker_without_init() -> None:
+    """Test ModelAwareResourceInitializer.init_workers with worker that has no __init__."""
+    from arklex.env.env import ModelAwareResourceInitializer
+
+    model_config = {"model_name": "test_model"}
+    initializer = ModelAwareResourceInitializer(model_config=model_config)
+
+    workers = [{"id": "w1", "name": "test_worker", "path": "test_path"}]
+
+    with patch("importlib.import_module") as mock_import:
+        fake_module = MagicMock()
+        fake_func = MagicMock()
+        fake_func.description = "test description"
+        # Remove __init__ attribute to test the hasattr check
+        if hasattr(fake_func, "__init__"):
+            delattr(fake_func, "__init__")
+
+        fake_module.test_worker = fake_func
+        mock_import.return_value = fake_module
+
+        registry = initializer.init_workers(workers)
+
+        assert "w1" in registry
+        assert registry["w1"]["name"] == "test_worker"
+        assert registry["w1"]["description"] == "test description"
+
+
+def test_model_aware_resource_initializer_init_workers_worker_init_without_model_config_param() -> (
+    None
+):
+    """Test ModelAwareResourceInitializer.init_workers with worker __init__ that doesn't accept model_config."""
+    from arklex.env.env import ModelAwareResourceInitializer
+
+    model_config = {"model_name": "test_model"}
+    initializer = ModelAwareResourceInitializer(model_config=model_config)
+
+    workers = [{"id": "w1", "name": "test_worker", "path": "test_path"}]
+
+    with patch("importlib.import_module") as mock_import:
+        fake_module = MagicMock()
+
+        # Mock the worker class to have __init__ method that doesn't accept model_config
+        class MockWorkerClass:
+            def __init__(self, other_param: object = None) -> None:
+                self.other_param = other_param
+
+            description = "test description"
+
+        fake_module.test_worker = MockWorkerClass
+        mock_import.return_value = fake_module
+
+        registry = initializer.init_workers(workers)
+
+        assert "w1" in registry
+        assert registry["w1"]["name"] == "test_worker"
+        assert registry["w1"]["description"] == "test description"
+
+
+def test_model_aware_resource_initializer_init_workers_with_exception() -> None:
+    """Test ModelAwareResourceInitializer.init_workers with exception handling."""
+    from arklex.env.env import ModelAwareResourceInitializer
+
+    initializer = ModelAwareResourceInitializer()
+    workers = [{"id": "w1", "name": "bad_worker", "path": "bad_path"}]
+
+    with patch("importlib.import_module") as mock_import:
+        mock_import.side_effect = Exception("Import failed")
+        registry = initializer.init_workers(workers)
+        assert registry == {}
+
+
+def test_environment_with_model_aware_resource_initializer() -> None:
+    """Test Environment initialization with ModelAwareResourceInitializer."""
+
+    # Create a mock model service with model_config
+    mock_model_service = MagicMock()
+    mock_model_service.model_config = {"model_name": "test_model"}
+
+    tools = [{"id": "t1", "name": "test_tool", "path": "test_path"}]
+    workers = [{"id": "w1", "name": "test_worker", "path": "test_path"}]
+    agents = [{"id": "a1", "name": "test_agent", "path": "test_path"}]
+
+    with patch("importlib.import_module") as mock_import:
+        fake_module = MagicMock()
+        fake_func = MagicMock(return_value=MagicMock(description="test description"))
+        fake_module.test_tool = fake_func
+        fake_module.test_worker = fake_func
+        fake_module.test_agent = fake_func
+        mock_import.return_value = fake_module
+
+        env = Environment(
+            tools=tools,
+            workers=workers,
+            agents=agents,
+            model_service=mock_model_service,
+        )
+
+        # Verify that ModelAwareResourceInitializer was used
+        assert isinstance(env.tools, dict)
+        assert isinstance(env.workers, dict)
+        assert isinstance(env.agents, dict)
+
+
+def test_environment_with_model_service_without_model_config() -> None:
+    """Test Environment initialization with model_service that has no model_config."""
+    # Create a mock model service without model_config
+    mock_model_service = MagicMock()
+    # Remove model_config attribute to test the hasattr check
+    if hasattr(mock_model_service, "model_config"):
+        delattr(mock_model_service, "model_config")
+
+    tools = [{"id": "t1", "name": "test_tool", "path": "test_path"}]
+    workers = [{"id": "w1", "name": "test_worker", "path": "test_path"}]
+    agents = [{"id": "a1", "name": "test_agent", "path": "test_path"}]
+
+    with patch("importlib.import_module") as mock_import:
+        fake_module = MagicMock()
+        fake_func = MagicMock(return_value=MagicMock(description="test description"))
+        fake_module.test_tool = fake_func
+        fake_module.test_worker = fake_func
+        fake_module.test_agent = fake_func
+        mock_import.return_value = fake_module
+
+        env = Environment(
+            tools=tools,
+            workers=workers,
+            agents=agents,
+            model_service=mock_model_service,
+        )
+
+        # Verify that DefaultResourceInitializer was used (not ModelAwareResourceInitializer)
+        assert isinstance(env.tools, dict)
+        assert isinstance(env.workers, dict)
+        assert isinstance(env.agents, dict)
+
+
+def test_environment_step_agent_with_successors_and_predecessors() -> None:
+    """Test environment step with agent that has successors and predecessors."""
+    mock_agent_instance = Mock()
+    mock_agent_instance.execute.return_value = MessageState(status=StatusEnum.COMPLETE)
+
+    env = Environment(
+        tools=[],
+        workers=[],
+        agents=[{"id": "agent1", "name": "test_agent", "path": "test"}],
+    )
+    env.agents = {
+        "agent1": {
+            "name": "test_agent",
+            "execute": Mock(return_value=mock_agent_instance),
+        }
+    }
+    env.id2name = {"agent1": "test_agent"}
+
+    message_state = MessageState()
+    params = OrchestratorParams()
+    params.taskgraph.curr_node = "node1"
+    node_info = NodeInfo()
+    node_info.additional_args = {
+        "successors": ["next1", "next2"],
+        "predecessors": ["prev1", "prev2"],
+    }
+
+    result_state, result_params = env.step("agent1", message_state, params, node_info)
+    assert result_state.status == StatusEnum.COMPLETE
+    assert result_params.taskgraph.node_status["node1"] == StatusEnum.COMPLETE
+
+
+def test_environment_step_agent_with_empty_additional_args_second() -> None:
+    """Test environment step with agent that has empty additional_args."""
+    mock_agent_instance = Mock()
+    mock_agent_instance.execute.return_value = MessageState(status=StatusEnum.COMPLETE)
+
+    env = Environment(
+        tools=[],
+        workers=[],
+        agents=[{"id": "agent1", "name": "test_agent", "path": "test"}],
+    )
+    env.agents = {
+        "agent1": {
+            "name": "test_agent",
+            "execute": Mock(return_value=mock_agent_instance),
+        }
+    }
+    env.id2name = {"agent1": "test_agent"}
+
+    message_state = MessageState()
+    params = OrchestratorParams()
+    params.taskgraph.curr_node = "node1"
+    node_info = NodeInfo()
+    node_info.additional_args = {}  # Empty additional_args
+
+    result_state, result_params = env.step("agent1", message_state, params, node_info)
+    assert result_state.status == StatusEnum.COMPLETE
+    assert result_params.taskgraph.node_status["node1"] == StatusEnum.COMPLETE
+
+
+def test_environment_step_agent_with_none_additional_args() -> None:
+    """Test environment step with agent that has None additional_args."""
+    mock_agent_instance = Mock()
+    mock_agent_instance.execute.return_value = MessageState(status=StatusEnum.COMPLETE)
+
+    env = Environment(
+        tools=[],
+        workers=[],
+        agents=[{"id": "agent1", "name": "test_agent", "path": "test"}],
+    )
+    env.agents = {
+        "agent1": {
+            "name": "test_agent",
+            "execute": Mock(return_value=mock_agent_instance),
+        }
+    }
+    env.id2name = {"agent1": "test_agent"}
+
+    message_state = MessageState()
+    params = OrchestratorParams()
+    params.taskgraph.curr_node = "node1"
+    node_info = NodeInfo()
+    node_info.additional_args = {}  # Empty dict instead of None
+
+    result_state, result_params = env.step("agent1", message_state, params, node_info)
+    assert result_state.status == StatusEnum.COMPLETE
+    assert result_params.taskgraph.node_status["node1"] == StatusEnum.COMPLETE
+
+
+def test_environment_step_agent_with_function_calling_trajectory() -> None:
+    """Test environment step with agent that returns function_calling_trajectory."""
+    mock_agent_instance = Mock()
+    mock_agent_instance.execute.return_value = MessageState(
+        status=StatusEnum.COMPLETE,
+        function_calling_trajectory=[{"role": "assistant", "content": "test"}],
+    )
+
+    env = Environment(
+        tools=[],
+        workers=[],
+        agents=[{"id": "agent1", "name": "test_agent", "path": "test"}],
+    )
+    env.agents = {
+        "agent1": {
+            "name": "test_agent",
+            "execute": Mock(return_value=mock_agent_instance),
+        }
+    }
+    env.id2name = {"agent1": "test_agent"}
+
+    message_state = MessageState()
+    params = OrchestratorParams()
+    params.taskgraph.curr_node = "node1"
+    node_info = NodeInfo()
+
+    result_state, result_params = env.step("agent1", message_state, params, node_info)
+    assert result_state.status == StatusEnum.COMPLETE
+    assert result_params.memory.function_calling_trajectory == [
+        {"role": "assistant", "content": "test"}
+    ]
+
+
+def test_environment_step_agent_with_slots() -> None:
+    """Test environment step with agent that returns slots."""
+    from arklex.orchestrator.NLU.entities.slot_entities import Slot
+
+    mock_agent_instance = Mock()
+    mock_agent_instance.execute.return_value = MessageState(
+        status=StatusEnum.COMPLETE,
+        slots={
+            "slot1": [Slot(name="slot1", value="value1")],
+            "slot2": [Slot(name="slot2", value="value2")],
+        },
+    )
+
+    env = Environment(
+        tools=[],
+        workers=[],
+        agents=[{"id": "agent1", "name": "test_agent", "path": "test"}],
+    )
+    env.agents = {
+        "agent1": {
+            "name": "test_agent",
+            "execute": Mock(return_value=mock_agent_instance),
+        }
+    }
+    env.id2name = {"agent1": "test_agent"}
+
+    message_state = MessageState()
+    params = OrchestratorParams()
+    params.taskgraph.curr_node = "node1"
+    node_info = NodeInfo()
+
+    result_state, result_params = env.step("agent1", message_state, params, node_info)
+    assert result_state.status == StatusEnum.COMPLETE
+    assert result_params.taskgraph.dialog_states == {
+        "slot1": [Slot(name="slot1", value="value1")],
+        "slot2": [Slot(name="slot2", value="value2")],
+    }
+
+
+def test_environment_step_planner_with_msg_history() -> None:
+    """Test environment step with planner that returns msg_history."""
+    mock_planner = Mock()
+    mock_planner.execute.return_value = (
+        "action",
+        MessageState(status=StatusEnum.COMPLETE),
+        [{"role": "user", "content": "test message"}],
+    )
+    env = Environment(tools=[], workers=[], agents=[])
+    env.planner = mock_planner
+    message_state = MessageState()
+    params = OrchestratorParams()
+    params.memory.function_calling_trajectory = []
+    node_info = NodeInfo()
+    result_state, result_params = env.step(
+        "invalid_id", message_state, params, node_info
+    )
+    assert result_state.status == StatusEnum.COMPLETE
+    mock_planner.execute.assert_called_once()
+
+
+def test_environment_step_tool_with_attributes_and_slots() -> None:
+    """Test environment step with tool that has attributes and slots."""
+    from arklex.orchestrator.NLU.entities.slot_entities import Slot
+
+    fake_tool = MagicMock()
+    fake_tool.init_slotfiller = MagicMock()
+    fake_tool.load_slots = MagicMock()
+    fake_tool.execute = MagicMock(
+        return_value=MessageState(
+            function_calling_trajectory=[{"role": "assistant", "content": "call"}],
+            slots={"slot1": [Slot(name="slot1", value="value1")]},
+            status=StatusEnum.COMPLETE,
+        )
+    )
+
+    tools = [{"id": "t1", "name": "fake_tool", "path": "fake_path"}]
+    with patch("importlib.import_module") as mock_import:
+        fake_module = MagicMock()
+        fake_module.fake_tool = MagicMock(return_value=fake_tool)
+        mock_import.return_value = fake_module
+        env = Environment(tools=tools, workers=[], agents=[])
+
+        class DummyOrchestratorParams:
+            memory = MagicMock()
+            taskgraph = MagicMock()
+            taskgraph.dialog_states = {}
+            taskgraph.node_status = {}
+            taskgraph.curr_node = "n1"
+
+        class DummyNodeInfo:
+            additional_args = {"foo": "bar"}
+            attributes = {"slots": ["slot1", "slot2"]}
+
+        state = MessageState()
+        params = DummyOrchestratorParams()
+        node_info = DummyNodeInfo()
+        env.tools["t1"]["fixed_args"] = {"baz": 1}
+
+        result_state, result_params = env.step("t1", state, params, node_info)
+        assert result_state.function_calling_trajectory == [
+            {"role": "assistant", "content": "call"}
+        ]
+        assert result_state.slots == {"slot1": [Slot(name="slot1", value="value1")]}
+        assert result_state.status == StatusEnum.COMPLETE
+        assert result_params.taskgraph.dialog_states == {
+            "slot1": [Slot(name="slot1", value="value1")]
+        }
+        assert result_params.taskgraph.node_status["n1"] == StatusEnum.COMPLETE
+
+        # Verify tool methods were called correctly
+        fake_tool.init_slotfiller.assert_called_once_with(env.slotfillapi)
+        fake_tool.load_slots.assert_called_once_with({"slots": ["slot1", "slot2"]})
+
+
+def test_environment_step_tool_with_none_additional_args() -> None:
+    """Test environment step with tool that has None additional_args."""
+    fake_tool = MagicMock()
+    fake_tool.init_slotfiller = MagicMock()
+    fake_tool.load_slots = MagicMock()
+    fake_tool.execute = MagicMock(
+        return_value=MessageState(
+            function_calling_trajectory=[{"role": "assistant", "content": "call"}],
+            slots={},
+        )
+    )
+
+    tools = [{"id": "t1", "name": "fake_tool", "path": "fake_path"}]
+    with patch("importlib.import_module") as mock_import:
+        fake_module = MagicMock()
+        fake_module.fake_tool = MagicMock(return_value=fake_tool)
+        mock_import.return_value = fake_module
+        env = Environment(tools=tools, workers=[], agents=[])
+
+        class DummyOrchestratorParams:
+            memory = MagicMock()
+            taskgraph = MagicMock()
+            taskgraph.dialog_states = {}
+            taskgraph.node_status = {}
+            taskgraph.curr_node = "n1"
+
+        class DummyNodeInfo:
+            additional_args = None  # None additional_args
+
+        state = MessageState()
+        params = DummyOrchestratorParams()
+        node_info = DummyNodeInfo()
+        env.tools["t1"]["fixed_args"] = {"baz": 1}
+
+        result_state, result_params = env.step("t1", state, params, node_info)
+        assert result_state.function_calling_trajectory == [
+            {"role": "assistant", "content": "call"}
+        ]
+        assert result_params is params
+
+
+def test_environment_step_tool_with_none_attributes() -> None:
+    """Test environment step with tool that has None attributes."""
+    fake_tool = MagicMock()
+    fake_tool.init_slotfiller = MagicMock()
+    fake_tool.load_slots = MagicMock()
+    fake_tool.execute = MagicMock(
+        return_value=MessageState(
+            function_calling_trajectory=[{"role": "assistant", "content": "call"}],
+            slots={},
+        )
+    )
+
+    tools = [{"id": "t1", "name": "fake_tool", "path": "fake_path"}]
+    with patch("importlib.import_module") as mock_import:
+        fake_module = MagicMock()
+        fake_module.fake_tool = MagicMock(return_value=fake_tool)
+        mock_import.return_value = fake_module
+        env = Environment(tools=tools, workers=[], agents=[])
+
+        class DummyOrchestratorParams:
+            memory = MagicMock()
+            taskgraph = MagicMock()
+            taskgraph.dialog_states = {}
+            taskgraph.node_status = {}
+            taskgraph.curr_node = "n1"
+
+        class DummyNodeInfo:
+            additional_args = {"foo": "bar"}
+            attributes = None  # None attributes
+
+        state = MessageState()
+        params = DummyOrchestratorParams()
+        node_info = DummyNodeInfo()
+        env.tools["t1"]["fixed_args"] = {"baz": 1}
+
+        result_state, result_params = env.step("t1", state, params, node_info)
+        assert result_state.function_calling_trajectory == [
+            {"role": "assistant", "content": "call"}
+        ]
+        assert result_params is params
+
+        # Verify tool methods were called correctly
+        fake_tool.init_slotfiller.assert_called_once_with(env.slotfillapi)
+        fake_tool.load_slots.assert_called_once_with(
+            []
+        )  # Empty list when attributes is None
+
+
+def test_environment_step_worker_with_none_additional_args() -> None:
+    """Test environment step with worker that has None additional_args."""
+    mock_worker = Mock()
+    mock_worker.execute.return_value = MessageState(status=StatusEnum.COMPLETE)
+    mock_worker.init_slotfilling = Mock()
+
+    env = Environment(
+        tools=[],
+        workers=[{"id": "worker1", "name": "test_worker", "path": "test"}],
+        agents=[],
+    )
+    env.workers = {
+        "worker1": {"name": "test_worker", "execute": Mock(return_value=mock_worker)}
+    }
+    env.id2name = {"worker1": "test_worker"}
+
+    message_state = MessageState()
+    params = OrchestratorParams()
+    params.memory.function_calling_trajectory = []
+    params.taskgraph.curr_node = "node1"
+    node_info = NodeInfo()
+    node_info.additional_args = None  # None additional_args
+
+    result_state, result_params = env.step("worker1", message_state, params, node_info)
+    assert result_state.status == StatusEnum.COMPLETE
+    assert len(result_params.memory.function_calling_trajectory) == 2
+    mock_worker.init_slotfilling.assert_called_once()
+
+
+def test_environment_step_worker_with_empty_response_and_message_flow() -> None:
+    """Test environment step with worker that has empty response and message_flow."""
+    mock_worker = Mock()
+    mock_worker.execute.return_value = MessageState(
+        status=StatusEnum.COMPLETE, response="", message_flow=""
+    )
+    mock_worker.init_slotfilling = Mock()
+
+    env = Environment(
+        tools=[],
+        workers=[{"id": "worker1", "name": "test_worker", "path": "test"}],
+        agents=[],
+    )
+    env.workers = {
+        "worker1": {"name": "test_worker", "execute": Mock(return_value=mock_worker)}
+    }
+    env.id2name = {"worker1": "test_worker"}
+
+    message_state = MessageState()
+    params = OrchestratorParams()
+    params.memory.function_calling_trajectory = []
+    params.taskgraph.curr_node = "node1"
+    node_info = NodeInfo()
+
+    result_state, result_params = env.step("worker1", message_state, params, node_info)
+    assert result_state.status == StatusEnum.COMPLETE
+    assert len(result_params.memory.function_calling_trajectory) == 2
+    # Check that empty string is used when both response and message_flow are empty strings
+    assert result_params.memory.function_calling_trajectory[1]["content"] == ""
