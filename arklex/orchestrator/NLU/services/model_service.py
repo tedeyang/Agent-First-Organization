@@ -20,6 +20,7 @@ from arklex.orchestrator.NLU.core.base import (
     SlotResponse,
     VerificationResponse,
 )
+from arklex.orchestrator.NLU.entities.slot_entities import Slot
 from arklex.orchestrator.NLU.services.api_service import APIClientService
 from arklex.orchestrator.NLU.utils.formatters import (
     format_verification_input as format_verification_input_formatter,
@@ -32,7 +33,6 @@ from arklex.orchestrator.NLU.utils.validators import (
 from arklex.utils.exceptions import ModelError, ValidationError
 from arklex.utils.logging_utils import LOG_MESSAGES, LogContext, handle_exceptions
 from arklex.utils.model_config import MODEL
-from arklex.utils.slot import Slot
 
 from .model_config import ModelConfig
 
@@ -363,7 +363,8 @@ class ModelService:
 
             # For now, we'll create a simple mapping since we don't have the full context
             # In a real implementation, this would come from the intent definitions
-            idx2intents_mapping = {"1": "test_intent"}  # Default mapping for testing
+            # Default mapping for testing
+            idx2intents_mapping = {"1": "test_intent"}
 
             # Convert the intent_data to a string for validation
             intent_str = str(intent_data["intent"])
