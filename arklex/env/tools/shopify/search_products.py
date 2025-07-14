@@ -124,15 +124,18 @@ def search_products(product_query: str, **kwargs: SearchProductsKwargs) -> str:
                     "link_url": product.get("onlineStoreUrl")
                     if product.get("onlineStoreUrl")
                     else f"{auth['domain']}/products/{product.get('handle')}",
-                    "image_url": product.get("images", {})
-                    .get("edges", [{}])[0]
+                    "image_url": product.get("images", {}).get("edges", [])
+                    and product.get("images", {})
+                    .get("edges", [])[0]
                     .get("node", {})
-                    .get("src", ""),
+                    .get("src", "")
+                    or "",
                     "variants": product.get("variants", {}).get("nodes", []),
                 }
                 card_list.append(product_dict)
             if card_list:
                 return json.dumps({"card_list": card_list})
+
             else:
                 raise ToolExecutionError(
                     func_name,

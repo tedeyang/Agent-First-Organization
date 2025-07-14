@@ -15,6 +15,19 @@ from fastapi.testclient import TestClient
 from arklex.main import app
 from arklex.utils.logging_config import setup_logging
 
+# Mock the mysql module BEFORE any other imports to prevent connection issues
+# This prevents actual database connections during testing
+if os.getenv("ARKLEX_TEST_ENV") == "local":
+    sys.modules["arklex.utils.mysql"] = MagicMock()
+
+# Set up common environment variables for local testing
+if os.getenv("ARKLEX_TEST_ENV") == "local":
+    os.environ.setdefault("MYSQL_USERNAME", "test_user")
+    os.environ.setdefault("MYSQL_PASSWORD", "test_password")
+    os.environ.setdefault("MYSQL_HOSTNAME", "localhost")
+    os.environ.setdefault("MYSQL_PORT", "3306")
+    os.environ.setdefault("MYSQL_DB_NAME", "test_db")
+
 
 # Mock OpenAI API key for testing
 @pytest.fixture(autouse=True)
@@ -47,10 +60,14 @@ def mock_shopify() -> Generator[MagicMock, None, None]:
 
 # Mock OpenAI LLM and Embeddings for testing
 @pytest.fixture(autouse=True)
-def mock_openai_llm_and_embeddings() -> Generator[None, None, None]:
+def mock_openai_llm_and_embeddings(
+    request: pytest.FixtureRequest,
+) -> Generator[None, None, None]:
     """Mock LangChain OpenAI LLM and Embeddings for testing."""
-    # Only mock if we're in test mode
-    if os.getenv("ARKLEX_TEST_ENV") == "local":
+    # Only mock if we're in test mode and not marked to skip LLM mocking
+    if os.getenv("ARKLEX_TEST_ENV") == "local" and not request.node.get_closest_marker(
+        "no_llm_mock"
+    ):
         with (
             patch("langchain_openai.ChatOpenAI") as mock_llm,
             patch("langchain_openai.OpenAIEmbeddings") as mock_embeddings,
@@ -73,10 +90,12 @@ def mock_openai_llm_and_embeddings() -> Generator[None, None, None]:
 
 # Patch openai client to prevent real API calls
 @pytest.fixture(autouse=True)
-def mock_openai_client() -> Generator[None, None, None]:
+def mock_openai_client(request: pytest.FixtureRequest) -> Generator[None, None, None]:
     """Mock openai.OpenAI and openai.resources.embeddings.Embeddings.create for all tests."""
-    # Only mock if we're in test mode
-    if os.getenv("ARKLEX_TEST_ENV") == "local":
+    # Only mock if we're in test mode and not marked to skip LLM mocking
+    if os.getenv("ARKLEX_TEST_ENV") == "local" and not request.node.get_closest_marker(
+        "no_llm_mock"
+    ):
         from unittest.mock import MagicMock, patch
 
         import openai
