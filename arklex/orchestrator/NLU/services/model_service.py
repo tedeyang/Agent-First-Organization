@@ -16,8 +16,8 @@ from langchain_core.output_parsers import JsonOutputParser
 
 from arklex.orchestrator.NLU.core.base import (
     IntentResponse,
-    SlotList,
     SlotResponse,
+    SlotValuesList,
     VerificationResponse,
 )
 from arklex.orchestrator.NLU.entities.slot_entities import Slot
@@ -838,8 +838,8 @@ class ModelService:
             # Get response from model
             if response_format == "json_object":
                 # this is for filling in the slots
-                self.model.with_structured_output(SlotList)
-                parser = JsonOutputParser(pydantic_object=SlotList)
+                self.model.with_structured_output(SlotValuesList)
+                parser = JsonOutputParser(pydantic_object=SlotValuesList)
                 chain = self.model | parser
                 response = chain.invoke(messages)
                 return json.dumps(response)

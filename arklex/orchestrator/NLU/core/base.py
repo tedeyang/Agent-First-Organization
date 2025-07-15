@@ -58,7 +58,7 @@ class SlotResponse(BaseModel):
     )
 
 
-class SlotList(BaseModel):
+class SlotValuesList(BaseModel):
     slots: list[dict]
 
 

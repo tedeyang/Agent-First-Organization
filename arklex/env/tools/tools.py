@@ -390,6 +390,8 @@ class Tool:
                     "Tool exeuction COMPLETE, and the output is stored in response"
                 )
                 state.response = str(response)
+            # Note: this is specifically for the `search_products` shopify tool that requires a specific output format
+            # Ideally once we modularize the tools, this will be a post hook under the shopify folder
             elif self.postProcess:
                 response = generate_multi_slot_cohesive_response(
                     response, self.llm_config
