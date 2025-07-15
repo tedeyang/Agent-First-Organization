@@ -496,7 +496,7 @@ class SlotFiller(BaseSlotFilling):
         context: str,
         model_config: dict[str, Any],
         type: str = "chat",
-    ) -> list[Slot]:
+    ) -> list[list[Slot]]:
         """Fill slots from input context.
 
         Args:

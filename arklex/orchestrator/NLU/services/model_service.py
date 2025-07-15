@@ -1064,18 +1064,31 @@ Please choose the most appropriate intent by providing the corresponding intent 
                 new_slot_list = []
                 # for each key val pair, add a slot to the list
                 for key, value in dic.items():
-                    try:
-                        # Find the corresponding slot template
-                        slot_template = next(s for s in slots if s.name == key)
-                        slot = deepcopy(slot_template)
-                        slot.value = value
-                        new_slot_list.append(slot)
-                    except StopIteration:
+                    # Find corresponding slot template by name
+                    slot_template = None
+                    for s in slots:
+                        if (isinstance(s, dict) and s.get("name") == key) or (
+                            hasattr(s, "name") and s.name == key
+                        ):
+                            slot_template = s
+                            break
+
+                    if slot_template is None:
                         log_context.warning(
                             f"Slot with name '{key}' not found in slot definitions."
                         )
-                new_slots.append(new_slot_list)
+                        continue
 
+                    slot_copy = deepcopy(slot_template)
+                    # Assign the value, depending on type
+                    if isinstance(slot_copy, dict):
+                        slot_copy["value"] = value
+                    else:
+                        slot_copy.value = value
+
+                    new_slot_list.append(slot_copy)
+
+                new_slots.append(new_slot_list)
             return new_slots
         except json.JSONDecodeError as e:
             log_context.error(f"Error parsing slot filling response: {str(e)}")

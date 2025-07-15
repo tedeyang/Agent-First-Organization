@@ -810,7 +810,7 @@ class TestTools:
 
             assert result.status.value == "incomplete"
             assert (
-                "Please confirm param1The reason is: Please confirm this value"
+                "Please confirm param1 The reason is: Please confirm this value"
                 in result.message_flow
             )
 
@@ -1037,7 +1037,7 @@ class TestTools:
         mock_slotfiller = Mock()
         tool.slotfiller = mock_slotfiller
 
-        from arklex.utils.slot import Slot
+        from arklex.orchestrator.NLU.entities.slot_entities import Slot
 
         filled_slots = [
             Slot(
@@ -1556,7 +1556,7 @@ class TestTools:
         mock_slotfiller = Mock()
         tool.slotfiller = mock_slotfiller
 
-        from arklex.utils.slot import Slot
+        from arklex.orchestrator.NLU.entities.slot_entities import Slot
 
         filled_slots = [
             Slot(

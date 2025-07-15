@@ -296,10 +296,18 @@ class Tool:
         # from the previously stored slots (indicating a different node)
         if state.slots.get(self.name):
             previous_slots = state.slots[self.name]
-            current_slot_names = {slot.name for slot in self.slots}
-            previous_slot_names = {slot.name for slot in previous_slots}
+            # Flatten nested slot lists
+            if isinstance(previous_slots, list) and all(
+                isinstance(s, list) for s in previous_slots
+            ):
+                previous_slot_names = {
+                    slot.name for group in previous_slots for slot in group
+                }
+            else:
+                previous_slot_names = {slot.name for slot in previous_slots}
 
-            # If the slot configurations are different, reset to current node's slots
+            current_slot_names = {slot.name for slot in self.slots}
+
             if current_slot_names != previous_slot_names:
                 log_context.info(
                     f"Slot configuration changed from {previous_slot_names} to {current_slot_names}, resetting slots"
@@ -317,13 +325,18 @@ class Tool:
         self._init_slots(state)
         # do slotfilling
         chat_history_str: str = format_chat_history(state.function_calling_trajectory)
-        slots: list[Slot] = self.slotfiller.fill_slots(
+        slots: list[list[Slot]] = self.slotfiller.fill_slots(
             self.slots, chat_history_str, self.llm_config
         )
         log_context.info(f"{slots=}")
 
+        if isinstance(slots, list) and all(isinstance(s, Slot) for s in slots):
+            # scenario to handle pre-existing slots, turn into list[list[Slot]]
+            slots = [slots]
+
         # Flatten the slots (list of lists) to a single list
         all_slots = [slot for slot_group in slots for slot in slot_group]
+
         # Check if any required slots are missing or unverified
         missing_required = any(
             not (slot.value and slot.verified) for slot in all_slots if slot.required
@@ -454,7 +467,7 @@ class Tool:
     def call_tool_for_grouped_slots(
         self,
         state: MessageState,
-        slots: list[Slot],
+        slots: list[list[Slot]],
         fixed_args: FixedArgs,
         required_args: list,
     ) -> list[dict[str, Any]]:
@@ -474,7 +487,8 @@ class Tool:
             if "slots" in sig.parameters:
                 kwargs["slots"] = [
                     slot.model_dump() if hasattr(slot, "model_dump") else slot
-                    for slot in slots
+                    for slot_group in slots
+                    for slot in slot_group
                 ]
 
             combined_kwargs = {**kwargs, **fixed_args, **self.llm_config}
