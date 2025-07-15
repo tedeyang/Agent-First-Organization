@@ -235,7 +235,10 @@ class TestSlotFillerFillSlotsLocal:
             slots, context, "chat"
         )
         mock_model_service.get_response.assert_called_once_with(
-            "formatted_prompt", model_config, "system_prompt"
+            "formatted_prompt",
+            model_config,
+            "system_prompt",
+            response_format="json_object",
         )
         mock_model_service.process_slot_response.assert_called_once()
 
@@ -657,7 +660,10 @@ class TestSlotFillerFillSlots:
             slots, context, "chat"
         )
         mock_model_service.get_response.assert_called_once_with(
-            "formatted_prompt", model_config, "system_prompt"
+            "formatted_prompt",
+            model_config,
+            "system_prompt",
+            response_format="json_object",
         )
         mock_model_service.process_slot_response.assert_called_once()
 

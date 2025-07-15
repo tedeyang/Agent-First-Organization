@@ -149,7 +149,9 @@ class SlotFiller(BaseSlotFilling):
         )
 
         # Get model response
-        response = self.model_service.get_response(prompt, model_config, system_prompt)
+        response = self.model_service.get_response(
+            prompt, model_config, system_prompt, response_format="json_object"
+        )
         log_context.info(
             "Model response received",
             extra={
@@ -169,7 +171,7 @@ class SlotFiller(BaseSlotFilling):
                     "prompt": prompt,
                     "system_prompt": system_prompt,
                     "raw_response": response,
-                    "filled_slots": [slot.name for slot in filled_slots],
+                    "filled_slots": list(filled_slots),
                     "operation": "slot_filling_local",
                 },
             )
@@ -494,7 +496,7 @@ class SlotFiller(BaseSlotFilling):
         context: str,
         model_config: dict[str, Any],
         type: str = "chat",
-    ) -> list[Slot]:
+    ) -> list[list[Slot]]:
         """Fill slots from input context.
 
         Args:
@@ -530,11 +532,10 @@ class SlotFiller(BaseSlotFilling):
                 filled_slots = self._fill_slots_local(
                     slots, context, model_config, type
                 )
-
             log_context.info(
                 "Slot filling completed",
                 extra={
-                    "filled_slots": [slot.name for slot in filled_slots],
+                    "filled_slots": list(filled_slots),
                     "operation": "slot_filling",
                 },
             )

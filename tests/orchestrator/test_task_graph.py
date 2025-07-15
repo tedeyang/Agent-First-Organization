@@ -2636,7 +2636,8 @@ class TestTaskGraphCoverage:
             task_graph.graph,
             "in_edges",
             return_value=[
-                ("node1", "node2", {"intent": "test_intent"})  # Missing attribute key
+                # Missing attribute key
+                ("node1", "node2", {"intent": "test_intent"})
             ],
         ):
             # This should trigger the exception handling branch when accessing missing attribute
