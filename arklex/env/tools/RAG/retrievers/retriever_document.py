@@ -23,7 +23,9 @@ from arklex.utils.mysql import mysql_pool
 from arklex.utils.redis import redis_pool
 
 DEFAULT_CHUNK_ENCODING = "cl100k_base"
-EMBEDDING_CACHE_TTL = int(os.getenv("EMBEDDING_CACHE_TTL", 86400 * 7))  # 7 days default
+EMBEDDING_CACHE_TTL = int(
+    os.getenv("EMBEDDING_CACHE_TTL", 86400 * 30)
+)  # 30 days default
 
 log_context = LogContext(__name__)
 
@@ -31,7 +33,7 @@ log_context = LogContext(__name__)
 def _generate_cache_key(text: str, model: str = "text-embedding-ada-002") -> str:
     """Generate a consistent cache key for the given text and model."""
     text_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
-    return f"embedding:{model}:{text_hash}"
+    return f"arklex::embedding::retriever::{model}::{text_hash}"
 
 
 def embed(text: str) -> list[float]:
