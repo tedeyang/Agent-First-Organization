@@ -75,7 +75,7 @@ class DefaultResourceInitializer(BaseResourceInitializer):
     """
 
     @staticmethod
-    def init_tools(tools: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    def init_tools(tools: list[dict[str, Any]],  attributes_list: list[dict[str, Any]] = []) -> dict[str, dict[str, Any]]:
         """Initialize tools from configuration.
 
         Args:
@@ -85,7 +85,7 @@ class DefaultResourceInitializer(BaseResourceInitializer):
             dictionary mapping tool IDs to their configurations
         """
         tool_registry: dict[str, dict[str, Any]] = {}
-        for tool in tools:
+        for idx, tool in enumerate(tools):
             tool_id: str = tool["id"]
             name: str = tool["name"]
             path: str = tool["path"]
@@ -95,9 +95,22 @@ class DefaultResourceInitializer(BaseResourceInitializer):
                 module = importlib.import_module(module_name)
                 func: Callable = getattr(module, name)
                 tool_instance: Tool = func()
+                if tool_id == "http_tool" and len(attributes_list) > 0:
+                    attributes = attributes_list[idx]
+                    task = attributes.get("task")
+                    slots = attributes.get("slots", [])
+                    tool_instance.load_slots(slots)
+                    tool_instance.fixed_args = attributes.get("node_specific_data", {}).get("http", {})
+                    # TODO: This is a temporary change to get the tool name from the attributes's task
+                    # We need to fetch the tool name from the attributes in the future
+                    tool_instance.name = attributes.get("task").replace(" ", "_").lower()
+                    tool_instance.description = task
+                    name = tool_instance.name
+                    tool_id = tool_instance.name
                 tool_registry[tool_id] = {
                     "name": f"{path.replace('/', '-')}-{name}",
                     "description": tool_instance.description,
+                    "tool_instance": tool_instance,
                     "execute": func,
                     "fixed_args": tool.get("fixed_args", {}),
                 }
@@ -261,7 +274,8 @@ class Environment:
             else:
                 resource_initializer = DefaultResourceInitializer()
 
-        self.tools: dict[str, dict[str, Any]] = resource_initializer.init_tools(tools)
+        attributes_list = kwargs.get("attributes", [])
+        self.tools: dict[str, dict[str, Any]] = resource_initializer.init_tools(tools, attributes_list=attributes_list)
         self.workers: dict[str, dict[str, Any]] = resource_initializer.init_workers(
             workers
         )
