@@ -851,40 +851,60 @@ class Tool:
         }
 
     def to_openai_tool_def_v2(self) -> dict:
-        parameters = {
-            "type": "object",
-            "properties": {},
-            "required": [slot.name for slot in self.openai_slots if slot.required],
-        }
-        for slot in self.openai_slots:
-            if hasattr(slot, "items") and slot.items:
-                parameters["properties"][slot.name] = {
-                    "type": "array",
-                    "items": slot.items,
+        def slot_to_schema(slot):
+            if getattr(slot, 'type', None) == 'group':
+                # Recursively build the schema for the group
+                properties = {}
+                required = []
+                for field in getattr(slot, 'schema', []) or []:
+                    # Skip fixed value slots
+                    if field.get('valueSource') == 'fixed':
+                        continue
+                    properties[field['name']] = slot_to_schema(field)
+                    if field.get('required'):
+                        required.append(field['name'])
+                item_schema = {
+                    'type': 'object',
+                    'properties': properties,
                 }
-            else:
-                # Handle regular slots (non-group)
+                if required:
+                    item_schema['required'] = required
                 if getattr(slot, 'repeatable', False):
-                    # For repeatable regular slots, define as array
-                    parameters["properties"][slot.name] = {
-                        "type": "array",
-                        "items": {
-                            "type": PYTHON_TO_JSON_SCHEMA[slot.type],
-                        },
-                        "description": slot.description,
+                    return {
+                        'type': 'array',
+                        'items': item_schema,
+                        'description': getattr(slot, 'description', ''),
                     }
                 else:
-                    # For non-repeatable regular slots, define as single value
-                    parameters["properties"][slot.name] = {
-                        "type": PYTHON_TO_JSON_SCHEMA[slot.type],
-                        "description": slot.description,
-                    }
+                    return item_schema
+            else:
+                # Primitive type
+                if isinstance(slot, dict):
+                    slot_type = slot.get('type', 'str')
+                else:
+                    slot_type = getattr(slot, 'type', 'str')
+                log_context.info(f"Hello this is the print statement: slot={slot}, type={slot_type}")
+                return {
+                    'type': PYTHON_TO_JSON_SCHEMA[slot_type],
+                    'description': getattr(slot, 'description', ''),
+                }
+
+        parameters = {
+            'type': 'object',
+            'properties': {},
+            'required': [slot.name for slot in self.openai_slots if getattr(slot, 'required', False)],
+        }
+        for slot in self.openai_slots:
+            # Skip fixed value slots at the top level
+            if getattr(slot, 'valueSource', None) == 'fixed':
+                continue
+            parameters['properties'][slot.name] = slot_to_schema(slot)
         return {
-            "type": "function",
-            "function": {
-                "name": self.name,
-                "description": self.description,
-                "parameters": parameters,
+            'type': 'function',
+            'function': {
+                'name': self.name,
+                'description': self.description,
+                'parameters': parameters,
             },
         }
 
