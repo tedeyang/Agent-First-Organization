@@ -68,40 +68,132 @@ class OpenAIAgent(BaseAgent):
         log_context.info(f"OpenAIAgent initialized with {len(self.tool_defs)} tools.")
 
     def generate(self, state: MessageState) -> MessageState:
-        log_context.info("\nGenerating response using the agent.")
+        """Generate response without streaming."""
+        return self._generate_response(state, stream=False)
+
+    def text_stream_generate(self, state: MessageState) -> MessageState:
+        """Generate response with text streaming capability."""
+        return self._generate_response(state, stream=True, is_speech=False)
+
+    def speech_stream_generate(self, state: MessageState) -> MessageState:
+        """Generate response with speech streaming capability."""
+        return self._generate_response(state, stream=True, is_speech=True)
+
+    def _prepare_prompt(self, state: MessageState, is_speech: bool = False) -> str:
+        """Prepare the input prompt for generation."""
+        if self.prompt:
+            return self.prompt
+
+        orchestrator_message = state.orchestrator_message
+        orch_msg_content: str = (
+            "None" if not orchestrator_message.message else orchestrator_message.message
+        )
+
+        prompts: dict[str, str] = load_prompts(state.bot_config)
+
+        # Choose prompt based on speech flag
+        if is_speech:
+            prompt_key = (
+                "function_calling_agent_prompt_speech"
+                if "function_calling_agent_prompt_speech" in prompts
+                else "function_calling_agent_prompt"
+            )
+        else:
+            prompt_key = "function_calling_agent_prompt"
+
+        prompt: PromptTemplate = PromptTemplate.from_template(prompts[prompt_key])
+        input_prompt = prompt.invoke(
+            {
+                "sys_instruct": state.sys_instruct,
+                "message": orch_msg_content,
+            }
+        )
+        return input_prompt.text
+
+    def _add_prompt_to_trajectory(self, state: MessageState, input_prompt: str) -> None:
+        """Add the input prompt to the function calling trajectory if not already present."""
+        if not any(
+            message.get("content") == input_prompt
+            for message in state.function_calling_trajectory
+        ):
+            log_context.info("Adding input prompt to the function calling trajectory.")
+            state.function_calling_trajectory.append(
+                SystemMessage(content=input_prompt).model_dump()
+            )
+
+    def _process_tool_calls(self, state: MessageState, ai_message: AIMessage) -> None:
+        """Process tool calls and update the function calling trajectory."""
+        if not ai_message.tool_calls:
+            return
+
+        log_context.info("Processing tool calls.")
+        for tool_call in ai_message.tool_calls:
+            tool_name = tool_call.get("name")
+            if tool_name in self.tool_map:
+                # Ensure tool_call has proper structure
+                tool_call_id = tool_call.get("id", f"call_{tool_name}")
+                tool_call_args = tool_call.get("args", {})
+
+                # Create properly structured tool call
+                structured_tool_call = {
+                    "name": tool_name,
+                    "args": tool_call_args,
+                    "id": tool_call_id,
+                }
+
+                state.function_calling_trajectory.append(
+                    AIMessage(
+                        content=f"Calling tool: {tool_name}",
+                        tool_calls=[structured_tool_call],
+                    ).model_dump()
+                )
+
+                # Prepare arguments for tool execution
+                tool_args = {
+                    **tool_call_args,
+                    **self.tool_args.get(tool_name, {}),
+                }
+
+                # Call tool with unified interface
+                tool_response = self._execute_tool(tool_name, state, tool_args)
+
+                state.function_calling_trajectory.append(
+                    ToolMessage(
+                        name=tool_name,
+                        content=json.dumps(tool_response),
+                        tool_call_id=tool_call_id,
+                    ).model_dump()
+                )
+            else:
+                log_context.warning(f"Tool {tool_name} not found in tool map.")
+
+    def _stream_response(self, state: MessageState, final_chain: BaseChatModel) -> str:
+        """Stream the response and put chunks in the message queue."""
+        answer = ""
+        for chunk in final_chain.stream(state.function_calling_trajectory):
+            if hasattr(chunk, "content") and chunk.content:
+                answer += chunk.content
+                state.message_queue.put(
+                    {"event": EventType.CHUNK.value, "message_chunk": chunk.content}
+                )
+        return answer
+
+    def _generate_response(
+        self, state: MessageState, stream: bool = False, is_speech: bool = False
+    ) -> MessageState:
+        """Unified response generation method with optional streaming."""
+        generation_type = (
+            "speech streaming"
+            if is_speech and stream
+            else "streaming"
+            if stream
+            else "standard"
+        )
+        log_context.info(f"\nGenerating {generation_type} response using the agent.")
 
         if state.status == StatusEnum.INCOMPLETE:
-            if not self.prompt:
-                orchestrator_message = state.orchestrator_message
-                orch_msg_content: str = (
-                    "None"
-                    if not orchestrator_message.message
-                    else orchestrator_message.message
-                )
-                prompts: dict[str, str] = load_prompts(state.bot_config)
-                prompt: PromptTemplate = PromptTemplate.from_template(
-                    prompts["function_calling_agent_prompt"]
-                )
-                input_prompt = prompt.invoke(
-                    {
-                        "sys_instruct": state.sys_instruct,
-                        "message": orch_msg_content,
-                    }
-                )
-                input_prompt = input_prompt.text
-            else:
-                input_prompt = self.prompt
-
-            if not any(
-                message.get("content") == input_prompt
-                for message in state.function_calling_trajectory
-            ):
-                log_context.info(
-                    "Adding input prompt to the function calling trajectory."
-                )
-                state.function_calling_trajectory.append(
-                    SystemMessage(content=input_prompt).model_dump()
-                )
+            input_prompt = self._prepare_prompt(state, is_speech)
+            self._add_prompt_to_trajectory(state, input_prompt)
 
         log_context.info(f"\nagent messages: {state.function_calling_trajectory}")
 
@@ -110,275 +202,30 @@ class OpenAIAgent(BaseAgent):
 
         log_context.info(f"Generated answer: {ai_message}")
 
+        # Process tool calls first
+        self._process_tool_calls(state, ai_message)
+
+        # Generate final response
         if ai_message.tool_calls:
-            log_context.info("Processing tool calls.")
-            for tool_call in ai_message.tool_calls:
-                tool_name = tool_call.get("name")
-                if tool_name in self.tool_map:
-                    # Ensure tool_call has proper structure
-                    tool_call_id = tool_call.get("id", f"call_{tool_name}")
-                    tool_call_args = tool_call.get("args", {})
-
-                    # Create properly structured tool call
-                    structured_tool_call = {
-                        "name": tool_name,
-                        "args": tool_call_args,
-                        "id": tool_call_id,
-                    }
-
-                    state.function_calling_trajectory.append(
-                        AIMessage(
-                            content=f"Calling tool: {tool_name}",
-                            tool_calls=[structured_tool_call],
-                        ).model_dump()
-                    )
-
-                    # Prepare arguments for tool execution
-                    tool_args = {
-                        **tool_call_args,
-                        **self.tool_args.get(tool_name, {}),
-                    }
-
-                    # Call tool with unified interface
-                    tool_response = self._execute_tool(tool_name, state, tool_args)
-
-                    state.function_calling_trajectory.append(
-                        ToolMessage(
-                            name=tool_name,
-                            content=json.dumps(tool_response),
-                            tool_call_id=tool_call_id,
-                        ).model_dump()
-                    )
-                    ai_message = final_chain.invoke(state.function_calling_trajectory)
-                else:
-                    log_context.warning(f"Tool {tool_name} not found in tool map.")
-        state.message_flow = ""
-        state.response = ai_message.content
-        state = trace(input=ai_message.content, state=state)
-        return state
-
-    def text_stream_generate(self, state: MessageState) -> MessageState:
-        """Generate response with text streaming capability."""
-        log_context.info("\nGenerating streaming response using the agent.")
-
-        if state.status == StatusEnum.INCOMPLETE:
-            if not self.prompt:
-                orchestrator_message = state.orchestrator_message
-                orch_msg_content: str = (
-                    "None"
-                    if not orchestrator_message.message
-                    else orchestrator_message.message
-                )
-                prompts: dict[str, str] = load_prompts(state.bot_config)
-                prompt: PromptTemplate = PromptTemplate.from_template(
-                    prompts["function_calling_agent_prompt"]
-                )
-                input_prompt = prompt.invoke(
-                    {
-                        "sys_instruct": state.sys_instruct,
-                        "message": orch_msg_content,
-                    }
-                )
-                input_prompt = input_prompt.text
+            # After tool execution, get final response
+            if stream:
+                answer = self._stream_response(state, final_chain)
             else:
-                input_prompt = self.prompt
-
-            if not any(
-                message.get("content") == input_prompt
-                for message in state.function_calling_trajectory
-            ):
-                log_context.info(
-                    "Adding input prompt to the function calling trajectory."
-                )
-                state.function_calling_trajectory.append(
-                    SystemMessage(content=input_prompt).model_dump()
-                )
-
-        log_context.info(f"\nagent messages: {state.function_calling_trajectory}")
-
-        final_chain = self.llm
-
-        # For streaming, we need to handle tool calls differently
-        # First, get the initial response to check for tool calls
-        ai_message: AIMessage = final_chain.invoke(state.function_calling_trajectory)
-
-        if ai_message.tool_calls:
-            log_context.info("Processing tool calls.")
-            for tool_call in ai_message.tool_calls:
-                tool_name = tool_call.get("name")
-                if tool_name in self.tool_map:
-                    # Ensure tool_call has proper structure
-                    tool_call_id = tool_call.get("id", f"call_{tool_name}")
-                    tool_call_args = tool_call.get("args", {})
-
-                    # Create properly structured tool call
-                    structured_tool_call = {
-                        "name": tool_name,
-                        "args": tool_call_args,
-                        "id": tool_call_id,
-                    }
-
-                    state.function_calling_trajectory.append(
-                        AIMessage(
-                            content=f"Calling tool: {tool_name}",
-                            tool_calls=[structured_tool_call],
-                        ).model_dump()
-                    )
-
-                    # Prepare arguments for tool execution
-                    tool_args = {
-                        **tool_call_args,
-                        **self.tool_args.get(tool_name, {}),
-                    }
-
-                    # Call tool with unified interface
-                    tool_response = self._execute_tool(tool_name, state, tool_args)
-
-                    state.function_calling_trajectory.append(
-                        ToolMessage(
-                            name=tool_name,
-                            content=json.dumps(tool_response),
-                            tool_call_id=tool_call_id,
-                        ).model_dump()
-                    )
-                else:
-                    log_context.warning(f"Tool {tool_name} not found in tool map.")
-
-            # After tool execution, stream the final response
-            answer = ""
-            for chunk in final_chain.stream(state.function_calling_trajectory):
-                if hasattr(chunk, "content") and chunk.content:
-                    answer += chunk.content
-                    state.message_queue.put(
-                        {"event": EventType.CHUNK.value, "message_chunk": chunk.content}
-                    )
+                ai_message = final_chain.invoke(state.function_calling_trajectory)
+                answer = ai_message.content
         else:
-            # No tool calls, stream the response directly
-            answer = ""
-            for chunk in final_chain.stream(state.function_calling_trajectory):
-                if hasattr(chunk, "content") and chunk.content:
-                    answer += chunk.content
-                    state.message_queue.put(
-                        {"event": EventType.CHUNK.value, "message_chunk": chunk.content}
-                    )
+            # No tool calls
+            if stream:
+                answer = self._stream_response(state, final_chain)
+            else:
+                answer = ai_message.content
 
         state.message_flow = ""
         state.response = answer
-        return state
 
-    def speech_stream_generate(self, state: MessageState) -> MessageState:
-        """Generate response with speech streaming capability."""
-        log_context.info("\nGenerating speech streaming response using the agent.")
+        if not stream:
+            state = trace(input=answer, state=state)
 
-        if state.status == StatusEnum.INCOMPLETE:
-            if not self.prompt:
-                orchestrator_message = state.orchestrator_message
-                orch_msg_content: str = (
-                    "None"
-                    if not orchestrator_message.message
-                    else orchestrator_message.message
-                )
-                # Use speech-specific prompt if available
-                prompts: dict[str, str] = load_prompts(state.bot_config)
-                prompt_key = (
-                    "function_calling_agent_prompt_speech"
-                    if "function_calling_agent_prompt_speech" in prompts
-                    else "function_calling_agent_prompt"
-                )
-                prompt: PromptTemplate = PromptTemplate.from_template(
-                    prompts[prompt_key]
-                )
-                input_prompt = prompt.invoke(
-                    {
-                        "sys_instruct": state.sys_instruct,
-                        "message": orch_msg_content,
-                    }
-                )
-                input_prompt = input_prompt.text
-            else:
-                input_prompt = self.prompt
-
-            if not any(
-                message.get("content") == input_prompt
-                for message in state.function_calling_trajectory
-            ):
-                log_context.info(
-                    "Adding input prompt to the function calling trajectory."
-                )
-                state.function_calling_trajectory.append(
-                    SystemMessage(content=input_prompt).model_dump()
-                )
-
-        log_context.info(f"\nagent messages: {state.function_calling_trajectory}")
-
-        final_chain = self.llm
-
-        # For streaming, we need to handle tool calls differently
-        # First, get the initial response to check for tool calls
-        ai_message: AIMessage = final_chain.invoke(state.function_calling_trajectory)
-
-        if ai_message.tool_calls:
-            log_context.info("Processing tool calls.")
-            for tool_call in ai_message.tool_calls:
-                tool_name = tool_call.get("name")
-                if tool_name in self.tool_map:
-                    # Ensure tool_call has proper structure
-                    tool_call_id = tool_call.get("id", f"call_{tool_name}")
-                    tool_call_args = tool_call.get("args", {})
-
-                    # Create properly structured tool call
-                    structured_tool_call = {
-                        "name": tool_name,
-                        "args": tool_call_args,
-                        "id": tool_call_id,
-                    }
-
-                    state.function_calling_trajectory.append(
-                        AIMessage(
-                            content=f"Calling tool: {tool_name}",
-                            tool_calls=[structured_tool_call],
-                        ).model_dump()
-                    )
-
-                    # Prepare arguments for tool execution
-                    tool_args = {
-                        **tool_call_args,
-                        **self.tool_args.get(tool_name, {}),
-                    }
-
-                    # Call tool with unified interface
-                    tool_response = self._execute_tool(tool_name, state, tool_args)
-
-                    state.function_calling_trajectory.append(
-                        ToolMessage(
-                            name=tool_name,
-                            content=json.dumps(tool_response),
-                            tool_call_id=tool_call_id,
-                        ).model_dump()
-                    )
-                else:
-                    log_context.warning(f"Tool {tool_name} not found in tool map.")
-
-            # After tool execution, stream the final response
-            answer = ""
-            for chunk in final_chain.stream(state.function_calling_trajectory):
-                if hasattr(chunk, "content") and chunk.content:
-                    answer += chunk.content
-                    state.message_queue.put(
-                        {"event": EventType.CHUNK.value, "message_chunk": chunk.content}
-                    )
-        else:
-            # No tool calls, stream the response directly
-            answer = ""
-            for chunk in final_chain.stream(state.function_calling_trajectory):
-                if hasattr(chunk, "content") and chunk.content:
-                    answer += chunk.content
-                    state.message_queue.put(
-                        {"event": EventType.CHUNK.value, "message_chunk": chunk.content}
-                    )
-
-        state.message_flow = ""
-        state.response = answer
         return state
 
     def choose_generator(self, state: MessageState) -> str:
