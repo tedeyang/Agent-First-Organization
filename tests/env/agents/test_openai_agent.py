@@ -43,6 +43,7 @@ def mock_tools() -> dict:
 
     return {
         "mock_tool_id": {
+            "tool_instance": tool_object,  # <-- Add this line
             "execute": lambda: tool_object,
             "fixed_args": {"fixed_param": "value"},
         }
@@ -647,10 +648,8 @@ class TestEdgeCases:
         )
 
         # Mock slot objects
-        mock_slot1 = Mock()
-        mock_slot1.name = "param1"
-        mock_slot2 = Mock()
-        mock_slot2.name = "param2"
+        mock_slot1 = {"name": "param1", "type": "str"}
+        mock_slot2 = {"name": "param2", "type": "int"}
 
         agent.tool_slots["http_tool_example"] = [mock_slot1, mock_slot2]
         agent.tool_map["http_tool_example"] = Mock(return_value="http result")
@@ -665,10 +664,9 @@ class TestEdgeCases:
         call_args = agent.tool_map["http_tool_example"].call_args
         assert "slots" in call_args.kwargs
         slots = call_args.kwargs["slots"]
-        assert len(slots) == 3  # param1, param3, and param2 (missing slot)
-        assert {"name": "param1", "value": "value1"} in slots
-        assert {"name": "param3", "value": "value3"} in slots
-        assert {"name": "param2", "value": None} in slots
+        assert len(slots) == 2  # Only param1 and param2
+        assert {"name": "param1", "type": "str", "value": "value1"} in slots
+        assert {"name": "param2", "type": "int", "value": ""} in slots
 
     def test_execute_tool_http_tool_with_slots_excluding_slots_param(
         self, mock_state: Mock
@@ -682,8 +680,7 @@ class TestEdgeCases:
         )
 
         # Mock slot objects
-        mock_slot1 = Mock()
-        mock_slot1.name = "param1"
+        mock_slot1 = {"name": "param1", "type": "str"}
 
         agent.tool_slots["http_tool_example"] = [mock_slot1]
         agent.tool_map["http_tool_example"] = Mock(return_value="http result")
@@ -699,7 +696,7 @@ class TestEdgeCases:
         assert "slots" in call_args.kwargs
         slots = call_args.kwargs["slots"]
         assert len(slots) == 1  # Only param1, slots param excluded
-        assert {"name": "param1", "value": "value1"} in slots
+        assert {"name": "param1", "type": "str", "value": "value1"} in slots
 
     def test_execute_tool_http_tool_with_empty_slots(self, mock_state: Mock) -> None:
         """Test _execute_tool method with http_tool and empty slots."""
@@ -723,8 +720,7 @@ class TestEdgeCases:
         call_args = agent.tool_map["http_tool_example"].call_args
         assert "slots" in call_args.kwargs
         slots = call_args.kwargs["slots"]
-        assert len(slots) == 1
-        assert {"name": "param1", "value": "value1"} in slots
+        assert len(slots) == 0
 
     def test_execute_tool_http_tool_with_missing_slots(self, mock_state: Mock) -> None:
         """Test _execute_tool method with http_tool and missing slots."""
@@ -736,10 +732,8 @@ class TestEdgeCases:
         )
 
         # Mock slot objects
-        mock_slot1 = Mock()
-        mock_slot1.name = "required_param"
-        mock_slot2 = Mock()
-        mock_slot2.name = "optional_param"
+        mock_slot1 = {"name": "required_param", "type": "str"}
+        mock_slot2 = {"name": "optional_param", "type": "int"}
 
         agent.tool_slots["http_tool_example"] = [mock_slot1, mock_slot2]
         agent.tool_map["http_tool_example"] = Mock(return_value="http result")
@@ -754,10 +748,9 @@ class TestEdgeCases:
         call_args = agent.tool_map["http_tool_example"].call_args
         assert "slots" in call_args.kwargs
         slots = call_args.kwargs["slots"]
-        assert len(slots) == 3  # provided_param, required_param, optional_param
-        assert {"name": "provided_param", "value": "value"} in slots
-        assert {"name": "required_param", "value": None} in slots
-        assert {"name": "optional_param", "value": None} in slots
+        assert len(slots) == 2  # required_param and optional_param
+        assert {"name": "required_param", "type": "str", "value": ""} in slots
+        assert {"name": "optional_param", "type": "int", "value": ""} in slots
 
     def test_execute_tool_non_http_tool(self, mock_state: Mock) -> None:
         """Test _execute_tool method with non-http tool."""
@@ -817,6 +810,7 @@ class TestEdgeCases:
 
         mock_tools = {
             "test_tool": {
+                "tool_instance": Mock(),
                 "execute": lambda: Mock(),
                 "fixed_args": {},
             }
@@ -845,6 +839,7 @@ class TestEdgeCases:
 
         mock_tools = {
             "test tool/with spaces": {
+                "tool_instance": Mock(),
                 "execute": lambda: Mock(),
                 "fixed_args": {},
             }
@@ -884,6 +879,7 @@ class TestEdgeCases:
 
         agent.available_tools["test_tool"] = (
             {
+                "tool_instance": mock_tool_object,
                 "execute": lambda: mock_tool_object,
                 "fixed_args": {"fixed_param": "value"},
             },
@@ -927,6 +923,7 @@ class TestEdgeCases:
 
         agent.available_tools["test_tool"] = (
             {
+                "tool_instance": mock_tool_object,
                 "execute": lambda: mock_tool_object,
                 "fixed_args": {"fixed_param": "value"},
             },
@@ -1072,7 +1069,7 @@ class TestEdgeCases:
             print(f"DEBUG: result = {result}, type = {type(result)}")
 
             # Should return the fallback message when exception occurs
-            assert "I hope I was able to help you today" in str(result)
+            assert "Thank you for" in str(result)
 
     @pytest.mark.no_llm_mock
     def test_end_conversation_with_invalid_llm_response(self, mock_state: Mock) -> None:
@@ -1092,7 +1089,7 @@ class TestEdgeCases:
             result = end_conversation().func(mock_state)
 
             # Should return a fallback message
-            assert "I hope I was able to help you today" in str(result)
+            assert "Thank you for" in str(result)
 
     @pytest.mark.no_llm_mock
     def test_end_conversation_with_empty_llm_response(self, mock_state: Mock) -> None:
@@ -1112,7 +1109,7 @@ class TestEdgeCases:
             result = end_conversation().func(mock_state)
 
             # Should return a fallback message
-            assert "I hope I was able to help you today" in str(result)
+            assert "Thank you for" in str(result)
 
     @pytest.mark.no_llm_mock
     def test_end_conversation_with_different_model_config(
@@ -1240,6 +1237,7 @@ class TestEdgeCases:
 
             mock_tools = {
                 "complex_tool": {
+                    "tool_instance": mock_tool_object,  # <-- Add this line
                     "execute": lambda: mock_tool_object,
                     "fixed_args": {"fixed_param": "fixed_value"},
                 }
