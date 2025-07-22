@@ -1257,3 +1257,109 @@ class TestEdgeCases:
             assert agent.tool_args["complex_tool"]["fixed_param"] == "fixed_value"
             assert agent.tool_args["complex_tool"]["extra_param"] == "extra_value"
             assert len(agent.tool_defs) >= 2  # complex_tool + end_conversation
+
+    def test_execute_tool_slot_value_source_fixed(self, mock_state: Mock):
+        agent = OpenAIAgent(successors=[], predecessors=[], tools={}, state=mock_state)
+        slot = {"name": "fixed_param", "type": "str", "valueSource": "fixed", "value": "fixed_value"}
+        agent.tool_slots["http_tool_example"] = [slot]
+        agent.tool_map["http_tool_example"] = Mock(return_value="fixed result")
+        tool_args = {}
+        result = agent._execute_tool("http_tool_example", mock_state, tool_args)
+        assert result == "fixed result"
+        call_args = agent.tool_map["http_tool_example"].call_args
+        slots = call_args.kwargs["slots"]
+        assert slots[0]["value"] == "fixed_value"
+
+    def test_execute_tool_slot_value_source_default_missing(self, mock_state: Mock):
+        agent = OpenAIAgent(successors=[], predecessors=[], tools={}, state=mock_state)
+        slot = {"name": "default_param", "type": "str", "valueSource": "default", "value": "default_value"}
+        agent.tool_slots["http_tool_example"] = [slot]
+        agent.tool_map["http_tool_example"] = Mock(return_value="default result")
+        tool_args = {}
+        result = agent._execute_tool("http_tool_example", mock_state, tool_args)
+        assert result == "default result"
+        call_args = agent.tool_map["http_tool_example"].call_args
+        slots = call_args.kwargs["slots"]
+        assert slots[0]["value"] == "default_value"
+
+    def test_execute_tool_slot_value_source_prompt_missing(self, mock_state: Mock):
+        agent = OpenAIAgent(successors=[], predecessors=[], tools={}, state=mock_state)
+        slot = {"name": "prompt_param", "type": "str", "valueSource": "prompt"}
+        agent.tool_slots["http_tool_example"] = [slot]
+        agent.tool_map["http_tool_example"] = Mock(return_value="prompt result")
+        tool_args = {}
+        result = agent._execute_tool("http_tool_example", mock_state, tool_args)
+        assert result == "prompt result"
+        call_args = agent.tool_map["http_tool_example"].call_args
+        slots = call_args.kwargs["slots"]
+        assert slots[0]["value"] == ""
+
+    def test_execute_tool_group_slot_repeatable_default(self, mock_state: Mock):
+        agent = OpenAIAgent(successors=[], predecessors=[], tools={}, state=mock_state)
+        group_slot = {
+            "name": "group1",
+            "type": "group",
+            "repeatable": True,
+            "schema": [{"name": "item", "type": "str", "valueSource": "prompt"}],
+            "valueSource": "default",
+            "value": {"item": "default_value"}
+        }
+        agent.tool_slots["http_tool_example"] = [group_slot]
+        agent.tool_map["http_tool_example"] = Mock(return_value="group result")
+        tool_args = {}
+        result = agent._execute_tool("http_tool_example", mock_state, tool_args)
+        assert result == "group result"
+        call_args = agent.tool_map["http_tool_example"].call_args
+        slots = call_args.kwargs["slots"]
+        assert slots[0]["value"][0]["item"] == "default_value"
+
+    def test_execute_tool_group_slot_repeatable_fixed(self, mock_state: Mock):
+        agent = OpenAIAgent(successors=[], predecessors=[], tools={}, state=mock_state)
+        group_slot = {
+            "name": "group2",
+            "type": "group",
+            "repeatable": True,
+            "schema": [{"name": "item", "type": "str", "valueSource": "fixed", "value": "fixed_item"}],
+            "valueSource": "fixed",
+            "value": [{"item": "fixed_item"}]
+        }
+        agent.tool_slots["http_tool_example"] = [group_slot]
+        agent.tool_map["http_tool_example"] = Mock(return_value="group fixed result")
+        tool_args = {}
+        result = agent._execute_tool("http_tool_example", mock_state, tool_args)
+        assert result == "group fixed result"
+        call_args = agent.tool_map["http_tool_example"].call_args
+        slots = call_args.kwargs["slots"]
+        assert slots[0]["value"][0]["item"] == "fixed_item"
+
+    def test_execute_tool_type_convert_error(self, mock_state: Mock):
+        agent = OpenAIAgent(successors=[], predecessors=[], tools={}, state=mock_state)
+        # Simulate a slot with type 'int' and a value that can't be converted
+        slot = {"name": "int_param", "type": "int", "valueSource": "prompt"}
+        agent.tool_slots["http_tool_example"] = [slot]
+        agent.tool_map["http_tool_example"] = Mock(return_value="type error result")
+        tool_args = {"int_param": "not_an_int"}
+        # Patch TYPE_CONVERTERS to raise an exception
+        import arklex.env.agents.openai_agent as openai_agent_mod
+        orig_converter = openai_agent_mod.TYPE_CONVERTERS.get("int")
+        openai_agent_mod.TYPE_CONVERTERS["int"] = lambda v: (_ for _ in ()).throw(ValueError("fail"))
+        result = agent._execute_tool("http_tool_example", mock_state, tool_args)
+        openai_agent_mod.TYPE_CONVERTERS["int"] = orig_converter  # restore
+        assert result == "type error result"
+        call_args = agent.tool_map["http_tool_example"].call_args
+        slots = call_args.kwargs["slots"]
+        assert slots[0]["value"] == "not_an_int"  # fallback to original value
+
+    def test_execute_tool_slot_with_model_dump(self, mock_state: Mock):
+        agent = OpenAIAgent(successors=[], predecessors=[], tools={}, state=mock_state)
+        class FakeSlot:
+            def model_dump(self):
+                return {"name": "model_param", "type": "str", "valueSource": "prompt"}
+        agent.tool_slots["http_tool_example"] = [FakeSlot()]
+        agent.tool_map["http_tool_example"] = Mock(return_value="model_dump result")
+        tool_args = {}
+        result = agent._execute_tool("http_tool_example", mock_state, tool_args)
+        assert result == "model_dump result"
+        call_args = agent.tool_map["http_tool_example"].call_args
+        slots = call_args.kwargs["slots"]
+        assert slots[0]["name"] == "model_param"
