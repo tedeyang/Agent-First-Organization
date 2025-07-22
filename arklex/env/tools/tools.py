@@ -844,11 +844,10 @@ class Tool:
         }
 
     def to_openai_tool_def_v2(self) -> dict:
-        # TODO: move this to slot_entities.py
         parameters = {
-            'type': 'object',
-            'properties': {},
-            'required': [slot.name for slot in self.slots if getattr(slot, 'required', False)],
+            "type": "object",
+            "properties": {},
+            "required": [slot.name for slot in self.slots if getattr(slot, 'required', False)],
         }
         for slot in self.slots:
             if getattr(slot, 'valueSource', None) == 'fixed':

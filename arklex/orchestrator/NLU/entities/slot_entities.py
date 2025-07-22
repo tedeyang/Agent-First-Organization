@@ -53,7 +53,6 @@ class Slot(BaseModel):
     items: dict | None = None
     target: str | None = None
 
-    # TODO: to add slot open ai format here
     def to_openai_schema(self) -> dict:
         if self.type == "group":
             properties = {}
