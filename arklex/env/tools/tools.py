@@ -884,7 +884,7 @@ class Tool:
                     slot_type = slot.get('type', 'str')
                 else:
                     slot_type = getattr(slot, 'type', 'str')
-                log_context.info(f"Hello this is the print statement: slot={slot}, type={slot_type}")
+
                 return {
                     'type': PYTHON_TO_JSON_SCHEMA[slot_type],
                     'description': getattr(slot, 'description', ''),
