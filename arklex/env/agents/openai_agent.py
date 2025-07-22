@@ -8,7 +8,7 @@ from langgraph.graph import START, StateGraph
 
 from arklex.env.agents.agent import BaseAgent, register_agent
 from arklex.env.prompts import load_prompts
-from arklex.env.tools.tools import register_tool
+from arklex.env.tools.tools import register_tool, TYPE_CONVERTERS
 from arklex.env.tools.utils import trace
 from arklex.orchestrator.entities.msg_state_entities import MessageState, StatusEnum
 from arklex.utils.logging_utils import LogContext
@@ -239,24 +239,10 @@ class OpenAIAgent(BaseAgent):
                 if value is None:
                     return value
                 try:
-                    if slot_type == "int":
-                        return int(value)
-                    elif slot_type == "float":
-                        return float(value)
-                    elif slot_type == "bool":
-                        if isinstance(value, bool):
-                            return value
-                        if isinstance(value, str):
-                            return value.lower() in ("true", "1", "yes")
-                        return bool(value)
-                    elif slot_type == "list":
-                        if isinstance(value, list):
-                            return value
-                        return [value]
-                    elif slot_type in ("str", "string"):
-                        return str(value)
-                    else:
-                        return value
+                    converter = TYPE_CONVERTERS.get(slot_type)
+                    if converter:
+                        return converter(value)
+                    return value
                 except Exception:
                     return value
 

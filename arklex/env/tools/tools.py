@@ -21,6 +21,14 @@ from arklex.utils.utils import format_chat_history
 
 log_context = LogContext(__name__)
 
+# Type conversion mapping for slot values
+TYPE_CONVERTERS = {
+    "int": int,
+    "float": float,
+    "bool": lambda v: v if isinstance(v, bool) else (v.lower() == "true" if isinstance(v, str) else bool(v)),
+    "str": lambda v: v if isinstance(v, dict | list) else str(v),
+}
+
 PYTHON_TO_JSON_SCHEMA = {
     "str": "string",
     "int": "integer",
@@ -286,19 +294,12 @@ class Tool:
                     return [v.strip() for v in value.split(",") if v.strip()]
                 return list(value)
 
-        # Mapping of type strings to conversion functions
-        type_converters = {
-            "int": int,
-            "float": float,
-            "bool": lambda v: v if isinstance(v, bool) else (v.lower() == "true" if isinstance(v, str) else bool(v)),
-            "str": lambda v: v if isinstance(v, dict | list) else str(v),
-        }
-        converter = type_converters.get(type_str)
+        converter = TYPE_CONVERTERS.get(type_str)
         if converter:
             try:
                 return converter(value)
             except Exception:
-                    return value
+                return value
         return value
 
     def _fill_slots_recursive(self, slots: list[Slot], chat_history_str: str) -> list[Slot]:
