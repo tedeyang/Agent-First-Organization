@@ -901,11 +901,11 @@ class Tool:
                 continue
             parameters['properties'][slot.name] = slot_to_schema(slot)
         return {
-            'type': 'function',
-            'function': {
-                'name': self.name,
-                'description': self.description,
-                'parameters': parameters,
+            "type": "function",
+            "function": {
+                "name": self.name,
+                "description": self.description,
+                "parameters": parameters,
             },
         }
 
