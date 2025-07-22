@@ -199,7 +199,6 @@ class OpenAIAgent(BaseAgent):
             log_context.info(
                 f"Configuring tool: {tool_object.func.__name__} with slots: {tool_object.slots}"
             )
-            tool_object.openai_slots = tool_object.slots.copy()
             tool_def = tool_object.to_openai_tool_def_v2()
             tool_def["function"]["name"] = tool_id
             self.tool_defs.append(tool_def)

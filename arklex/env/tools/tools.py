@@ -17,7 +17,7 @@ from arklex.orchestrator.NLU.core.slot import SlotFiller
 from arklex.orchestrator.NLU.entities.slot_entities import Slot
 from arklex.utils.exceptions import AuthenticationError, ToolExecutionError
 from arklex.utils.logging_utils import LogContext
-from arklex.utils.utils import format_chat_history
+from arklex.utils.utils import format_chat_history, PYTHON_TO_JSON_SCHEMA
 
 log_context = LogContext(__name__)
 
@@ -27,13 +27,6 @@ TYPE_CONVERTERS = {
     "float": float,
     "bool": lambda v: v if isinstance(v, bool) else (v.lower() == "true" if isinstance(v, str) else bool(v)),
     "str": lambda v: v if isinstance(v, dict | list) else str(v),
-}
-
-PYTHON_TO_JSON_SCHEMA = {
-    "str": "string",
-    "int": "integer",
-    "float": "number",
-    "bool": "boolean",
 }
 
 
@@ -143,7 +136,6 @@ class Tool:
         self.slotfiller: SlotFiller | None = None
         self.info: dict[str, Any] = self.get_info(slots)
         self.slots: list[Slot] = [Slot.model_validate(slot) for slot in slots]
-        self.openai_slots: list[dict[str, Any]] = self._format_slots(slots)
         self.isResponse: bool = isResponse
         self.properties: dict[str, dict[str, Any]] = {}
         self.llm_config: dict[str, Any] = {}
@@ -834,14 +826,14 @@ class Tool:
                     parameters["properties"][slot.name] = {
                         "type": "array",
                         "items": {
-                            "type": PYTHON_TO_JSON_SCHEMA[slot.type],
+                            "type":PYTHON_TO_JSON_SCHEMA[slot.type], 
                         },
                         "description": slot.description,
                     }
                 else:
                     # For non-repeatable regular slots, define as single value
                     parameters["properties"][slot.name] = {
-                        "type": PYTHON_TO_JSON_SCHEMA[slot.type],
+                        "type": PYTHON_TO_JSON_SCHEMA[slot.type], 
                         "description": slot.description,
                     }
         return {
@@ -852,54 +844,16 @@ class Tool:
         }
 
     def to_openai_tool_def_v2(self) -> dict:
-        def slot_to_schema(slot: dict[str, Any] | Slot) -> dict[str, Any]:
-            if getattr(slot, 'type', None) == 'group':
-                # Recursively build the schema for the group
-                properties = {}
-                required = []
-                for field in getattr(slot, 'schema', []) or []:
-                    # Skip fixed value slots
-                    if field.get('valueSource') == 'fixed':
-                        continue
-                    properties[field['name']] = slot_to_schema(field)
-                    if field.get('required'):
-                        required.append(field['name'])
-                item_schema = {
-                    'type': 'object',
-                    'properties': properties,
-                }
-                if required:
-                    item_schema['required'] = required
-                if getattr(slot, 'repeatable', False):
-                    return {
-                        'type': 'array',
-                        'items': item_schema,
-                        'description': getattr(slot, 'description', ''),
-                    }
-                else:
-                    return item_schema
-            else:
-                # Primitive type
-                if isinstance(slot, dict):
-                    slot_type = slot.get('type', 'str')
-                else:
-                    slot_type = getattr(slot, 'type', 'str')
-
-                return {
-                    'type': PYTHON_TO_JSON_SCHEMA[slot_type],
-                    'description': getattr(slot, 'description', ''),
-                }
-
+        # TODO: move this to slot_entities.py
         parameters = {
             'type': 'object',
             'properties': {},
-            'required': [slot.name for slot in self.openai_slots if getattr(slot, 'required', False)],
+            'required': [slot.name for slot in self.slots if getattr(slot, 'required', False)],
         }
-        for slot in self.openai_slots:
-            # Skip fixed value slots at the top level
+        for slot in self.slots:
             if getattr(slot, 'valueSource', None) == 'fixed':
                 continue
-            parameters['properties'][slot.name] = slot_to_schema(slot)
+            parameters['properties'][slot.name] = slot.to_openai_schema()
         return {
             "type": "function",
             "function": {
@@ -924,38 +878,6 @@ class Tool:
             str: A detailed string representation of the tool.
         """
         return f"{self.__class__.__name__}"
-
-    def _format_slots(self, slots: list) -> list[Slot]:
-        format_slots = []
-        for slot in slots:
-            if slot.get("type") == "group":
-                format_slots.append(
-                    Slot(
-                        name=slot["name"],
-                        type="group",
-                        value=[],
-                        description=slot.get("description", ""),
-                        prompt=slot.get("prompt", ""),
-                        required=slot.get("required", False),
-                        schema=slot.get("schema", []),
-                        repeatable=slot.get("repeatable", True),
-                    )
-                )
-            else:
-                # Handle regular slots (non-group)
-                format_slots.append(
-                    Slot(
-                        name=slot["name"],
-                        type=slot["type"],
-                        value=[] if slot.get("repeatable", False) else "",
-                        description=slot.get("description", ""),
-                        prompt=slot.get("prompt", ""),
-                        required=slot.get("required", False),
-                        items=slot.get("items", None),
-                        repeatable=slot.get("repeatable", False),
-                    )
-                )
-        return format_slots
 
     def _execute(self, state: MessageState, **fixed_args: FixedArgs) -> MessageState:
         """Execute the tool with the current state and fixed arguments.

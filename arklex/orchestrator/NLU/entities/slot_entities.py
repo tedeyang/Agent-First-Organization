@@ -11,8 +11,9 @@ Key Components:
 """
 
 from typing import Any
-
+from arklex.utils.utils import PYTHON_TO_JSON_SCHEMA
 from pydantic import BaseModel, Field
+
 
 
 class Slot(BaseModel):
@@ -51,6 +52,40 @@ class Slot(BaseModel):
     schema: list[dict] | None = None
     items: dict | None = None
     target: str | None = None
+
+    # TODO: to add slot open ai format here
+    def to_openai_schema(self) -> dict:
+        if self.type == "group":
+            properties = {}
+            required = []
+            for field in self.schema or []:
+                # If field is a dict, convert to Slot if needed
+                field_slot = field if isinstance(field, Slot) else Slot(**field)
+                if getattr(field_slot, "valueSource", None) == "fixed":
+                    continue
+                properties[field_slot.name] = field_slot.to_openai_schema()
+                if getattr(field_slot, "required", False):
+                    required.append(field_slot.name)
+            item_schema = {
+                "type": "object",
+                "properties": properties,
+            }
+            if required:
+                item_schema["required"] = required
+            if getattr(self, "repeatable", False):
+                return {
+                    "type": "array",
+                    "items": item_schema,
+                    "description": getattr(self, "description", ""),
+                }
+            else:
+                return item_schema
+        else:
+            # Primitive type
+            return {
+                "type": PYTHON_TO_JSON_SCHEMA[self.type],
+                "description": getattr(self, "description", ""),
+            }
 
 
 class SlotInput(BaseModel):

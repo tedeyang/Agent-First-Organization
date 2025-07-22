@@ -43,7 +43,7 @@ def mock_tools() -> dict:
 
     return {
         "mock_tool_id": {
-            "tool_instance": tool_object,  # <-- Add this line
+            "tool_instance": tool_object, 
             "execute": lambda: tool_object,
             "fixed_args": {"fixed_param": "value"},
         }
@@ -1237,7 +1237,7 @@ class TestEdgeCases:
 
             mock_tools = {
                 "complex_tool": {
-                    "tool_instance": mock_tool_object,  # <-- Add this line
+                    "tool_instance": mock_tool_object, 
                     "execute": lambda: mock_tool_object,
                     "fixed_args": {"fixed_param": "fixed_value"},
                 }
