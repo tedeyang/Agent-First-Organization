@@ -852,16 +852,16 @@ class Tool:
         }
 
     def to_openai_tool_def_v2(self) -> dict:
-        def slot_to_schema(slot):
+        def slot_to_schema(slot: dict[str, Any] | Slot) -> dict[str, Any]:
             if getattr(slot, 'type', None) == 'group':
+                # Recursively build the schema for the group
                 properties = {}
                 required = []
                 for field in getattr(slot, 'schema', []) or []:
+                    # Skip fixed value slots
                     if field.get('valueSource') == 'fixed':
                         continue
-                    field_schema = slot_to_schema(field)
-                    field_schema['description'] = field.get('description', '')
-                    properties[field['name']] = field_schema
+                    properties[field['name']] = slot_to_schema(field)
                     if field.get('required'):
                         required.append(field['name'])
                 item_schema = {
@@ -879,13 +879,15 @@ class Tool:
                 else:
                     return item_schema
             else:
+                # Primitive type
                 if isinstance(slot, dict):
                     slot_type = slot.get('type', 'str')
                 else:
                     slot_type = getattr(slot, 'type', 'str')
+                log_context.info(f"Hello this is the print statement: slot={slot}, type={slot_type}")
                 return {
                     'type': PYTHON_TO_JSON_SCHEMA[slot_type],
-                    'description': getattr(slot, 'description', '') if not isinstance(slot, dict) else slot.get('description', ''),
+                    'description': getattr(slot, 'description', ''),
                 }
 
         parameters = {

@@ -8,7 +8,7 @@ from langgraph.graph import START, StateGraph
 
 from arklex.env.agents.agent import BaseAgent, register_agent
 from arklex.env.prompts import load_prompts
-from arklex.env.tools.tools import register_tool, TYPE_CONVERTERS
+from arklex.env.tools.tools import TYPE_CONVERTERS, register_tool
 from arklex.env.tools.utils import trace
 from arklex.orchestrator.entities.msg_state_entities import MessageState, StatusEnum
 from arklex.utils.logging_utils import LogContext
@@ -234,8 +234,8 @@ class OpenAIAgent(BaseAgent):
         Returns:
             Tool execution result
         """
-        def build_slot_values(schema, tool_args):
-            def type_convert(value, slot_type):
+        def build_slot_values(schema: list[dict[str, Any]], tool_args: dict[str, Any]) -> list[dict[str, Any]]:
+            def type_convert(value: object, slot_type: str) -> object:
                 if value is None:
                     return value
                 try:
@@ -246,8 +246,8 @@ class OpenAIAgent(BaseAgent):
                 except Exception:
                     return value
 
-            def flatten_group_items(group_items):
-                result = []
+            def flatten_group_items(group_items: list[Any]) -> list[dict[str, Any]]:
+                result: list[dict[str, Any]] = []
                 for item in group_items:
                     if isinstance(item, list):
                         flat = {slot["name"]: slot["value"] for slot in item}
@@ -266,17 +266,13 @@ class OpenAIAgent(BaseAgent):
                 if slot_type == "group":
                     if slot.get("repeatable", False):
                         group_values = tool_args.get(name, [])
-                        if not group_values and value_source == "default":
-                            group_values = [slot.get("value", "")]
-                        elif not group_values and value_source == "fixed":
+                        if not group_values and value_source == "default" or not group_values and value_source == "fixed":
                             group_values = [slot.get("value", "")]
                         slot_value = [build_slot_values(slot["schema"], item) for item in group_values]
                         slot_value = flatten_group_items(slot_value)
                     else:
                         group_value = tool_args.get(name, {})
-                        if not group_value and value_source == "default":
-                            group_value = slot.get("value", "")
-                        elif not group_value and value_source == "fixed":
+                        if not group_value and value_source == "default" or not group_value and value_source == "fixed":
                             group_value = slot.get("value", "")
                         slot_value = build_slot_values(slot["schema"], group_value)
                 else:

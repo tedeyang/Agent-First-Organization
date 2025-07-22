@@ -75,7 +75,7 @@ class DefaultResourceInitializer(BaseResourceInitializer):
     """
 
     @staticmethod
-    def init_tools(tools: list[dict[str, Any]],  attributes_list: list[dict[str, Any]] = []) -> dict[str, dict[str, Any]]:
+    def init_tools(tools: list[dict[str, Any]],  attributes_list: list[dict[str, Any]] | None = None) -> dict[str, dict[str, Any]]:
         """Initialize tools from configuration.
 
         Args:
@@ -85,6 +85,8 @@ class DefaultResourceInitializer(BaseResourceInitializer):
             dictionary mapping tool IDs to their configurations
         """
         tool_registry: dict[str, dict[str, Any]] = {}
+        if attributes_list is None:
+            attributes_list = []
         for idx, tool in enumerate(tools):
             tool_id: str = tool["id"]
             name: str = tool["name"]
