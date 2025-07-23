@@ -2,6 +2,19 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+# Patch OpenAI API globally for all tests in this file
+import openai
+from unittest.mock import patch
+
+pytestmark = pytest.mark.usefixtures("patch_openai")
+
+@pytest.fixture(autouse=True)
+def patch_openai(monkeypatch):
+    # Patch openai.ChatCompletion.create to always return a mock response
+    with patch("openai.ChatCompletion.create") as mock_create:
+        mock_create.return_value = {"choices": [{"message": {"content": "mocked response"}}]}
+        yield
+
 from arklex.env.agents.openai_agent import OpenAIAgent, end_conversation
 from arklex.orchestrator.entities.msg_state_entities import MessageState, StatusEnum
 
