@@ -1057,7 +1057,6 @@ class TestEdgeCases:
 
             assert result.response == "Response"
 
-    @pytest.mark.no_llm_mock
     def test_end_conversation_with_exception_during_llm_invoke(
         self, mock_state: Mock
     ) -> None:
@@ -1080,7 +1079,6 @@ class TestEdgeCases:
             # Should return the fallback message when exception occurs
             assert "Thank you for" in str(result)
 
-    @pytest.mark.no_llm_mock
     def test_end_conversation_with_invalid_llm_response(self, mock_state: Mock) -> None:
         """Test end_conversation function when LLM returns invalid response."""
         from unittest.mock import patch
@@ -1100,7 +1098,6 @@ class TestEdgeCases:
             # Should return a fallback message
             assert "Thank you for" in str(result)
 
-    @pytest.mark.no_llm_mock
     def test_end_conversation_with_empty_llm_response(self, mock_state: Mock) -> None:
         """Test end_conversation function when LLM returns empty response."""
         from unittest.mock import patch
@@ -1120,7 +1117,6 @@ class TestEdgeCases:
             # Should return a fallback message
             assert "Thank you for" in str(result)
 
-    @pytest.mark.no_llm_mock
     def test_end_conversation_with_different_model_config(
         self, mock_state: Mock
     ) -> None:
@@ -1187,7 +1183,6 @@ class TestEdgeCases:
         assert hasattr(agent, "tool_args")
         assert hasattr(agent, "tool_slots")
 
-    @pytest.mark.no_llm_mock
     def test_end_conversation_tool_registration(self, mock_state: Mock) -> None:
         """Test that end_conversation is properly registered as a tool."""
         from unittest.mock import patch
@@ -1253,8 +1248,8 @@ class TestEdgeCases:
             }
 
             agent = OpenAIAgent(
-                successors=[mock_node],
-                predecessors=[],
+                successors=[],
+                predecessors=[mock_node],
                 tools=mock_tools,
                 state=mock_state,
             )

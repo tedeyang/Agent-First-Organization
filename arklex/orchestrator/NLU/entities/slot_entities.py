@@ -54,38 +54,42 @@ class Slot(BaseModel):
     items: dict | None = None
     target: str | None = None
 
-    def to_openai_schema(self) -> dict:
+    def to_openai_schema(self) -> dict | None:
+        if getattr(self, "valueSource", None) == "fixed":
+            return None
+        if self.items is not None:
+            return {
+                "type": "array",
+                "items": self.items,
+                "description": getattr(self, "description", ""),
+            }
         if self.type == "group":
             properties = {}
             required = []
             for field in self.schema or []:
-                # If field is a dict, convert to Slot if needed
                 field_slot = field if isinstance(field, Slot) else Slot(**field)
                 if getattr(field_slot, "valueSource", None) == "fixed":
                     continue
                 properties[field_slot.name] = field_slot.to_openai_schema()
                 if getattr(field_slot, "required", False):
                     required.append(field_slot.name)
-            item_schema = {
+            return {
                 "type": "object",
                 "properties": properties,
-            }
-            if required:
-                item_schema["required"] = required
-            if getattr(self, "repeatable", False):
-                return {
-                    "type": "array",
-                    "items": item_schema,
-                    "description": getattr(self, "description", ""),
-                }
-            else:
-                return item_schema
-        else:
-            # Primitive type
-            return {
-                "type": PYTHON_TO_JSON_SCHEMA[self.type],
+                "required": required,
                 "description": getattr(self, "description", ""),
             }
+        # Primitive type
+        type_map = {
+            "str": "string",
+            "int": "integer",
+            "float": "number",
+            "bool": "boolean",
+        }
+        return {
+            "type": type_map.get(self.type, "string"),
+            "description": getattr(self, "description", ""),
+        }
 
 
 class SlotInput(BaseModel):
