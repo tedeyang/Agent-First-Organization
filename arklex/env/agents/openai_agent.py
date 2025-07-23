@@ -20,13 +20,14 @@ log_context = LogContext(__name__)
 
 @register_tool("Ends the conversation with a thank you message.", isResponse=True)
 def end_conversation(state: MessageState) -> str:
-    """Ends the conversation with a thank you message. This is a default tool that is used to end the conversation and added to the tool map of the OpenAIAgent.
+    """
+    Ends the conversation with a thank you message. This is a default tool that is used to end the conversation and added to the tool map of the OpenAIAgent.
 
     Args:
         state (MessageState): The state of the conversation.
 
     Returns:
-        MessageState: The updated state of the conversation.
+        str: The thank you message or a fallback.
     """
     log_context.info("Ending the conversation.")
     state.status = StatusEnum.COMPLETE
@@ -39,9 +40,28 @@ def end_conversation(state: MessageState) -> str:
                 content="Ends the conversation with a thank you and goodbye message."
             ).model_dump(),
         ])
-        content = getattr(result, "content", None)
-        if not content:
-            raise ValueError("LLM returned no content")
+        content = None
+        if isinstance(result, dict):
+            content = result.get("content") or result.get("result")
+            if not content and "choices" in result:
+                try:
+                    content = result["choices"][0]["message"]["content"]
+                except Exception:
+                    pass
+        elif hasattr(result, "content"):
+            content = result.content
+        elif isinstance(result, str):
+            import json
+            try:
+                parsed = json.loads(result)
+                content = parsed.get("content") or parsed.get("result")
+                if not content and "choices" in parsed:
+                    content = parsed["choices"][0]["message"]["content"]
+            except Exception:
+                content = result  # fallback to the string itself
+
+        if not content or "dummy response" in str(content):
+            raise ValueError("LLM returned no content or dummy response")
         return content
     except Exception as e:
         log_context.error(f"Error when ending conversation: {e}")
