@@ -34,13 +34,15 @@ def end_conversation(state: MessageState) -> str:
 
     llm = model_class(model=state.bot_config.llm_config.model_type_or_path)
     try:
-        return llm.invoke(
-            [
-                SystemMessage(
-                    content="Ends the conversation with a thank you and goodbye message."
-                ).model_dump(),
-            ]
-        ).content
+        result = llm.invoke([
+            SystemMessage(
+                content="Ends the conversation with a thank you and goodbye message."
+            ).model_dump(),
+        ])
+        content = getattr(result, "content", None)
+        if not content:
+            raise ValueError("LLM returned no content")
+        return content
     except Exception as e:
         log_context.error(f"Error when ending conversation: {e}")
         return "I hope I was able to help you today. Goodbye!"
