@@ -14,8 +14,6 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from arklex.utils.utils import PYTHON_TO_JSON_SCHEMA
-
 
 class Slot(BaseModel):
     """Represents a slot in the conversation system.
