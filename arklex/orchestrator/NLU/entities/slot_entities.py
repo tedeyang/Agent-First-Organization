@@ -11,9 +11,10 @@ Key Components:
 """
 
 from typing import Any
-from arklex.utils.utils import PYTHON_TO_JSON_SCHEMA
+
 from pydantic import BaseModel, Field
 
+from arklex.utils.utils import PYTHON_TO_JSON_SCHEMA
 
 
 class Slot(BaseModel):

@@ -17,7 +17,7 @@ from arklex.orchestrator.NLU.core.slot import SlotFiller
 from arklex.orchestrator.NLU.entities.slot_entities import Slot
 from arklex.utils.exceptions import AuthenticationError, ToolExecutionError
 from arklex.utils.logging_utils import LogContext
-from arklex.utils.utils import format_chat_history, PYTHON_TO_JSON_SCHEMA
+from arklex.utils.utils import PYTHON_TO_JSON_SCHEMA, format_chat_history
 
 log_context = LogContext(__name__)
 
