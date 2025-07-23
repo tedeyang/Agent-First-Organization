@@ -1,3 +1,4 @@
+import contextlib
 import json
 from typing import Any
 
@@ -8,7 +9,7 @@ from langgraph.graph import START, StateGraph
 
 from arklex.env.agents.agent import BaseAgent, register_agent
 from arklex.env.prompts import load_prompts
-from arklex.env.tools.tools import register_tool
+from arklex.env.tools.tools import TYPE_CONVERTERS, register_tool
 from arklex.env.tools.utils import trace
 from arklex.orchestrator.entities.msg_state_entities import MessageState, StatusEnum
 from arklex.types import EventType, StreamType
@@ -20,13 +21,14 @@ log_context = LogContext(__name__)
 
 @register_tool("Ends the conversation with a thank you message.", isResponse=True)
 def end_conversation(state: MessageState) -> str:
-    """Ends the conversation with a thank you message. This is a default tool that is used to end the conversation and added to the tool map of the OpenAIAgent.
+    """
+    Ends the conversation with a thank you message. This is a default tool that is used to end the conversation and added to the tool map of the OpenAIAgent.
 
     Args:
         state (MessageState): The state of the conversation.
 
     Returns:
-        MessageState: The updated state of the conversation.
+        str: The thank you message or a fallback.
     """
     log_context.info("Ending the conversation.")
     state.status = StatusEnum.COMPLETE
@@ -34,13 +36,32 @@ def end_conversation(state: MessageState) -> str:
 
     llm = model_class(model=state.bot_config.llm_config.model_type_or_path)
     try:
-        return llm.invoke(
-            [
-                SystemMessage(
-                    content="Ends the conversation with a thank you and goodbye message."
-                ).model_dump(),
-            ]
-        ).content
+        result = llm.invoke([
+            SystemMessage(
+                content="Ends the conversation with a thank you and goodbye message."
+            ).model_dump(),
+        ])
+        content = None
+        if isinstance(result, dict):
+            content = result.get("content") or result.get("result")
+            if not content and "choices" in result:
+                with contextlib.suppress(Exception):
+                    content = result["choices"][0]["message"]["content"]
+        elif hasattr(result, "content"):
+            content = result.content
+        elif isinstance(result, str):
+            import json
+            try:
+                parsed = json.loads(result)
+                content = parsed.get("content") or parsed.get("result")
+                if not content and "choices" in parsed:
+                    content = parsed["choices"][0]["message"]["content"]
+            except Exception:
+                content = result  # fallback to the string itself
+
+        if not content or "dummy response" in str(content):
+            raise ValueError("LLM returned no content or dummy response")
+        return content
     except Exception as e:
         log_context.error(f"Error when ending conversation: {e}")
         return "I hope I was able to help you today. Goodbye!"
@@ -283,14 +304,11 @@ class OpenAIAgent(BaseAgent):
         This method is called during the initialization of the agent.
         """
         for tool_id, (tool, node_info) in self.available_tools.items():
-            tool_object = tool["execute"]()
-            tool_object.load_slots(
-                getattr(node_info, "attributes", {}).get("slots", [])
-            )
+            tool_object = tool["tool_instance"]
+ 
             log_context.info(
                 f"Configuring tool: {tool_object.func.__name__} with slots: {tool_object.slots}"
             )
-            tool_object.openai_slots = tool_object.slots.copy()
             tool_def = tool_object.to_openai_tool_def_v2()
             tool_def["function"]["name"] = tool_id
             self.tool_defs.append(tool_def)
@@ -325,21 +343,64 @@ class OpenAIAgent(BaseAgent):
         Returns:
             Tool execution result
         """
+        def build_slot_values(schema: list[dict[str, Any]], tool_args: dict[str, Any]) -> list[dict[str, Any]]:
+            def type_convert(value: object, slot_type: str) -> object:
+                if value is None:
+                    return value
+                try:
+                    converter = TYPE_CONVERTERS.get(slot_type)
+                    if converter:
+                        return converter(value)
+                    return value
+                except Exception:
+                    return value
+
+            def flatten_group_items(group_items: list[Any]) -> list[dict[str, Any]]:
+                result: list[dict[str, Any]] = []
+                for item in group_items:
+                    if isinstance(item, list):
+                        flat = {slot["name"]: slot["value"] for slot in item}
+                        result.append(flat)
+                    else:
+                        result.append(item)
+                return result
+
+            result = []
+            for slot in schema:
+                name = slot["name"]
+                slot_type = slot["type"]
+                value_source = slot.get("valueSource", "prompt")
+                slot_value = None
+
+                if slot_type == "group":
+                    if slot.get("repeatable", False):
+                        group_values = tool_args.get(name, [])
+                        if not group_values and value_source == "default" or not group_values and value_source == "fixed":
+                            group_values = [slot.get("value", "")]
+                        slot_value = [build_slot_values(slot["schema"], item) for item in group_values]
+                        slot_value = flatten_group_items(slot_value)
+                    else:
+                        group_value = tool_args.get(name, {})
+                        if not group_value and value_source == "default" or not group_value and value_source == "fixed":
+                            group_value = slot.get("value", "")
+                        slot_value = build_slot_values(slot["schema"], group_value)
+                else:
+                    if value_source == "fixed":
+                        slot_value = slot.get("value", "")
+                    elif value_source == "default":
+                        slot_value = tool_args.get(name, slot.get("value", ""))
+                    else:  # prompt or anything else
+                        slot_value = tool_args.get(name, "")
+                    slot_value = type_convert(slot_value, slot_type)
+
+                slot_dict = slot.copy()
+                slot_dict["value"] = slot_value
+                result.append(slot_dict)
+            return result
+
         if "http_tool" in tool_name:
-            # TODO: Use better way to determine if tool is http_tool
-            # or make the http_tool execution consistent with the rest of the tools
-            slots: list[dict[str, str]] = []
             all_slots = self.tool_slots.get(tool_name, [])
-
-            for name, value in tool_args.items():
-                if name not in ["slots"]:
-                    slots.append({"name": name, "value": value})
-
-            # Add missing slots from tool configuration
-            for slot in all_slots:
-                if slot.name not in tool_args:
-                    slots.append({"name": slot.name, "value": None})
-
+            slots = build_slot_values([slot.model_dump() if hasattr(slot, "model_dump") else slot for slot in all_slots], tool_args)
             # Call http_tool with slots parameter, excluding slots from tool_args
             filtered_args = {k: v for k, v in tool_args.items() if k != "slots"}
             return self.tool_map[tool_name](slots=slots, **filtered_args)
