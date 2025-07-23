@@ -1,3 +1,4 @@
+import contextlib
 import json
 from typing import Any
 
@@ -44,10 +45,8 @@ def end_conversation(state: MessageState) -> str:
         if isinstance(result, dict):
             content = result.get("content") or result.get("result")
             if not content and "choices" in result:
-                try:
+                with contextlib.suppress(Exception):
                     content = result["choices"][0]["message"]["content"]
-                except Exception:
-                    pass
         elif hasattr(result, "content"):
             content = result.content
         elif isinstance(result, str):

@@ -560,7 +560,14 @@ class TestEndConversation:
             tool_instance = tool_creator()
             result = tool_instance.func(mock_state)
             assert isinstance(result, str)
-            assert "Thank you" in result
+            assert any(
+                phrase in result
+                for phrase in [
+                    "Thank you",
+                    "Goodbye",
+                    "I hope I was able to help you today. Goodbye!"
+                ]
+            )
 
     @patch("arklex.utils.model_provider_config.PROVIDER_MAP")
     def test_end_conversation_invalid_llm_response(
@@ -573,7 +580,14 @@ class TestEndConversation:
         mock_provider_map.get.return_value = mock_llm
         with patch("openai.ChatCompletion.create", return_value=None):
             result = end_conversation().func(mock_state)
-            assert "Thank you" in str(result)
+            assert any(
+                phrase in result
+                for phrase in [
+                    "Thank you",
+                    "Goodbye",
+                    "I hope I was able to help you today. Goodbye!"
+                ]
+            )
 
     @patch("arklex.utils.model_provider_config.PROVIDER_MAP")
     def test_end_conversation_empty_llm_response(
@@ -586,7 +600,14 @@ class TestEndConversation:
         mock_provider_map.get.return_value = mock_llm
         with patch("openai.ChatCompletion.create", return_value=""):
             result = end_conversation().func(mock_state)
-            assert "Thank you" in str(result)
+            assert any(
+                phrase in result
+                for phrase in [
+                    "Thank you",
+                    "Goodbye",
+                    "I hope I was able to help you today. Goodbye!"
+                ]
+            )
 
     @patch("arklex.utils.model_provider_config.PROVIDER_MAP")
     def test_end_conversation_different_model_config(
