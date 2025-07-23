@@ -551,60 +551,58 @@ class TestEndConversation:
         self, mock_provider_map: Mock, mock_state: Mock
     ) -> None:
         """Test end_conversation function error case."""
+        from unittest.mock import patch
         mock_llm = Mock()
         mock_llm.invoke.side_effect = Exception("Test error")
         mock_provider_map.get.return_value = mock_llm
-
-        # Call the function that creates the tool, then call the tool
-        tool_creator = end_conversation
-        tool_instance = tool_creator()
-        result = tool_instance.func(mock_state)
-
-        assert isinstance(result, str)
-        assert "Thank you" in result
+        with patch("openai.ChatCompletion.create", side_effect=Exception("Test error")):
+            tool_creator = end_conversation
+            tool_instance = tool_creator()
+            result = tool_instance.func(mock_state)
+            assert isinstance(result, str)
+            assert "Thank you" in result
 
     @patch("arklex.utils.model_provider_config.PROVIDER_MAP")
     def test_end_conversation_invalid_llm_response(
         self, mock_provider_map: Mock, mock_state: Mock
     ) -> None:
         """Test end_conversation function when LLM returns invalid response."""
+        from unittest.mock import patch
         mock_llm = Mock()
         mock_llm.invoke.return_value = None
         mock_provider_map.get.return_value = mock_llm
-
-        result = end_conversation().func(mock_state)
-
-        assert "Thank you" in str(result)
+        with patch("openai.ChatCompletion.create", return_value=None):
+            result = end_conversation().func(mock_state)
+            assert "Thank you" in str(result)
 
     @patch("arklex.utils.model_provider_config.PROVIDER_MAP")
     def test_end_conversation_empty_llm_response(
         self, mock_provider_map: Mock, mock_state: Mock
     ) -> None:
         """Test end_conversation function when LLM returns empty response."""
+        from unittest.mock import patch
         mock_llm = Mock()
         mock_llm.invoke.return_value = ""
         mock_provider_map.get.return_value = mock_llm
-
-        result = end_conversation().func(mock_state)
-
-        assert "Thank you" in str(result)
+        with patch("openai.ChatCompletion.create", return_value=""):
+            result = end_conversation().func(mock_state)
+            assert "Thank you" in str(result)
 
     @patch("arklex.utils.model_provider_config.PROVIDER_MAP")
     def test_end_conversation_different_model_config(
         self, mock_provider_map: Mock, mock_state: Mock
     ) -> None:
         """Test end_conversation function with different model configuration."""
+        from unittest.mock import patch
         mock_llm = Mock()
         mock_response = Mock()
         mock_response.content = "Thank you for taking the time to interact with me today. I appreciate your input and questions. If you have any further inquiries, don't hesitate to reach out. Goodbye and take care!"
         mock_provider_map.get.return_value = mock_llm
-
-        # Change model config
         mock_state.bot_config.llm_config.model_type_or_path = "gpt-4"
-
-        result = end_conversation().func(mock_state)
-        assert "Thank you" in result
-        assert mock_state.status == StatusEnum.COMPLETE
+        with patch("openai.ChatCompletion.create", return_value={"choices": [{"message": {"content": mock_response.content}}]}):
+            result = end_conversation().func(mock_state)
+            assert "Thank you" in result
+            assert mock_state.status == StatusEnum.COMPLETE
 
     def test_agent_inheritance(self, mock_state: Mock) -> None:
         """Test that OpenAIAgent properly inherits from BaseAgent."""
