@@ -53,3 +53,9 @@ test_logs/*
 #####################################
 test_dir/simulate_data/*.json
 *.json.tmp
+.idea/.gitignore
+.idea/Agent-First-Organization.iml
+.idea/misc.xml
+.idea/modules.xml
+.idea/vcs.xml
+.idea/inspectionProfiles/profiles_settings.xml

@@ -50,13 +50,14 @@ class APITestConfiguration:
     """
 
     # Supported API key environment variables
-    SUPPORTED_API_KEYS = ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_API_KEY"]
+    SUPPORTED_API_KEYS = ["DEEPSEEK_API_KEY","OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_API_KEY"]
 
     # Mapping from environment variable names to provider identifiers
     ENV_TO_PROVIDER_MAP = {
         "OPENAI_API_KEY": "openai",
         "ANTHROPIC_API_KEY": "anthropic",
         "GOOGLE_API_KEY": "google",
+        "DEEPSEEK_API_KEY": "deepseek",
     }
 
     # Default models for each provider
@@ -64,14 +65,17 @@ class APITestConfiguration:
         "openai": "gpt-4o-mini",
         "anthropic": "claude-3-haiku-20240307",
         "google": "gemini-1.5-flash",
+        "deepseek": "deepseek-chat",
     }
 
     # All supported providers
-    ALL_PROVIDERS = ["openai", "anthropic", "google"]
+    #ALL_PROVIDERS = ["openai", "anthropic", "google","deepseek"]
+    ALL_PROVIDERS = ["deepseek"]
 
     # API endpoints for connectivity testing
     API_ENDPOINTS = [
         ("https://api.openai.com", "OpenAI API"),
+        ("https://api.deepseek.com", "Deepseek API"),
         ("https://api.anthropic.com", "Anthropic API"),
         ("https://generativelanguage.googleapis.com", "Google API"),
     ]
@@ -227,6 +231,8 @@ class APIKeyValidator:
                 return self._validate_anthropic_api_key(api_key)
             elif provider == "google":
                 return self._validate_google_api_key(api_key)
+            elif provider == "deepseek":
+                return self._validate_deepseek_api_key(api_key)
             else:
                 print(f"❌ Unknown provider: {provider}")
                 return False
@@ -276,6 +282,41 @@ class APIKeyValidator:
         )
 
         return self._process_api_response(response, "OpenAI")
+
+    def _validate_deepseek_api_key(self, api_key: str) -> bool:
+        """
+        Validate an deepseek API key by making a test completion request.
+        Prints request and response details for debugging.
+
+        Args:
+            api_key: The ds API key to validate.
+
+        Returns:
+            True if the API key is valid, False otherwise.
+        """
+        print("🌐 Making Deepseek API call...")
+        print("📡 Request URL: https://api.deepseek.com/")
+        print("📡 Request model: deepseek-chat")
+
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+        data = {
+            "model": "deepseek-chat",
+            "messages": [{"role": "user", "content": "Hello"}],
+            "max_tokens": 5,
+        }
+
+        print("📤 Sending request...")
+        response = requests.post(
+            "https://api.deepssek.com/",
+            headers=headers,
+            json=data,
+            timeout=self.timeout,
+        )
+
+        return self._process_api_response(response, "Deepseek")
 
     def _validate_anthropic_api_key(self, api_key: str) -> bool:
         """

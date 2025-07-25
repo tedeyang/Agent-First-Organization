@@ -49,6 +49,7 @@ def get_api_key_for_provider(provider: str) -> str:
         "anthropic": "ANTHROPIC_API_KEY",
         "google": "GOOGLE_API_KEY",  # Google API key is used for Google models
         "huggingface": "HUGGINGFACE_API_KEY",
+        "deepseek": "DEEPSEEK_API_KEY",
     }
 
     env_key = provider_api_keys.get(provider, "OPENAI_API_KEY")
@@ -80,6 +81,7 @@ def get_endpoint_for_provider(provider: str) -> str:
         "anthropic": "https://api.anthropic.com",
         "google": "https://generativelanguage.googleapis.com",
         "huggingface": "https://api-inference.huggingface.co",
+        "deepseek": "https://api.deepseek.com",
     }
 
     return provider_endpoints.get(provider, "https://api.openai.com/v1")
@@ -101,6 +103,7 @@ def validate_api_key_presence(provider: str, api_key: str) -> None:
             "anthropic": "ANTHROPIC_API_KEY",
             "google": "GOOGLE_API_KEY",
             "huggingface": "HUGGINGFACE_API_KEY",
+            "deepseek": "DEEPSEEK_API_KEY",
         }
         env_key = provider_api_keys.get(provider, "OPENAI_API_KEY")
         raise ValueError(

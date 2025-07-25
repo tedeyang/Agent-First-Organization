@@ -64,7 +64,6 @@ def get_huggingface_llm(model: str, **kwargs: object) -> ChatHuggingFace:
     )
     return ChatHuggingFace(llm=llm)
 
-
 class DummyLLM:
     def __init__(self, *args: object, **kwargs: object) -> None:
         # Set model_name from kwargs if provided
@@ -85,6 +84,7 @@ LLM_PROVIDERS: list[str] = [
     "google",  # Google's models
     "anthropic",  # Anthropic's Claude models
     "huggingface",  # HuggingFace's open-source models
+    "deepseek", # deepseek added by tedeyang
 ]
 
 # Mapping of provider names to their LLM classes
@@ -94,6 +94,7 @@ PROVIDER_MAP: dict[str, type] = {
     "openai": ChatOpenAI,  # OpenAI's GPT models
     "huggingface": get_huggingface_llm,  # HuggingFace's models
     "dummy": DummyLLM,  # Dummy provider for tests
+    "deepseek": ChatOpenAI, # deepseek sdk,but use openai's client sdk added by tedeyang
 }
 
 # Mapping of provider names to their embedding classes
@@ -102,6 +103,7 @@ PROVIDER_EMBEDDINGS: dict[str, type] = {
     "google": GoogleGenerativeAIEmbeddings,  # Google's embeddings
     "openai": OpenAIEmbeddings,  # OpenAI's embeddings
     "huggingface": HuggingFaceEmbeddings,  # HuggingFace's embeddings
+    "deepseek": OpenAIEmbeddings, # deepseek embedding ,but use openai's sdk added by tedeyang
 }
 
 # Mapping of provider names to their default embedding model identifiers
@@ -110,4 +112,5 @@ PROVIDER_EMBEDDING_MODELS: dict[str, str] = {
     "google": "models/embedding-001",  # Google embeddings
     "openai": "text-embedding-ada-002",  # OpenAI's Ada embeddings
     "huggingface": "sentence-transformers/all-mpnet-base-v2",  # MPNet embeddings
+    "deepseek": "text-embedding-ada-002", # deepseek embedding model name , added by tedeyang
 }
