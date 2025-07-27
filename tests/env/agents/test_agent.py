@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from arklex.env.agents.agent import BaseAgent, register_agent
-from arklex.orchestrator.entities.orch_entities import MessageState, StatusEnum
+from arklex.orchestrator.entities.msg_state_entities import MessageState, StatusEnum
 
 
 class TestRegisterAgent:
@@ -488,6 +488,56 @@ class TestBaseAgent:
             mock_error.assert_called_once()
             # Verify the call includes traceback.format_exc()
             assert "Test exception" in mock_error.call_args[0][0]
+
+    def test_execute_with_exception_logs_traceback(
+        self, mock_state: MessageState
+    ) -> None:
+        """Test execute method logs traceback when _execute raises an exception."""
+        from unittest.mock import patch
+
+        # Create an agent that raises an exception in _execute
+        class ExceptionAgent(BaseAgent):
+            def _execute(
+                self,
+                msg_state: MessageState,
+                **kwargs: Any,  # noqa: ANN401
+            ) -> dict[str, Any]:  # noqa: ANN401
+                raise RuntimeError("Test runtime exception")
+
+        agent = ExceptionAgent()
+
+        # Patch both log_context.error and traceback.format_exc to verify they're called
+        with (
+            patch("arklex.env.agents.agent.log_context.error") as mock_error,
+            patch("arklex.env.agents.agent.traceback.format_exc") as mock_format_exc,
+        ):
+            mock_format_exc.return_value = "Test traceback"
+            agent.execute(mock_state)
+
+            # Verify traceback.format_exc was called
+            mock_format_exc.assert_called_once()
+            # Verify error was logged with the traceback
+            mock_error.assert_called_once_with("Test traceback")
+
+    def test_execute_with_exception_returns_original_state_different_exception(
+        self, mock_state: MessageState
+    ) -> None:
+        """Test execute method returns original state for different exception types."""
+
+        # Create an agent that raises a different exception in _execute
+        class DifferentExceptionAgent(BaseAgent):
+            def _execute(
+                self,
+                msg_state: MessageState,
+                **kwargs: Any,  # noqa: ANN401
+            ) -> dict[str, Any]:  # noqa: ANN401
+                raise TypeError("Test type error")
+
+        agent = DifferentExceptionAgent()
+        result = agent.execute(mock_state)
+
+        # Should return the original message state when exception occurs
+        assert result == mock_state
 
     def test_abstract_execute_method(self) -> None:
         """Test that BaseAgent cannot be instantiated due to abstract method."""

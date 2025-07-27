@@ -5,7 +5,8 @@ from langchain_core.output_parsers import StrOutputParser
 
 from arklex.env.prompts import load_prompts
 from arklex.memory.entities.memory_entities import ResourceRecord
-from arklex.orchestrator.entities.orch_entities import MessageState, Params
+from arklex.orchestrator.entities.msg_state_entities import MessageState
+from arklex.orchestrator.entities.orchestrator_params_entities import OrchestratorParams
 from arklex.utils.logging_utils import LogContext
 from arklex.utils.provider_utils import validate_and_get_model_class
 
@@ -28,7 +29,7 @@ TRIGGER_LIVE_CHAT_PROMPT = "Sorry, I'm not certain about the answer, would you l
 
 def post_process_response(
     message_state: MessageState,
-    params: Params,
+    params: OrchestratorParams,
     hitl_worker_available: bool,
     hitl_proposal_enabled: bool,
 ) -> MessageState:
@@ -43,7 +44,7 @@ def post_process_response(
 
     Args:
         message_state (MessageState): Current state of the conversation including response, context, and metadata.
-        params (Params): Additional configuration and NLU metadata.
+        params (OrchestratorParams): Additional configuration and NLU metadata.
         hitl_worker_available (bool): Flag indicating whether HITL worker is available
         hitl_proposal_enabled (bool): Flag indicating whether proactive HITL (human-in-the-loop) routing is allowed.
 
@@ -157,7 +158,9 @@ def _rephrase_answer(state: MessageState) -> str:
     return answer
 
 
-def _live_chat_verifier(message_state: MessageState, params: Params) -> None:
+def _live_chat_verifier(
+    message_state: MessageState, params: OrchestratorParams
+) -> None:
     """
     Determines if a live chat takeover is needed.
     Triggers handover if bot doesn't know the answer AND is NOT asking a clarifying question,
@@ -232,7 +235,7 @@ def _extract_confidence_from_nested_dict(step: dict | list | str) -> tuple[float
     return confidence, num_of_docs
 
 
-def _is_question_relevant(params: Params) -> bool:
+def _is_question_relevant(params: OrchestratorParams) -> bool:
     """Returns True if a question is relevant (no_intent is False), False otherwise.
     To be improved in the future to be more robust
     """

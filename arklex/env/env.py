@@ -15,7 +15,8 @@ from arklex.env.agents.agent import BaseAgent
 from arklex.env.planner.react_planner import DefaultPlanner, ReactPlanner
 from arklex.env.tools.tools import Tool
 from arklex.env.workers.worker import BaseWorker
-from arklex.orchestrator.entities.orch_entities import MessageState, Params
+from arklex.orchestrator.entities.msg_state_entities import MessageState
+from arklex.orchestrator.entities.orchestrator_params_entities import OrchestratorParams
 from arklex.orchestrator.entities.taskgraph_entities import NodeInfo
 from arklex.orchestrator.NLU.core.slot import SlotFiller
 from arklex.orchestrator.NLU.services.api_service import APIClientService
@@ -74,7 +75,7 @@ class DefaultResourceInitializer(BaseResourceInitializer):
     """
 
     @staticmethod
-    def init_tools(tools: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    def init_tools(tools: list[dict[str, Any]],  attributes_list: list[dict[str, Any]] | None = None) -> dict[str, dict[str, Any]]:
         """Initialize tools from configuration.
 
         Args:
@@ -84,7 +85,9 @@ class DefaultResourceInitializer(BaseResourceInitializer):
             dictionary mapping tool IDs to their configurations
         """
         tool_registry: dict[str, dict[str, Any]] = {}
-        for tool in tools:
+        if attributes_list is None:
+            attributes_list = []
+        for idx, tool in enumerate(tools):
             tool_id: str = tool["id"]
             name: str = tool["name"]
             path: str = tool["path"]
@@ -94,9 +97,37 @@ class DefaultResourceInitializer(BaseResourceInitializer):
                 module = importlib.import_module(module_name)
                 func: Callable = getattr(module, name)
                 tool_instance: Tool = func()
+                if "http_tool" in tool_id  and len(attributes_list) > 0:
+                    attributes = attributes_list[idx]
+                    # --- Begin slot group merge logic ---
+                    slots = attributes.get("slots", [])
+                    slot_groups = attributes.get("slot_groups", [])
+                    group_slots = []
+                    for group in slot_groups:
+                        # Generate prompt/description for the group
+                        required_fields = [s["name"] for s in group.get("schema", []) if s.get("required", False)]
+                        prompt = (
+                            f"Please provide at least one set of the following fields: {', '.join(required_fields)}."
+                            if required_fields else f"Please provide a set of values for group '{group['name']}'."
+                        )
+                        description = f"Slot group '{group['name']}' with schema: {[s['name'] for s in group.get('schema', [])]}"
+                        group_slots.append({
+                            "name": group["name"],
+                            "type": "group",
+                            "schema": group.get("schema", []),
+                            "required": group.get("required", False),
+                            "repeatable": group.get("repeatable", True),
+                            "prompt": prompt,
+                            "description": description,
+                        })
+                    all_slots = slots + group_slots
+                    tool_instance.load_slots(all_slots)
+                    tool_instance.fixed_args = attributes.get("node_specific_data", {}).get("http", {})
+
                 tool_registry[tool_id] = {
                     "name": f"{path.replace('/', '-')}-{name}",
                     "description": tool_instance.description,
+                    "tool_instance": tool_instance,
                     "execute": func,
                     "fixed_args": tool.get("fixed_args", {}),
                 }
@@ -260,7 +291,8 @@ class Environment:
             else:
                 resource_initializer = DefaultResourceInitializer()
 
-        self.tools: dict[str, dict[str, Any]] = resource_initializer.init_tools(tools)
+        attributes_list = kwargs.get("attributes", [])
+        self.tools: dict[str, dict[str, Any]] = resource_initializer.init_tools(tools, attributes_list=attributes_list)
         self.workers: dict[str, dict[str, Any]] = resource_initializer.init_workers(
             workers
         )
@@ -311,8 +343,12 @@ class Environment:
             return SlotFiller(model_service=self.model_service)
 
     def step(
-        self, id: str, message_state: MessageState, params: Params, node_info: NodeInfo
-    ) -> tuple[MessageState, Params]:
+        self,
+        id: str,
+        message_state: MessageState,
+        params: OrchestratorParams,
+        node_info: NodeInfo,
+    ) -> tuple[MessageState, OrchestratorParams]:
         """Execute a step in the environment.
 
         Args:
@@ -327,9 +363,8 @@ class Environment:
         response_state: MessageState
         if id in self.tools:
             log_context.info(f"{self.tools[id]['name']} tool selected")
-            tool: Tool = self.tools[id]["execute"]()
+            tool: Tool = self.tools[id]["tool_instance"]
             tool.init_slotfiller(self.slotfillapi)
-            tool.load_slots(getattr(node_info, "attributes", {}).get("slots", []))
             combined_args: dict[str, Any] = {
                 **self.tools[id]["fixed_args"],
                 **(node_info.additional_args or {}),
@@ -348,7 +383,9 @@ class Environment:
             worker: BaseWorker = self.workers[id]["execute"]()
             if hasattr(worker, "init_slotfilling"):
                 worker.init_slotfilling(self.slotfillapi)
-            response_state = worker.execute(message_state, **node_info.additional_args)
+            response_state = worker.execute(
+                message_state, **(node_info.additional_args or {})
+            )
             call_id: str = str(uuid.uuid4())
             params.memory.function_calling_trajectory.append(
                 {
@@ -391,11 +428,15 @@ class Environment:
             params.memory.function_calling_trajectory = (
                 response_state.function_calling_trajectory
             )
+            params.taskgraph.dialog_states = response_state.slots
             params.taskgraph.node_status[params.taskgraph.curr_node] = (
                 response_state.status
             )
         else:
-            log_context.info("planner selected")
+            # Resource not found in any registry, use planner as fallback
+            log_context.info(
+                f"Resource {id} not found in registries, using planner as fallback"
+            )
             action: str
             response_state: MessageState
             msg_history: list[dict[str, Any]]
