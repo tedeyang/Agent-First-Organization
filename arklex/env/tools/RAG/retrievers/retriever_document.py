@@ -39,14 +39,14 @@ def _generate_cache_key(text: str, model: str = "text-embedding-ada-002") -> str
 def embed(text: str, cache: bool = False) -> list[float]:
     """Generate embeddings for text with Redis caching."""
 
-    cache_key = _generate_cache_key(text)
-
     # Try to get from cache first
     try:
-        cached_embedding = redis_pool.get(cache_key, decode_json=True)
-        if cached_embedding:
-            log_context.info(f"Cache hit for text of length {len(text)}")
-            return cached_embedding
+        if cache:
+            cache_key = _generate_cache_key(text)
+            cached_embedding = redis_pool.get(cache_key, decode_json=True)
+            if cached_embedding:
+                log_context.info(f"Cache hit for text of length {len(text)}")
+                return cached_embedding
     except Exception as e:
         log_context.warning(f"Redis cache read error: {e}")
 
@@ -58,6 +58,7 @@ def embed(text: str, cache: bool = False) -> list[float]:
 
         if cache:
             # Cache the embedding
+            cache_key = _generate_cache_key(text)
             try:
                 redis_pool.set(cache_key, embedding, ttl=EMBEDDING_CACHE_TTL)
                 log_context.info(f"Cached embedding for text of length {len(text)}")
