@@ -36,11 +36,13 @@ def end_conversation(state: MessageState) -> str:
 
     llm = model_class(model=state.bot_config.llm_config.model_type_or_path)
     try:
-        result = llm.invoke([
-            SystemMessage(
-                content="Ends the conversation with a thank you and goodbye message."
-            ).model_dump(),
-        ])
+        result = llm.invoke(
+            [
+                SystemMessage(
+                    content="Ends the conversation with a thank you and goodbye message."
+                ).model_dump(),
+            ]
+        )
         content = None
         if isinstance(result, dict):
             content = result.get("content") or result.get("result")
@@ -51,6 +53,7 @@ def end_conversation(state: MessageState) -> str:
             content = result.content
         elif isinstance(result, str):
             import json
+
             try:
                 parsed = json.loads(result)
                 content = parsed.get("content") or parsed.get("result")
@@ -290,11 +293,7 @@ class OpenAIAgent(BaseAgent):
         """
         for node in predecessors:
             if node.type == "tool":
-                tool_id = (
-                    f"{node.resource_id}_{node.attributes['task']}"
-                    if node.attributes.get("task")
-                    else node.resource_id
-                )
+                tool_id = f"{node.resource_id}"
                 tool_id = tool_id.replace(" ", "_").replace("/", "_")
                 self.available_tools[tool_id] = (tools[node.resource_id], node)
 
@@ -305,7 +304,7 @@ class OpenAIAgent(BaseAgent):
         """
         for tool_id, (tool, node_info) in self.available_tools.items():
             tool_object = tool["tool_instance"]
- 
+
             log_context.info(
                 f"Configuring tool: {tool_object.func.__name__} with slots: {tool_object.slots}"
             )
@@ -343,7 +342,10 @@ class OpenAIAgent(BaseAgent):
         Returns:
             Tool execution result
         """
-        def build_slot_values(schema: list[dict[str, Any]], tool_args: dict[str, Any]) -> list[dict[str, Any]]:
+
+        def build_slot_values(
+            schema: list[dict[str, Any]], tool_args: dict[str, Any]
+        ) -> list[dict[str, Any]]:
             def type_convert(value: object, slot_type: str) -> object:
                 if value is None:
                     return value
@@ -375,13 +377,26 @@ class OpenAIAgent(BaseAgent):
                 if slot_type == "group":
                     if slot.get("repeatable", False):
                         group_values = tool_args.get(name, [])
-                        if not group_values and value_source == "default" or not group_values and value_source == "fixed":
+                        if (
+                            not group_values
+                            and value_source == "default"
+                            or not group_values
+                            and value_source == "fixed"
+                        ):
                             group_values = [slot.get("value", "")]
-                        slot_value = [build_slot_values(slot["schema"], item) for item in group_values]
+                        slot_value = [
+                            build_slot_values(slot["schema"], item)
+                            for item in group_values
+                        ]
                         slot_value = flatten_group_items(slot_value)
                     else:
                         group_value = tool_args.get(name, {})
-                        if not group_value and value_source == "default" or not group_value and value_source == "fixed":
+                        if (
+                            not group_value
+                            and value_source == "default"
+                            or not group_value
+                            and value_source == "fixed"
+                        ):
                             group_value = slot.get("value", "")
                         slot_value = build_slot_values(slot["schema"], group_value)
                 else:
@@ -400,7 +415,13 @@ class OpenAIAgent(BaseAgent):
 
         if "http_tool" in tool_name:
             all_slots = self.tool_slots.get(tool_name, [])
-            slots = build_slot_values([slot.model_dump() if hasattr(slot, "model_dump") else slot for slot in all_slots], tool_args)
+            slots = build_slot_values(
+                [
+                    slot.model_dump() if hasattr(slot, "model_dump") else slot
+                    for slot in all_slots
+                ],
+                tool_args,
+            )
             # Call http_tool with slots parameter, excluding slots from tool_args
             filtered_args = {k: v for k, v in tool_args.items() if k != "slots"}
             return self.tool_map[tool_name](slots=slots, **filtered_args)
