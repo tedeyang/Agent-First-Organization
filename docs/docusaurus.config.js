@@ -78,9 +78,28 @@ const config = {
   ],
   themeConfig: {
     colorMode: {
-      disableSwitch: true, // Disables the theme toggle button
+      disableSwitch: true,
+    },
+    navbar: {
+      title: 'Arklex AI Agent Framework',
+      logo: {
+        alt: 'Arklex Logo',
+        src: 'img/articulateai.png',
+      },
+      items: [
+        {
+          type: 'search',
+          position: 'right',  
+        },
+        {
+          href: 'https://github.com/arklexai/Agent-First-Organization',
+          label: 'GitHub',
+          position: 'right',
+        },
+      ],
     },
   },
+  
 
   scripts: [
     {
@@ -88,6 +107,25 @@ const config = {
       async: false,
     },
   ],
+ 
+  plugins: [
+    [
+      require.resolve('@cmfcmf/docusaurus-search-local'),
+      {
+        indexDocs: true,
+        indexPages: false,
+        language: ['en'],
+        lunr: {
+          titleBoost: 10,
+          contentBoost: 0.5,
+          tagsBoost: 2,
+
+        }
+        
+      },
+    ],
+  ]
+  
 };
 
 export default config;
