@@ -59,16 +59,20 @@ python eval.py --model_api http://127.0.0.1:8000/eval/chat \
   --task "all"
 ```
 
+---
+## 📺 Learn by Example
 
-<h3><b>▶️ Watch: Build a Customer Service Agent in 20 Minutes</b></h3>
+### ▶️ Build a Customer Service Agent in 20 Minutes
 
 <p align="center">
   <a href="https://youtu.be/y1P2Ethvy0I">
-    <img src="https://img.youtube.com/vi/y1P2Ethvy0I/0.jpg" alt="Watch on YouTube" width="400">
+    <img src="https://img.youtube.com/vi/y1P2Ethvy0I/0.jpg" alt="Watch on YouTube" width="600">
   </a>
 </p>
 
->👉 **Explore the full tutorial:** [Customer Service Agent Walkthrough](https://arklexai.github.io/Agent-First-Organization/docs/tutorials/customer-service)
+👉 **Explore the full tutorial:** [Customer Service Agent Walkthrough](https://arklexai.github.io/Agent-First-Organization/docs/tutorials/customer-service)
+
+
 ---
 
 ## ⚡ Key Features
