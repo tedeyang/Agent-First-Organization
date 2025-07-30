@@ -1,4 +1,3 @@
-import contextlib
 import json
 from typing import Any
 
@@ -9,7 +8,7 @@ from langgraph.graph import START, StateGraph
 
 from arklex.env.agents.agent import BaseAgent, register_agent
 from arklex.env.prompts import load_prompts
-from arklex.env.tools.tools import TYPE_CONVERTERS, register_tool
+from arklex.env.tools.tools import TYPE_CONVERTERS
 from arklex.env.tools.utils import trace
 from arklex.orchestrator.entities.msg_state_entities import MessageState, StatusEnum
 from arklex.types import EventType, StreamType
@@ -17,57 +16,6 @@ from arklex.utils.logging_utils import LogContext
 from arklex.utils.provider_utils import validate_and_get_model_class
 
 log_context = LogContext(__name__)
-
-
-@register_tool("Ends the conversation with a thank you message.", isResponse=True)
-def end_conversation(state: MessageState) -> str:
-    """
-    Ends the conversation with a thank you message. This is a default tool that is used to end the conversation and added to the tool map of the OpenAIAgent.
-
-    Args:
-        state (MessageState): The state of the conversation.
-
-    Returns:
-        str: The thank you message or a fallback.
-    """
-    log_context.info("Ending the conversation.")
-    state.status = StatusEnum.COMPLETE
-    model_class = validate_and_get_model_class(state.bot_config.llm_config)
-
-    llm = model_class(model=state.bot_config.llm_config.model_type_or_path)
-    try:
-        result = llm.invoke(
-            [
-                SystemMessage(
-                    content="Ends the conversation with a thank you and goodbye message."
-                ).model_dump(),
-            ]
-        )
-        content = None
-        if isinstance(result, dict):
-            content = result.get("content") or result.get("result")
-            if not content and "choices" in result:
-                with contextlib.suppress(Exception):
-                    content = result["choices"][0]["message"]["content"]
-        elif hasattr(result, "content"):
-            content = result.content
-        elif isinstance(result, str):
-            import json
-
-            try:
-                parsed = json.loads(result)
-                content = parsed.get("content") or parsed.get("result")
-                if not content and "choices" in parsed:
-                    content = parsed["choices"][0]["message"]["content"]
-            except Exception:
-                content = result  # fallback to the string itself
-
-        if not content or "dummy response" in str(content):
-            raise ValueError("LLM returned no content or dummy response")
-        return content
-    except Exception as e:
-        log_context.error(f"Error when ending conversation: {e}")
-        return "I hope I was able to help you today. Goodbye!"
 
 
 @register_agent
@@ -319,12 +267,6 @@ class OpenAIAgent(BaseAgent):
             }
             self.tool_args[tool_id] = combined_args
         log_context.info(f"Tool Definitions: {self.tool_defs}")
-
-        end_conversation_tool = end_conversation()
-        end_conversation_tool_def = end_conversation_tool.to_openai_tool_def_v2()
-        end_conversation_tool_def["function"]["name"] = "end_conversation"
-        self.tool_defs.append(end_conversation_tool_def)
-        self.tool_map["end_conversation"] = end_conversation_tool.func
 
     def _execute_tool(
         self, tool_name: str, state: MessageState, tool_args: dict[str, Any]
