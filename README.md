@@ -65,8 +65,8 @@ python eval.py --model_api http://127.0.0.1:8000/eval/chat \
 ### ▶️ Build a Customer Service Agent in 20 Minutes
 
 <p align="center">
-  <a href="https://youtu.be/y1P2Ethvy0I">
-    <img src="https://img.youtube.com/vi/y1P2Ethvy0I/0.jpg" alt="Watch on YouTube" width="600">
+  <a href="https://youtu.be/y1P2Ethvy0I" target="_blank">
+    <img src="https://markdown-videos-api.jorgenkh.no/url?url=https%3A%2F%2Fyoutu.be%2Fy1P2Ethvy0I" alt="Watch the video" width="600px" />
   </a>
 </p>
 
