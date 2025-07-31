@@ -55,6 +55,12 @@ Arklex sets itself apart from frameworks like LangChain, CrewAI, and AutoGen by 
 
 ---
 ## **Installation**
+### Clone repo
+```bash
+git clone https://github.com/arklexai/Agent-First-Organization.git
+cd Agent-First-Organization
+```
+### Install Arklex
 
 ```bash
 pip install arklex
